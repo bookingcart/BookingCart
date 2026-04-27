@@ -523,10 +523,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ ok: false, error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`BookingCart server running on http://localhost:${PORT}`);
-  console.log(`Duffel API Key configured: ${!!process.env.DUFFEL_API_KEY}`);
-  if (stripeConfigError) {
-    console.error(stripeConfigError);
-  }
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`BookingCart server running on http://localhost:${PORT}`);
+    console.log(`Duffel API Key configured: ${!!process.env.DUFFEL_API_KEY}`);
+    if (stripeConfigError) {
+      console.error(stripeConfigError);
+    }
+  });
+}
+
+module.exports = app;
+
