@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useEffect as ue } from 'react';
 
 /* ── data ── */
 const TABS = [
@@ -87,14 +86,20 @@ function detectIntent(msg) {
 }
 
 /* ── Chat Widget ── */
+const SUPPORT_KEY = 'bc_support_messages';
+function loadThreads() { try { return JSON.parse(localStorage.getItem(SUPPORT_KEY) || '[]'); } catch { return []; } }
+function saveThreads(t) { localStorage.setItem(SUPPORT_KEY, JSON.stringify(t)); }
+
 function ChatWidget({ open, onClose, initialMessage }) {
   const [messages, setMessages] = useState([
-    { from: 'bot', text: "Hi! I'm your BookingCart support assistant. How can I help you today?" },
+    { from: 'bot', text: "Hi! I'm your BookingCart support assistant. How can I help you today?", ts: Date.now() },
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef(null);
   const sentRef = useRef(false);
+  const threadIdRef = useRef(`thread_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const userEmail = useRef(window.bookingcartUser?.email || 'Guest');
 
   useEffect(() => {
     if (open && initialMessage && !sentRef.current) {
@@ -106,6 +111,30 @@ function ChatWidget({ open, onClose, initialMessage }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
+
+  function persistMessage(msg, reply) {
+    const threads = loadThreads();
+    const existing = threads.find(t => t.id === threadIdRef.current);
+    const userMsg = { from: 'user', text: msg, ts: Date.now() };
+    const botMsg = reply ? { from: 'bot', text: reply, ts: Date.now() + 1200 } : null;
+    if (existing) {
+      existing.messages.push(userMsg);
+      if (botMsg) existing.messages.push(botMsg);
+      existing.updatedAt = Date.now();
+    } else {
+      threads.unshift({
+        id: threadIdRef.current,
+        email: userEmail.current,
+        topic: msg.slice(0, 60),
+        status: 'open',
+        adminRead: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        messages: [userMsg, ...(botMsg ? [botMsg] : [])],
+      });
+    }
+    saveThreads(threads);
+  }
 
   function sendMessage(text) {
     const msg = text || input.trim();
@@ -120,6 +149,7 @@ function ChatWidget({ open, onClose, initialMessage }) {
         : "Thanks for reaching out! Our team will respond shortly. In the meantime, check our FAQ below for quick answers.";
       setMessages(prev => [...prev, { from: 'bot', text: reply }]);
       setTyping(false);
+      persistMessage(msg, reply);
     }, 1200);
   }
 
