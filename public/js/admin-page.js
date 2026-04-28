@@ -65,7 +65,8 @@
         }
 
         // â”€â”€ Refresh â”€â”€
-        document.getElementById('refresh-btn').addEventListener('click', loadBookings);
+        const refreshBtn = document.getElementById('refresh-btn');
+        if (refreshBtn) refreshBtn.addEventListener('click', loadBookings);
 
         async function loadBookings() {
             try {
