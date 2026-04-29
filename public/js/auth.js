@@ -239,15 +239,43 @@
   }
 
   let googleInitDone = false;
+  let googleClientIdCached = '';
+
+  /**
+   * Render the Google Sign-In button into .g_id_signin elements.
+   * Safe to call multiple times (e.g. after SPA navigation re-mounts the div).
+   */
+  function renderGoogleSignInButton() {
+    if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+    var parent = document.querySelector('.g_id_signin');
+    if (!parent) return;
+    // Clear any stale content so the button re-renders cleanly
+    parent.innerHTML = '';
+    try {
+      window.google.accounts.id.renderButton(parent, {
+        type: 'standard',
+        shape: 'pill',
+        theme: 'outline',
+        text: 'signin_with',
+        size: 'large',
+        logo_alignment: 'left'
+      });
+    } catch (err) {
+      console.error('Google renderButton failed:', err);
+    }
+  }
 
   async function bootGoogle() {
-    if (googleInitDone) return;
+    if (googleInitDone) {
+      // SDK already loaded & initialized — just re-render the button
+      renderGoogleSignInButton();
+      return;
+    }
 
-    const gOnload = document.getElementById('g_id_onload');
-    let googleClientId = '';
+    var googleClientId = '';
     try {
-      const r = await fetch('/api/config');
-      const j = await r.json();
+      var r = await fetch('/api/config');
+      var j = await r.json();
       if (j && j.googleClientId) {
         googleClientId = String(j.googleClientId).trim();
       }
@@ -260,6 +288,8 @@
       return;
     }
 
+    googleClientIdCached = googleClientId;
+
     if (!document.querySelector('script[src*="accounts.google.com/gsi/client"]')) {
       try {
         await loadScript('https://accounts.google.com/gsi/client');
@@ -269,7 +299,7 @@
       }
     }
 
-    // Explicitly initialize and render the button
+    // Initialize the SDK (one-time)
     if (window.google && window.google.accounts && window.google.accounts.id) {
       try {
         window.google.accounts.id.initialize({
@@ -280,18 +310,10 @@
           auto_prompt: false
         });
 
-        const parent = document.querySelector('.g_id_signin');
-        if (parent) {
-          window.google.accounts.id.renderButton(parent, {
-            type: 'standard',
-            shape: 'pill',
-            theme: 'outline',
-            text: 'signin_with',
-            size: 'large',
-            logo_alignment: 'left'
-          });
-        }
         googleInitDone = true;
+
+        // Render button into current DOM
+        renderGoogleSignInButton();
       } catch (err) {
         console.error('Google ID initialization failed:', err);
       }
@@ -311,4 +333,6 @@
   });
 
   window.applyAuthUI = applyAuthUI;
+  window.renderGoogleSignInButton = renderGoogleSignInButton;
+  window.bootGoogle = bootGoogle;
 })();

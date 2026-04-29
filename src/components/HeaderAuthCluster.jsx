@@ -9,22 +9,20 @@ export function HeaderAuthCluster({ className = '' }) {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Only attempt to boot if we're signed out and Google script is ready
     if (user) return;
 
-    const tryBoot = () => {
-      if (typeof window.applyAuthUI === 'function') {
+    // Small delay so React commits the .g_id_signin div to the DOM first
+    const timer = setTimeout(() => {
+      if (typeof window.bootGoogle === 'function') {
+        window.bootGoogle();
+      } else if (typeof window.renderGoogleSignInButton === 'function') {
+        window.renderGoogleSignInButton();
+      } else if (typeof window.applyAuthUI === 'function') {
         window.applyAuthUI();
       }
-    };
+    }, 100);
 
-    // If the window is already loaded, boot now. Otherwise wait for load.
-    if (document.readyState === 'complete') {
-      tryBoot();
-    } else {
-      window.addEventListener('load', tryBoot);
-      return () => window.removeEventListener('load', tryBoot);
-    }
+    return () => clearTimeout(timer);
   }, [user]);
 
   return (
