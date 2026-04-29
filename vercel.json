@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
@@ -13,19 +12,4 @@
       "destination": "/index.html"
     }
   ]
-=======
-    "version": 2,
-    "buildCommand": "npm run build",
-    "outputDirectory": "dist",
-    "rewrites": [
-          {
-                  "source": "/api/(.*)",
-                  "destination": "/api/index.js"
-          },
-          {
-                  "source": "/(.*)",
-                  "destination": "/index.html"
-          }
-    ]
->>>>>>> e54c13086a9c70b52218710f00f64847db4abbdf
 }
