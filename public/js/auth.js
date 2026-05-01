@@ -246,8 +246,10 @@
    * Safe to call multiple times (e.g. after SPA navigation re-mounts the div).
    */
   function renderGoogleSignInButton() {
+    console.log('renderGoogleSignInButton called', !!window.google, !!window.google?.accounts?.id);
     if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
     var parent = document.querySelector('.g_id_signin');
+    console.log('Parent element found:', !!parent);
     if (!parent) return;
     // Clear any stale content so the button re-renders cleanly
     parent.innerHTML = '';
@@ -290,13 +292,15 @@
 
     googleClientIdCached = googleClientId;
 
-    if (!document.querySelector('script[src*="accounts.google.com/gsi/client"]')) {
-      try {
-        await loadScript('https://accounts.google.com/gsi/client');
-      } catch (e) {
-        console.warn('Could not load Google Sign-In script');
+    // Wait for the Google SDK to be fully loaded and available
+    let retries = 0;
+    while (!window.google || !window.google.accounts || !window.google.accounts.id) {
+      if (retries > 50) {
+        console.warn('Google Sign-In SDK failed to load within 5 seconds.');
         return;
       }
+      await new Promise(r => setTimeout(r, 100));
+      retries++;
     }
 
     // Initialize the SDK (one-time)
