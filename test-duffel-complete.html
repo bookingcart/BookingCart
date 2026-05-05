@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Duffel System Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-ok { @apply bg-green-100 text-green-800 border-green-300; }
+        .status-missing { @apply bg-red-100 text-red-800 border-red-300; }
+        .status-warning { @apply bg-yellow-100 text-yellow-800 border-yellow-300; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">Duffel Booking System - Complete Check</h1>
+        <p class="text-gray-600 mb-8">Checking all components of the Duffel integration...</p>
+        
+        <div id="results" class="space-y-4"></div>
+        
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 class="font-semibold text-blue-900 mb-2">Test Actions</h3>
+            <div class="space-y-2">
+                <button onclick="testSearch()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Test Flight Search</button>
+                <button onclick="testOffer()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Test Offer Details</button>
+                <button onclick="testOrder()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Test Order Creation</button>
+            </div>
+            <div id="test-output" class="mt-4 font-mono text-sm bg-gray-900 text-gray-100 p-4 rounded max-h-64 overflow-auto"></div>
+        </div>
+    </div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        const outputDiv = document.getElementById('test-output');
+        
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-gray-300';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            outputDiv.appendChild(div);
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+        
+        function addResult(component, status, details = '') {
+            const div = document.createElement('div');
+            div.className = `p-4 rounded-lg border ${status === 'ok' ? 'status-ok' : status === 'missing' ? 'status-missing' : 'status-warning'}`;
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="font-semibold">${component}</span>
+                    <span class="text-sm font-bold uppercase">${status}</span>
+                </div>
+                ${details ? `<div class="mt-2 text-sm">${details}</div>` : ''}
+            `;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function checkComponent(name, checkFn) {
+            try {
+                const result = await checkFn();
+                addResult(name, result.ok ? 'ok' : result.status || 'warning', result.details);
+            } catch (error) {
+                addResult(name, 'missing', error.message);
+            }
+        }
+        
+        async function runChecks() {
+            resultsDiv.innerHTML = '';
+            
+            // Check API Endpoints
+            await checkComponent('API: duffel-search', async () => {
+                const resp = await fetch('/api/duffel-search', { method: 'OPTIONS' });
+                return { ok: resp.ok, details: `Status: ${resp.status}` };
+            });
+            
+            await checkComponent('API: duffel-offer', async () => {
+                const resp = await fetch('/api/duffel-offer', { method: 'OPTIONS' });
+                return { ok: resp.ok, details: `Status: ${resp.status}` };
+            });
+            
+            await checkComponent('API: duffel-orders', async () => {
+                const resp = await fetch('/api/duffel-orders', { method: 'OPTIONS' });
+                return { ok: resp.ok, details: `Status: ${resp.status}` };
+            });
+            
+            await checkComponent('API: duffel-payments', async () => {
+                const resp = await fetch('/api/duffel-payments', { method: 'OPTIONS' });
+                return { ok: resp.ok, details: `Status: ${resp.status}` };
+            });
+            
+            await checkComponent('API: duffel-airports', async () => {
+                const resp = await fetch('/api/duffel-airports', { method: 'OPTIONS' });
+                return { ok: resp.ok, details: `Status: ${resp.status}` };
+            });
+            
+            await checkComponent('API: duffel-seat-maps', async () => {
+                const resp = await fetch('/api/duffel-seat-maps', { method: 'OPTIONS' });
+                return { ok: resp.ok, details: `Status: ${resp.status}` };
+            });
+            
+            // Check Frontend
+            await checkComponent('Frontend: bookingcart.js', async () => {
+                const resp = await fetch('/js/bookingcart.js');
+                const text = await resp.text();
+                const hasDuffel = text.includes('fetchDuffelFlights');
+                const hasOrders = text.includes('/api/duffel-orders');
+                return { 
+                    ok: resp.ok && hasDuffel && hasOrders, 
+                    details: `Loaded: ${resp.ok}, Duffel search: ${hasDuffel}, Orders: ${hasOrders}` 
+                };
+            });
+            
+            // Check Environment
+            await checkComponent('Environment: DUFFEL_API_KEY', async () => {
+                const resp = await fetch('/api/duffel-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ originLocationCode: 'LHR', destinationLocationCode: 'JFK', departureDate: '2025-12-01' })
+                });
+                const data = await resp.json();
+                const hasKey = !data.error?.includes('not configured');
+                return { 
+                    ok: hasKey, 
+                    status: hasKey ? 'ok' : 'missing',
+                    details: hasKey ? 'API key configured' : 'Missing DUFFEL_API_KEY' 
+                };
+            });
+        }
+        
+        async function testSearch() {
+            log('Testing flight search...');
+            try {
+                const resp = await fetch('/api/duffel-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        originLocationCode: 'LHR',
+                        destinationLocationCode: 'JFK',
+                        departureDate: '2025-12-01',
+                        adults: 1
+                    })
+                });
+                const data = await resp.json();
+                log(`Search result: ${JSON.stringify(data).substring(0, 200)}...`, data.ok ? 'success' : 'error');
+            } catch (e) {
+                log(`Search error: ${e.message}`, 'error');
+            }
+        }
+        
+        async function testOffer() {
+            log('Testing offer details (requires offer ID from search)...');
+            log('Please run search first to get an offer ID', 'warning');
+        }
+        
+        async function testOrder() {
+            log('Testing order creation (requires offer ID and passenger data)...');
+            log('Please run search first to get an offer ID', 'warning');
+        }
+        
+        // Run checks on load
+        runChecks();
+    </script>
+</body>
+</html>
