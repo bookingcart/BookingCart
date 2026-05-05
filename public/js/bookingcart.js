@@ -1526,7 +1526,19 @@
 
   function initPayment() {
     const root = document.querySelector("[data-payment]");
-    if (!root) return;
+    if (!root) {
+      console.log("[initPayment] data-payment root not found, retrying...");
+      // Retry up to 50 times (5 seconds) then give up
+      if (!window.__paymentRetryCount) window.__paymentRetryCount = 0;
+      window.__paymentRetryCount++;
+      if (window.__paymentRetryCount < 50) {
+        setTimeout(initPayment, 100);
+      } else {
+        console.warn("[initPayment] Giving up after 50 retries - payment form never found");
+      }
+      return;
+    }
+    console.log("[initPayment] Found data-payment root");
 
     const query = getQuery();
     if (query.canceled === "1") {
@@ -1554,7 +1566,13 @@
     if (amountEl) setText(amountEl, money(totals.total, ccy));
 
     const form = root.querySelector("form[data-payment-form]");
-    if (!form) return;
+    if (!form) {
+      console.log("[initPayment] form[data-payment-form] not found, retrying...");
+      // Retry after a short delay if form not found (React might still be rendering)
+      setTimeout(initPayment, 100);
+      return;
+    }
+    console.log("[initPayment] Found payment form");
 
     const submitBtn = form.querySelector("button[type='submit']");
     form.addEventListener("submit", async (e) => {
@@ -1614,7 +1632,9 @@
 
     const holdBtn = form.querySelector("[data-hold-order-btn]");
     if (holdBtn) {
+      console.log("[initPayment] Found hold order button, attaching listener");
       holdBtn.addEventListener("click", async (e) => {
+        console.log("[holdBtn] Hold order button clicked");
         e.preventDefault();
         const state = readState();
         const bookingRef = state.bookingRef || "BC" + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -1674,6 +1694,8 @@
         holdBtn.innerHTML = 'Hold Order (Pay Later)';
         if (submitBtn) submitBtn.disabled = false;
       });
+    } else {
+      console.warn("[initPayment] Hold order button NOT found - looking for [data-hold-order-btn]");
     }
   }
 
