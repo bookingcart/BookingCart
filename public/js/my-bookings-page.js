@@ -271,6 +271,8 @@
                   ${(b.status === 'held') ? `<button onclick="payForBooking('${b.ref}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap shadow-green-600/20"><i class="ph-bold ph-credit-card"></i> Pay Now</button>` : ''}
                   ${(b.status === 'issued' && b.ticket && b.ticket.fileData) ? `<button onclick="downloadRealTicket('${b.ref}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap shadow-green-600/20"><i class="ph-bold ph-download"></i> Download E-Ticket</button>` : (b.status !== 'cancelled' && b.status !== 'held' ? `<div class="px-4 py-2 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-2"><i class="ph-bold ph-circle-notch animate-spin"></i> Ticket Processing...</div>` : '')}
                   ${b.status !== 'cancelled' ? `<button onclick="downloadTicket('${b.ref}')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-receipt"></i> Download Invoice</button>` : ''}
+                  ${(b.status !== 'cancelled' && b.status !== 'held' && b.duffelOrderId) ? `<button onclick="addServicesToBooking('${b.ref}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-suitcase-rolling"></i> Add Bags/Seats</button>` : ''}
+                  ${(b.status !== 'cancelled' && b.status !== 'held' && b.duffelOrderId) ? `<button onclick="changeBooking('${b.ref}')" class="px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-calendar-blank"></i> Change Flight</button>` : ''}
                   <button onclick="cancelBooking('${b.ref}')" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-x-circle"></i> Cancel Booking</button>
                 </div>
               </div>
@@ -452,24 +454,243 @@
         }
 
         async function cancelBooking(ref) {
-            if (!confirm('Cancel this booking? You can still view it under the Cancelled tab.')) return;
+            if (!confirm('Cancel this booking? This will cancel with the airline and process any refund.')) return;
+            
             const token = localStorage.getItem('bookingcart_google_id_token') || '';
             if (!token) {
                 alert('Please sign in with Google to cancel a booking.');
                 return;
             }
+            
+            // Find the booking to get Duffel order ID
+            const booking = allBookings.find(b => b.ref === ref);
+            if (!booking) {
+                alert('Booking not found.');
+                return;
+            }
+            
+            // If no Duffel order ID, just update local status
+            if (!booking.duffelOrderId) {
+                try {
+                    const r = await fetch('/api/bookings', {
+                        method: 'POST',
+                        headers: bookingsAuthHeaders(),
+                        body: JSON.stringify({ action: 'cancel_own', id: ref })
+                    });
+                    const d = await r.json().catch(() => ({}));
+                    if (!r.ok || !d.ok) {
+                        alert((d && d.error) || 'Could not cancel booking.');
+                    }
+                } catch (e) { }
+                lookup();
+                return;
+            }
+            
+            // Step 1: Create pending cancellation with Duffel
             try {
-                const r = await fetch('/api/bookings', {
+                console.log(`Creating cancellation for Duffel order: ${booking.duffelOrderId}`);
+                
+                const createResp = await fetch('/api/duffel-order-cancellations', {
                     method: 'POST',
                     headers: bookingsAuthHeaders(),
-                    body: JSON.stringify({ action: 'cancel_own', id: ref })
+                    body: JSON.stringify({
+                        action: 'create',
+                        orderId: booking.duffelOrderId
+                    })
                 });
-                const d = await r.json().catch(() => ({}));
-                if (!r.ok || !d.ok) {
-                    alert((d && d.error) || 'Could not cancel booking.');
+                
+                const createData = await createResp.json();
+                if (!createResp.ok || !createData.ok) {
+                    alert((createData && createData.error) || 'Could not initiate cancellation with airline.');
+                    return;
                 }
-            } catch (e) { }
+                
+                const cancellationId = createData.cancellation.id;
+                const refundAmount = createData.cancellation.refundAmount;
+                const refundCurrency = createData.cancellation.refundCurrency;
+                
+                // Show refund info and confirm
+                const confirmMsg = refundAmount > 0 
+                    ? `Refund amount: ${refundCurrency} ${refundAmount}. Confirm cancellation?`
+                    : 'No refund available. Confirm cancellation?';
+                    
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+                
+                // Step 2: Confirm the cancellation
+                const confirmResp = await fetch('/api/duffel-order-cancellations', {
+                    method: 'POST',
+                    headers: bookingsAuthHeaders(),
+                    body: JSON.stringify({
+                        action: 'confirm',
+                        cancellationId: cancellationId,
+                        reason: 'customer_request'
+                    })
+                });
+                
+                const confirmData = await confirmResp.json();
+                if (!confirmResp.ok || !confirmData.ok) {
+                    alert((confirmData && confirmData.error) || 'Could not confirm cancellation.');
+                    return;
+                }
+                
+                // Step 3: Update local DB status
+                await fetch('/api/bookings', {
+                    method: 'POST',
+                    headers: bookingsAuthHeaders(),
+                    body: JSON.stringify({ 
+                        action: 'cancel_own', 
+                        id: ref,
+                        refundAmount: refundAmount,
+                        refundCurrency: refundCurrency
+                    })
+                });
+                
+                alert(`Booking cancelled successfully. Refund: ${refundCurrency} ${refundAmount}`);
+                
+            } catch (e) { 
+                console.error('Cancellation error:', e);
+                alert('Error during cancellation. Please try again.');
+            }
             lookup();
+        }
+        
+        // Add services (bags, seats) to existing order
+        async function addServicesToBooking(ref) {
+            const booking = allBookings.find(b => b.ref === ref);
+            if (!booking || !booking.duffelOrderId) {
+                alert('Booking not found or not eligible for modifications.');
+                return;
+            }
+            
+            try {
+                // Step 1: Get available services
+                const servicesResp = await fetch(`/api/duffel-order-services?orderId=${encodeURIComponent(booking.duffelOrderId)}`, {
+                    headers: bookingsAuthHeaders()
+                });
+                
+                const servicesData = await servicesResp.json();
+                if (!servicesResp.ok || !servicesData.ok) {
+                    alert((servicesData && servicesData.error) || 'Could not fetch available services.');
+                    return;
+                }
+                
+                // Build service selection UI
+                let serviceOptions = '';
+                
+                // Baggage options
+                if (servicesData.services.baggage.length > 0) {
+                    serviceOptions += '<div class="mb-4"><h4 class="font-bold mb-2">Baggage</h4>';
+                    servicesData.services.baggage.forEach(bag => {
+                        serviceOptions += `
+                            <label class="flex items-center gap-2 mb-2 p-2 border rounded">
+                                <input type="checkbox" name="service" value="${bag.id}" data-type="baggage" class="service-checkbox">
+                                <span>${bag.metadata.type || 'Checked Bag'} - ${bag.totalCurrency} ${bag.totalAmount}</span>
+                            </label>
+                        `;
+                    });
+                    serviceOptions += '</div>';
+                }
+                
+                // Seat options
+                if (servicesData.services.seats.length > 0) {
+                    serviceOptions += '<div class="mb-4"><h4 class="font-bold mb-2">Seats</h4>';
+                    servicesData.services.seats.forEach(seat => {
+                        serviceOptions += `
+                            <label class="flex items-center gap-2 mb-2 p-2 border rounded">
+                                <input type="checkbox" name="service" value="${seat.id}" data-type="seat" class="service-checkbox">
+                                <span>Seat ${seat.metadata.designator || 'Selection'} - ${seat.totalCurrency} ${seat.totalAmount}</span>
+                            </label>
+                        `;
+                    });
+                    serviceOptions += '</div>';
+                }
+                
+                if (!serviceOptions) {
+                    alert('No additional services available for this booking.');
+                    return;
+                }
+                
+                // Show modal with service options
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-auto">
+                        <h3 class="text-lg font-bold mb-4">Add Services</h3>
+                        ${serviceOptions}
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                            <button id="confirm-services" class="flex-1 px-4 py-2 bg-green-600 text-white rounded">Add Selected</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Handle confirm
+                document.getElementById('confirm-services').onclick = async () => {
+                    const selected = Array.from(modal.querySelectorAll('.service-checkbox:checked')).map(cb => ({
+                        id: cb.value,
+                        quantity: 1
+                    }));
+                    
+                    if (selected.length === 0) {
+                        alert('Please select at least one service.');
+                        return;
+                    }
+                    
+                    modal.remove();
+                    
+                    // Add services
+                    const addResp = await fetch('/api/duffel-order-services', {
+                        method: 'POST',
+                        headers: bookingsAuthHeaders(),
+                        body: JSON.stringify({
+                            orderId: booking.duffelOrderId,
+                            services: selected
+                        })
+                    });
+                    
+                    const addData = await addResp.json();
+                    if (!addResp.ok || !addData.ok) {
+                        alert((addData && addData.error) || 'Could not add services.');
+                        return;
+                    }
+                    
+                    alert(`Services added successfully! New total: ${addData.newTotalCurrency} ${addData.newTotalAmount}`);
+                    lookup();
+                };
+                
+            } catch (e) {
+                console.error('Add services error:', e);
+                alert('Error fetching services. Please try again.');
+            }
+        }
+        
+        // Change flight dates/routes
+        async function changeBooking(ref) {
+            const booking = allBookings.find(b => b.ref === ref);
+            if (!booking || !booking.duffelOrderId) {
+                alert('Booking not found or not eligible for changes.');
+                return;
+            }
+            
+            // Prompt for new dates
+            const newDate = prompt('Enter new departure date (YYYY-MM-DD):');
+            if (!newDate || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                alert('Invalid date format. Please use YYYY-MM-DD.');
+                return;
+            }
+            
+            try {
+                // For simplicity, we'll just create a change request
+                // In a real implementation, you'd need to search for new flights first
+                alert('Flight change feature: This would search for new flights and create a change request. Coming soon!');
+                
+            } catch (e) {
+                console.error('Change booking error:', e);
+                alert('Error processing change request.');
+            }
         }
 
 

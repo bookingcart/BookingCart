@@ -18,6 +18,9 @@ const duffelOrdersHandler = require('./api-routes/duffel-orders');
 const duffelOfferHandler = require('./api-routes/duffel-offer');
 const duffelPaymentsHandler = require('./api-routes/duffel-payments');
 const duffelSeatMapsHandler = require('./api-routes/duffel-seat-maps');
+const duffelOrderCancellationsHandler = require('./api-routes/duffel-order-cancellations');
+const duffelOrderChangesHandler = require('./api-routes/duffel-order-changes');
+const duffelOrderServicesHandler = require('./api-routes/duffel-order-services');
 const flightDealsHandler = require('./api-routes/flight-deals');
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
@@ -97,6 +100,9 @@ app.post('/api/duffel-orders', searchLimiter, run(duffelOrdersHandler));
 app.post('/api/duffel-payments', searchLimiter, run(duffelPaymentsHandler));
 app.get('/api/duffel-offer', searchLimiter, run(duffelOfferHandler));
 app.get('/api/duffel-seat-maps', searchLimiter, run(duffelSeatMapsHandler));
+app.all('/api/duffel-order-cancellations', searchLimiter, run(duffelOrderCancellationsHandler));
+app.all('/api/duffel-order-changes', searchLimiter, run(duffelOrderChangesHandler));
+app.all('/api/duffel-order-services', searchLimiter, run(duffelOrderServicesHandler));
 app.all('/api/flight-deals', searchLimiter, run(flightDealsHandler));
 
 function getRequestOrigin(req) {
