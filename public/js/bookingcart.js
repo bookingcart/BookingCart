@@ -1451,6 +1451,10 @@
 
     const duffelOrderPassengers = duffelPax.map((dp, idx) => {
       const t = travelers[idx] || {};
+      let phoneStr = String(contactObj.phone || '+10000000000').trim();
+      if (!phoneStr.startsWith('+')) phoneStr = '+' + phoneStr.replace(/[^0-9]/g, '');
+      if (phoneStr === '+') phoneStr = '+10000000000';
+
       return {
         id: dp.id,
         given_name: (t.firstName || '').trim() || 'Traveler',
@@ -1458,8 +1462,8 @@
         born_on: t.dob || '1990-01-01',
         title: t.title || (dp.type === 'infant_without_seat' ? 'miss' : 'mr'),
         gender: t.gender || (dp.type === 'infant_without_seat' ? 'f' : 'm'),
-        email: contactObj.email || '',
-        phone_number: contactObj.phone || '+10000000000'
+        email: contactObj.email || 'guest@bookingcart.com',
+        phone_number: phoneStr
       };
     });
 
@@ -1518,10 +1522,11 @@
       });
       const orderData = await orderResp.json().catch(() => null);
       if (orderResp.ok && orderData && orderData.ok) {
-        return { ref: orderData.bookingReference, id: orderData.orderId };
+        return { ref: orderData.bookingReference, id: orderData.orderId, error: null };
       }
+      return { ref: null, id: null, error: orderData?.error || 'Failed to book with airline' };
     } catch (err) { }
-    return { ref: null, id: null };
+    return { ref: null, id: null, error: 'Network error communicating with server' };
   }
 
   function initPayment() {
@@ -1645,6 +1650,14 @@
         holdBtn.innerHTML = '<i class="ph-bold ph-circle-notch animate-spin"></i> Holding...';
 
         const duffelRes = await createDuffelOrder(state, totals, true);
+        if (!duffelRes.id) {
+          holdBtn.innerHTML = 'Hold Failed';
+          holdBtn.disabled = false;
+          if (submitBtn) submitBtn.disabled = false;
+          alert(duffelRes.error || "Failed to create hold order with airline.");
+          return;
+        }
+
         const nextState = writeState({
           bookingRef: duffelRes.ref || bookingRef,
           _duffelOrderId: duffelRes.id

@@ -86,9 +86,33 @@ function detectIntent(msg) {
 }
 
 /* ── Chat Widget ── */
-const SUPPORT_KEY = 'bc_support_messages';
-function loadThreads() { try { return JSON.parse(localStorage.getItem(SUPPORT_KEY) || '[]'); } catch { return []; } }
-function saveThreads(t) { localStorage.setItem(SUPPORT_KEY, JSON.stringify(t)); }
+async function loadThreads() {
+  try {
+    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+    const userEmail = window.bookingcartUser?.email || '';
+    if (!userEmail) return [];
+    
+    const resp = await fetch(`/api/support?email=${encodeURIComponent(userEmail)}`, {
+      headers: t ? { 'Authorization': `Bearer ${t}` } : {}
+    });
+    const data = await resp.json();
+    return data.ok ? data.threads : [];
+  } catch { return []; }
+}
+
+async function appendMessage(threadId, email, topic, text) {
+  try {
+    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+    await fetch('/api/support', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(t ? { 'Authorization': `Bearer ${t}` } : {})
+      },
+      body: JSON.stringify({ threadId, email, topic, message: text })
+    });
+  } catch {}
+}
 
 function ChatWidget({ open, onClose, initialMessage }) {
   const [messages, setMessages] = useState([
@@ -102,6 +126,21 @@ function ChatWidget({ open, onClose, initialMessage }) {
   const userEmail = useRef(window.bookingcartUser?.email || 'Guest');
 
   useEffect(() => {
+    async function initThreads() {
+      if (!userEmail.current || userEmail.current === 'Guest') return;
+      const threads = await loadThreads();
+      if (threads.length > 0) {
+        const latest = threads[0];
+        threadIdRef.current = latest.id;
+        // Load messages from the latest thread
+        const hist = latest.messages.map(m => ({ from: m.from === 'user' ? 'user' : 'bot', text: m.text, ts: m.ts }));
+        if (hist.length > 0) setMessages(hist);
+      }
+    }
+    if (open) initThreads();
+  }, [open]);
+
+  useEffect(() => {
     if (open && initialMessage && !sentRef.current) {
       sentRef.current = true;
       sendMessage(initialMessage);
@@ -112,28 +151,14 @@ function ChatWidget({ open, onClose, initialMessage }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
 
-  function persistMessage(msg, reply) {
-    const threads = loadThreads();
-    const existing = threads.find(t => t.id === threadIdRef.current);
-    const userMsg = { from: 'user', text: msg, ts: Date.now() };
-    const botMsg = reply ? { from: 'bot', text: reply, ts: Date.now() + 1200 } : null;
-    if (existing) {
-      existing.messages.push(userMsg);
-      if (botMsg) existing.messages.push(botMsg);
-      existing.updatedAt = Date.now();
-    } else {
-      threads.unshift({
-        id: threadIdRef.current,
-        email: userEmail.current,
-        topic: msg.slice(0, 60),
-        status: 'open',
-        adminRead: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        messages: [userMsg, ...(botMsg ? [botMsg] : [])],
-      });
+  async function persistMessage(msg, reply) {
+    if (!userEmail.current || userEmail.current === 'Guest') {
+      // Just local interaction for guests
+      return;
     }
-    saveThreads(threads);
+    await appendMessage(threadIdRef.current, userEmail.current, msg.slice(0, 60), msg);
+    // Note: bot replies are just UI smoke and mirrors here, but we could persist them if we wanted.
+    // For now we just let the admin reply.
   }
 
   function sendMessage(text) {

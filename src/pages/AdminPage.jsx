@@ -6,26 +6,56 @@ import { useAuth } from '../context/AuthContext.jsx';
 /* ─── Support Inbox ─────────────────────────────────────────────── */
 const STORAGE_KEY = 'bc_support_messages';
 
-function getSupportMessages() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+async function fetchSupportMessages() {
+  try {
+    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+    const resp = await fetch('/api/support', { headers: t ? { 'Authorization': `Bearer ${t}` } : {} });
+    const data = await resp.json();
+    return data.ok ? data.threads : [];
+  } catch { return []; }
 }
-function saveSupportMessages(msgs) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+
+async function updateThread(id, updates) {
+  try {
+    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+    await fetch('/api/support', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(t ? { 'Authorization': `Bearer ${t}` } : {}) },
+      body: JSON.stringify({ id, ...updates })
+    });
+  } catch {}
+}
+
+async function replyToThread(threadId, text) {
+  try {
+    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+    await fetch('/api/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(t ? { 'Authorization': `Bearer ${t}` } : {}) },
+      body: JSON.stringify({ threadId, message: text })
+    });
+  } catch {}
 }
 
 function SupportInbox() {
-  const [threads, setThreads] = useState(() => getSupportMessages());
+  const [threads, setThreads] = useState([]);
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState('');
   const [filter, setFilter] = useState('all');
   const bottomRef = useRef(null);
 
-  // Refresh every 5s to pick up new messages saved by the chat widget
+  async function loadData() {
+    const fresh = await fetchSupportMessages();
+    setThreads(fresh);
+    if (selected) {
+      const up = fresh.find(t => t.id === selected.id);
+      if (up) setSelected(up);
+    }
+  }
+
   useEffect(() => {
-    const id = setInterval(() => {
-      const fresh = getSupportMessages();
-      setThreads(fresh);
-    }, 5000);
+    loadData();
+    const id = setInterval(loadData, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -38,35 +68,41 @@ function SupportInbox() {
     t.status === 'closed'
   );
 
-  function markRead(id) {
+  async function markRead(id) {
     const updated = threads.map(t => t.id === id ? { ...t, adminRead: true } : t);
-    setThreads(updated); saveSupportMessages(updated);
+    setThreads(updated);
+    await updateThread(id, { adminRead: true });
   }
 
-  function sendReply(threadId) {
+  async function sendReply(threadId) {
     if (!reply.trim()) return;
+    const txt = reply.trim();
+    setReply('');
     const updated = threads.map(t => t.id === threadId ? {
       ...t, adminRead: true, status: 'open',
-      messages: [...t.messages, { from: 'admin', text: reply.trim(), ts: Date.now() }]
+      messages: [...t.messages, { from: 'admin', text: txt, ts: Date.now() }]
     } : t);
-    setThreads(updated); saveSupportMessages(updated);
-    setReply('');
+    setThreads(updated);
+    await replyToThread(threadId, txt);
   }
 
-  function closeThread(threadId) {
+  async function closeThread(threadId) {
     const updated = threads.map(t => t.id === threadId ? { ...t, status: 'closed' } : t);
-    setThreads(updated); saveSupportMessages(updated);
+    setThreads(updated);
     if (selected?.id === threadId) setSelected(updated.find(t => t.id === threadId));
+    await updateThread(threadId, { status: 'closed' });
   }
 
-  function reopenThread(threadId) {
+  async function reopenThread(threadId) {
     const updated = threads.map(t => t.id === threadId ? { ...t, status: 'open' } : t);
-    setThreads(updated); saveSupportMessages(updated);
+    setThreads(updated);
     if (selected?.id === threadId) setSelected(updated.find(t => t.id === threadId));
+    await updateThread(threadId, { status: 'open' });
   }
 
   function selectThread(t) {
-    setSelected(t); markRead(t.id);
+    setSelected(t);
+    if (!t.adminRead) markRead(t.id);
   }
 
   const unread = threads.filter(t => !t.adminRead).length;
