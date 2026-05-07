@@ -185,8 +185,12 @@ export default function AuthPage() {
       if (!res.ok || !data.ok) throw new Error(data.error || 'Login failed.');
       // Use AuthContext login function which handles storage and state
       await login({ email: form.email, token: data.token, user: data.user, rememberMe: form.remember });
-      // Immediate redirect to home page
-      navigate(searchParams.get('redirect') || '/', { replace: true });
+      // Immediate redirect to home page - must happen after successful login
+      const redirectTo = searchParams.get('redirect') || '/';
+      console.log('[AuthPage] Login successful, redirecting to:', redirectTo);
+      navigate(redirectTo, { replace: true });
+      // Force navigation in case react-router delays
+      window.location.href = redirectTo;
       return;
     } catch (err) {
       setGlobalError(err.message);
@@ -214,7 +218,11 @@ export default function AuthPage() {
       // Use AuthContext register function which handles storage and state
       await register({ email: form.email, token: data.token, user: data.user });
       // Immediate redirect to home page
-      navigate(searchParams.get('redirect') || '/', { replace: true });
+      const redirectTo = searchParams.get('redirect') || '/';
+      console.log('[AuthPage] Registration successful, redirecting to:', redirectTo);
+      navigate(redirectTo, { replace: true });
+      // Force navigation in case react-router delays
+      window.location.href = redirectTo;
       return;
     } catch (err) {
       setGlobalError(err.message);
