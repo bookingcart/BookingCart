@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /* ── data ── */
 const TABS = [
@@ -86,13 +87,12 @@ function detectIntent(msg) {
 }
 
 /* ── Chat Widget ── */
-async function loadThreads() {
+async function loadThreads(email) {
   try {
     const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    const userEmail = window.bookingcartUser?.email || '';
-    if (!userEmail) return [];
+    if (!email) return [];
     
-    const resp = await fetch(`/api/support?email=${encodeURIComponent(userEmail)}`, {
+    const resp = await fetch(`/api/support?email=${encodeURIComponent(email)}`, {
       headers: t ? { 'Authorization': `Bearer ${t}` } : {}
     });
     const data = await resp.json();
@@ -115,6 +115,9 @@ async function appendMessage(threadId, email, topic, text) {
 }
 
 function ChatWidget({ open, onClose, initialMessage }) {
+  const { user } = useAuth();
+  const currentEmail = user?.email || 'Guest';
+
   const [messages, setMessages] = useState([
     { from: 'bot', text: "Hi! I'm your BookingCart support assistant. How can I help you today?", ts: Date.now() },
   ]);
@@ -123,12 +126,11 @@ function ChatWidget({ open, onClose, initialMessage }) {
   const bottomRef = useRef(null);
   const sentRef = useRef(false);
   const threadIdRef = useRef(`thread_${Date.now()}_${Math.random().toString(36).slice(2)}`);
-  const userEmail = useRef(window.bookingcartUser?.email || 'Guest');
 
   useEffect(() => {
     async function initThreads() {
-      if (!userEmail.current || userEmail.current === 'Guest') return;
-      const threads = await loadThreads();
+      if (currentEmail === 'Guest') return;
+      const threads = await loadThreads(currentEmail);
       if (threads.length > 0) {
         const latest = threads[0];
         threadIdRef.current = latest.id;
@@ -138,7 +140,7 @@ function ChatWidget({ open, onClose, initialMessage }) {
       }
     }
     if (open) initThreads();
-  }, [open]);
+  }, [open, currentEmail]);
 
   useEffect(() => {
     if (open && initialMessage && !sentRef.current) {
@@ -152,11 +154,11 @@ function ChatWidget({ open, onClose, initialMessage }) {
   }, [messages, typing]);
 
   async function persistMessage(msg, reply) {
-    if (!userEmail.current || userEmail.current === 'Guest') {
+    if (currentEmail === 'Guest') {
       // Just local interaction for guests
       return;
     }
-    await appendMessage(threadIdRef.current, userEmail.current, msg.slice(0, 60), msg);
+    await appendMessage(threadIdRef.current, currentEmail, msg.slice(0, 60), msg);
     // Note: bot replies are just UI smoke and mirrors here, but we could persist them if we wanted.
     // For now we just let the admin reply.
   }
