@@ -6,6 +6,70 @@ import { DuffelCardForm, useDuffelCardFormActions, createThreeDSecureSession } f
 
 const SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js'];
 
+function money(amount, currency) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(amount);
+}
+
+function flightPriceAmount(flight) {
+  if (!flight || flight.price == null) return 0;
+  if (typeof flight.price === "object") {
+    return parseFloat(flight.price.amount || 0) || 0;
+  }
+  return Number(flight.price) || 0;
+}
+
+const STORAGE_KEY = 'bookingcart_flights_v1';
+
+function readState() {
+  try {
+    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeState(updates) {
+  try {
+    const s = readState();
+    const next = { ...s, ...updates };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return next;
+  } catch (e) {
+    return {};
+  }
+}
+
+function computeTotals(state) {
+  const pax = state.passengers || { adults: 1, children: 0, infants: 0 };
+  const totalPax = pax.adults + pax.children + pax.infants;
+  // Try flights array first, then fall back to the directly stored selectedFlight object
+  const flight = (state.flights || []).find((f) => f.id === state.selectedFlightId)
+    || state.selectedFlight
+    || (state.flights || [])[0];
+  const base = flight ? flightPriceAmount(flight) * totalPax : 0;
+
+  const extras = state.extras || {};
+  const baggagePrice = state._baggagePrice || 45;
+  const seatPrice = state._seatPrice || 14;
+
+  const baggage = Number(extras.baggage || 0) * baggagePrice;
+  const seats = typeof state._seatCost === 'number' ? state._seatCost : 
+                (extras.seat === "standard" ? seatPrice * totalPax : extras.seat === "extra" ? (seatPrice * 2) * totalPax : 0);
+  const insurance = extras.insurance ? 19 * totalPax : 0;
+  const meals = extras.meal === "premium" ? 12 * totalPax : extras.meal === "standard" ? 7 * totalPax : 0;
+
+  const subtotal = base + baggage + seats + insurance + meals;
+  const taxes = Math.round(subtotal * 0.11);
+  const total = subtotal + taxes;
+  const currency = flight ? (flight.currency || "USD") : "USD";
+
+  // Split calculations
+  const flightCost = base + baggage + seats;
+  const markupCost = insurance + meals + taxes;
+
+  return { totalPax, base, baggage, seats, insurance, meals, taxes, total, flightCost, markupCost, currency };
+}
+
 export default function PaymentPage() {
   const [clientKey, setClientKey] = useState(null);
   const [totals, setTotals] = useState(null);
@@ -20,11 +84,11 @@ export default function PaymentPage() {
 
   useEffect(() => {
     document.title = 'BookingCart — Secure Payment';
-    const state = window.readState();
+    const state = readState();
     if (!state.bookingRef) {
-      window.writeState({ bookingRef: "BC" + Math.random().toString(36).slice(2, 8).toUpperCase() });
+      writeState({ bookingRef: "BC" + Math.random().toString(36).slice(2, 8).toUpperCase() });
     }
-    setTotals(window.computeTotals(window.readState()));
+    setTotals(computeTotals(readState()));
 
     fetch('/api/duffel-client-key', { method: 'POST' })
       .then(res => res.json())
@@ -51,7 +115,7 @@ export default function PaymentPage() {
 
   const handleCardSuccess = async (card) => {
     try {
-      const state = window.readState();
+      const state = readState();
       const flightId = state.selectedFlightId;
       
       const services = [];
@@ -112,7 +176,7 @@ export default function PaymentPage() {
       if (!orderData.ok) throw new Error(orderData.error || 'Failed to book flight with airline.');
 
       // Save Duffel order ID to state
-      window.writeState({
+      writeState({
         _duffelOrderId: orderData.orderId,
         bookingRef: orderData.bookingReference || state.bookingRef
       });
@@ -137,7 +201,7 @@ export default function PaymentPage() {
     setIsProcessing(true);
     setErrorMsg(null);
     try {
-      const state = window.readState();
+      const state = readState();
       const amountCents = Math.round(Number(totals.markupCost) * 100);
       const bookingRef = state.bookingRef;
       const contactEmail = state.contact?.email || "";
@@ -236,7 +300,7 @@ export default function PaymentPage() {
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-700 font-medium">Total Amount to Pay</span>
-                  <span className="text-2xl font-extrabold text-green-700">{window.money(totals.total, totals.currency)}</span>
+                  <span className="text-2xl font-extrabold text-green-700">{money(totals.total, totals.currency)}</span>
                 </div>
               </div>
             )}
@@ -255,7 +319,7 @@ export default function PaymentPage() {
                   Airline Flight Payment
                 </h2>
                 <p className="text-sm text-slate-500 mb-6">
-                  Please enter your <strong>Billing Information</strong> below. This must match the cardholder details associated with your payment method. You will be charged {window.money(totals.flightCost, totals.currency)} directly by the airline.
+                  Please enter your <strong>Billing Information</strong> below. This must match the cardholder details associated with your payment method. You will be charged {money(totals.flightCost, totals.currency)} directly by the airline.
                 </p>
 
                 {clientKey ? (
@@ -280,7 +344,7 @@ export default function PaymentPage() {
                     disabled={isProcessing || !cardValid}
                     className="bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-bold py-4 px-8 rounded-xl transition-all flex items-center gap-2"
                   >
-                    {isProcessing ? 'Processing with Airline...' : `Pay Airline ${window.money(totals.flightCost, totals.currency)}`}
+                    {isProcessing ? 'Processing with Airline...' : `Pay Airline ${money(totals.flightCost, totals.currency)}`}
                     {!isProcessing && <i className="ph-bold ph-lock-key"></i>}
                   </button>
                 </div>
@@ -307,7 +371,7 @@ export default function PaymentPage() {
                     disabled={isProcessing}
                     className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold py-4 px-8 rounded-xl transition-all flex items-center gap-2"
                   >
-                    {isProcessing ? 'Redirecting to Checkout...' : `Pay Fees ${window.money(totals.markupCost, totals.currency)}`}
+                    {isProcessing ? 'Redirecting to Checkout...' : `Pay Fees ${money(totals.markupCost, totals.currency)}`}
                     {!isProcessing && <i className="ph-bold ph-arrow-right"></i>}
                   </button>
                 </div>
@@ -322,16 +386,16 @@ export default function PaymentPage() {
               
               <div className="flex justify-between items-center text-sm mb-2 text-slate-600">
                 <span>Flight Cost (Airline)</span>
-                <span className="font-semibold text-slate-900">{window.money(totals.flightCost, totals.currency)}</span>
+                <span className="font-semibold text-slate-900">{money(totals.flightCost, totals.currency)}</span>
               </div>
               <div className="flex justify-between items-center text-sm mb-4 text-slate-600 pb-4 border-b border-slate-100">
                 <span>Extras & Taxes</span>
-                <span className="font-semibold text-slate-900">{window.money(totals.markupCost, totals.currency)}</span>
+                <span className="font-semibold text-slate-900">{money(totals.markupCost, totals.currency)}</span>
               </div>
 
               <div className="flex justify-between items-end mb-2">
                 <span className="font-bold text-slate-700">Total</span>
-                <span className="text-3xl font-extrabold text-green-600">{window.money(totals.total, totals.currency)}</span>
+                <span className="text-3xl font-extrabold text-green-600">{money(totals.total, totals.currency)}</span>
               </div>
 
               <div className="space-y-3 mt-6">
