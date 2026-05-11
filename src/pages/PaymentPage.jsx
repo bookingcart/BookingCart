@@ -18,9 +18,11 @@ function flightPriceAmount(flight) {
   return Number(flight.price) || 0;
 }
 
+const STORAGE_KEY = 'bookingcart_flights_v1';
+
 function readState() {
   try {
-    return JSON.parse(window.localStorage.getItem('bookingcart_state') || '{}');
+    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}');
   } catch (e) {
     return {};
   }
@@ -30,7 +32,7 @@ function writeState(updates) {
   try {
     const s = readState();
     const next = { ...s, ...updates };
-    window.localStorage.setItem('bookingcart_state', JSON.stringify(next));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     return next;
   } catch (e) {
     return {};
@@ -266,12 +268,43 @@ export default function PaymentPage() {
           </div>
         </div>
 
+        {/* No Booking Data Warning */}
+        {totals.total === 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-3">
+              <i className="ph-bold ph-warning-circle text-amber-600 text-2xl"></i>
+              <div>
+                <h3 className="font-semibold text-amber-900">No Active Booking</h3>
+                <p className="text-amber-700 text-sm mt-1">
+                  You need to complete a flight search and select a flight before proceeding to payment.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="mt-4 w-full bg-amber-600 text-white py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors"
+            >
+              Search for Flights
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <section className="lg:col-span-8 space-y-6">
             <div className="flex items-center justify-between mb-2">
               <h1 className="text-2xl font-bold text-slate-900">Secure Payment</h1>
             </div>
-            
+
+            {/* Total Amount Display - Only show if there's a booking */}
+            {totals.total > 0 && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-700 font-medium">Total Amount to Pay</span>
+                  <span className="text-2xl font-extrabold text-green-700">{money(totals.total, totals.currency)}</span>
+                </div>
+              </div>
+            )}
+
             {errorMsg && (
               <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200">
                 <i className="ph-bold ph-warning-circle mr-2"></i>
