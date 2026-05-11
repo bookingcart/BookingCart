@@ -85,6 +85,30 @@
   window.getSavedFlights = getSavedFlights;
   window.removeSavedFlight = removeSavedFlight;
 
+  // Toast notification for saved flights
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) {
+      // Create container if it doesn't exist
+      const newContainer = document.createElement('div');
+      newContainer.id = 'toast-container';
+      newContainer.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;';
+      document.body.appendChild(newContainer);
+    }
+    const toast = document.createElement('div');
+    const icon = type === 'success' ? '✓' : '✕';
+    const bgClass = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+    toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 min-w-[200px] animate-fade-in`;
+    toast.innerHTML = `<span class="font-bold">${icon}</span><span>${message}</span>`;
+    (document.getElementById('toast-container') || document.body).appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
   function readFlightCache(signature) {
     try {
       const raw = localStorage.getItem(FLIGHT_RESULTS_CACHE_KEY);
