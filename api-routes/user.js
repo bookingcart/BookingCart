@@ -36,7 +36,17 @@ async function verifyAuthToken(req) {
   return await verifyRequestBearer(req);
 }
 
- catch (err) {
+module.exports = async (req, res) => {
+  applyCors(req, res);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  try {
+    let collections;
+    try {
+      collections = await getCollections();
+    } catch (err) {
       if (process.env.NODE_ENV === 'production') throw err;
       if (!global.__users) global.__users = {};
     }

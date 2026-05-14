@@ -29,7 +29,7 @@
 
         // ── Auth Helper ──
         function getAuthHeaders() {
-            const token = localStorage.getItem('bookingcart_google_id_token') || '';
+            const token = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
             return {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
@@ -55,10 +55,15 @@
                 const data = await resp.json();
                 if (data.ok) {
                     allBookings = data.bookings || [];
-                    renderAll();
+                } else {
+                    console.error("Failed to load bookings:", data.error);
                 }
+            } catch (e) { 
+                console.error(e); 
+            } finally {
+                renderAll();
                 setStatsLoading(false);
-            } catch (e) { console.error(e); }
+            }
         }
 
         // â”€â”€ Filters â”€â”€
