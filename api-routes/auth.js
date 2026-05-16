@@ -31,6 +31,10 @@ function checkRateLimit(key, maxReq, windowMs) {
 }
 
 
+/** Validate email format */
+function isValidEmail(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || ''));
+}
 
 /** Validate password: min 8 chars, 1 number, 1 special char */
 function isStrongPassword(p) {

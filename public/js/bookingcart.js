@@ -4,12 +4,26 @@
   const FLIGHT_RESULTS_CACHE_KEY = "bookingcart_flight_results_cache_v1";
   const FLIGHT_RESULTS_CACHE_TTL_MS = 30 * 60 * 1000;
 
-   catch (e) {
+  function readState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
       return {};
     }
   }
 
-  
+  function writeState(patch) {
+    const current = readState();
+    const next = Object.assign({}, current, patch);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return next;
+  }
+
+  window.readState = readState;
+  window.writeState = writeState;
+
+
 
   function flightStorageKey(search, state) {
     const pax = state.passengers || { adults: 1, children: 0, infants: 0 };
@@ -129,18 +143,47 @@
     }
   }
 
-  );
+  function getQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const obj = {};
+    params.forEach((v, k) => { obj[k] = v; });
     return obj;
   }
 
-  
-
-  
-
-  
-
-  , 2600);
+  function setText(el, text) {
+    if (!el) return;
+    el.textContent = text;
   }
+
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function ensureToast() {
+    let t = document.querySelector(".toast");
+    if (t) return t;
+    t = document.createElement("div");
+    t.className = "toast";
+    t.innerHTML = '<p class="toast__title" id="toastTitle"></p><p class="toast__desc" id="toastDesc"></p>';
+    document.body.appendChild(t);
+    return t;
+  }
+
+  function toast(title, desc) {
+    const t = ensureToast();
+    setText(document.getElementById("toastTitle"), title);
+    setText(document.getElementById("toastDesc"), desc);
+    t.setAttribute("data-open", "true");
+    window.clearTimeout(toast._timer);
+    toast._timer = window.setTimeout(() => {
+      t.setAttribute("data-open", "false");
+    }, 2600);
+  }
+
+  window.getQuery = getQuery;
+  window.setText = setText;
+  window.clamp = clamp;
+  window.toast = toast;
 
   function initStepper() {
     const stepEl = document.querySelector("[data-step]");
