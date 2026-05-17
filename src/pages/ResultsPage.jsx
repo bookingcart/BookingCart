@@ -268,8 +268,8 @@ export default function ResultsPage(){
             <button className="flex-1 py-3 text-center border-b-2 border-transparent text-slate-600 hover:bg-slate-50 font-bold border-l border-slate-100 flex flex-col items-center justify-center">
               Sort by <i className="ph ph-caret-down"></i>
             </button>
-            <button className="hidden md:flex flex-1 py-3 text-center border-b-2 border-transparent text-green-600 hover:bg-green-50 font-bold border-l border-slate-100 items-center justify-center gap-1.5">
-              <i className="ph-fill ph-bell-ringing"></i> Create price alert
+            <button data-price-alert-btn className="hidden md:flex flex-1 py-3 text-center border-b-2 border-transparent text-green-600 hover:bg-green-50 font-bold border-l border-slate-100 items-center justify-center gap-1.5 transition-colors">
+              <i className="ph-fill ph-bell-ringing"></i> <span data-price-alert-text>Create price alert</span>
             </button>
           </div>
 
@@ -312,6 +312,146 @@ export default function ResultsPage(){
         </section>
       </div>
     </main>
+    {/* Price Alert Modal */}
+    <div id="price-alert-modal" className="fixed inset-0 bg-slate-900/60 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm transition-opacity opacity-0">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-200" id="price-alert-modal-content">
+        <button id="close-price-alert" type="button" className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-colors z-10">
+          <i className="ph-bold ph-x"></i>
+        </button>
+        
+        {/* Header Illustration Area */}
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 flex justify-between items-start border-b border-slate-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-green-200 rounded-full blur-3xl opacity-40 -translate-y-1/2 translate-x-1/2"></div>
+          <div className="relative z-10">
+            <h2 className="text-xl font-extrabold text-slate-900 mb-2">Price alerts</h2>
+            <p className="text-sm text-slate-500 max-w-[200px]">Set departure time to find your ideal flights!</p>
+          </div>
+          <div className="relative w-20 h-20 shrink-0 z-10">
+            <div className="absolute inset-0 bg-white rounded-full shadow-sm flex items-center justify-center border border-white">
+               <i className="ph-fill ph-airplane-tilt text-4xl text-green-500"></i>
+               <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm">
+                 <i className="ph-fill ph-check-circle text-xl text-green-500"></i>
+               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Route info */}
+          <div>
+            <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+              <span data-alert-from>Hong Kong</span>
+              <i className="ph-bold ph-arrow-right text-slate-400 text-sm"></i>
+              <span data-alert-to>Bangkok</span>
+            </h3>
+            <div className="text-sm text-slate-500 mt-0.5 capitalize" data-alert-trip-type>One-way</div>
+          </div>
+
+          {/* Flexible Dates */}
+          <div>
+             <label className="text-sm font-bold text-slate-800 block mb-2">Flexible dates</label>
+             <div className="border border-slate-200 hover:border-green-500 rounded-lg p-3 text-sm font-semibold text-slate-900 bg-white shadow-sm cursor-pointer transition-colors" data-alert-date>
+                Tue, May 5
+             </div>
+          </div>
+
+          {/* Price target slider area */}
+          <div>
+             <label className="text-sm font-bold text-slate-900 block mb-2">Want a better deal? We'll notify you when the price drops below <span className="text-green-600" data-alert-target-price>US$104</span>.</label>
+             <div className="flex justify-end mb-2">
+                <span className="text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-600 px-2 py-1 rounded">High chances of success</span>
+             </div>
+             
+             <div className="mt-6 mb-2 relative px-4">
+                <div className="relative h-4 flex items-center">
+                  <div className="absolute w-full h-1.5 bg-slate-200 rounded-full"></div>
+                  <div className="absolute h-1.5 bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 rounded-full w-3/4" data-alert-slider-fill></div>
+                  <input 
+                    type="range" 
+                    data-alert-price-slider
+                    min="0" max="100" defaultValue="75"
+                    className="absolute w-full h-4 opacity-0 cursor-pointer z-20"
+                  />
+                  <div className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-white border-2 border-yellow-400 rounded-full shadow flex items-center justify-center z-10 pointer-events-none transition-transform" data-alert-slider-thumb style={{ left: '75%', transform: 'translate(-50%, -50%)' }}>
+                    <span className="text-[12px] leading-none" data-alert-slider-emoji>😊</span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between mt-3 text-xs font-semibold text-slate-400">
+                   <div className="text-center relative -ml-4">
+                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 h-4 border-l border-dashed border-slate-300"></div>
+                     <span data-alert-min-price>US$97</span>
+                   </div>
+                   <div className="text-center relative text-green-600 ml-auto mr-[15%]">
+                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 h-4 border-l border-dashed border-green-300"></div>
+                     Recommended: <span data-alert-target-price>US$104</span>
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <div className="h-px w-full bg-slate-100 my-2"></div>
+
+          {/* Email Settings */}
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+               <span className="text-sm font-bold text-slate-900">Receive alerts by email</span>
+               <i className="ph ph-info text-slate-400 text-xs"></i>
+            </div>
+            <div className="flex flex-col gap-1.5 mt-2">
+               <input 
+                 type="email" 
+                 data-alert-email-input 
+                 placeholder="Enter your email address"
+                 defaultValue="bookingcart.business@gmail.com" 
+                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition-colors"
+               />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer mt-1 group w-max">
+            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-green-600 cursor-pointer" />
+            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Nonstop only</span>
+          </label>
+
+          <button id="enable-price-alert-btn" type="button" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md shadow-green-600/20 active:scale-[0.98]">
+            Enable 24h price tracking
+          </button>
+        </div>
+      </div>
+    </div>
+    {/* Date Picker Modal */}
+    <div id="date-picker-modal" className="fixed inset-0 bg-slate-900/60 z-[110] hidden items-center justify-center p-4 backdrop-blur-sm transition-opacity opacity-0">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[700px] overflow-hidden transform scale-95 transition-transform duration-200" id="date-picker-modal-content">
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+          <h2 className="text-lg font-bold text-slate-900">Select flexible departure dates</h2>
+          <button id="close-date-picker" type="button" className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-colors">
+            <i className="ph-bold ph-x"></i>
+          </button>
+        </div>
+        
+        <div className="p-6 relative">
+          <div className="flex justify-between items-center absolute top-6 left-6 right-6 z-10 pointer-events-none">
+            <button type="button" className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-green-600 pointer-events-auto transition-colors" data-dp-prev><i className="ph-bold ph-caret-left"></i></button>
+            <button type="button" className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-green-600 pointer-events-auto transition-colors" data-dp-next><i className="ph-bold ph-caret-right"></i></button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-8" id="dp-calendars-container">
+             {/* JS rendered */}
+          </div>
+          
+          <div className="mt-8 flex justify-between items-end pt-4 border-t border-slate-100">
+            <div className="text-sm text-slate-500">
+               <span className="font-bold text-slate-900 block mb-0.5" id="dp-selected-text">Depart: -</span>
+               All dates are in local time
+            </div>
+            <button id="confirm-dates-btn" type="button" className="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm active:scale-95">
+              Confirm departure date
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 <FlightFooter />
 </>);
 }

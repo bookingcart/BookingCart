@@ -26,6 +26,8 @@ const authHandler = require('./api-routes/auth');
 const supportHandler = require('./api-routes/support');
 const duffelClientKeyHandler = require('./api-routes/duffel-client-key');
 const ticketDownloadHandler = require('./api-routes/ticket-download');
+const priceAlertHandler = require('./api-routes/price-alert');
+const { startTracker } = require('./lib/price-tracker');
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 function getStripeConfigError() {
@@ -111,6 +113,7 @@ app.all('/api/flight-deals', searchLimiter, run(flightDealsHandler));
 app.all('/api/support', apiLimiter, run(supportHandler));
 app.post('/api/duffel-client-key', searchLimiter, run(duffelClientKeyHandler));
 app.get('/api/ticket-download', apiLimiter, run(ticketDownloadHandler));
+app.post('/api/price-alert', apiLimiter, run(priceAlertHandler));
 
 // Email + password auth endpoints
 app.post('/api/auth/register', apiLimiter, (req, res, next) => {
@@ -568,6 +571,14 @@ if (require.main === module) {
     console.log(`Duffel API Key configured: ${!!process.env.DUFFEL_API_KEY}`);
     if (stripeConfigError) {
       console.error(stripeConfigError);
+    }
+    
+    // Start background price tracking
+    try {
+      startTracker();
+      console.log('Background price tracker successfully started.');
+    } catch (e) {
+      console.error('Failed to start background price tracker:', e.message);
     }
   });
 }

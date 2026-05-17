@@ -1163,6 +1163,326 @@
         window.writeState({ flights: [] });
       }
     })();
+
+    // Price Alert Modal Logic
+    const alertBtn = document.querySelector("[data-price-alert-btn]");
+    const alertText = document.querySelector("[data-price-alert-text]");
+    const modal = document.getElementById("price-alert-modal");
+    const modalContent = document.getElementById("price-alert-modal-content");
+    const closeModalBtn = document.getElementById("close-price-alert");
+    const enableAlertBtn = document.getElementById("enable-price-alert-btn");
+
+    if (alertBtn && modal && enableAlertBtn) {
+      const alertKey = "price_alert_" + (search.from || "") + "_" + (search.to || "");
+      let isAlertActive = localStorage.getItem(alertKey) === "true";
+      let selectedTargetPrice = 0; // Outer scope for slider value
+      
+      const updateAlertUI = () => {
+        if (isAlertActive) {
+          alertBtn.classList.remove("text-green-600", "hover:bg-green-50");
+          alertBtn.classList.add("text-green-800", "bg-green-100");
+          if (alertText) alertText.textContent = "Price alert active";
+          const icon = alertBtn.querySelector("i");
+          if (icon) icon.className = "ph-fill ph-bell-ringing text-green-800";
+        } else {
+          alertBtn.classList.add("text-green-600", "hover:bg-green-50");
+          alertBtn.classList.remove("text-green-800", "bg-green-100");
+          if (alertText) alertText.textContent = "Create price alert";
+          const icon = alertBtn.querySelector("i");
+          if (icon) icon.className = "ph-fill ph-bell-ringing text-green-600";
+        }
+      };
+      
+      updateAlertUI();
+
+      const openModal = () => {
+        if (isAlertActive) {
+          // If already active, just deactivate it directly
+          isAlertActive = false;
+          localStorage.setItem(alertKey, "false");
+          updateAlertUI();
+          window.toast("Alert Deactivated", "You will no longer receive price alerts for this route.");
+          return;
+        }
+
+        // Populate modal data
+        const elFrom = modal.querySelector("[data-alert-from]");
+        const elTo = modal.querySelector("[data-alert-to]");
+        const elType = modal.querySelector("[data-alert-trip-type]");
+        const elDate = modal.querySelector("[data-alert-date]");
+        const elTargetPrice = modal.querySelectorAll("[data-alert-target-price]");
+        const elMinPrice = modal.querySelector("[data-alert-min-price]");
+        
+        if (elFrom) elFrom.textContent = search.from || "Origin";
+        if (elTo) elTo.textContent = search.to || "Destination";
+        if (elType) elType.textContent = (search.tripType === "round" ? "Round-trip" : search.tripType === "multi" ? "Multi-city" : "One-way");
+        if (elDate && search.depart) {
+          const d = new Date(search.depart + "T12:00:00");
+          elDate.textContent = d.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+        
+        const currentFlights = window.readState().flights || [];
+        const basePrice = currentFlights.length ? Math.min(...currentFlights.map(f => typeof f.price === "object" ? parseFloat(f.price.amount || 0) : Number(f.price || 0))) : 150;
+        const currency = currentFlights[0]?.currency || "USD";
+        
+        // Define range
+        const maxLimit = basePrice * 1.05; // Maximum limit of the slider
+        const minLimit = basePrice * 0.50; // Minimum limit of the slider
+        
+        selectedTargetPrice = basePrice * 0.95; // Recommended drop
+        
+        const updateSliderVisuals = (val) => {
+           selectedTargetPrice = val;
+           elTargetPrice.forEach(el => el.textContent = window.money(selectedTargetPrice, currency));
+           
+           // Calculate percentage (0 to 100)
+           const percent = ((selectedTargetPrice - minLimit) / (maxLimit - minLimit)) * 100;
+           const clamped = window.clamp(percent, 0, 100);
+           
+           const slider = modal.querySelector("[data-alert-price-slider]");
+           const sliderFill = modal.querySelector("[data-alert-slider-fill]");
+           const sliderThumb = modal.querySelector("[data-alert-slider-thumb]");
+           const sliderEmoji = modal.querySelector("[data-alert-slider-emoji]");
+           
+           if (slider) slider.value = clamped;
+           if (sliderFill) sliderFill.style.width = clamped + "%";
+           if (sliderThumb) sliderThumb.style.left = clamped + "%";
+           
+           if (sliderEmoji) {
+              if (clamped < 25) sliderEmoji.textContent = "🤑";
+              else if (clamped < 50) sliderEmoji.textContent = "😄";
+              else if (clamped < 75) sliderEmoji.textContent = "😊";
+              else sliderEmoji.textContent = "😐";
+           }
+        };
+        
+        const slider = modal.querySelector("[data-alert-price-slider]");
+        if (slider) {
+           slider.addEventListener("input", (e) => {
+              const p = parseFloat(e.target.value);
+              const val = minLimit + (p / 100) * (maxLimit - minLimit);
+              updateSliderVisuals(val);
+           });
+        }
+        
+        updateSliderVisuals(selectedTargetPrice);
+        if (elMinPrice) elMinPrice.textContent = window.money(minLimit, currency);
+
+        // Show modal
+        modal.classList.remove("hidden");
+        modal.classList.add("flex"); // Ensure flex layout for centering
+        // Trigger reflow
+        void modal.offsetWidth;
+        modal.classList.remove("opacity-0");
+        modalContent.classList.remove("scale-95");
+      };
+
+      const closeModal = () => {
+        modal.classList.add("opacity-0");
+        modalContent.classList.add("scale-95");
+        setTimeout(() => {
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
+        }, 200);
+      };
+
+      alertBtn.addEventListener("click", openModal);
+      
+      if (closeModalBtn) {
+        closeModalBtn.addEventListener("click", closeModal);
+      }
+      
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+      // Flexible Dates Picker Logic
+      const flexDateTrigger = modal.querySelector("[data-alert-date]");
+      const dpModal = document.getElementById("date-picker-modal");
+      const dpModalContent = document.getElementById("date-picker-modal-content");
+      const dpCloseBtn = document.getElementById("close-date-picker");
+      const dpConfirmBtn = document.getElementById("confirm-dates-btn");
+      const dpContainer = document.getElementById("dp-calendars-container");
+      const dpPrev = document.querySelector("[data-dp-prev]");
+      const dpNext = document.querySelector("[data-dp-next]");
+      const dpSelectedText = document.getElementById("dp-selected-text");
+
+      let currentMonth = search.depart ? new Date(search.depart + "T12:00:00") : new Date();
+      currentMonth.setDate(1); // Start of month
+      
+      let selectedRange = [search.depart ? new Date(search.depart + "T12:00:00") : new Date()];
+
+      const renderCalendars = () => {
+         if (!dpContainer) return;
+         dpContainer.innerHTML = "";
+         
+         const renderMonth = (dateObj) => {
+            const year = dateObj.getFullYear();
+            const month = dateObj.getMonth();
+            const monthName = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+            
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
+            
+            let html = `<div class="w-full">
+               <div class="text-center font-bold text-slate-800 mb-4">${monthName}</div>
+               <div class="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-2">
+                  <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+               </div>
+               <div class="grid grid-cols-7 gap-y-2 text-center text-sm font-medium">`;
+               
+            for (let i = 0; i < firstDayIndex; i++) {
+               html += `<div></div>`;
+            }
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+               const currentDayDate = new Date(year, month, i);
+               const dateStr = currentDayDate.toISOString().split('T')[0];
+               const isSelected = selectedRange.some(d => d.toISOString().split('T')[0] === dateStr);
+               
+               let classes = "w-8 h-8 flex items-center justify-center mx-auto rounded-full cursor-pointer hover:bg-green-50 transition-colors";
+               if (isSelected) {
+                  classes = "w-8 h-8 flex items-center justify-center mx-auto rounded-full cursor-pointer bg-green-600 text-white font-bold shadow-sm";
+               } else if (currentDayDate < new Date().setHours(0,0,0,0)) {
+                  classes = "w-8 h-8 flex items-center justify-center mx-auto rounded-full text-slate-300 cursor-not-allowed";
+               }
+               
+               html += `<div class="${classes}" data-date="${dateStr}">${i}</div>`;
+            }
+            
+            html += `</div></div>`;
+            return html;
+         };
+         
+         dpContainer.innerHTML = renderMonth(currentMonth) + renderMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+         
+         dpContainer.querySelectorAll("[data-date]").forEach(el => {
+            el.addEventListener("click", (e) => {
+               const dateStr = e.target.getAttribute("data-date");
+               const d = new Date(dateStr + "T12:00:00");
+               if (d < new Date().setHours(0,0,0,0)) return;
+               
+               const existingIdx = selectedRange.findIndex(sd => sd.toISOString().split('T')[0] === dateStr);
+               if (existingIdx >= 0) {
+                  if (selectedRange.length > 1) selectedRange.splice(existingIdx, 1);
+               } else {
+                  selectedRange.push(d);
+               }
+               selectedRange.sort((a,b) => a - b);
+               
+               if (selectedRange.length === 1) {
+                  if (dpSelectedText) dpSelectedText.textContent = "Depart: " + selectedRange[0].toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
+               } else {
+                  if (dpSelectedText) dpSelectedText.textContent = "Depart: " + selectedRange[0].toLocaleDateString("en-US", { month: 'short', day: 'numeric' }) + " - " + selectedRange[selectedRange.length-1].toLocaleDateString("en-US", { month: 'short', day: 'numeric' });
+               }
+               
+               renderCalendars();
+            });
+         });
+      };
+
+      if (flexDateTrigger && dpModal) {
+         flexDateTrigger.addEventListener("click", () => {
+            dpModal.classList.remove("hidden");
+            dpModal.classList.add("flex");
+            void dpModal.offsetWidth;
+            dpModal.classList.remove("opacity-0");
+            if (dpModalContent) dpModalContent.classList.remove("scale-95");
+            if (dpSelectedText) {
+               if (selectedRange.length === 1) {
+                  dpSelectedText.textContent = "Depart: " + selectedRange[0].toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
+               } else {
+                  dpSelectedText.textContent = "Depart: " + selectedRange[0].toLocaleDateString("en-US", { month: 'short', day: 'numeric' }) + " - " + selectedRange[selectedRange.length-1].toLocaleDateString("en-US", { month: 'short', day: 'numeric' });
+               }
+            }
+            renderCalendars();
+         });
+         
+         const closeDp = () => {
+            dpModal.classList.add("opacity-0");
+            if (dpModalContent) dpModalContent.classList.add("scale-95");
+            setTimeout(() => {
+               dpModal.classList.add("hidden");
+               dpModal.classList.remove("flex");
+            }, 200);
+         };
+         
+         if (dpCloseBtn) dpCloseBtn.addEventListener("click", closeDp);
+         dpModal.addEventListener("click", (e) => {
+            if (e.target === dpModal) closeDp();
+         });
+         
+         if (dpPrev) dpPrev.addEventListener("click", () => {
+            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+            renderCalendars();
+         });
+         if (dpNext) dpNext.addEventListener("click", () => {
+            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+            renderCalendars();
+         });
+         
+         if (dpConfirmBtn) dpConfirmBtn.addEventListener("click", () => {
+            const elDate = modal.querySelector("[data-alert-date]");
+            if (elDate && selectedRange.length > 0) {
+               if (selectedRange.length === 1) {
+                  elDate.textContent = selectedRange[0].toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
+               } else {
+                  elDate.textContent = selectedRange[0].toLocaleDateString("en-US", { month: 'short', day: 'numeric' }) + " - " + selectedRange[selectedRange.length-1].toLocaleDateString("en-US", { month: 'short', day: 'numeric' });
+               }
+            }
+            closeDp();
+         });
+      }
+
+      enableAlertBtn.addEventListener("click", async () => {
+        const emailInput = modal.querySelector("[data-alert-email-input]");
+        const email = emailInput ? emailInput.value.trim() : "bookingcart.business@gmail.com";
+        if (!email) {
+          window.toast("Error", "Please enter a valid email address.", "error");
+          return;
+        }
+
+        const originalText = enableAlertBtn.innerHTML;
+        enableAlertBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Activating...';
+        enableAlertBtn.disabled = true;
+
+        try {
+          const currentFlights = window.readState().flights || [];
+          const currency = currentFlights[0]?.currency || "USD";
+          
+          const checkbox = modal.querySelector('input[type="checkbox"]');
+          const isNonstop = checkbox ? checkbox.checked : false;
+
+          const res = await fetch("/api/price-alert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              from: search.from || "Origin",
+              to: search.to || "Destination",
+              departDate: selectedRange.map(d => d.toISOString().split('T')[0]).join(','),
+              targetPrice: selectedTargetPrice.toFixed(2),
+              currency,
+              isNonstop
+            })
+          });
+
+          if (!res.ok) throw new Error("Failed to activate price alert");
+
+          isAlertActive = true;
+          localStorage.setItem(alertKey, "true");
+          updateAlertUI();
+          closeModal();
+          window.toast("Alert Activated", `We'll email you when prices drop for ${search.from || "this route"}.`);
+        } catch (err) {
+          console.error(err);
+          window.toast("Error", "Could not set up price alert. Please try again.", "error");
+        } finally {
+          enableAlertBtn.innerHTML = originalText;
+          enableAlertBtn.disabled = false;
+        }
+      });
+    }
   }
 
   function initDetails() {
