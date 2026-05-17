@@ -1221,6 +1221,24 @@
           elDate.textContent = d.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
         }
         
+        // Pre-fill email with signed-in user's email
+        const emailInput = modal.querySelector("[data-alert-email-input]");
+        if (emailInput) {
+          try {
+            const storedUser = JSON.parse(localStorage.getItem('bookingcart_user') || '{}');
+            const signedInEmail = storedUser.email || storedUser.profile?.email || "";
+            if (signedInEmail) {
+              emailInput.value = signedInEmail;
+              emailInput.readOnly = true;
+              emailInput.classList.add("bg-slate-50", "text-slate-500", "cursor-not-allowed");
+              emailInput.title = "Alerts will be sent to your account email";
+            } else {
+              emailInput.readOnly = false;
+              emailInput.classList.remove("bg-slate-50", "text-slate-500", "cursor-not-allowed");
+            }
+          } catch(e) { /* ignore */ }
+        }
+        
         const currentFlights = window.readState().flights || [];
         const basePrice = currentFlights.length ? Math.min(...currentFlights.map(f => typeof f.price === "object" ? parseFloat(f.price.amount || 0) : Number(f.price || 0))) : 150;
         const currency = currentFlights[0]?.currency || "USD";
@@ -1472,12 +1490,42 @@
           isAlertActive = true;
           localStorage.setItem(alertKey, "true");
           updateAlertUI();
-          closeModal();
-          window.toast("Alert Activated", `We'll email you when prices drop for ${search.from || "this route"}.`);
+
+          // Show success screen inside the modal
+          const modalContentEl = document.getElementById("price-alert-modal-content");
+          if (modalContentEl) {
+            const currency = currentFlights[0]?.currency || "USD";
+            modalContentEl.innerHTML = `
+              <div class="flex flex-col items-center justify-center text-center p-10 gap-5">
+                <div class="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center shadow-lg shadow-green-100 border-4 border-green-100 animate-[scale-in_0.4s_ease]">
+                  <i class="ph-fill ph-check-circle text-5xl text-green-600"></i>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-extrabold text-slate-900 mb-1">Tracking Enabled!</h2>
+                  <p class="text-sm text-slate-500 max-w-xs leading-relaxed">
+                    We're now watching <strong class="text-slate-700">${search.from || "Origin"} → ${search.to || "Destination"}</strong> for you.<br/>
+                    We'll email <strong class="text-green-700">${email}</strong> the moment prices drop below <strong class="text-slate-700">${currency} ${selectedTargetPrice.toFixed(2)}</strong>.
+                  </p>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-full px-4 py-2">
+                  <i class="ph ph-clock text-slate-400"></i>
+                  Checking prices every 12 hours
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-1 mt-2 overflow-hidden">
+                  <div class="h-1 bg-green-500 rounded-full animate-[progress_2.5s_linear_forwards]" style="width:0%"></div>
+                </div>
+              </div>
+            `;
+          }
+
+          // Auto close after 2.5 seconds
+          setTimeout(() => {
+            closeModal();
+          }, 2500);
+
         } catch (err) {
           console.error(err);
           window.toast("Error", "Could not set up price alert. Please try again.", "error");
-        } finally {
           enableAlertBtn.innerHTML = originalText;
           enableAlertBtn.disabled = false;
         }

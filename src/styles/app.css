@@ -674,3 +674,8 @@ details.filter-chip[open] > summary .filter-chip-caret {
   width: 0%;
   transition: width 0.4s ease;
 }
+
+@keyframes progress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}

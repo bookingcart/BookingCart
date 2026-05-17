@@ -394,18 +394,23 @@ export default function ResultsPage(){
 
           {/* Email Settings */}
           <div>
-            <div className="flex items-center gap-1.5 mb-1.5">
-               <span className="text-sm font-bold text-slate-900">Receive alerts by email</span>
-               <i className="ph ph-info text-slate-400 text-xs"></i>
+            <div className="flex items-center justify-between mb-1.5">
+               <div className="flex items-center gap-1.5">
+                 <span className="text-sm font-bold text-slate-900">Receive alerts by email</span>
+                 <i className="ph ph-info text-slate-400 text-xs"></i>
+               </div>
+               <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                 <i className="ph-fill ph-user-circle text-xs"></i> Auto-filled from account
+               </span>
             </div>
             <div className="flex flex-col gap-1.5 mt-2">
                <input 
                  type="email" 
                  data-alert-email-input 
                  placeholder="Enter your email address"
-                 defaultValue="bookingcart.business@gmail.com" 
                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition-colors"
                />
+               <p className="text-[11px] text-slate-400">You can edit this if you'd like alerts sent to a different address.</p>
             </div>
           </div>
 
