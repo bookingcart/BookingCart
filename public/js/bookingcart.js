@@ -2427,21 +2427,8 @@
             } catch (e) { }
           }
 
-          // ── Step 3: Create Duffel order with the real airline ─────────────────
-          let duffelOrderRef = null;
-          let duffelOrderId = null;
-          const duffelRes = await createDuffelOrder(nextState, totals, false);
-          if (duffelRes.ref) {
-            window.writeState({ bookingRef: duffelRes.ref, _duffelOrderId: duffelRes.id });
-            nextState.bookingRef = duffelRes.ref;
-            duffelOrderRef = duffelRes.ref;
-            duffelOrderId = duffelRes.id;
-            if (refEl) window.setText(refEl, duffelRes.ref);
-            console.log('✅ Duffel order created — PNR:', duffelOrderRef, 'Order ID:', duffelOrderId);
-          } else {
-            console.warn('Duffel order failed (non-fatal, booking will still be saved locally)');
-          }
-          // ─────────────────────────────────────────────────────────────────────
+          const duffelOrderId = nextState._duffelOrderId || null;
+          const duffelOrderRef = nextState._duffelBookingReference || null;
 
           const booking = {
             ref: nextState.bookingRef,
@@ -2452,15 +2439,30 @@
             passengers: nextState.travelers || nextState.passengers || [],
             total: totals.total,
             extras: nextState.extras || {},
-            status: "confirmed",
+            status: duffelOrderId ? "confirmed" : "platform_paid_ticket_pending",
             duffelOrderId: duffelOrderId || null,
             duffelBookingReference: duffelOrderRef || null,
+            paymentSplit: {
+              airline: {
+                provider: "duffel",
+                status: duffelOrderId ? "paid" : "pending",
+                amountTotal: Math.round(Number(totals.flightCost || 0) * 100),
+                currency: totals.currency
+              },
+              platform: {
+                provider: "stripe",
+                sessionId: stripeSession.id,
+                status: stripeSession.payment_status || stripeSession.status,
+                amountTotal: stripeSession.amount_total,
+                currency: stripeSession.currency
+              }
+            },
             payment: {
-              provider: "stripe",
+              provider: "split",
               sessionId: stripeSession.id,
-              status: stripeSession.payment_status || stripeSession.status,
-              amountTotal: stripeSession.amount_total,
-              currency: stripeSession.currency
+              status: duffelOrderId ? "paid" : "platform_paid_ticket_pending",
+              amountTotal: Math.round(Number(totals.total || 0) * 100),
+              currency: totals.currency
             }
           };
 

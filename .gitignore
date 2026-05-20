@@ -21,6 +21,8 @@ Thumbs.db
 # Build outputs
 dist/
 build/
+.next/
+*.tsbuildinfo
 
 # Local Netlify folder
 .netlify

@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const fetch = require('node-fetch');
 const Stripe = require('stripe');
 const { pickAllowOrigin } = require('./lib/cors');
@@ -156,6 +157,15 @@ function resolveCheckoutOrigin(req) {
   return '';
 }
 
+function stripeIdempotencyKey(parts) {
+  const raw = parts
+    .map((part) => String(part || '').trim().toLowerCase())
+    .filter(Boolean)
+    .join(':');
+  if (!raw) return undefined;
+  return `bookingcart:${crypto.createHash('sha256').update(raw).digest('hex')}`;
+}
+
 app.post('/api/stripe/create-checkout-session', apiLimiter, async (req, res) => {
   if (!stripe) {
     return res.status(503).json({ ok: false, error: stripeConfigError });
@@ -170,6 +180,8 @@ app.post('/api/stripe/create-checkout-session', apiLimiter, async (req, res) => 
     const successPath = String(payload.successPath || '/confirmation');
     const cancelPath = String(payload.cancelPath || '/payment');
     const customerEmail = String(payload.customerEmail || '').trim().toLowerCase();
+    const paymentPurpose = String(payload.paymentPurpose || 'booking').trim().toLowerCase();
+    const duffelOrderId = String(payload.duffelOrderId || '').trim();
 
     if (!Number.isFinite(amountCents) || amountCents < 50) {
       return res.status(400).json({ ok: false, error: 'Invalid amountCents' });
@@ -185,26 +197,52 @@ app.post('/api/stripe/create-checkout-session', apiLimiter, async (req, res) => 
     const successSep = successUrlPath.includes('?') ? '&' : '?';
     const cancelSep = cancelUrlPath.includes('?') ? '&' : '?';
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items: [
-        {
-          price_data: {
-            currency,
-            product_data: { name: description },
-            unit_amount: amountCents
-          },
-          quantity: 1
-        }
-      ],
-      customer_email: customerEmail || undefined,
-      client_reference_id: bookingRef || undefined,
-      metadata: bookingRef ? { bookingRef } : undefined,
-      success_url: `${origin}${successUrlPath}${successSep}session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${cancelUrlPath}${cancelSep}canceled=1`
-    });
+    const metadata = {
+      paymentPurpose,
+      amountCents: String(amountCents)
+    };
+    if (bookingRef) metadata.bookingRef = bookingRef;
+    if (duffelOrderId) metadata.duffelOrderId = duffelOrderId;
 
-    return res.json({ ok: true, id: session.id, url: session.url });
+    const idempotencyKey = bookingRef
+      ? stripeIdempotencyKey([
+          'checkout-session',
+          bookingRef,
+          paymentPurpose,
+          currency,
+          amountCents
+        ])
+      : undefined;
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'payment',
+        line_items: [
+          {
+            price_data: {
+              currency,
+              product_data: { name: description },
+              unit_amount: amountCents
+            },
+            quantity: 1
+          }
+        ],
+        customer_email: customerEmail || undefined,
+        client_reference_id: bookingRef || undefined,
+        metadata,
+        success_url: `${origin}${successUrlPath}${successSep}session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}${cancelUrlPath}${cancelSep}canceled=1`
+      },
+      idempotencyKey ? { idempotencyKey } : undefined
+    );
+
+    return res.json({
+      ok: true,
+      id: session.id,
+      url: session.url,
+      paymentPurpose,
+      reused: false
+    });
   } catch (error) {
     console.error('Stripe checkout session error:', error);
     return res.status(500).json({ ok: false, error: error.message || 'Unable to create checkout session' });

@@ -480,23 +480,31 @@ function bookingsAuthHeaders() {
             btn.disabled = true;
 
             try {
+                const platformAmountCents = Number(b.paymentSplit?.platform?.amountTotal) > 0
+                    ? Number(b.paymentSplit.platform.amountTotal)
+                    : Math.round(Number(b.total) * 100);
+                const airlineAmount = Number(b.paymentSplit?.airline?.amountTotal) > 0
+                    ? (Number(b.paymentSplit.airline.amountTotal) / 100).toFixed(2)
+                    : b.total;
                 const resp = await fetch("/api/stripe/create-checkout-session", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    amountCents: Math.round(Number(b.total) * 100),
+                    amountCents: platformAmountCents,
                     currency: (b.payment && b.payment.currency) ? b.payment.currency.toLowerCase() : "usd",
                     description: "BookingCart flight payment " + ref,
                     bookingRef: ref,
                     customerEmail: (b.contact && b.contact.email) || "",
                     successPath: "/confirmation",
-                    cancelPath: "/my-bookings"
+                    cancelPath: "/my-bookings",
+                    paymentPurpose: "platform_fees",
+                    duffelOrderId: b.duffelOrderId || ""
                   })
                 });
                 
                 const data = await resp.json().catch(() => null);
                 if (resp.ok && data && data.ok && data.url) {
-                    localStorage.setItem('bc_paying_booking', JSON.stringify({ ref: ref, duffelOrderId: b.duffelOrderId, amount: b.total, currency: b.payment?.currency || "USD" }));
+                    localStorage.setItem('bc_paying_booking', JSON.stringify({ ref: ref, duffelOrderId: b.duffelOrderId, amount: airlineAmount, currency: b.payment?.currency || "USD" }));
                     window.location.href = data.url;
                 } else {
                     alert((data && data.error) || "Unable to start checkout");
@@ -1184,5 +1192,4 @@ function bookingsAuthHeaders() {
                 modal.remove();
             }
         }
-
 

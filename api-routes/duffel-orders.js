@@ -2,9 +2,139 @@ require('dotenv').config();
 
 const fetch = require('node-fetch');
 const { applyCors } = require('../lib/cors');
+const { getCollections } = require('../lib/mongo');
 
 const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
 const DUFFEL_BASE_URL = 'https://api.duffel.com';
+const ORDER_LOCK_TTL_MS = 2 * 60 * 1000;
+
+async function getBookingsCollection() {
+  try {
+    const { bookings } = await getCollections();
+    return bookings;
+  } catch (err) {
+    if (process.env.NODE_ENV === 'production') throw err;
+    if (!global.__duffelOrderLocks) global.__duffelOrderLocks = {};
+    return null;
+  }
+}
+
+function normalizeRef(value) {
+  const ref = String(value || '').trim();
+  return ref ? ref.slice(0, 80) : '';
+}
+
+function isFreshProcessingLock(doc) {
+  const updatedAt = doc?.duffelOrderRequest?.updatedAt;
+  if (!updatedAt) return false;
+  const ts = new Date(updatedAt).getTime();
+  return Number.isFinite(ts) && Date.now() - ts < ORDER_LOCK_TTL_MS;
+}
+
+function existingOrderResponse(doc) {
+  if (!doc || !doc.duffelOrderId) return null;
+  return {
+    ok: true,
+    orderId: doc.duffelOrderId,
+    bookingReference: doc.duffelBookingReference || doc.ref,
+    status: doc.duffelOrderStatus || doc.status || 'confirmed',
+    reused: true
+  };
+}
+
+async function reserveOrderSlot(collection, ref, meta) {
+  if (!ref) return { ok: true };
+
+  const now = new Date().toISOString();
+  if (collection) {
+    const existing = await collection.findOne({ ref });
+    const existingResponse = existingOrderResponse(existing);
+    if (existingResponse) return { ok: false, response: existingResponse };
+    if (isFreshProcessingLock(existing)) {
+      return {
+        ok: false,
+        status: 409,
+        response: {
+          ok: false,
+          error: 'This booking is already being processed. Please wait a moment before trying again.'
+        }
+      };
+    }
+
+    await collection.updateOne(
+      { ref },
+      {
+        $setOnInsert: {
+          ref,
+          status: 'new',
+          createdAt: now
+        },
+        $set: {
+          duffelOrderRequest: {
+            ...meta,
+            status: 'processing',
+            updatedAt: now
+          },
+          updatedAt: now
+        }
+      },
+      { upsert: true }
+    );
+    return { ok: true };
+  }
+
+  const lock = global.__duffelOrderLocks[ref];
+  const existingResponse = existingOrderResponse(lock);
+  if (existingResponse) return { ok: false, response: existingResponse };
+  if (lock && lock.duffelOrderRequest?.status === 'processing' && isFreshProcessingLock(lock)) {
+    return {
+      ok: false,
+      status: 409,
+      response: {
+        ok: false,
+        error: 'This booking is already being processed. Please wait a moment before trying again.'
+      }
+    };
+  }
+  global.__duffelOrderLocks[ref] = {
+    ref,
+    duffelOrderRequest: {
+      ...meta,
+      status: 'processing',
+      updatedAt: now
+    }
+  };
+  return { ok: true };
+}
+
+async function markOrderSlot(collection, ref, update) {
+  if (!ref) return;
+  const now = new Date().toISOString();
+
+  if (collection) {
+    await collection.updateOne(
+      { ref },
+      {
+        $setOnInsert: {
+          ref,
+          createdAt: now
+        },
+        $set: {
+          ...update,
+          updatedAt: now
+        }
+      },
+      { upsert: true }
+    );
+    return;
+  }
+
+  global.__duffelOrderLocks[ref] = {
+    ...(global.__duffelOrderLocks[ref] || { ref }),
+    ...update,
+    updatedAt: now
+  };
+}
 
 /**
  * Validate a YYYY-MM-DD date string.
@@ -84,6 +214,9 @@ module.exports = async (req, res) => {
 
   const body = req.body || {};
   const { offerId, totalAmount, currency, passengers, hold, services, payment } = body;
+  const bookingRef = normalizeRef(body.bookingRef || body.idempotencyKey);
+  const clientIdempotencyKey = normalizeRef(body.idempotencyKey || bookingRef);
+  const bookingsCollection = bookingRef ? await getBookingsCollection() : null;
 
   // ── Validation ──────────────────────────────────────────────────────────────
   if (!offerId || typeof offerId !== 'string' || !offerId.trim()) {
@@ -176,18 +309,33 @@ module.exports = async (req, res) => {
     ];
   }
 
+  const reserve = await reserveOrderSlot(bookingsCollection, bookingRef, {
+    idempotencyKey: clientIdempotencyKey,
+    offerId: offerId.trim(),
+    hold: !!hold,
+    paymentType: payment?.type || (hold ? 'hold' : 'balance')
+  });
+  if (!reserve.ok) {
+    return res.status(reserve.status || 200).json(reserve.response);
+  }
+
   // ── Call Duffel POST /air/orders ─────────────────────────────────────────────
   try {
     console.log(`Creating Duffel order for offer ${offerId} — ${passengers.length} passenger(s)`);
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Duffel-Version': 'v2',
+      'Authorization': `Bearer ${DUFFEL_API_KEY}`
+    };
+    if (clientIdempotencyKey) {
+      headers['Idempotency-Key'] = clientIdempotencyKey;
+    }
+
     const duffelRes = await fetch(`${DUFFEL_BASE_URL}/air/orders`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Duffel-Version': 'v2',
-        'Authorization': `Bearer ${DUFFEL_API_KEY}`
-      },
+      headers,
       body: JSON.stringify(orderPayload)
     });
 
@@ -211,6 +359,17 @@ module.exports = async (req, res) => {
         : 'Unable to complete booking with the airline. Please try again.';
 
       console.error('Duffel order creation failed:', duffelRes.status, JSON.stringify(duffelErrors || duffelData).slice(0, 500));
+      await markOrderSlot(bookingsCollection, bookingRef, {
+        duffelOrderRequest: {
+          idempotencyKey: clientIdempotencyKey,
+          offerId: offerId.trim(),
+          hold: !!hold,
+          paymentType: payment?.type || (hold ? 'hold' : 'balance'),
+          status: 'failed',
+          error: userMessage,
+          updatedAt: new Date().toISOString()
+        }
+      });
       return res.status(duffelRes.status >= 500 ? 502 : duffelRes.status).json({
         ok: false,
         error: userMessage,
@@ -225,6 +384,21 @@ module.exports = async (req, res) => {
 
     console.log(`✅ Duffel order created: ${order.id} — PNR: ${order.booking_reference}`);
 
+    await markOrderSlot(bookingsCollection, bookingRef, {
+      status: hold ? 'held' : payment ? 'airline_paid_platform_pending' : 'confirmed',
+      duffelOrderId: order.id,
+      duffelBookingReference: order.booking_reference || null,
+      duffelOrderStatus: order.status || 'confirmed',
+      duffelOrderRequest: {
+        idempotencyKey: clientIdempotencyKey,
+        offerId: offerId.trim(),
+        hold: !!hold,
+        paymentType: payment?.type || (hold ? 'hold' : 'balance'),
+        status: 'succeeded',
+        updatedAt: new Date().toISOString()
+      }
+    });
+
     return res.json({
       ok: true,
       orderId: order.id,
@@ -237,6 +411,17 @@ module.exports = async (req, res) => {
 
   } catch (err) {
     console.error('duffel-orders error:', err);
+    await markOrderSlot(bookingsCollection, bookingRef, {
+      duffelOrderRequest: {
+        idempotencyKey: clientIdempotencyKey,
+        offerId: offerId.trim(),
+        hold: !!hold,
+        paymentType: payment?.type || (hold ? 'hold' : 'balance'),
+        status: 'failed',
+        error: err.message || 'Internal server error',
+        updatedAt: new Date().toISOString()
+      }
+    });
     return res.status(500).json({ ok: false, error: 'Internal server error. Please try again.' });
   }
 };

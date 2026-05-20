@@ -36,13 +36,20 @@ module.exports = async (req, res) => {
       if (dbReady) {
         const now = new Date().toISOString();
         await query(
-          `INSERT INTO bc_bookings (ref, contact_email, status, route, dates, flight, passengers, contact, extras, total, payment, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+          `INSERT INTO bc_bookings (
+             ref, contact_email, status, route, dates, flight, passengers,
+             contact, extras, total, payment, payment_split, duffel_order_id,
+             duffel_booking_reference, duffel_order_status, ticket, created_at, updated_at
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $17)
            ON CONFLICT (ref) DO UPDATE SET
-             status = COALESCE($3, bookings.status),
+             status = COALESCE($3, bc_bookings.status),
              route = $4, dates = $5, flight = $6, passengers = $7,
              contact = $8, extras = $9, total = $10, payment = $11,
-             updated_at = $12`,
+             payment_split = $12, duffel_order_id = $13,
+             duffel_booking_reference = $14, duffel_order_status = $15,
+             ticket = COALESCE($16, bc_bookings.ticket),
+             updated_at = $17`,
           [
             booking.ref,
             (booking.contact && booking.contact.email) || '',
@@ -55,6 +62,11 @@ module.exports = async (req, res) => {
             JSON.stringify(booking.extras || {}),
             booking.total || 0,
             booking.payment ? JSON.stringify(booking.payment) : null,
+            booking.paymentSplit ? JSON.stringify(booking.paymentSplit) : null,
+            booking.duffelOrderId || null,
+            booking.duffelBookingReference || null,
+            booking.duffelOrderStatus || null,
+            booking.ticket ? JSON.stringify(booking.ticket) : null,
             now,
           ]
         );
@@ -238,6 +250,10 @@ function rowToBooking(row) {
     extras: row.extras || {},
     total: row.total ? parseFloat(row.total) : 0,
     payment: row.payment || null,
+    paymentSplit: row.payment_split || null,
+    duffelOrderId: row.duffel_order_id || null,
+    duffelBookingReference: row.duffel_booking_reference || null,
+    duffelOrderStatus: row.duffel_order_status || null,
     ticket: row.ticket || null,
     downloadCount: row.download_count || 0,
     createdAt: row.created_at,
