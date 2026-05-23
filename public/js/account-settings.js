@@ -68,17 +68,11 @@ let state = {
     airlines: ["Emirates", "British Airways"],
   },
   rewards: {
-    level: "Gold",
-    points: 12450,
-    nextLevel: "Platinum",
-    nextThreshold: 20000,
-    history: [
-      { desc: "Dubai → London (EK001)", pts: +450, date: "2 Mar 2026" },
-      { desc: "Points redeemed — hotel", pts: -200, date: "18 Feb 2026" },
-      { desc: "New York → Paris", pts: +680, date: "5 Feb 2026" },
-      { desc: "Referral bonus", pts: +200, date: "1 Feb 2026" },
-      { desc: "Annual Gold bonus", pts: +500, date: "1 Jan 2026" },
-    ],
+    level: "Member",
+    points: 0,
+    nextLevel: "Silver",
+    nextThreshold: 5000,
+    history: [],
   },
   loginActivity: [
     {
@@ -263,14 +257,6 @@ async function bootAccountSettingsPage() {
     renderAirlines();
     renderRewards();
     loadPreferences();
-    setTimeout(() => {
-      const fill = document.getElementById("progress-fill");
-      if (fill)
-        fill.style.width =
-          ((state.rewards.points / state.rewards.nextThreshold) * 100).toFixed(
-            1,
-          ) + "%";
-    }, 300);
   } finally {
     hideInitialLoading();
   }
@@ -891,28 +877,50 @@ function saveNotifications() {
 ══════════════════════════════════════════════════ */
 function renderRewards() {
   const r = state.rewards;
-  setText("reward-level-badge", `${r.level} Member`);
+  if (!r) return;
+  
+  setText("reward-level-badge", r.level === "Member" ? "Member" : `${r.level} Member`);
   setText("reward-points", r.points.toLocaleString());
+  
+  const valEl = document.getElementById("reward-value");
+  if(valEl) valEl.textContent = `≈ $${(r.points / 100).toFixed(2)} in travel credits`;
+  
+  setText("reward-progress-header", `Progress to ${r.nextLevel}`);
+  const remaining = r.nextThreshold - r.points;
+  const subEl = document.getElementById("reward-progress-sub");
+  if(subEl) subEl.innerHTML = `Earn <span class="font-bold text-green-600" id="reward-progress-points">${remaining.toLocaleString()} more points</span> to reach ${r.nextLevel} status`;
+  
+  setText("reward-current-label", `${r.level} — ${r.points.toLocaleString()} pts`);
+  setText("reward-next-label", `${r.nextLevel} — ${r.nextThreshold.toLocaleString()} pts`);
+  
+  const pct = ((r.points / r.nextThreshold) * 100).toFixed(1);
+  const fill = document.getElementById("progress-fill");
+  if(fill) fill.style.width = pct + "%";
+  setText("reward-progress-text", `${pct}% complete`);
 
   const history = document.getElementById("points-history");
   if (history) {
-    history.innerHTML = r.history
-      .map(
-        (h) => `
-      <div class="activity-row">
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${h.pts > 0 ? "bg-green-100" : "bg-red-50"}">
-          <i class="ph ph-${h.pts > 0 ? "plus-circle" : "minus-circle"} text-lg ${h.pts > 0 ? "text-green-600" : "text-red-500"}"></i>
+    if (!r.history || r.history.length === 0) {
+      history.innerHTML = '<p class="text-sm text-slate-400 py-4 text-center">No points history available yet.</p>';
+    } else {
+      history.innerHTML = r.history
+        .map(
+          (h) => `
+        <div class="activity-row">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${h.pts > 0 ? "bg-green-100" : "bg-red-50"}">
+            <i class="ph ph-${h.pts > 0 ? "plus-circle" : "minus-circle"} text-lg ${h.pts > 0 ? "text-green-600" : "text-red-500"}"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-slate-800 truncate">${h.desc}</div>
+            <div class="text-xs text-slate-400">${h.date}</div>
+          </div>
+          <div class="font-bold text-sm ${h.pts > 0 ? "text-green-600" : "text-red-500"} flex-shrink-0">
+            ${h.pts > 0 ? "+" : ""}${h.pts.toLocaleString()} pts
+          </div>
         </div>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold text-slate-800 truncate">${h.desc}</div>
-          <div class="text-xs text-slate-400">${h.date}</div>
-        </div>
-        <div class="font-bold text-sm ${h.pts > 0 ? "text-green-600" : "text-red-500"} flex-shrink-0">
-          ${h.pts > 0 ? "+" : ""}${h.pts.toLocaleString()} pts
-        </div>
-      </div>
-    `,
-      )
-      .join("");
+      `,
+        )
+        .join("");
+    }
   }
 }

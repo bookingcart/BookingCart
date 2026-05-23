@@ -893,48 +893,49 @@ export default function AccountSettingsPage() {
                         className="text-white text-2xl font-extrabold"
                         id="reward-level-badge"
                       >
-                        Gold Member
+                        Member
                       </div>
                     </div>
-                    <i className="ph ph-star text-5xl text-yellow-300 opacity-80"></i>
+                    <i className="ph ph-star text-5xl text-white/50 opacity-80"></i>
                   </div>
                   <div className="text-white/80 text-sm mb-1">Available Points</div>
                   <div
                     className="text-white text-4xl font-extrabold tracking-tight"
                     id="reward-points"
                   >
-                    12,450
+                    0
                   </div>
-                  <div className="text-white/60 text-xs mt-1">
-                    ≈ $124.50 in travel credits
+                  <div className="text-white/60 text-xs mt-1" id="reward-value">
+                    ≈ $0.00 in travel credits
                   </div>
                 </div>
       
                 
                 <div className="settings-card">
-                  <div className="settings-card-header">Progress to Platinum</div>
-                  <div className="settings-card-sub">
+                  <div className="settings-card-header" id="reward-progress-header">Progress to Silver</div>
+                  <div className="settings-card-sub" id="reward-progress-sub">
                     Earn
-                    <span className="font-bold text-green-600">7,550 more points</span> to
-                    reach Platinum status
+                    <span className="font-bold text-green-600" id="reward-progress-points">5,000 more points</span> to
+                    reach Silver status
                   </div>
                   <div
                     className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2"
+                    id="reward-progress-labels"
                   >
-                    <span>Gold — 12,450 pts</span>
-                    <span>Platinum — 20,000 pts</span>
+                    <span id="reward-current-label">Member — 0 pts</span>
+                    <span id="reward-next-label">Silver — 5,000 pts</span>
                   </div>
                   <div className="progress-bar">
-                    <div className="progress-fill" id="progress-fill"></div>
+                    <div className="progress-fill" id="progress-fill" style={{ width: '0%' }}></div>
                   </div>
-                  <div className="text-right text-xs text-slate-400 mt-1">
-                    62.3% complete
+                  <div className="text-right text-xs text-slate-400 mt-1" id="reward-progress-text">
+                    0% complete
                   </div>
                 </div>
       
                 
                 <div className="settings-card">
-                  <div className="settings-card-header">Your Gold Member Benefits</div>
+                  <div className="settings-card-header" id="reward-benefits-header">Your Member Benefits</div>
                   <div className="settings-card-sub">
                     Exclusive perks included with your membership
                   </div>

@@ -5,6 +5,13 @@ import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 
 const FLIGHT_SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js?v=4','/js/deals.js?v=1'];
 
+const HERO_IMAGES = [
+  '/images/hero-bg.jpg',
+  'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2073&auto=format&fit=crop'
+];
+
 const FAQ_ITEMS = [
   [
     {
@@ -42,27 +49,40 @@ export default function HomePage() {
     setOpenFaq(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => { document.title = 'BookingCart — Fly Anywhere'; }, []);
   useLegacyScripts(FLIGHT_SCRIPTS, 'home');
 
   return (
     <>
         <section
-          className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 min-h-[700px] flex flex-col items-center justify-center text-center px-4"
+          className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 min-h-[500px] flex flex-col items-center justify-center text-center px-4"
           data-step="search">
       
           
           <div className="absolute inset-0 z-0 select-none pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/50 to-white/20"></div>
-            <img
-              src="/images/hero-bg.jpg"
-              className="w-full h-full object-cover object-center rounded-b-[40px]"
-              alt="Sky background"
-              onError={(e) => {
-                e.currentTarget.src =
-                  'https://images.unsplash.com/photo-1506012787146-f92b2d7d6d96?q=80&w=2069&auto=format&fit=crop';
-              }}
-            />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/50 to-white/20 z-10 rounded-b-[40px]"></div>
+            {HERO_IMAGES.map((src, index) => (
+              <img
+                key={src}
+                src={src}
+                className={`absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100' : 'opacity-0'}`}
+                alt="Sky background"
+                onError={(e) => {
+                  if (e.currentTarget.src !== HERO_IMAGES[1]) {
+                    e.currentTarget.src = HERO_IMAGES[1];
+                  }
+                }}
+              />
+            ))}
           </div>
       
           
