@@ -478,7 +478,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
             {/* Explore Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+            <a href="/explore" className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer block">
               <div className="w-full flex flex-col items-start text-left mb-8">
                 <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Explore</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">See destinations on your budget</p>
@@ -499,7 +499,7 @@ export default function HomePage() {
                   </defs>
                 </svg>
               </div>
-            </div>
+            </a>
 
             {/* Trips Card */}
             <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
@@ -544,7 +544,7 @@ export default function HomePage() {
             </div>
 
             {/* Flight Tracker Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+            <a href="/tracker" className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer block">
               <div className="w-full flex flex-col items-start text-left mb-8">
                 <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Flight Tracker</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">See real-time delays</p>
@@ -563,7 +563,7 @@ export default function HomePage() {
                   <path d="M96 92L108 102M108 92L96 102" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" transform="rotate(-15 102 97)" />
                 </svg>
               </div>
-            </div>
+            </a>
 
           </div>
         </section>
