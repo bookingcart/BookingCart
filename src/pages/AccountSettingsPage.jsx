@@ -183,7 +183,7 @@ export default function AccountSettingsPage() {
       
           
           <div id="sidebar-overlay" onclick="closeSidebar()"></div>
-          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8 flex gap-6 items-start">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8 flex gap-6 items-start bg-slate-50/30">
             
             <aside
               id="sidebar-drawer"
@@ -196,17 +196,22 @@ export default function AccountSettingsPage() {
                 >
                   <img
                     id="sidebar-avatar"
-                    src="https://ui-avatars.com/api/?name=User&background=dcfce7&color=15803d&size=80"
-                    className="w-10 h-10 rounded-full object-cover border-2 border-green-500"
+                    src="https://ui-avatars.com/api/?name=B&background=6366f1&color=fff&size=80"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
                   />
                   <div className="overflow-hidden">
                     <div
-                      className="text-sm font-bold text-slate-800 truncate"
+                      className="text-sm font-extrabold text-slate-900 truncate"
                       id="sidebar-name"
                     >
-                      My Account
+                      Black denum
                     </div>
-                    <div className="text-xs text-slate-400 truncate" id="sidebar-email"></div>
+                    <div className="text-xs text-slate-500 truncate mt-0.5" id="sidebar-email">
+                      blackdenum@gmail.com
+                    </div>
+                    <div className="mt-1 inline-flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase">
+                      <i className="ph-fill ph-seal-check"></i> Genius Lvl 1
+                    </div>
                   </div>
                 </div>
                 <nav className="space-y-1">
@@ -281,15 +286,21 @@ export default function AccountSettingsPage() {
                     Upload a photo to personalize your account
                   </div>
                   <div className="flex items-center gap-6 flex-wrap">
-                    <img
-                      id="avatar-preview"
-                      src="https://ui-avatars.com/api/?name=User&background=dcfce7&color=15803d&size=200"
-                      alt="Your avatar"
-                    />
+                    <div className="relative group cursor-pointer">
+                      <img
+                        id="avatar-preview"
+                        src="https://ui-avatars.com/api/?name=B&background=6366f1&color=fff&size=200"
+                        alt="Your avatar"
+                        className="shadow-sm border-white"
+                      />
+                      <div className="absolute inset-0 bg-slate-900/40 rounded-[1.25rem] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-200 pointer-events-none">
+                        <i className="ph ph-camera text-white text-2xl"></i>
+                      </div>
+                    </div>
                     <div>
                       <label
                         htmlFor="avatar-upload"
-                        className="btn-primary cursor-pointer inline-block"
+                        className="btn-primary cursor-pointer inline-flex"
                         ><i className="ph ph-upload-simple mr-1"></i> Upload Photo</label
                       >
                       <input
@@ -299,7 +310,7 @@ export default function AccountSettingsPage() {
                         className="hidden"
                         onchange="previewAvatar(this)"
                       />
-                      <p className="text-xs text-slate-400 mt-2">
+                      <p className="text-xs text-slate-400 mt-3 font-medium">
                         JPG, PNG or GIF · Max 5 MB
                       </p>
                     </div>
@@ -312,7 +323,7 @@ export default function AccountSettingsPage() {
                     Update your name, email, and contact information
                   </div>
                   <form id="profile-form" onsubmit="saveProfile(event)" novalidate>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                       <div>
                         <label className="field-label" htmlFor="firstName">First Name</label>
                         <input
