@@ -155,7 +155,7 @@
             return;
         }
         container.innerHTML = Array(6).fill(0).map(() => `
-      <div class="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm animate-pulse">
+      <div class="flex-shrink-0 w-72 bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm animate-pulse">
         <div class="h-44 bg-gradient-to-br from-slate-200 to-slate-100"></div>
         <div class="p-5 space-y-3">
           <div class="flex justify-between"><div class="h-5 bg-slate-200 rounded-lg w-1/2"></div><div class="h-6 bg-green-100 rounded-lg w-1/4"></div></div>
@@ -182,7 +182,7 @@
 
 
         return `
-    <div class="group bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300">
+    <div class="group flex-shrink-0 w-72 bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300">
       <!-- Image -->
       <div class="relative h-44 overflow-hidden">
         <img data-src="${imgUrl}" alt="${deal.city}" loading="lazy"
@@ -280,6 +280,7 @@
     let currentDeals = [];
     let currentOrigin = '';
     let currentCity = '';
+    let currentCountry = '';
     let currentFilters = { minPrice: 0, maxPrice: 5000, directOnly: false, month: '' };
     let currentSort = 'price';
 
@@ -293,11 +294,19 @@
         deals = filterDeals(deals, currentFilters);
         deals = sortDeals(deals, currentSort);
         if (!deals.length) {
-            grid.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><i class="ph ph-airplane-tilt text-3xl"></i></div><p class="font-medium">No deals match your filters.</p></div>';
+            grid.innerHTML = '<div class="text-center py-16 text-slate-400"><div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><i class="ph ph-airplane-tilt text-3xl"></i></div><p class="font-medium">No deals match your filters.</p></div>';
             return;
         }
         grid.innerHTML = deals.map(d => renderCard(d, currentOrigin)).join('');
         initLazyImages();
+        // Update popular routes section
+        if (typeof renderPopularRoutes === 'function') {
+            renderPopularRoutes();
+        }
+        // Update carousel arrow visibility
+        if (typeof window._dealsUpdateArrows === 'function') {
+            setTimeout(window._dealsUpdateArrows, 50);
+        }
     }
 
     window.dealsModule = {
@@ -338,6 +347,7 @@
             currentDeals = cached.deals;
             currentOrigin = cached.origin;
             currentCity = cached.city;
+            currentCountry = cached.country || '';
             if (titleEl) titleEl.textContent = `Top Deals from ${currentCity || currentOrigin}`;
             if (originInput) originInput.value = currentOrigin;
             updateSEO(currentOrigin, currentCity, currentDeals);
@@ -369,16 +379,17 @@
                 currentOrigin = data.origin;
                 // Use the detected city for display (more accurate)
                 currentCity = detectedCity || data.city || currentOrigin;
+                currentCountry = detectedCountry || '';
                 if (titleEl) titleEl.textContent = `Top Deals from ${currentCity}`;
                 if (originInput) originInput.value = currentOrigin;
-                setClientCache({ deals: currentDeals, origin: currentOrigin, city: currentCity });
+                setClientCache({ deals: currentDeals, origin: currentOrigin, city: currentCity, country: currentCountry });
                 updateSEO(currentOrigin, currentCity, currentDeals);
                 renderDeals();
             } else {
-                grid.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><p class="font-medium">Could not load deals right now.</p></div>';
+                grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">Could not load deals right now.</p></div>';
             }
         } catch (err) {
-            grid.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><p class="font-medium">Could not load deals right now.</p></div>';
+            grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">Could not load deals right now.</p></div>';
         }
     }
 
@@ -434,19 +445,169 @@
                         currentDeals = data.deals;
                         currentOrigin = data.origin;
                         currentCity = data.city || val;
+                        currentCountry = getCountryByIata(val);
                         const titleEl = document.getElementById('deals-title');
                         if (titleEl) titleEl.textContent = `Top Deals from ${currentCity}`;
-                        setClientCache({ deals: currentDeals, origin: val, city: currentCity });
+                        setClientCache({ deals: currentDeals, origin: val, city: currentCity, country: currentCountry });
                         renderDeals();
                     }
                 } catch { }
             }
         });
+
+        // ── Carousel arrow buttons ────────────────────────────────────────
+        const grid = document.getElementById('deals-grid');
+        const prevBtn = document.getElementById('deals-prev');
+        const nextBtn = document.getElementById('deals-next');
+        const SCROLL_AMOUNT = 220;
+
+        function updateArrows() {
+            if (!grid || !prevBtn || !nextBtn) return;
+            prevBtn.style.display = grid.scrollLeft <= 4 ? 'none' : 'flex';
+            nextBtn.style.display = (grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 4) ? 'none' : 'flex';
+        }
+
+        if (prevBtn) prevBtn.addEventListener('click', () => { grid.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' }); });
+        if (nextBtn) nextBtn.addEventListener('click', () => { grid.scrollBy({ left: SCROLL_AMOUNT, behavior: 'smooth' }); });
+        if (grid) {
+            grid.addEventListener('scroll', updateArrows);
+            // Re-check after deals render (called from renderDeals via a small delay)
+            window._dealsUpdateArrows = updateArrows;
+        }
+    }
+
+    // ── Helper IATA Reverse Lookups ──────────────────────────────────────────
+    function getCityByIata(iata) {
+        for (const [city, code] of Object.entries(CITY_TO_IATA)) {
+            if (code === iata) return city.charAt(0).toUpperCase() + city.slice(1);
+        }
+        return iata;
+    }
+
+    function getCountryByIata(iata) {
+        for (const [country, code] of Object.entries(COUNTRY_TO_IATA)) {
+            if (code === iata) return country;
+        }
+        return '';
+    }
+
+    // ── Popular Routes Data ──────────────────────────────────────────────────
+    const POPULAR_ROUTES_DATA = {
+        popular: [
+            { label: 'London', to: 'LHR', city: 'London', imageKey: 'london' },
+            { label: 'Istanbul', to: 'IST', city: 'Istanbul', imageKey: 'istanbul' },
+            { label: 'Dubai', to: 'DXB', city: 'Dubai', imageKey: 'dubai' },
+            { label: 'Paris', to: 'CDG', city: 'Paris', imageKey: 'paris' },
+            { label: 'New York', to: 'JFK', city: 'New York', imageKey: 'new-york' },
+            { label: 'Amsterdam', to: 'AMS', city: 'Amsterdam', imageKey: 'amsterdam' },
+            { label: 'Singapore', to: 'SIN', city: 'Singapore', imageKey: 'singapore' },
+            { label: 'Bangkok', to: 'BKK', city: 'Bangkok', imageKey: 'bangkok' },
+            { label: 'Cairo', to: 'CAI', city: 'Cairo', imageKey: 'cairo' }
+        ],
+        cities: [
+            { label: 'Johannesburg', to: 'JNB', city: 'Johannesburg', imageKey: 'johannesburg' },
+            { label: 'Mumbai', to: 'BOM', city: 'Mumbai', imageKey: 'mumbai' },
+            { label: 'Los Angeles', to: 'LAX', city: 'Los Angeles', imageKey: 'los-angeles' },
+            { label: 'Miami', to: 'MIA', city: 'Miami', imageKey: 'miami' },
+            { label: 'Nairobi', to: 'NBO', city: 'Nairobi', imageKey: 'nairobi' },
+            { label: 'London', to: 'LHR', city: 'London', imageKey: 'london' },
+            { label: 'Paris', to: 'CDG', city: 'Paris', imageKey: 'paris' },
+            { label: 'Dubai', to: 'DXB', city: 'Dubai', imageKey: 'dubai' },
+            { label: 'Istanbul', to: 'IST', city: 'Istanbul', imageKey: 'istanbul' }
+        ],
+        countries: [
+            { label: 'United Kingdom', to: 'LHR', city: 'London', imageKey: 'london' },
+            { label: 'Turkey', to: 'IST', city: 'Istanbul', imageKey: 'istanbul' },
+            { label: 'France', to: 'CDG', city: 'Paris', imageKey: 'paris' },
+            { label: 'Egypt', to: 'CAI', city: 'Cairo', imageKey: 'cairo' },
+            { label: 'United States', to: 'JFK', city: 'New York', imageKey: 'new-york' },
+            { label: 'Singapore', to: 'SIN', city: 'Singapore', imageKey: 'singapore' },
+            { label: 'Thailand', to: 'BKK', city: 'Bangkok', imageKey: 'bangkok' },
+            { label: 'Netherlands', to: 'AMS', city: 'Amsterdam', imageKey: 'amsterdam' },
+            { label: 'India', to: 'BOM', city: 'Mumbai', imageKey: 'mumbai' }
+        ],
+        regions: [
+            { label: 'Middle East', to: 'DXB', city: 'Dubai', imageKey: 'dubai' },
+            { label: 'Southeast Asia', to: 'SIN', city: 'Singapore', imageKey: 'singapore' },
+            { label: 'East Africa', to: 'NBO', city: 'Nairobi', imageKey: 'nairobi' },
+            { label: 'Asia-Pacific', to: 'BKK', city: 'Bangkok', imageKey: 'bangkok' },
+            { label: 'North America', to: 'JFK', city: 'New York', imageKey: 'new-york' },
+            { label: 'Western Europe', to: 'CDG', city: 'Paris', imageKey: 'paris' },
+            { label: 'Northern Europe', to: 'LHR', city: 'London', imageKey: 'london' },
+            { label: 'Southern Europe', to: 'IST', city: 'Istanbul', imageKey: 'istanbul' },
+            { label: 'North Africa', to: 'CAI', city: 'Cairo', imageKey: 'cairo' }
+        ],
+        airports: [
+            { label: 'London Heathrow (LHR)', to: 'LHR', city: 'London', imageKey: 'london' },
+            { label: 'Istanbul Airport (IST)', to: 'IST', city: 'Istanbul', imageKey: 'istanbul' },
+            { label: 'Charles de Gaulle (CDG)', to: 'CDG', city: 'Paris', imageKey: 'paris' },
+            { label: 'Dubai Intl (DXB)', to: 'DXB', city: 'Dubai', imageKey: 'dubai' },
+            { label: 'JFK International (JFK)', to: 'JFK', city: 'New York', imageKey: 'new-york' },
+            { label: 'Amsterdam Schiphol (AMS)', to: 'AMS', city: 'Amsterdam', imageKey: 'amsterdam' },
+            { label: 'Singapore Changi (SIN)', to: 'SIN', city: 'Singapore', imageKey: 'singapore' },
+            { label: 'Suvarnabhumi Airport (BKK)', to: 'BKK', city: 'Bangkok', imageKey: 'bangkok' },
+            { label: 'Cairo International (CAI)', to: 'CAI', city: 'Cairo', imageKey: 'cairo' }
+        ]
+    };
+
+    let currentPopularRoutesTab = 'popular';
+
+    function renderPopularRoutes() {
+        const grid = document.getElementById('popular-routes-grid');
+        const title = document.getElementById('popular-routes-title');
+        const subtitle = document.getElementById('popular-routes-subtitle');
+        if (!grid) return;
+
+        const displayCity = currentCity || getCityByIata(currentOrigin) || 'your location';
+        
+        if (title) title.textContent = `Top flights from ${displayCity}`;
+        if (subtitle) subtitle.textContent = `Explore destinations you can reach from ${displayCity} and start making new plans`;
+
+        const routes = POPULAR_ROUTES_DATA[currentPopularRoutesTab] || [];
+        grid.innerHTML = routes.map(route => {
+            const imgUrl = getImage(route.imageKey);
+            return `
+            <div onclick="window.dealsModule.bookDeal('${currentOrigin || 'EBB'}', '${route.to}', '', '${route.city}')"
+                 class="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer group">
+              <img src="${imgUrl}" alt="${route.city}" class="w-14 h-14 object-cover rounded-xl shadow-sm group-hover:scale-105 transition-transform duration-300" />
+              <div>
+                <div class="text-sm font-bold text-slate-800 group-hover:text-green-600 transition-colors">
+                  ${displayCity} → ${route.label}
+                </div>
+                <span class="text-xs text-slate-400 font-medium">Flights from ${displayCity}</span>
+              </div>
+            </div>`;
+        }).join('');
+    }
+
+    function initPopularRoutes() {
+        const tabsContainer = document.getElementById('popular-routes-tabs');
+        if (!tabsContainer) return;
+
+        tabsContainer.querySelectorAll('[data-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentPopularRoutesTab = btn.dataset.tab;
+                
+                // Update active tab styling
+                tabsContainer.querySelectorAll('[data-tab]').forEach(b => {
+                    if (b.dataset.tab === currentPopularRoutesTab) {
+                        b.className = "px-4 py-2 text-sm font-bold rounded-full border border-green-600 bg-green-50 text-green-600 transition-all cursor-pointer";
+                    } else {
+                        b.className = "px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 hover:bg-slate-50 transition-all cursor-pointer";
+                    }
+                });
+
+                renderPopularRoutes();
+            });
+        });
+
+        renderPopularRoutes();
     }
 
     function bootDeals() {
         initDeals();
         initControls();
+        initPopularRoutes();
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bootDeals);
