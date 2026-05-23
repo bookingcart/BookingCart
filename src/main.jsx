@@ -17,3 +17,12 @@ createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </AuthProvider>
 );
+
+// Dismiss the boot loader once React has painted
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    if (typeof window.__bcLoaderDone === 'function') {
+      window.__bcLoaderDone();
+    }
+  });
+});

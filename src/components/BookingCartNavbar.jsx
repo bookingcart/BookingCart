@@ -89,7 +89,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
           {/* ── RIGHT: utilities ── */}
           <div className="shrink-0 flex items-center gap-2">
 
-            {/* Dark Mode Toggle */}
+            {/* Dark Mode Toggle 
             <button
               onClick={toggleTheme}
               className="flex items-center justify-center w-8 h-8 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -101,6 +101,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <i className="ph ph-sun text-lg" />
               )}
             </button>
+            */}
 
             {/* Currency selector */}
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
