@@ -471,6 +471,103 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* For travel pros section */}
+        <section className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
+          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-8 tracking-tight">For travel pros</h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            {/* Explore Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+              <div className="w-full flex flex-col items-start text-left mb-8">
+                <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Explore</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">See destinations on your budget</p>
+              </div>
+              <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+                <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="70" cy="70" r="50" fill="#E2E8F0" className="dark:fill-slate-700" />
+                  <circle cx="70" cy="70" r="50" fill="url(#globe-grad)" opacity="0.8" />
+                  <path d="M40 50C55 40 85 40 100 50C110 60 110 80 100 90C85 100 55 100 40 90C30 80 30 60 40 50Z" stroke="white" strokeWidth="2" strokeDasharray="4 4" opacity="0.5" />
+                  <circle cx="85" cy="55" r="24" fill="white" stroke="#16A34A" strokeWidth="4" />
+                  <path d="M102 72L116 86" stroke="#16A34A" strokeWidth="6" strokeLinecap="round" />
+                  <path d="M78 50L85 57L92 50" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <defs>
+                    <linearGradient id="globe-grad" x1="20" y1="20" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#38BDF8" />
+                      <stop offset="1" stopColor="#818CF8" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+
+            {/* Trips Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+              <div className="w-full flex flex-col items-start text-left mb-8">
+                <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Trips</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Keep all your plans in one place</p>
+              </div>
+              <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+                <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="25" y="45" width="90" height="60" rx="4" fill="#F1F5F9" className="dark:fill-slate-700" transform="rotate(-10 70 75)" />
+                  <path d="M30 50L110 35M25 70L105 55M20 90L100 75" stroke="#CBD5E1" strokeWidth="1" className="dark:stroke-slate-600" />
+                  <rect x="50" y="30" width="40" height="50" rx="4" fill="#F8FAFC" stroke="#16A34A" strokeWidth="2" className="dark:fill-slate-800" />
+                  <path d="M55 40H85M55 48H75M55 56H80" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" />
+                  <rect x="40" y="70" width="30" height="20" rx="2" fill="#F59E0B" />
+                  <circle cx="48" cy="90" r="4" fill="#475569" />
+                  <circle cx="62" cy="90" r="4" fill="#475569" />
+                  <path d="M45 75H65M45 80H65" stroke="white" strokeWidth="1" opacity="0.5" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Price Alerts Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+              <div className="w-full flex flex-col items-start text-left mb-8">
+                <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Price Alerts</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Know when prices change</p>
+              </div>
+              <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+                <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="45" y="30" width="50" height="85" rx="8" fill="#38BDF8" transform="rotate(15 70 72)" />
+                  <rect x="49" y="35" width="42" height="75" rx="4" fill="white" className="dark:fill-slate-800" transform="rotate(15 70 72)" />
+                  <path d="M55 50L85 58M53 58L83 66M51 66L81 74" stroke="#E2E8F0" strokeWidth="3" strokeLinecap="round" className="dark:stroke-slate-700" />
+                  <circle cx="50" cy="45" r="16" fill="#F97316" />
+                  <path d="M50 38C46 38 44 41 44 44C44 47 41 49 41 51H59C59 49 56 47 56 44C56 41 54 38 50 38Z" fill="white" />
+                  <circle cx="50" cy="53" r="2" fill="white" />
+                  <path d="M30 80L35 85M110 50L105 55M95 100L100 95M40 40L35 35" stroke="#F97316" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+                  <circle cx="35" cy="65" r="2" fill="#38BDF8" />
+                  <circle cx="105" cy="75" r="3" fill="#16A34A" />
+                  <circle cx="85" cy="35" r="2" fill="#F59E0B" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Flight Tracker Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+              <div className="w-full flex flex-col items-start text-left mb-8">
+                <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Flight Tracker</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">See real-time delays</p>
+              </div>
+              <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+                <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="20" y="65" width="100" height="60" rx="6" fill="#1E293B" transform="rotate(-15 70 95)" />
+                  <rect x="25" y="70" width="90" height="50" rx="3" fill="#38BDF8" transform="rotate(-15 70 95)" opacity="0.9" />
+                  <path d="M35 85Q70 60 105 95" stroke="white" strokeWidth="2" strokeDasharray="4 4" />
+                  <path d="M45 45L70 30L65 40L90 45L45 75L50 60L35 55L45 45Z" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="1" />
+                  <path d="M70 30L65 40L90 45" fill="#E2E8F0" />
+                  <circle cx="100" cy="50" r="12" fill="#F59E0B" />
+                  <circle cx="95" cy="55" r="8" fill="#F8FAFC" opacity="0.9" />
+                  <circle cx="105" cy="55" r="6" fill="#F8FAFC" opacity="0.9" />
+                  <rect x="90" y="85" width="24" height="24" rx="4" fill="white" className="dark:fill-slate-800" stroke="#16A34A" strokeWidth="2" transform="rotate(-15 102 97)" />
+                  <path d="M96 92L108 102M108 92L96 102" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" transform="rotate(-15 102 97)" />
+                </svg>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
         {/* Dynamic Top Flights from Location Section */}
         <section id="popular-routes-section" className="max-w-7xl mx-auto px-6 py-12 border-t border-slate-100 dark:border-slate-800 dark:bg-slate-950 transition-colors">
           <h2 id="popular-routes-title" className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-1">

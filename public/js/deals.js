@@ -196,7 +196,7 @@
             </div>
             <div class="font-extrabold text-lg leading-tight">${flag} ${deal.city}</div>
           </div>
-          <div class="bg-white dark:bg-slate-800/20 dark:bg-black/40 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+          <div class="bg-black/40 backdrop-blur-md border border-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-lg">
             ${deal.tripType || 'One-way'}
           </div>
         </div>
