@@ -355,24 +355,29 @@
     const multi = document.querySelector("[data-multicity]");
     const returnField = document.querySelector("[data-return-field]");
 
+    const activeClasses   = ["text-green-600", "bg-green-50"];
+    const inactiveClasses = ["text-slate-500", "hover:bg-slate-50"];
+
     function setMode(mode) {
       tabs.forEach((t) => {
         const isActive = t.getAttribute("data-trip") === mode;
         t.setAttribute("aria-selected", isActive ? "true" : "false");
 
-        // Explicit Styling Management for Reliability
         if (isActive) {
-          t.classList.remove("text-slate-500 dark:text-slate-400", "hover:text-slate-900 dark:text-slate-100", "hover:bg-white dark:bg-slate-800/50", "dark:text-slate-400", "dark:hover:text-white", "dark:hover:bg-slate-700/50");
-          t.classList.add("text-green-600", "bg-green-50/50", "dark:text-green-500", "dark:bg-green-900/30");
+          t.classList.remove(...inactiveClasses);
+          t.classList.add(...activeClasses);
         } else {
-          t.classList.remove("text-green-600", "bg-green-50/50", "dark:text-green-500", "dark:bg-green-900/30");
-          t.classList.add("text-slate-500 dark:text-slate-400", "hover:text-slate-900 dark:text-slate-100", "hover:bg-white dark:bg-slate-800/50", "dark:text-slate-400", "dark:hover:text-white", "dark:hover:bg-slate-700/50");
+          t.classList.remove(...activeClasses);
+          t.classList.add(...inactiveClasses);
         }
       });
 
       if (returnField) {
-        returnField.classList.toggle("hidden", mode !== "round");
-        returnField.classList.toggle("block", mode === "round");
+        if (mode === "round") {
+          returnField.classList.remove("hidden");
+        } else {
+          returnField.classList.add("hidden");
+        }
       }
       if (multi) {
         multi.style.display = mode === "multi" ? "block" : "none";
