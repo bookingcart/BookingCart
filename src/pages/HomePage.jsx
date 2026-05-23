@@ -64,12 +64,12 @@ export default function HomePage() {
   return (
     <>
         <section
-          className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 min-h-[500px] flex flex-col items-center justify-center text-center px-4"
+          className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 min-h-[500px] flex flex-col items-center justify-center text-center px-4 dark:bg-slate-950 transition-colors"
           data-step="search">
       
           
           <div className="absolute inset-0 z-0 select-none pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/50 to-white/20 z-10 rounded-b-[40px]"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/90 dark:from-slate-950/95 via-white/50 dark:via-slate-950/70 to-white/20 dark:to-slate-950/30 z-10 rounded-b-[40px]"></div>
             {HERO_IMAGES.map((src, index) => (
               <img
                 key={src}
@@ -87,10 +87,10 @@ export default function HomePage() {
       
           
           <div className="relative z-10 max-w-4xl w-full mx-auto">
-            <h1 className="text-5xl lg:text-7xl font-semibold text-slate-900 tracking-tight leading-tight mb-4">
+            <h1 className="text-5xl lg:text-7xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight mb-4">
               Fly Anywhere
             </h1>
-            <p className="text-lg lg:text-xl text-slate-600 font-medium mb-8">
+            <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 font-medium mb-8">
               Affordable Flights, Premium Service.
             </p>
       
@@ -99,7 +99,7 @@ export default function HomePage() {
             <div className="mt-6 sm:mt-8 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
       
               
-              <div className="inline-flex bg-white/60 backdrop-blur rounded-xl p-1 shadow-sm border border-white/80 mb-2 tabs"
+              <div className="inline-flex bg-white dark:bg-slate-800/60 dark:bg-slate-800/80 backdrop-blur rounded-xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-2 tabs"
                 role="tablist">
                 <button type="button"
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 tab sm:text-sm sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2" role="tab"
@@ -116,29 +116,29 @@ export default function HomePage() {
       
               
               <div className="relative z-10 max-w-7xl w-full mx-auto px-0">
-                <div className="bg-white rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80 dark:ring-slate-700/80 transition-colors">
                   <form data-search-form
                     className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:grid-rows-[auto_auto] gap-0">
       
                     
-                    <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 flex flex-row items-center gap-2 lg:col-start-1 lg:row-start-1">
-                      <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none" htmlFor="search-from">From</label>
-                      <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 rounded-lg px-2 h-9 sm:h-10">
+                    <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2 lg:col-start-1 lg:row-start-1">
+                      <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="search-from">From</label>
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
                         <i className="ph ph-airplane-takeoff text-base text-slate-400 shrink-0" aria-hidden="true"></i>
                         <input id="search-from"
-                          className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 font-semibold placeholder:text-slate-400 text-sm leading-none"
+                          className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
                           name="from" data-airport-input placeholder="City or code" autoComplete="off" />
                       </div>
                       <ul className="suggest__list" role="listbox"></ul>
                     </div>
       
                     
-                    <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 flex flex-row items-center gap-2 lg:col-start-2 lg:row-start-1">
-                      <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none" htmlFor="search-to">To</label>
-                      <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 rounded-lg px-2 h-9 sm:h-10">
+                    <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2 lg:col-start-2 lg:row-start-1">
+                      <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="search-to">To</label>
+                      <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
                         <i className="ph ph-airplane-landing text-base text-slate-400 shrink-0" aria-hidden="true"></i>
                         <input id="search-to"
-                          className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 font-semibold placeholder:text-slate-400 text-sm leading-none"
+                          className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
                           name="to" data-airport-input placeholder="City or code" autoComplete="off" />
                       </div>
                       <ul className="suggest__list" role="listbox"></ul>
@@ -147,21 +147,21 @@ export default function HomePage() {
                     
                     <div className="min-w-0 w-full px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-stretch gap-2 sm:gap-0 border-b lg:border-b-0 lg:border-t border-slate-100/90 lg:col-span-3 lg:row-start-2">
                       <div className="flex-1 min-w-0 field flex flex-row items-center gap-2 sm:pr-2">
-                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none">Out</span>
+                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Out</span>
                         <button type="button" data-cal-trigger="depart"
-                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
-                          <i className="ph ph-calendar-blank text-base text-slate-400 shrink-0" aria-hidden="true"></i>
-                          <span className="text-slate-900 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="depart">Select</span>
+                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
+                          <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
+                          <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="depart">Select</span>
                         </button>
                         <input type="hidden" name="depart" />
                       </div>
-                      <div className="hidden sm:block w-px bg-slate-100 self-center" style={{"minHeight":"2rem"}}></div>
+                      <div className="hidden sm:block w-px bg-slate-100 dark:bg-slate-700 self-center" style={{"minHeight":"2rem"}}></div>
                       <div className="flex-1 min-w-0 field group flex flex-row items-center gap-2 sm:pl-2" data-return-field>
-                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none">Back</span>
+                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Back</span>
                         <button type="button" data-cal-trigger="return"
-                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
-                          <i className="ph ph-calendar-blank text-base text-slate-400 shrink-0" aria-hidden="true"></i>
-                          <span className="text-slate-900 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="return">Select</span>
+                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
+                          <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
+                          <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="return">Select</span>
                         </button>
                         <input type="hidden" name="return" />
                       </div>
@@ -170,11 +170,11 @@ export default function HomePage() {
                     
                     <div className="px-2 sm:px-3 py-1.5 flex flex-row items-center gap-2 lg:gap-2.5 lg:pl-3 lg:pr-1.5 lg:col-start-3 lg:row-start-1">
                       <div className="dropdown relative flex-1 min-w-0 flex flex-row items-center gap-2" data-dropdown>
-                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wide leading-none">Pax</span>
-                        <button className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-slate-50 rounded-lg px-2 h-9 sm:h-10 control sm:min-w-[6.5rem]" type="button"
+                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Pax</span>
+                        <button className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 control sm:min-w-[6.5rem]" type="button"
                           data-dropdown-trigger data-passengers-trigger>
                           <i className="ph ph-users text-base text-slate-400 shrink-0" aria-hidden="true"></i>
-                          <span className="font-semibold text-slate-900 text-xs sm:text-sm truncate" data-passengers-summary>1 traveler</span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs sm:text-sm truncate" data-passengers-summary>1 traveler</span>
                         </button>
                         <input type="hidden" name="passengers" value="" />
       
@@ -182,54 +182,54 @@ export default function HomePage() {
                           <div data-passengers className="space-y-4">
                             <div className="flex justify-between items-center counter">
                               <div className="counter__meta">
-                                <div className="font-medium text-slate-900">Adults</div>
-                                <div className="text-xs text-slate-500">Age 12+</div>
+                                <div className="font-medium text-slate-900 dark:text-slate-200">Adults</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">Age 12+</div>
                               </div>
                               <div className="flex items-center gap-3 counter__controls">
                                 <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-green-500 hover:text-green-600 transition-colors"
+                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
                                   type="button" data-minus="adults"><i className="ph ph-minus"></i></button>
-                                <span className="font-medium w-4 text-center kpi" data-count="adults">1</span>
+                                <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="adults">1</span>
                                 <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-green-500 hover:text-green-600 transition-colors"
+                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
                                   type="button" data-plus="adults"><i className="ph ph-plus"></i></button>
                               </div>
                             </div>
                             <div className="flex justify-between items-center counter">
                               <div className="counter__meta">
-                                <div className="font-medium text-slate-900">Children</div>
-                                <div className="text-xs text-slate-500">Age 2–11</div>
+                                <div className="font-medium text-slate-900 dark:text-slate-200">Children</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">Age 2–11</div>
                               </div>
                               <div className="flex items-center gap-3 counter__controls">
                                 <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-green-500 hover:text-green-600 transition-colors"
+                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
                                   type="button" data-minus="children"><i className="ph ph-minus"></i></button>
-                                <span className="font-medium w-4 text-center kpi" data-count="children">0</span>
+                                <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="children">0</span>
                                 <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-green-500 hover:text-green-600 transition-colors"
+                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
                                   type="button" data-plus="children"><i className="ph ph-plus"></i></button>
                               </div>
                             </div>
                             <div className="flex justify-between items-center counter">
                               <div className="counter__meta">
-                                <div className="font-medium text-slate-900">Infants</div>
-                                <div className="text-xs text-slate-500">Under 2</div>
+                                <div className="font-medium text-slate-900 dark:text-slate-200">Infants</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">Under 2</div>
                               </div>
                               <div className="flex items-center gap-3 counter__controls">
                                 <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-green-500 hover:text-green-600 transition-colors"
+                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
                                   type="button" data-minus="infants"><i className="ph ph-minus"></i></button>
-                                <span className="font-medium w-4 text-center kpi" data-count="infants">0</span>
+                                <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="infants">0</span>
                                 <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:border-green-500 hover:text-green-600 transition-colors"
+                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
                                   type="button" data-plus="infants"><i className="ph ph-plus"></i></button>
                               </div>
                             </div>
       
-                            <div className="pt-3 mt-1 border-t border-slate-100">
+                            <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-700">
                               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Cabin</label>
                               <select
-                                className="w-full bg-slate-50 border-none rounded-lg text-sm font-semibold p-2 focus:ring-2 focus:ring-green-500 control select"
+                                className="w-full bg-slate-50 dark:bg-slate-700 dark:text-slate-200 border-none rounded-lg text-sm font-semibold p-2 focus:ring-2 focus:ring-green-500 control select transition-colors"
                                 name="cabin">
                                 <option>Economy</option>
                                 <option>Premium Economy</option>
@@ -249,8 +249,8 @@ export default function HomePage() {
                       </button>
                     </div>
       
-                      <div data-multicity style={{"display":"none"}} className="p-2 border-t border-slate-100 lg:col-span-3">
-                        <div className="text-sm text-slate-500">Multi-city is a UI preview.</div>
+                      <div data-multicity style={{"display":"none"}} className="p-2 border-t border-slate-100 dark:border-slate-700 lg:col-span-3">
+                        <div className="text-sm text-slate-500 dark:text-slate-400">Multi-city is a UI preview.</div>
                       </div>
       
                   </form>
@@ -275,7 +275,7 @@ export default function HomePage() {
         </section>
 
         {/* USP Banner Section */}
-        <section className="max-w-7xl mx-auto px-6 py-10 mb-2">
+        <section className="max-w-7xl mx-auto px-6 py-10 mb-2 dark:bg-slate-950 transition-colors">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
             {/* Search a huge selection */}
             <div className="flex items-start gap-4">
@@ -294,8 +294,8 @@ export default function HomePage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-extrabold text-slate-800 text-base mb-1 tracking-tight">Search a huge selection</h3>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">Easily compare flights, airlines, and prices – all in one place</p>
+                <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1 tracking-tight">Search a huge selection</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">Easily compare flights, airlines, and prices – all in one place</p>
               </div>
             </div>
 
@@ -319,8 +319,8 @@ export default function HomePage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-extrabold text-slate-800 text-base mb-1 tracking-tight">Pay no hidden fees</h3>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">Get a clear price breakdown every step of the way</p>
+                <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1 tracking-tight">Pay no hidden fees</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">Get a clear price breakdown every step of the way</p>
               </div>
             </div>
 
@@ -343,33 +343,33 @@ export default function HomePage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-extrabold text-slate-800 text-base mb-1 tracking-tight">Get more flexibility</h3>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">Change your travel dates with the Flexible ticket option</p>
+                <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1 tracking-tight">Get more flexibility</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">Change your travel dates with the Flexible ticket option</p>
               </div>
             </div>
           </div>
         </section>
       
         
-        <section id="deals-section" className="max-w-7xl mx-auto px-6 py-16">
+        <section id="deals-section" className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
       
           
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
             <div>
               <div
-                className="inline-flex items-center gap-2 bg-green-50 text-green-700 font-bold text-xs px-3 py-1.5 rounded-full mb-3">
+                className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-bold text-xs px-3 py-1.5 rounded-full mb-3">
                 <i className="ph ph-fire text-base"></i> Personalized for You
               </div>
-              <h2 id="deals-title" className="text-3xl font-extrabold text-slate-900">Top Flight Deals</h2>
-              <p className="text-slate-500 font-medium mt-1">Real-time prices · Updated every 2 hours</p>
+              <h2 id="deals-title" className="text-3xl font-extrabold text-slate-900 dark:text-white">Top Flight Deals</h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Real-time prices · Updated every 2 hours</p>
             </div>
       
             
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm">
-                <i className="ph ph-map-pin text-green-600"></i>
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm transition-colors">
+                <i className="ph ph-map-pin text-green-600 dark:text-green-400"></i>
                 <input id="deals-origin-input" type="text" maxLength="3" placeholder="IATA e.g. LHR"
-                  className="w-20 bg-transparent font-semibold text-slate-700 uppercase" />
+                  className="w-20 bg-transparent font-semibold text-slate-700 dark:text-slate-200 uppercase" />
               </div>
               <button id="deals-origin-btn"
                 className="bg-slate-900 text-white font-bold text-sm px-4 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
@@ -379,7 +379,7 @@ export default function HomePage() {
           </div>
       
           
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-6 transition-colors">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
       
               
@@ -389,14 +389,14 @@ export default function HomePage() {
                   className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-green-600 text-white transition-all">💰 Lowest
                   Price</button>
                 <button data-sort="popular"
-                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">⭐
+                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all">⭐
                   Popular</button>
                 <button data-sort="trending"
-                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">🔥
+                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all">🔥
                   Trending</button>
               </div>
       
-              <div className="hidden lg:block w-px h-8 bg-slate-200 mx-2"></div>
+              <div className="hidden lg:block w-px h-8 bg-slate-200 dark:bg-slate-600 mx-2"></div>
       
               
               <div className="flex items-center gap-4 flex-wrap text-sm">
@@ -407,13 +407,13 @@ export default function HomePage() {
                     className="w-20 accent-green-600" />
                   <input id="deals-max-price" type="range" min="200" max="5000" step="50" value="5000"
                     className="w-20 accent-green-600" />
-                  <span id="deals-price-label" className="text-xs font-semibold text-slate-600">$0 – $5000+</span>
+                  <span id="deals-price-label" className="text-xs font-semibold text-slate-600 dark:text-slate-300">$0 – $5000+</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-400 uppercase">Month:</span>
                   <select id="deals-month"
-                    className="bg-slate-50 border-none rounded-lg px-2 py-1 text-xs font-semibold text-slate-700">
+                    className="bg-slate-50 dark:bg-slate-700 dark:text-slate-200 border-none rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
                     <option value="">Any</option>
                     <option value="03">Mar</option>
                     <option value="04">Apr</option>
@@ -430,7 +430,7 @@ export default function HomePage() {
                 
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input id="deals-direct-only" type="checkbox" className="accent-green-600 w-4 h-4" />
-                  <span className="text-xs font-semibold text-slate-600">Direct only</span>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Direct only</span>
                 </label>
               </div>
             </div>
@@ -441,7 +441,7 @@ export default function HomePage() {
             {/* Left arrow */}
             <button
               id="deals-prev"
-              className="absolute -left-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 items-center justify-center text-slate-600 hover:text-slate-900 hover:shadow-xl transition-all hidden sm:flex"
+              className="absolute -left-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white hover:shadow-xl transition-all hidden sm:flex"
               aria-label="Scroll left"
             >
               <i className="ph ph-caret-left text-sm font-bold"></i>
@@ -455,7 +455,7 @@ export default function HomePage() {
             {/* Right arrow */}
             <button
               id="deals-next"
-              className="absolute -right-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white rounded-full shadow-lg border border-slate-200 items-center justify-center text-slate-600 hover:text-slate-900 hover:shadow-xl transition-all hidden sm:flex"
+              className="absolute -right-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white hover:shadow-xl transition-all hidden sm:flex"
               aria-label="Scroll right"
             >
               <i className="ph ph-caret-right text-sm font-bold"></i>
@@ -472,29 +472,29 @@ export default function HomePage() {
         </section>
 
         {/* Dynamic Top Flights from Location Section */}
-        <section id="popular-routes-section" className="max-w-7xl mx-auto px-6 py-12 border-t border-slate-100">
-          <h2 id="popular-routes-title" className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-1">
+        <section id="popular-routes-section" className="max-w-7xl mx-auto px-6 py-12 border-t border-slate-100 dark:border-slate-800 dark:bg-slate-950 transition-colors">
+          <h2 id="popular-routes-title" className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-1">
             Top flights from Romania
           </h2>
-          <p id="popular-routes-subtitle" className="text-slate-500 font-medium mb-6">
+          <p id="popular-routes-subtitle" className="text-slate-500 dark:text-slate-400 font-medium mb-6">
             Explore destinations you can reach from Romania and start making new plans
           </p>
 
           {/* Dynamic tabs list */}
           <div id="popular-routes-tabs" className="flex flex-wrap gap-2 mb-8">
-            <button data-tab="popular" className="px-4 py-2 text-sm font-bold rounded-full border border-green-600 bg-green-50 text-green-600 transition-all cursor-pointer">
+            <button data-tab="popular" className="px-4 py-2 text-sm font-bold rounded-full border border-green-600 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 transition-all cursor-pointer">
               Popular routes
             </button>
-            <button data-tab="cities" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+            <button data-tab="cities" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-all cursor-pointer">
               Cities
             </button>
-            <button data-tab="countries" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+            <button data-tab="countries" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-all cursor-pointer">
               Countries
             </button>
-            <button data-tab="regions" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+            <button data-tab="regions" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-all cursor-pointer">
               Regions
             </button>
-            <button data-tab="airports" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+            <button data-tab="airports" className="px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 transition-all cursor-pointer">
               Airports
             </button>
           </div>
@@ -506,8 +506,8 @@ export default function HomePage() {
         </section>
 
         {/* FAQ Accordion Section */}
-        <section className="max-w-7xl mx-auto px-6 py-16 border-t border-slate-100">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-8">
+        <section className="max-w-7xl mx-auto px-6 py-16 border-t border-slate-100 dark:border-slate-800 dark:bg-slate-950 transition-colors">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-8">
             Frequently asked questions
           </h2>
           
@@ -518,20 +518,20 @@ export default function HomePage() {
                 const id = `col1-${idx}`;
                 const isOpen = !!openFaq[id];
                 return (
-                  <div key={id} className={`border rounded-2xl overflow-hidden bg-white transition-all duration-300 ${isOpen ? 'border-green-500 shadow-sm shadow-green-500/10' : 'border-slate-200'}`}>
+                  <div key={id} className={`border rounded-2xl overflow-hidden bg-white dark:bg-slate-800 transition-all duration-300 ${isOpen ? 'border-green-500 shadow-sm shadow-green-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
                     <button
                       onClick={() => toggleFaq(id)}
-                      className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 hover:text-slate-900 transition-colors animate-fade-in"
+                      className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 dark:text-slate-100 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white transition-colors animate-fade-in"
                     >
                       <span>{item.q}</span>
                       <i className={`ph ph-caret-down text-lg text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-green-600' : ''}`}></i>
                     </button>
                     <div
                       className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isOpen ? 'max-h-[300px] border-t border-slate-100' : 'max-h-0'
+                        isOpen ? 'max-h-[300px] border-t border-slate-100 dark:border-slate-700' : 'max-h-0'
                       }`}
                     >
-                      <div className="p-5 text-sm text-slate-500 leading-relaxed bg-slate-50">
+                      <div className="p-5 text-sm text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900">
                         {item.a}
                       </div>
                     </div>
@@ -546,20 +546,20 @@ export default function HomePage() {
                 const id = `col2-${idx}`;
                 const isOpen = !!openFaq[id];
                 return (
-                  <div key={id} className={`border rounded-2xl overflow-hidden bg-white transition-all duration-300 ${isOpen ? 'border-green-500 shadow-sm shadow-green-500/10' : 'border-slate-200'}`}>
+                  <div key={id} className={`border rounded-2xl overflow-hidden bg-white dark:bg-slate-800 transition-all duration-300 ${isOpen ? 'border-green-500 shadow-sm shadow-green-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
                     <button
                       onClick={() => toggleFaq(id)}
-                      className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 hover:text-slate-900 transition-colors animate-fade-in"
+                      className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 dark:text-slate-100 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white transition-colors animate-fade-in"
                     >
                       <span>{item.q}</span>
                       <i className={`ph ph-caret-down text-lg text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-green-600' : ''}`}></i>
                     </button>
                     <div
                       className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isOpen ? 'max-h-[300px] border-t border-slate-100' : 'max-h-0'
+                        isOpen ? 'max-h-[300px] border-t border-slate-100 dark:border-slate-700' : 'max-h-0'
                       }`}
                     >
-                      <div className="p-5 text-sm text-slate-500 leading-relaxed bg-slate-50">
+                      <div className="p-5 text-sm text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900">
                         {item.a}
                       </div>
                     </div>

@@ -42,11 +42,11 @@ function bookingsAuthHeaders() {
 
             if (saved.length === 0) {
                 savedContainer.innerHTML = `
-                    <div class="text-center py-12 bg-white rounded-2xl border border-slate-200">
-                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div class="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200">
+                        <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                             <i class="ph ph-heart text-2xl text-slate-400"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-700 mb-1">No saved flights</h3>
+                        <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300 mb-1">No saved flights</h3>
                         <p class="text-sm text-slate-400 mb-6">Save flights for later to compare and book them anytime.</p>
                         <a href="/" class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm">
                             <i class="ph ph-magnifying-glass"></i> Search Flights
@@ -57,20 +57,20 @@ function bookingsAuthHeaders() {
             }
 
             savedContainer.innerHTML = saved.map(f => `
-                <div class="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
                     <div class="flex flex-col md:flex-row gap-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-2">
                                 ${f.airline?.logo ? `<img src="${f.airline.logo}" alt="" class="w-8 h-8 object-contain">` : ''}
                                 <div>
-                                    <div class="font-bold text-slate-900">${f.airline?.name || 'Airline'}</div>
-                                    <div class="text-sm text-slate-500">${f.flightNumber || ''}</div>
+                                    <div class="font-bold text-slate-900 dark:text-slate-100">${f.airline?.name || 'Airline'}</div>
+                                    <div class="text-sm text-slate-500 dark:text-slate-400">${f.flightNumber || ''}</div>
                                 </div>
                             </div>
                             <div class="flex items-center gap-4 mt-3">
                                 <div class="text-center">
-                                    <div class="font-bold text-lg text-slate-900">${f.departTime || '--:--'}</div>
-                                    <div class="text-sm text-slate-500">${f.origin || 'Origin'}</div>
+                                    <div class="font-bold text-lg text-slate-900 dark:text-slate-100">${f.departTime || '--:--'}</div>
+                                    <div class="text-sm text-slate-500 dark:text-slate-400">${f.origin || 'Origin'}</div>
                                 </div>
                                 <div class="flex-1 flex items-center justify-center">
                                     <div class="border-t border-slate-300 flex-1"></div>
@@ -78,11 +78,11 @@ function bookingsAuthHeaders() {
                                     <div class="border-t border-slate-300 flex-1"></div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="font-bold text-lg text-slate-900">${f.arriveTime || '--:--'}</div>
-                                    <div class="text-sm text-slate-500">${f.destination || 'Destination'}</div>
+                                    <div class="font-bold text-lg text-slate-900 dark:text-slate-100">${f.arriveTime || '--:--'}</div>
+                                    <div class="text-sm text-slate-500 dark:text-slate-400">${f.destination || 'Destination'}</div>
                                 </div>
                             </div>
-                            <div class="mt-3 text-sm text-slate-500">
+                            <div class="mt-3 text-sm text-slate-500 dark:text-slate-400">
                                 <i class="ph ph-calendar mr-1"></i> Saved on ${new Date(f.savedAt).toLocaleDateString()}
                             </div>
                         </div>
@@ -92,7 +92,7 @@ function bookingsAuthHeaders() {
                             <a href="/details?flight=${encodeURIComponent(f.id)}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded text-sm w-full text-center transition-colors mb-2">
                                 Select
                             </a>
-                            <button onclick="removeSavedFlightAndRefresh('${f.id}')" class="text-slate-500 hover:text-red-600 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+                            <button onclick="removeSavedFlightAndRefresh('${f.id}')" class="text-slate-500 dark:text-slate-400 hover:text-red-600 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
                                 <i class="ph ph-trash"></i> Remove
                             </button>
                         </div>
@@ -176,7 +176,7 @@ function bookingsAuthHeaders() {
                 document.querySelectorAll('[data-tab]').forEach(b => {
                     b.className = b.dataset.tab === currentTab
                         ? 'tab-active flex-1 py-2.5 rounded-xl text-sm font-bold transition-all'
-                        : 'flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all';
+                        : 'flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 transition-all';
                 });
                 renderBookings(currentTab);
             });
@@ -331,11 +331,11 @@ function bookingsAuthHeaders() {
 
             if (bookingsToRender.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center py-12 bg-white rounded-2xl border border-slate-200">
-                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div class="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200">
+                        <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                             <i class="ph ph-ticket text-2xl text-slate-400"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-700 mb-1">No bookings found</h3>
+                        <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300 mb-1">No bookings found</h3>
                         <p class="text-sm text-slate-400 mb-6">You don't have any ${filter === 'all' ? '' : filter} bookings yet.</p>
                         <a href="/" class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm">
                             <i class="ph ph-magnifying-glass"></i> Search Flights
@@ -390,13 +390,13 @@ function bookingsAuthHeaders() {
                 const paxName = (b.passengers && b.passengers[0]) ? ((b.passengers[0].firstName || '') + ' ' + (b.passengers[0].lastName || '')).trim().toUpperCase() : (b.contact && b.contact.email ? b.contact.email.split('@')[0].toUpperCase() : 'PASSENGER');
 
                 return `
-        <div class="booking-card bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div class="booking-card bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 overflow-hidden">
           <!-- Booking Header -->
-          <div class="flex items-center justify-between px-6 py-3 bg-slate-50 border-b border-slate-100">
-            <div class="flex items-center gap-4 text-xs text-slate-500 font-medium">
+          <div class="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-100">
+            <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
               <span class="flex items-center gap-1.5">
                 <i class="ph ph-airplane-tilt text-base"></i>
-                Booking No. <span class="font-bold text-slate-700">${b.ref || '—'}</span>
+                Booking No. <span class="font-bold text-slate-700 dark:text-slate-300">${b.ref || '—'}</span>
               </span>
               <span>Booking Date: ${b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}</span>
             </div>
@@ -408,13 +408,13 @@ function bookingsAuthHeaders() {
             <div class="flex items-start gap-6">
               <!-- Route Header -->
               <div class="flex-1">
-                <h3 class="text-lg font-extrabold text-slate-900 mb-4">${from} → ${to}</h3>
+                <h3 class="text-lg font-extrabold text-slate-900 dark:text-slate-100 mb-4">${from} → ${to}</h3>
 
                 <!-- Timeline Row -->
                 <div class="flex items-center gap-4">
                   <!-- Depart -->
                   <div class="text-center">
-                    <div class="text-xl font-extrabold text-slate-900">${departTime || '—'}</div>
+                    <div class="text-xl font-extrabold text-slate-900 dark:text-slate-100">${departTime || '—'}</div>
                     <div class="text-xs text-slate-400 font-medium mt-0.5">${departDate}</div>
                   </div>
 
@@ -428,25 +428,25 @@ function bookingsAuthHeaders() {
 
                   <!-- Arrive -->
                   <div class="text-center">
-                    <div class="text-xl font-extrabold text-slate-900">${arriveTime || '—'}</div>
+                    <div class="text-xl font-extrabold text-slate-900 dark:text-slate-100">${arriveTime || '—'}</div>
                     <div class="text-xs text-slate-400 font-medium mt-0.5">${returnDate || departDate}</div>
                   </div>
 
                   <!-- Airline -->
                   <div class="ml-6 pl-6 border-l border-slate-100">
                     <div class="flex items-center gap-2">
-                      <div class="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center">
-                        <i class="ph ph-airplane text-sm text-slate-500"></i>
+                      <div class="w-7 h-7 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
+                        <i class="ph ph-airplane text-sm text-slate-500 dark:text-slate-400"></i>
                       </div>
                       <div>
-                        <div class="text-sm font-bold text-slate-700">${flight.airline || '—'}</div>
+                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300">${flight.airline || '—'}</div>
                       </div>
                     </div>
                   </div>
 
                   <!-- Passenger -->
                   <div class="ml-4 pl-4 border-l border-slate-100">
-                    <div class="text-sm font-bold text-slate-700">${paxName}</div>
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-300">${paxName}</div>
                     <div class="text-xs text-slate-400">${paxCount} passenger${paxCount > 1 ? 's' : ''}</div>
                   </div>
                 </div>
@@ -458,7 +458,7 @@ function bookingsAuthHeaders() {
                 <div class="flex flex-col gap-2 mt-6">
                   ${(b.status === 'held') ? `<button onclick="payForBooking('${b.ref}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap shadow-green-600/20"><i class="ph-bold ph-credit-card"></i> Pay Now</button>` : ''}
                   ${(b.status === 'issued') ? `<button onclick="downloadRealTicket('${b.ref}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap shadow-green-600/20"><i class="ph-bold ph-download"></i> Download E-Ticket</button>` : (b.status !== 'cancelled' && b.status !== 'held' ? `<div class="px-4 py-2 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-2"><i class="ph-bold ph-circle-notch animate-spin"></i> Ticket Processing...</div>` : '')}
-                  ${b.status !== 'cancelled' ? `<button onclick="downloadTicket('${b.ref}')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-receipt"></i> Download Invoice</button>` : ''}
+                  ${b.status !== 'cancelled' ? `<button onclick="downloadTicket('${b.ref}')" class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-receipt"></i> Download Invoice</button>` : ''}
                   ${(b.status !== 'cancelled' && b.status !== 'held' && b.duffelOrderId) ? `<button onclick="addServicesToBooking('${b.ref}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-suitcase-rolling"></i> Add Bags/Seats</button>` : ''}
                   ${(b.status !== 'cancelled' && b.status !== 'held' && b.duffelOrderId) ? `<button onclick="changeBooking('${b.ref}')" class="px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-calendar-blank"></i> Change Flight</button>` : ''}
                   <button onclick="cancelBooking('${b.ref}')" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"><i class="ph-bold ph-x-circle"></i> Cancel Booking</button>
@@ -834,7 +834,7 @@ function bookingsAuthHeaders() {
                 const modal = document.createElement('div');
                 modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
                 modal.innerHTML = `
-                    <div class="bg-white rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-auto">
+                    <div class="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-auto">
                         <h3 class="text-lg font-bold mb-4">Add Services</h3>
                         ${serviceOptions}
                         <div class="flex gap-3 mt-6">
@@ -908,7 +908,7 @@ function bookingsAuthHeaders() {
             modal.id = 'change-flight-modal';
             modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
             modal.innerHTML = `
-                <div class="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-auto">
+                <div class="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-auto">
                     <h3 class="text-xl font-bold mb-4">Change Flight</h3>
                     <p class="text-sm text-gray-600 mb-4">Current route: ${booking.route}</p>
                     

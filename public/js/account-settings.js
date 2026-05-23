@@ -164,7 +164,7 @@ function showInitialLoading() {
   if (document.getElementById("settings-loading-overlay")) return;
   const overlay = document.createElement("div");
   overlay.id = "settings-loading-overlay";
-  overlay.className = "fixed inset-0 z-50 bg-slate-50/95 backdrop-blur-sm overflow-y-auto";
+  overlay.className = "fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900/95 backdrop-blur-sm overflow-y-auto";
   overlay.innerHTML = `
     <div class="max-w-7xl mx-auto px-6 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-8">
@@ -544,12 +544,12 @@ function renderLoginActivity() {
     .map(
       (a) => `
     <div class="activity-row">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${a.current ? "bg-green-100" : "bg-slate-100"}">
-        <i class="ph ph-${a.device.includes("iPhone") || a.device.includes("iPad") ? "device-mobile" : "desktop"} text-xl ${a.current ? "text-green-600" : "text-slate-500"}"></i>
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${a.current ? "bg-green-100" : "bg-slate-100 dark:bg-slate-800"}">
+        <i class="ph ph-${a.device.includes("iPhone") || a.device.includes("iPad") ? "device-mobile" : "desktop"} text-xl ${a.current ? "text-green-600" : "text-slate-500 dark:text-slate-400"}"></i>
       </div>
       <div class="flex-1 min-w-0">
-        <div class="text-sm font-bold text-slate-800 truncate">${a.device} ${a.current ? '<span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full ml-1">Current</span>' : ""}</div>
-        <div class="text-xs text-slate-500">${a.location} · ${a.date}</div>
+        <div class="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">${a.device} ${a.current ? '<span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full ml-1">Current</span>' : ""}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">${a.location} · ${a.date}</div>
       </div>
       ${!a.current ? `<button onclick="removeDevice('${a.device}')" class="text-xs text-red-500 font-semibold hover:text-red-700 flex-shrink-0">Revoke</button>` : ""}
     </div>
@@ -630,17 +630,17 @@ function renderCards() {
       (card) => `
     <div class="pay-card ${card.isDefault ? "default" : ""}" id="card-${card.id}">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-2xl ${card.isDefault ? "bg-green-100" : "bg-slate-100"}">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-2xl ${card.isDefault ? "bg-green-100" : "bg-slate-100 dark:bg-slate-800"}">
           ${card.brand === "Visa" ? "🟦" : card.brand === "Mastercard" ? "🔴" : "💳"}
         </div>
         <div>
-          <div class="font-bold text-sm text-slate-800">${card.brand} •••• ${card.last4}</div>
-          <div class="text-xs text-slate-500">Expires ${card.expiry}</div>
+          <div class="font-bold text-sm text-slate-800 dark:text-slate-200">${card.brand} •••• ${card.last4}</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">Expires ${card.expiry}</div>
           ${card.isDefault ? '<span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Default</span>' : ""}
         </div>
       </div>
       <div class="flex items-center gap-2">
-        ${!card.isDefault ? `<button onclick="setDefault(${card.id})" class="text-xs font-semibold text-slate-500 hover:text-green-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:border-green-500 transition-all">Set Default</button>` : ""}
+        ${!card.isDefault ? `<button onclick="setDefault(${card.id})" class="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-green-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:border-green-500 transition-all">Set Default</button>` : ""}
         <button onclick="removeCard(${card.id})" class="text-xs font-semibold text-red-500 hover:text-red-700 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all"><i class="ph ph-trash"></i></button>
       </div>
     </div>
@@ -850,8 +850,8 @@ function renderNotifGroup(containerId, items, group) {
       (item) => `
     <div class="flex items-center justify-between gap-4">
       <div>
-        <div class="font-bold text-sm text-slate-800">${item.label}</div>
-        <div class="text-xs text-slate-500 mt-0.5">${item.desc}</div>
+        <div class="font-bold text-sm text-slate-800 dark:text-slate-200">${item.label}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${item.desc}</div>
       </div>
       <label class="toggle-wrap flex-shrink-0">
         <input type="checkbox" id="notif-${item.key}" ${state.notifications[group][item.key] ? "checked" : ""} onchange="toggleNotif('${group}','${item.key}',this.checked)" />
@@ -911,7 +911,7 @@ function renderRewards() {
             <i class="ph ph-${h.pts > 0 ? "plus-circle" : "minus-circle"} text-lg ${h.pts > 0 ? "text-green-600" : "text-red-500"}"></i>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="text-sm font-semibold text-slate-800 truncate">${h.desc}</div>
+            <div class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">${h.desc}</div>
             <div class="text-xs text-slate-400">${h.date}</div>
           </div>
           <div class="font-bold text-sm ${h.pts > 0 ? "text-green-600" : "text-red-500"} flex-shrink-0">

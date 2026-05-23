@@ -74,7 +74,7 @@
                     b.className = 'admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold ' +
                         (b.dataset.filter === currentFilter
                             ? 'bg-slate-900 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200');
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700');
                 });
                 renderTable();
             });
@@ -147,7 +147,7 @@
                     issued: 'bg-purple-100 text-purple-700',
                     cancelled: 'bg-red-100 text-red-700'
                 };
-                const badge = statusColors[b.status] || 'bg-slate-100 text-slate-700';
+                const badge = statusColors[b.status] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
                 const email = (b.contact && b.contact.email) || '—';
                 const paxCount = (b.passengers && b.passengers.length) || 1;
                 const clientContent = `<div>${email}</div><div class="text-xs text-slate-400 mt-0.5">${paxCount} passenger${paxCount > 1 ? 's' : ''}</div>`;
@@ -156,11 +156,11 @@
                 const total = b.total ? ('$' + b.total) : '—';
 
                 return `
-          <tr class="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-            <td class="px-6 py-4 font-bold text-slate-900">${b.ref || '—'}</td>
-            <td class="px-6 py-4 text-slate-600">${clientContent}</td>
-            <td class="px-6 py-4 font-medium text-slate-700">${routeContent}</td>
-            <td class="px-6 py-4 text-slate-600">${b.dates || '—'}</td>
+          <tr class="border-b border-slate-100 hover:bg-slate-50 dark:bg-slate-900/50 transition-colors">
+            <td class="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">${b.ref || '—'}</td>
+            <td class="px-6 py-4 text-slate-600 dark:text-slate-400">${clientContent}</td>
+            <td class="px-6 py-4 font-medium text-slate-700 dark:text-slate-300">${routeContent}</td>
+            <td class="px-6 py-4 text-slate-600 dark:text-slate-400">${b.dates || '—'}</td>
             <td class="px-6 py-4 font-bold text-green-600">${total}</td>
             <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badge} capitalize">${b.status}</span></td>
             <td class="px-6 py-4 text-right">
@@ -209,7 +209,7 @@
 
             const paxCount = (b.passengers && b.passengers.length) || 1;
             const paxName = (b.passengers && b.passengers[0]) ? ((b.passengers[0].firstName || '') + ' ' + (b.passengers[0].lastName || '')).trim().toUpperCase() : (b.contact && b.contact.email ? b.contact.email.split('@')[0].toUpperCase() : 'PASSENGER');
-            document.getElementById('upload-pax').innerHTML = `<div>${paxName}</div><div class="text-xs text-slate-500 mt-0.5">${paxCount} traveler${paxCount > 1 ? 's' : ''}</div>`;
+            document.getElementById('upload-pax').innerHTML = `<div>${paxName}</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${paxCount} traveler${paxCount > 1 ? 's' : ''}</div>`;
 
             document.getElementById('upload-overlay').style.display = 'flex';
         }

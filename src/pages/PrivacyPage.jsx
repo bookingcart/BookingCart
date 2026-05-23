@@ -11,20 +11,20 @@ export default function PrivacyPage() {
     <>
           <main className="flex-1 container mx-auto px-6 py-16 max-w-4xl">
       
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">Privacy Policy</h1>
               <p className="text-sm text-slate-400 mb-10">Last updated: February 28, 2026</p>
       
-              <div className="space-y-10 text-slate-700 leading-relaxed">
+              <div className="space-y-10 text-slate-700 dark:text-slate-300 leading-relaxed">
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">1. Introduction</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">1. Introduction</h2>
                       <p>Welcome to BookingCart. We respect your privacy and are committed to protecting the personal
                           information you share with us. This Privacy Policy explains how we collect, use, disclose, and
                           safeguard your information when you use our flight booking platform.</p>
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">2. Information We Collect</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">2. Information We Collect</h2>
                       <p className="mb-3">We may collect the following types of information:</p>
                       <ul className="list-disc list-inside space-y-2 pl-2">
                           <li><strong>Personal Information:</strong> Name, email address, phone number, and payment details
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">3. How We Use Your Information</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">3. How We Use Your Information</h2>
                       <ul className="list-disc list-inside space-y-2 pl-2">
                           <li>To process and manage flight bookings.</li>
                           <li>To personalize your experience and remember your preferences.</li>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">4. Data Sharing</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">4. Data Sharing</h2>
                       <p>We do not sell your personal data. We may share information with:</p>
                       <ul className="list-disc list-inside space-y-2 pl-2 mt-3">
                           <li><strong>Airline Partners:</strong> To fulfil your booking.</li>
@@ -61,14 +61,14 @@ export default function PrivacyPage() {
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">5. Data Security</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">5. Data Security</h2>
                       <p>We implement industry-standard security measures to protect your data, including encryption in
                           transit (HTTPS) and secure storage practices. However, no method of electronic storage is 100%
                           secure.</p>
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">6. Your Rights</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">6. Your Rights</h2>
                       <p>Depending on your jurisdiction, you may have the right to:</p>
                       <ul className="list-disc list-inside space-y-2 pl-2 mt-3">
                           <li>Access, correct, or delete your personal data.</li>
@@ -79,13 +79,13 @@ export default function PrivacyPage() {
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">7. Cookies</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">7. Cookies</h2>
                       <p>We use cookies and similar technologies to improve site functionality and analyze usage. You can
                           manage cookie preferences through your browser settings.</p>
                   </section>
       
                   <section>
-                      <h2 className="text-xl font-semibold text-slate-900 mb-3">8. Contact Us</h2>
+                      <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-3">8. Contact Us</h2>
                       <p>If you have any questions about this Privacy Policy, please contact us at:</p>
                       <p className="mt-3 font-semibold text-green-700">bookingcart.business@gmail.com</p>
                   </section>

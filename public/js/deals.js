@@ -155,13 +155,13 @@
             return;
         }
         container.innerHTML = Array(6).fill(0).map(() => `
-      <div class="flex-shrink-0 w-72 bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm animate-pulse">
-        <div class="h-44 bg-gradient-to-br from-slate-200 to-slate-100"></div>
+      <div class="flex-shrink-0 w-72 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm animate-pulse">
+        <div class="h-44 bg-gradient-to-br from-slate-200 dark:from-slate-700 to-slate-100 dark:to-slate-600"></div>
         <div class="p-5 space-y-3">
-          <div class="flex justify-between"><div class="h-5 bg-slate-200 rounded-lg w-1/2"></div><div class="h-6 bg-green-100 rounded-lg w-1/4"></div></div>
-          <div class="h-3 bg-slate-100 rounded w-2/3"></div>
-          <div class="flex gap-2"><div class="h-7 bg-slate-100 rounded-lg w-16"></div><div class="h-7 bg-slate-100 rounded-lg w-20"></div></div>
-          <div class="h-10 bg-slate-200 rounded-xl w-full mt-2"></div>
+          <div class="flex justify-between"><div class="h-5 bg-slate-200 dark:bg-slate-700 rounded-lg w-1/2"></div><div class="h-6 bg-green-100 dark:bg-green-900/50 rounded-lg w-1/4"></div></div>
+          <div class="h-3 bg-slate-100 dark:bg-slate-700 rounded w-2/3"></div>
+          <div class="flex gap-2"><div class="h-7 bg-slate-100 dark:bg-slate-700 rounded-lg w-16"></div><div class="h-7 bg-slate-100 dark:bg-slate-700 rounded-lg w-20"></div></div>
+          <div class="h-10 bg-slate-200 dark:bg-slate-700 rounded-xl w-full mt-2"></div>
         </div>
       </div>`).join('');
     }
@@ -182,7 +182,7 @@
 
 
         return `
-    <div class="group flex-shrink-0 w-72 bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300">
+    <div class="group flex-shrink-0 w-72 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300">
       <!-- Image -->
       <div class="relative h-44 overflow-hidden">
         <img data-src="${imgUrl}" alt="${deal.city}" loading="lazy"
@@ -196,7 +196,7 @@
             </div>
             <div class="font-extrabold text-lg leading-tight">${flag} ${deal.city}</div>
           </div>
-          <div class="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg">
+          <div class="bg-white dark:bg-slate-800/20 dark:bg-black/40 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg">
             ${deal.tripType || 'One-way'}
           </div>
         </div>
@@ -206,8 +206,8 @@
       <div class="p-5">
         <div class="flex items-start justify-between mb-3">
           <div>
-            <div class="text-sm font-bold text-slate-900">${deal.city}, ${deal.country}</div>
-            <div class="text-xs text-slate-400 mt-0.5">${deal.country}</div>
+            <div class="text-sm font-bold text-slate-900 dark:text-white">${deal.city}, ${deal.country}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 mt-0.5">${deal.country}</div>
           </div>
           <div class="text-right">
             <div class="text-2xl font-extrabold text-green-600 leading-tight">${price}</div>
@@ -217,9 +217,9 @@
 
         <!-- Tags -->
         <div class="flex items-center gap-1.5 mb-4 flex-wrap">
-          ${deal.airline ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg"><i class="ph ph-airplane-tilt"></i> ${deal.airline}</span>` : ''}
+          ${deal.airline ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-lg"><i class="ph ph-airplane-tilt"></i> ${deal.airline}</span>` : ''}
           <span class="inline-flex items-center gap-1 text-[11px] font-semibold ${stopsColor} px-2.5 py-1 rounded-lg"><i class="ph ${stopsIcon}"></i> ${stops}</span>
-          ${dateStr ? `<span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg"><i class="ph ph-calendar-blank"></i> ${dateStr}</span>` : ''}
+          ${dateStr ? `<span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-lg"><i class="ph ph-calendar-blank"></i> ${dateStr}</span>` : ''}
         </div>
 
         <!-- CTA -->
@@ -294,7 +294,7 @@
         deals = filterDeals(deals, currentFilters);
         deals = sortDeals(deals, currentSort);
         if (!deals.length) {
-            grid.innerHTML = '<div class="text-center py-16 text-slate-400"><div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><i class="ph ph-airplane-tilt text-3xl"></i></div><p class="font-medium">No deals match your filters.</p></div>';
+            grid.innerHTML = '<div class="text-center py-16 text-slate-400"><div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-3"><i class="ph ph-airplane-tilt text-3xl"></i></div><p class="font-medium">No deals match your filters.</p></div>';
             return;
         }
         grid.innerHTML = deals.map(d => renderCard(d, currentOrigin)).join('');
@@ -402,7 +402,7 @@
                 document.querySelectorAll('[data-sort]').forEach(b => {
                     b.className = b.dataset.sort === currentSort
                         ? 'px-4 py-2 rounded-xl text-sm font-bold bg-green-600 text-white transition-all'
-                        : 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all';
+                        : 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700 transition-all';
                 });
                 renderDeals();
             });
@@ -568,10 +568,10 @@
             const imgUrl = getImage(route.imageKey);
             return `
             <div onclick="window.dealsModule.bookDeal('${currentOrigin || 'EBB'}', '${route.to}', '', '${route.city}')"
-                 class="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer group">
+                 class="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 dark:bg-slate-900 border border-transparent hover:border-slate-100 transition-all cursor-pointer group">
               <img src="${imgUrl}" alt="${route.city}" class="w-14 h-14 object-cover rounded-xl shadow-sm group-hover:scale-105 transition-transform duration-300" />
               <div>
-                <div class="text-sm font-bold text-slate-800 group-hover:text-green-600 transition-colors">
+                <div class="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-green-600 transition-colors">
                   ${displayCity} → ${route.label}
                 </div>
                 <span class="text-xs text-slate-400 font-medium">Flights from ${displayCity}</span>
@@ -593,7 +593,7 @@
                     if (b.dataset.tab === currentPopularRoutesTab) {
                         b.className = "px-4 py-2 text-sm font-bold rounded-full border border-green-600 bg-green-50 text-green-600 transition-all cursor-pointer";
                     } else {
-                        b.className = "px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 hover:bg-slate-50 transition-all cursor-pointer";
+                        b.className = "px-4 py-2 text-sm font-bold rounded-full border border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 transition-all cursor-pointer";
                     }
                 });
 

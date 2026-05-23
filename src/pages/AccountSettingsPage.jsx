@@ -78,15 +78,15 @@ export default function AccountSettingsPage() {
                   <i className="ph ph-warning text-2xl text-red-600"></i>
                 </div>
                 <div>
-                  <div className="font-800 text-lg font-extrabold text-slate-900">
+                  <div className="font-800 text-lg font-extrabold text-slate-900 dark:text-slate-100">
                     Delete Account?
                   </div>
-                  <div className="text-sm text-slate-500">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">
                     This action is permanent and cannot be undone.
                   </div>
                 </div>
               </div>
-              <p className="text-sm text-slate-600 mb-4">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                 All your bookings, payment methods, preferences, and loyalty points
                 will be permanently deleted. Please type <strong>DELETE</strong> to
                 confirm.
@@ -116,10 +116,10 @@ export default function AccountSettingsPage() {
           
           <div className="modal-overlay" id="add-card-modal">
             <div className="modal-box">
-              <div className="font-extrabold text-lg text-slate-900 mb-1">
+              <div className="font-extrabold text-lg text-slate-900 dark:text-slate-100 mb-1">
                 Add New Card
               </div>
-              <div className="text-sm text-slate-500 mb-5">
+              <div className="text-sm text-slate-500 dark:text-slate-400 mb-5">
                 Card data is tokenized and never stored.
               </div>
               <div className="space-y-4">
@@ -183,13 +183,13 @@ export default function AccountSettingsPage() {
       
           
           <div id="sidebar-overlay" onclick="closeSidebar()"></div>
-          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8 flex gap-6 items-start bg-slate-50/30">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8 flex gap-6 items-start bg-slate-50 dark:bg-slate-900/30">
             
             <aside
               id="sidebar-drawer"
               className="w-60 flex-shrink-0 lg:sticky lg:top-[80px]"
             >
-              <div className="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+              <div className="bg-white dark:bg-slate-800 border border-slate-100 rounded-2xl p-3 shadow-sm">
                 
                 <div
                   className="flex items-center gap-3 px-3 py-3 mb-2 border-b border-slate-100"
@@ -201,12 +201,12 @@ export default function AccountSettingsPage() {
                   />
                   <div className="overflow-hidden">
                     <div
-                      className="text-sm font-extrabold text-slate-900 truncate"
+                      className="text-sm font-extrabold text-slate-900 dark:text-slate-100 truncate"
                       id="sidebar-name"
                     >
                       Black denum
                     </div>
-                    <div className="text-xs text-slate-500 truncate mt-0.5" id="sidebar-email">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5" id="sidebar-email">
                       blackdenum@gmail.com
                     </div>
                     <div className="mt-1 inline-flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase">
@@ -272,10 +272,10 @@ export default function AccountSettingsPage() {
               
               <section id="section-profile" className={sectionClass('profile')}>
                 <div className="mb-6">
-                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                     Profile Information
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                     Manage your personal details and preferences
                   </p>
                 </div>
@@ -479,10 +479,10 @@ export default function AccountSettingsPage() {
               
               <section id="section-security" className={sectionClass('security')}>
                 <div className="mb-6">
-                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                     Security Settings
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                     Keep your account protected
                   </p>
                 </div>
@@ -514,7 +514,7 @@ export default function AccountSettingsPage() {
                           <button
                             type="button"
                             onclick="togglePass('current-pass')"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400"
                           >
                             <i className="ph ph-eye" id="current-pass-eye"></i>
                           </button>
@@ -534,7 +534,7 @@ export default function AccountSettingsPage() {
                           <button
                             type="button"
                             onclick="togglePass('new-pass')"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400"
                           >
                             <i className="ph ph-eye" id="new-pass-eye"></i>
                           </button>
@@ -584,7 +584,7 @@ export default function AccountSettingsPage() {
                       <div className="settings-card-header">
                         Two-Factor Authentication
                       </div>
-                      <div className="text-sm text-slate-500 mt-1">
+                      <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         Add an extra layer of protection using your phone
                       </div>
                       <div
@@ -637,13 +637,13 @@ export default function AccountSettingsPage() {
                     Irreversible actions — proceed with caution
                   </div>
                   <div
-                    className="flex items-center justify-between flex-wrap gap-4 p-4 bg-white border border-red-200 rounded-xl"
+                    className="flex items-center justify-between flex-wrap gap-4 p-4 bg-white dark:bg-slate-800 border border-red-200 rounded-xl"
                   >
                     <div>
-                      <div className="font-bold text-slate-800 text-sm">
+                      <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">
                         Delete My Account
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         All data will be permanently removed
                       </div>
                     </div>
@@ -660,10 +660,10 @@ export default function AccountSettingsPage() {
               
               <section id="section-payments" className={sectionClass('payments')}>
                 <div className="mb-6">
-                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                     Payment Methods
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                     Manage saved cards. All data is PCI-compliant and tokenized.
                   </p>
                 </div>
@@ -688,10 +688,10 @@ export default function AccountSettingsPage() {
                   <div className="flex items-center gap-3 mb-3">
                     <i className="ph ph-shield-check text-2xl text-green-600"></i>
                     <div>
-                      <div className="font-bold text-sm text-slate-800">
+                      <div className="font-bold text-sm text-slate-800 dark:text-slate-200">
                         PCI DSS Compliant
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         Your card details are tokenized and never stored on our
                         servers
                       </div>
@@ -700,10 +700,10 @@ export default function AccountSettingsPage() {
                   <div className="flex items-center gap-3">
                     <i className="ph ph-lock text-2xl text-blue-500"></i>
                     <div>
-                      <div className="font-bold text-sm text-slate-800">
+                      <div className="font-bold text-sm text-slate-800 dark:text-slate-200">
                         SSL Encrypted
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
                         All payment data is protected with 256-bit encryption
                       </div>
                     </div>
@@ -714,10 +714,10 @@ export default function AccountSettingsPage() {
               
               <section id="section-preferences" className={sectionClass('preferences')}>
                 <div className="mb-6">
-                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                     Travel Preferences
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                     Personalize your booking experience
                   </p>
                 </div>
@@ -830,10 +830,10 @@ export default function AccountSettingsPage() {
               
               <section id="section-notifications" className={sectionClass('notifications')}>
                 <div className="mb-6">
-                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                     Notification Settings
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                     Choose what updates you'd like to receive
                   </p>
                 </div>
@@ -869,10 +869,10 @@ export default function AccountSettingsPage() {
               
               <section id="section-rewards" className={sectionClass('rewards')}>
                 <div className="mb-6">
-                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                     Rewards & Loyalty
                   </h1>
-                  <p className="text-slate-500 text-sm mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
                     Your TravelPoints membership overview
                   </p>
                 </div>
@@ -919,7 +919,7 @@ export default function AccountSettingsPage() {
                     reach Silver status
                   </div>
                   <div
-                    className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2"
+                    className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2"
                     id="reward-progress-labels"
                   >
                     <span id="reward-current-label">Member — 0 pts</span>
@@ -944,7 +944,7 @@ export default function AccountSettingsPage() {
                       <i className="ph ph-briefcase text-2xl text-green-600"></i>
                       <div>
                         <div className="font-bold text-sm">Priority Boarding</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           Skip the queue at the gate
                         </div>
                       </div>
@@ -953,7 +953,7 @@ export default function AccountSettingsPage() {
                       <i className="ph ph-seat text-2xl text-green-600"></i>
                       <div>
                         <div className="font-bold text-sm">Free Seat Selection</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           Choose your seat at no cost
                         </div>
                       </div>
@@ -962,7 +962,7 @@ export default function AccountSettingsPage() {
                       <i className="ph ph-percent text-2xl text-green-600"></i>
                       <div>
                         <div className="font-bold text-sm">10% Points Bonus</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           Earn extra on every trip
                         </div>
                       </div>
@@ -971,7 +971,7 @@ export default function AccountSettingsPage() {
                       <i className="ph ph-headset text-2xl text-green-600"></i>
                       <div>
                         <div className="font-bold text-sm">Priority Support</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
                           Dedicated customer service line
                         </div>
                       </div>

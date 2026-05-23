@@ -117,7 +117,7 @@ window.showCountryDetails = function(country) {
     
     let html = '';
     html += '<div class="mb-4">';
-    html += '<h3 class="text-xl font-bold text-slate-900 mb-1">' + country.name + '</h3>';
+    html += '<h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">' + country.name + '</h3>';
     html += '<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ' + window.getVisaTypeStyle(country.visaType) + '">';
     html += '<i class="ph-fill ph-' + (isVisaFree ? 'check-circle' : (hasETa ? 'file-text' : 'warning-circle')) + '"></i>';
     html += country.visaType;
@@ -125,9 +125,9 @@ window.showCountryDetails = function(country) {
     html += '</div>';
     
     html += '<div class="space-y-4">';
-    html += '<div class="bg-slate-50 p-4 rounded-xl">';
-    html += '<h4 class="font-semibold text-slate-900 text-sm mb-2">Requirements</h4>';
-    html += '<ul class="text-sm text-slate-600 space-y-2">';
+    html += '<div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl">';
+    html += '<h4 class="font-semibold text-slate-900 dark:text-slate-100 text-sm mb-2">Requirements</h4>';
+    html += '<ul class="text-sm text-slate-600 dark:text-slate-400 space-y-2">';
     if (isVisaFree) {
       html += '<li class="flex gap-2"><i class="ph-bold ph-passport text-slate-400 mt-0.5"></i>Valid passport (usually 6+ months validity)</li>';
       html += '<li class="flex gap-2"><i class="ph-bold ph-airplane-landing text-slate-400 mt-0.5"></i>Return or onward ticket</li>';
@@ -164,5 +164,5 @@ window.getVisaTypeStyle = function(type) {
   if (t === 'eta' || t === 'evisa') return 'bg-teal-100 text-teal-800 border border-teal-200';
   if (t === 'visa required') return 'bg-amber-100 text-amber-800 border border-amber-200';
   if (t === 'admission refused') return 'bg-red-100 text-red-800 border border-red-200';
-  return 'bg-slate-100 text-slate-800 border border-slate-200';
+  return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200';
 };

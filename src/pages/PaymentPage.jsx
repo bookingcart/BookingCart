@@ -292,14 +292,14 @@ export default function PaymentPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <section className="lg:col-span-8 space-y-6">
             <div className="flex items-center justify-between mb-2">
-              <h1 className="text-2xl font-bold text-slate-900">Secure Payment</h1>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Secure Payment</h1>
             </div>
 
             {/* Total Amount Display - Only show if there's a booking */}
             {totals.total > 0 && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-700 font-medium">Total Amount to Pay</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">Total Amount to Pay</span>
                   <span className="text-2xl font-extrabold text-green-700">{money(totals.total, totals.currency)}</span>
                 </div>
               </div>
@@ -313,12 +313,12 @@ export default function PaymentPage() {
             )}
 
             {step === 1 && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 className="font-bold text-lg text-slate-900 mb-2 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
                   <span className="bg-green-100 text-green-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span>
                   Airline Flight Payment
                 </h2>
-                <p className="text-sm text-slate-500 mb-6">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                   Please enter your <strong>Billing Information</strong> below. This must match the cardholder details associated with your payment method. You will be charged {money(totals.flightCost, totals.currency)} directly by the airline.
                 </p>
 
@@ -352,8 +352,8 @@ export default function PaymentPage() {
             )}
 
             {step === 2 && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-green-500">
-                <h2 className="font-bold text-lg text-slate-900 mb-2 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-green-500">
+                <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
                   <span className="bg-green-100 text-green-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span>
                   BookingCart Extras & Fees
                 </h2>
@@ -381,28 +381,28 @@ export default function PaymentPage() {
           </section>
 
           <aside className="lg:col-span-4 space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sticky top-24">
-              <h2 className="font-bold text-lg text-slate-900 mb-4">Total Due</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-lg p-6 sticky top-24">
+              <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-4">Total Due</h2>
               
-              <div className="flex justify-between items-center text-sm mb-2 text-slate-600">
+              <div className="flex justify-between items-center text-sm mb-2 text-slate-600 dark:text-slate-400">
                 <span>Flight Cost (Airline)</span>
-                <span className="font-semibold text-slate-900">{money(totals.flightCost, totals.currency)}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{money(totals.flightCost, totals.currency)}</span>
               </div>
-              <div className="flex justify-between items-center text-sm mb-4 text-slate-600 pb-4 border-b border-slate-100">
+              <div className="flex justify-between items-center text-sm mb-4 text-slate-600 dark:text-slate-400 pb-4 border-b border-slate-100">
                 <span>Extras & Taxes</span>
-                <span className="font-semibold text-slate-900">{money(totals.markupCost, totals.currency)}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{money(totals.markupCost, totals.currency)}</span>
               </div>
 
               <div className="flex justify-between items-end mb-2">
-                <span className="font-bold text-slate-700">Total</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Total</span>
                 <span className="text-3xl font-extrabold text-green-600">{money(totals.total, totals.currency)}</span>
               </div>
 
               <div className="space-y-3 mt-6">
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   <i className="ph-fill ph-lock-key text-emerald-500 text-lg"></i> SSL Encrypted
                 </div>
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                   <i className="ph-fill ph-shield-check text-emerald-500 text-lg"></i> Safe Checkout
                 </div>
               </div>

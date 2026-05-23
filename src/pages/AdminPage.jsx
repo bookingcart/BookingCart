@@ -143,11 +143,11 @@ function SupportInbox() {
   const unread = threads.filter(t => !t.adminRead).length;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" style={{ minHeight: 480 }}>
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm overflow-hidden" style={{ minHeight: 480 }}>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 dark:bg-slate-900">
         <div className="flex items-center gap-2">
           <i className="ph ph-chat-dots text-teal-600 text-xl" />
-          <h2 className="font-extrabold text-slate-900">Support Inbox</h2>
+          <h2 className="font-extrabold text-slate-900 dark:text-slate-100">Support Inbox</h2>
           {unread > 0 && (
             <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unread}</span>
           )}
@@ -156,7 +156,7 @@ function SupportInbox() {
           {['all', 'unread', 'open', 'closed'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
-                ${filter === f ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                ${filter === f ? 'bg-teal-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700'}`}>
               {f}
             </button>
           ))}
@@ -179,14 +179,14 @@ function SupportInbox() {
             return (
               <button key={t.id} onClick={() => selectThread(t)}
                 className={`w-full text-left px-4 py-3 border-b border-slate-50 transition-colors
-                  ${isSelected ? 'bg-teal-50 border-l-4 border-l-teal-500' : 'hover:bg-slate-50 border-l-4 border-l-transparent'}`}>
+                  ${isSelected ? 'bg-teal-50 border-l-4 border-l-teal-500' : 'hover:bg-slate-50 dark:bg-slate-900 border-l-4 border-l-transparent'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
                       <i className="ph ph-user text-teal-600 text-sm" />
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-sm font-semibold truncate ${!t.adminRead ? 'text-slate-900' : 'text-slate-600'}`}>
+                      <p className={`text-sm font-semibold truncate ${!t.adminRead ? 'text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'}`}>
                         {t.email || 'Guest'}
                       </p>
                       <p className="text-xs text-slate-400 truncate">{last?.text || ''}</p>
@@ -195,7 +195,7 @@ function SupportInbox() {
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {!t.adminRead && <span className="w-2 h-2 bg-teal-500 rounded-full" />}
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold
-                      ${t.status === 'closed' ? 'bg-slate-100 text-slate-400' : 'bg-green-100 text-green-700'}`}>
+                      ${t.status === 'closed' ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' : 'bg-green-100 text-green-700'}`}>
                       {t.status || 'open'}
                     </span>
                   </div>
@@ -212,15 +212,15 @@ function SupportInbox() {
         {selected ? (
           <div className="flex-1 flex flex-col">
             {/* detail header */}
-            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-white">
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-white dark:bg-slate-800">
               <div>
-                <p className="font-bold text-slate-900">{selected.email || 'Guest'}</p>
+                <p className="font-bold text-slate-900 dark:text-slate-100">{selected.email || 'Guest'}</p>
                 <p className="text-xs text-slate-400">{selected.topic || 'General enquiry'}</p>
               </div>
               <div className="flex gap-2">
                 {selected.status !== 'closed'
                   ? <button onClick={() => closeThread(selected.id)}
-                      className="text-xs font-semibold text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50">
+                      className="text-xs font-semibold text-slate-500 dark:text-slate-400 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 dark:bg-slate-900">
                       <i className="ph ph-check-circle mr-1" />Close
                     </button>
                   : <button onClick={() => reopenThread(selected.id)}
@@ -232,7 +232,7 @@ function SupportInbox() {
             </div>
 
             {/* messages */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50">
+            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50 dark:bg-slate-900">
               {(threads.find(t => t.id === selected.id)?.messages || []).map((m, i) => (
                 <div key={i} className={`flex ${m.from === 'admin' ? 'justify-end' : 'justify-start'}`}>
                   {m.from !== 'admin' && (
@@ -243,7 +243,7 @@ function SupportInbox() {
                   <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm shadow-sm
                     ${m.from === 'admin'
                       ? 'bg-teal-600 text-white rounded-br-sm'
-                      : 'bg-white text-slate-700 rounded-bl-sm border border-slate-100'}`}>
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-bl-sm border border-slate-100'}`}>
                     {m.from === 'admin' && <p className="text-[10px] text-teal-200 mb-0.5 font-semibold">You (Admin)</p>}
                     {m.text}
                     <p className={`text-[10px] mt-1 ${m.from === 'admin' ? 'text-teal-200' : 'text-slate-300'}`}>
@@ -262,10 +262,10 @@ function SupportInbox() {
 
             {/* reply box */}
             {selected.status !== 'closed' ? (
-              <div className="p-4 border-t border-slate-100 bg-white flex gap-2">
+              <div className="p-4 border-t border-slate-100 bg-white dark:bg-slate-800 flex gap-2">
                 <textarea
                   rows={2}
-                  className="flex-1 bg-slate-50 rounded-xl px-3 py-2 text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
+                  className="flex-1 bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2 text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none"
                   placeholder="Type your reply…"
                   value={reply}
                   onChange={e => setReply(e.target.value)}
@@ -277,7 +277,7 @@ function SupportInbox() {
                 </button>
               </div>
             ) : (
-              <div className="p-4 border-t border-slate-100 bg-slate-50 text-center text-sm text-slate-400">
+              <div className="p-4 border-t border-slate-100 bg-slate-50 dark:bg-slate-900 text-center text-sm text-slate-400">
                 This thread is closed.
                 <button onClick={() => reopenThread(selected.id)} className="ml-2 text-teal-600 font-semibold hover:underline">Reopen to reply</button>
               </div>
@@ -320,8 +320,8 @@ export default function AdminPage() {
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <i className="ph-fill ph-lock-key text-red-600 text-3xl"></i>
         </div>
-        <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Access Denied</h2>
-        <p className="text-slate-500 mb-6 max-w-md">You must be signed in with an administrator account to access this dashboard.</p>
+        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 mb-2">Access Denied</h2>
+        <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md">You must be signed in with an administrator account to access this dashboard.</p>
         {!user ? (
           <HeaderAuthCluster />
         ) : (
@@ -339,8 +339,8 @@ export default function AdminPage() {
           
           <div id="upload-overlay"
               className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center">
-              <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full mx-4 relative max-h-[90vh] overflow-y-auto">
-                  <button onClick={() => window.closeUploadModal?.()} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600">
+              <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 max-w-lg w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+                  <button onClick={() => window.closeUploadModal?.()} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:text-slate-400">
                       <i className="ph-bold ph-x text-2xl"></i>
                   </button>
                   <div className="flex items-center gap-4 mb-6">
@@ -348,42 +348,42 @@ export default function AdminPage() {
                           <i className="ph-fill ph-upload-simple"></i>
                       </div>
                       <div>
-                          <h2 className="text-xl font-extrabold text-slate-900">Upload Ticket</h2>
-                          <p className="text-sm text-slate-500">Ref: <span id="upload-ref"
-                                  className="font-bold text-slate-700"></span></p>
+                          <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">Upload Ticket</h2>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">Ref: <span id="upload-ref"
+                                  className="font-bold text-slate-700 dark:text-slate-300"></span></p>
                       </div>
                   </div>
       
                   <div
-                      className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100 flex justify-between items-center text-sm">
+                      className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 mb-6 border border-slate-100 flex justify-between items-center text-sm">
                       <div>
-                          <div className="text-slate-500 font-bold mb-1">Route</div>
-                          <div id="upload-route" className="font-medium text-slate-900"></div>
+                          <div className="text-slate-500 dark:text-slate-400 font-bold mb-1">Route</div>
+                          <div id="upload-route" className="font-medium text-slate-900 dark:text-slate-100"></div>
                       </div>
                       <div className="text-right">
-                          <div className="text-slate-500 font-bold mb-1">Passengers</div>
-                          <div id="upload-pax" className="font-medium text-slate-900"></div>
+                          <div className="text-slate-500 dark:text-slate-400 font-bold mb-1">Passengers</div>
+                          <div id="upload-pax" className="font-medium text-slate-900 dark:text-slate-100"></div>
                       </div>
                   </div>
       
                   <form id="upload-form" className="space-y-4">
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ticket Number /
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Ticket Number /
                               PNR</label>
                           <input id="ticket-num" required type="text" placeholder="e.g. 1234567890"
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Operating
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Operating
                               Airline</label>
                           <input id="ticket-airline" required type="text" placeholder="e.g. Emirates"
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ticket File (PDF
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Ticket File (PDF
                               / Image)</label>
                           <input id="ticket-file" required type="file" accept="application/pdf,image/*"
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
                       </div>
                       <button type="submit" id="upload-btn"
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-600/20 mt-4 flex items-center justify-center gap-2">
@@ -397,12 +397,12 @@ export default function AdminPage() {
               <div className="flex items-center gap-2 mb-6">
                 <button onClick={() => setAdminTab('bookings')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
-                    ${adminTab === 'bookings' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    ${adminTab === 'bookings' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-airplane" /> Bookings
                 </button>
                 <button onClick={() => setAdminTab('support')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
-                    ${adminTab === 'support' ? 'bg-teal-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    ${adminTab === 'support' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-chat-dots" /> Support Inbox
                 </button>
               </div>
@@ -410,31 +410,31 @@ export default function AdminPage() {
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5">
                       <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Bookings</div>
-                      <div className="text-2xl font-extrabold text-slate-900" id="stat-total">0</div>
+                      <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100" id="stat-total">0</div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5">
                       <div className="text-xs font-bold text-yellow-500 uppercase tracking-wider mb-1">New / Pending</div>
                       <div className="text-2xl font-extrabold text-yellow-600" id="stat-new">0</div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5">
                       <div className="text-xs font-bold text-green-500 uppercase tracking-wider mb-1">Confirmed</div>
                       <div className="text-2xl font-extrabold text-green-600" id="stat-confirmed">0</div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5">
                       <div className="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1">Tickets Issued</div>
                       <div className="text-2xl font-extrabold text-purple-600" id="stat-issued">0</div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5">
                       <div className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Downloads</div>
                       <div className="text-2xl font-extrabold text-indigo-600" id="stat-downloads">0</div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 p-5">
                       <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Revenue</div>
-                      <div className="text-2xl font-extrabold text-slate-900" id="stat-revenue">$0</div>
+                      <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100" id="stat-revenue">$0</div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-blue-200 p-5">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-blue-200 p-5">
                       <div className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1"><i className="ph ph-users"></i>
                           Total Users</div>
                       <div className="text-2xl font-extrabold text-blue-600" id="stat-users">0</div>
@@ -443,39 +443,39 @@ export default function AdminPage() {
       
               
               <div className="flex items-center gap-3 mb-6">
-                  <span className="text-sm font-bold text-slate-500">Filter:</span>
+                  <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Filter:</span>
                   <button className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-900 text-white"
                       data-filter="all">All</button>
                   <button
-                      className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700"
                       data-filter="new">New</button>
                   <button
-                      className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700"
                       data-filter="confirmed">Confirmed</button>
                   <button
-                      className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      className="admin-filter px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-700"
                       data-filter="cancelled">Cancelled</button>
               </div>
       
               
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                       <table className="w-full text-sm" id="bookings-table">
                           <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200">
-                                  <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                              <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200">
+                                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Ref</th>
-                                  <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Client</th>
-                                  <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Route</th>
-                                  <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Date</th>
-                                  <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Total</th>
-                                  <th className="text-left px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Status</th>
-                                  <th className="text-right px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">
+                                  <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
                                       Actions</th>
                               </tr>
                           </thead>

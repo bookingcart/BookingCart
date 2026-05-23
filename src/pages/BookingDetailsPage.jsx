@@ -7,7 +7,7 @@ function Badge({ children, variant = 'gray' }) {
     red: 'bg-red-50 text-red-600 border-red-200',
     green: 'bg-green-50 text-green-700 border-green-200',
     blue: 'bg-green-50 text-green-700 border-green-200',
-    gray: 'bg-slate-100 text-slate-600 border-slate-200',
+    gray: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200',
     amber: 'bg-amber-50 text-amber-700 border-amber-200',
   }[variant];
   return (
@@ -91,28 +91,28 @@ function FlightSegment({ seg }) {
         {/* Times row */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="text-center">
-            <div className="text-xl font-extrabold text-slate-900 leading-none">{seg.dep}</div>
-            <div className="text-xs font-bold text-slate-500 mt-0.5">{seg.depAirport}</div>
+            <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 leading-none">{seg.dep}</div>
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">{seg.depAirport}</div>
           </div>
 
           <div className="flex-1 flex flex-col items-center min-w-[80px]">
             <div className="text-xs font-semibold text-slate-400 mb-1">{seg.duration}</div>
             <div className="relative w-full flex items-center">
-              <div className="h-px bg-slate-200 flex-1" />
+              <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
               <i className="ph ph-airplane-tilt text-green-500 text-sm mx-1" />
-              <div className="h-px bg-slate-200 flex-1" />
+              <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
             </div>
             <div className="text-[10px] text-slate-400 mt-1">Direct</div>
           </div>
 
           <div className="text-center">
-            <div className="text-xl font-extrabold text-slate-900 leading-none">{seg.arr}</div>
-            <div className="text-xs font-bold text-slate-500 mt-0.5">{seg.arrAirport}</div>
+            <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 leading-none">{seg.arr}</div>
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">{seg.arrAirport}</div>
           </div>
         </div>
 
         {/* Details row */}
-        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
           <span className="flex items-center gap-1"><i className="ph ph-tag" />{seg.airline} · {seg.flightNo}</span>
           <span className="flex items-center gap-1"><i className="ph ph-airplane" />{seg.aircraft}</span>
           <span className="flex items-center gap-1"><i className="ph ph-map-pin" />Dep: {seg.depTerminal}</span>
@@ -156,20 +156,20 @@ function FlightLeg({ leg, label }) {
           <i className={label === 'Return' ? 'ph ph-airplane-landing' : 'ph ph-airplane-takeoff'} />
           {label}
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600 font-semibold">
-          <span className="font-extrabold text-slate-900">{leg.fromCode}</span>
+        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 font-semibold">
+          <span className="font-extrabold text-slate-900 dark:text-slate-100">{leg.fromCode}</span>
           <span className="text-slate-400">→</span>
-          <span className="font-extrabold text-slate-900">{leg.toCode}</span>
+          <span className="font-extrabold text-slate-900 dark:text-slate-100">{leg.toCode}</span>
           <span className="text-slate-400">·</span>
-          <span className="font-medium text-slate-500">{leg.date}</span>
+          <span className="font-medium text-slate-500 dark:text-slate-400">{leg.date}</span>
         </div>
       </div>
 
       {/* Airports */}
-      <div className="flex gap-4 text-xs text-slate-500 font-medium">
-        <span><span className="text-slate-700 font-semibold">{leg.from}:</span> {leg.fromFull}</span>
+      <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
+        <span><span className="text-slate-700 dark:text-slate-300 font-semibold">{leg.from}:</span> {leg.fromFull}</span>
         <span className="text-slate-300">|</span>
-        <span><span className="text-slate-700 font-semibold">{leg.to}:</span> {leg.toFull}</span>
+        <span><span className="text-slate-700 dark:text-slate-300 font-semibold">{leg.to}:</span> {leg.toFull}</span>
       </div>
 
       {/* Segments + layovers interleaved */}
@@ -193,8 +193,8 @@ function RatingWidget() {
   const emojis = ['😞', '😕', '😐', '🙂', '😊', '😄', '😁', '🤩', '🥰', '😍', '🎉'];
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-      <p className="text-sm font-bold text-slate-800 mb-1">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
+      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
         How likely are you to recommend booking flights on BookingCart?
       </p>
       <p className="text-xs text-slate-400 mb-4">0 = Not likely · 10 = Extremely likely</p>
@@ -207,7 +207,7 @@ function RatingWidget() {
             className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all duration-150
               ${selected === i
                 ? 'bg-green-600 text-white border-green-600 scale-110 shadow-lg shadow-green-100'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-green-300 hover:bg-green-50'
+                : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 hover:border-green-300 hover:bg-green-50'
               }`}
             title={`${i} – ${emojis[i]}`}
           >
@@ -217,7 +217,7 @@ function RatingWidget() {
       </div>
 
       {selected !== null && (
-        <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-700 animate-fade-in">
+        <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 animate-fade-in">
           <span className="text-2xl">{emojis[selected]}</span>
           <span>Thanks for rating us <strong>{selected}/10</strong>!</span>
         </div>
@@ -243,7 +243,7 @@ function PromoBanner() {
         Save up to <span className="font-bold text-white">30% off</span> hotels when you bundle with your next flight.
       </p>
 
-      <button className="inline-flex items-center gap-2 bg-white text-green-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-green-50 transition-all">
+      <button className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-green-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-green-50 transition-all">
         <i className="ph ph-bed" /> Browse Hotels
       </button>
     </div>
@@ -257,7 +257,7 @@ export default function BookingDetailsPage() {
   const fmt = (n) => `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans">
 
 
       {/* ── Main ── */}
@@ -269,7 +269,7 @@ export default function BookingDetailsPage() {
           <i className="ph ph-caret-right text-slate-300" />
           <a href="/my-bookings" className="hover:text-green-600 transition-colors">Flight Bookings</a>
           <i className="ph ph-caret-right text-slate-300" />
-          <span className="text-slate-700 font-semibold">Booking Details</span>
+          <span className="text-slate-700 dark:text-slate-300 font-semibold">Booking Details</span>
         </nav>
 
         {/* Two-column grid */}
@@ -279,7 +279,7 @@ export default function BookingDetailsPage() {
           <div className="space-y-5">
 
             {/* ── Status card ── */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                   {/* Status */}
@@ -291,21 +291,21 @@ export default function BookingDetailsPage() {
                   </div>
 
                   {/* Reason */}
-                  <div className="flex items-center gap-2 text-sm text-slate-500 font-medium mb-4">
+                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
                     <i className="ph ph-info text-slate-400" />
-                    <span>Reason for cancellation: <span className="text-slate-700 font-semibold">payment failed</span></span>
+                    <span>Reason for cancellation: <span className="text-slate-700 dark:text-slate-300 font-semibold">payment failed</span></span>
                   </div>
 
                   {/* Booking refs */}
                   <div className="flex flex-wrap gap-4">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Booking Number</span>
-                      <span className="text-sm font-extrabold text-slate-800 font-mono tracking-wide">{booking.bookingRef}</span>
+                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200 font-mono tracking-wide">{booking.bookingRef}</span>
                     </div>
-                    <div className="w-px bg-slate-100 hidden sm:block" />
+                    <div className="w-px bg-slate-100 dark:bg-slate-800 hidden sm:block" />
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PIN Code</span>
-                      <span className="text-sm font-extrabold text-slate-800 font-mono tracking-widest">{booking.pin}</span>
+                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200 font-mono tracking-widest">{booking.pin}</span>
                     </div>
                   </div>
                 </div>
@@ -318,12 +318,12 @@ export default function BookingDetailsPage() {
             </div>
 
             {/* ── Flight Details ── */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-5">
                 <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center">
                   <i className="ph ph-airplane-tilt text-green-600 text-lg" />
                 </div>
-                <h2 className="text-base font-extrabold text-slate-900">Flight Details</h2>
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Flight Details</h2>
                 <Badge variant="green">Round Trip</Badge>
               </div>
 
@@ -335,12 +335,12 @@ export default function BookingDetailsPage() {
             </div>
 
             {/* ── Passenger Information ── */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
-                  <i className="ph ph-user text-slate-500 text-lg" />
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <i className="ph ph-user text-slate-500 dark:text-slate-400 text-lg" />
                 </div>
-                <h2 className="text-base font-extrabold text-slate-900">Passenger Information</h2>
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Passenger Information</h2>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -349,13 +349,13 @@ export default function BookingDetailsPage() {
                   { label: 'Nationality', value: booking.passenger.nationality, icon: 'ph-globe' },
                   { label: 'Gender', value: booking.passenger.gender, icon: 'ph-user-circle' },
                 ].map(({ label, value, icon }) => (
-                  <div key={label} className="flex items-center gap-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
-                    <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                      <i className={`ph ${icon} text-slate-500`} />
+                  <div key={label} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-100">
+                    <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 flex items-center justify-center shrink-0">
+                      <i className={`ph ${icon} text-slate-500 dark:text-slate-400`} />
                     </div>
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</div>
-                      <div className="text-sm font-bold text-slate-800 mt-0.5">{value}</div>
+                      <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">{value}</div>
                     </div>
                   </div>
                 ))}
@@ -374,20 +374,20 @@ export default function BookingDetailsPage() {
           <div className="space-y-4 lg:sticky lg:top-24">
 
             {/* Price Summary card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 className="text-sm font-extrabold text-slate-900 mb-4">Price Summary</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mb-4">Price Summary</h3>
 
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500 font-medium">Ticket Fare</span>
-                  <span className="text-sm font-bold text-slate-800">{fmt(booking.ticketFare)}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Ticket Fare</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{fmt(booking.ticketFare)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500 font-medium">Taxes &amp; Fees</span>
-                  <span className="text-sm font-bold text-slate-800">{fmt(booking.taxesFees)}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Taxes &amp; Fees</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{fmt(booking.taxesFees)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500 font-medium flex items-center gap-1">
+                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
                     <i className="ph ph-tag text-green-500" /> Discount
                   </span>
                   <span className="text-sm font-bold text-green-600">−{fmt(booking.discount)}</span>
@@ -397,32 +397,32 @@ export default function BookingDetailsPage() {
               <Divider />
 
               <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700">Total Amount</span>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Total Amount</span>
                 <div className="text-right">
-                  <div className="text-xl font-extrabold text-slate-900">{fmt(booking.totalUsd)}</div>
+                  <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{fmt(booking.totalUsd)}</div>
                   <div className="text-[10px] text-slate-400 font-medium">USD · incl. all taxes</div>
                 </div>
               </div>
 
-              <p className="mt-4 text-[11px] text-slate-400 leading-relaxed bg-slate-50 rounded-xl p-3 border border-slate-100">
+              <p className="mt-4 text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100">
                 <i className="ph ph-info-circle mr-1" />
                 Refunds are processed to the original payment method only. Prepaid &amp; virtual cards may not be supported.
               </p>
             </div>
 
             {/* Quick actions */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</h3>
 
               {[
                 { icon: 'ph-arrows-clockwise', label: 'Book Again', color: 'text-green-600' },
-                { icon: 'ph-printer', label: 'Print Booking', color: 'text-slate-600' },
-                { icon: 'ph-envelope', label: 'Email Confirmation', color: 'text-slate-600' },
-                { icon: 'ph-headset', label: 'Contact Support', color: 'text-slate-600' },
+                { icon: 'ph-printer', label: 'Print Booking', color: 'text-slate-600 dark:text-slate-400' },
+                { icon: 'ph-envelope', label: 'Email Confirmation', color: 'text-slate-600 dark:text-slate-400' },
+                { icon: 'ph-headset', label: 'Contact Support', color: 'text-slate-600 dark:text-slate-400' },
               ].map(({ icon, label, color }) => (
                 <button
                   key={label}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900 transition-all border border-transparent hover:border-slate-100"
                 >
                   <i className={`ph ${icon} ${color} text-base`} />
                   {label}

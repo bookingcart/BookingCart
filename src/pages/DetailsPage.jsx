@@ -29,9 +29,9 @@ export default function DetailsPage() {
               <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-xs font-medium">3</span>
               Details
             </a>
-            <a className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-slate-500 border border-slate-200 whitespace-nowrap"
+            <a className="flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 whitespace-nowrap"
               data-step-id="passengers" href="#">
-              <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium">4</span>
+              <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-medium">4</span>
               Passengers
             </a>
           </div>
@@ -43,59 +43,59 @@ export default function DetailsPage() {
       
             <section className="lg:col-span-8 space-y-6">
               <div className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-medium text-slate-900">Flight Details</h1>
+                <h1 className="text-2xl font-medium text-slate-900 dark:text-slate-100">Flight Details</h1>
               </div>
-              <p className="text-slate-500 font-medium">Review the full breakdown, fare rules, and baggage allowances.</p>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Review the full breakdown, fare rules, and baggage allowances.</p>
       
               
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6" id="flight-segments-container">
-                <h2 className="font-medium text-lg text-slate-900 mb-4 flex items-center gap-2"><i
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6" id="flight-segments-container">
+                <h2 className="font-medium text-lg text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2"><i
                     className="ph-duotone ph-airplane-tilt text-green-600 text-xl"></i> Trip Breakdown</h2>
                 <hr className="border-slate-100 my-4" />
-                <div className="text-sm text-slate-500 py-4 flex justify-center items-center"><i
+                <div className="text-sm text-slate-500 dark:text-slate-400 py-4 flex justify-center items-center"><i
                     className="ph-bold ph-spinner-gap animate-spin mr-2"></i> Loading flight details...</div>
               </div>
       
               
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 className="font-medium text-lg text-slate-900 mb-4 flex items-center gap-2"><i
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 className="font-medium text-lg text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2"><i
                     className="ph-duotone ph-receipt text-green-600 text-xl"></i> Fare Rules</h2>
-                <p className="text-sm text-slate-500 mb-4">Typical rules for this fare class.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Typical rules for this fare class.</p>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                    <span className="font-medium text-slate-700 text-sm">Refund Policy</span>
-                    <span className="text-sm font-semibold text-slate-500">Refundable with fee</span>
+                  <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
+                    <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">Refund Policy</span>
+                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Refundable with fee</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                    <span className="font-medium text-slate-700 text-sm">Changes</span>
-                    <span className="text-sm font-semibold text-slate-500">Allowed (fare difference applies)</span>
+                  <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
+                    <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">Changes</span>
+                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Allowed (fare difference applies)</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                    <span className="font-medium text-slate-700 text-sm">No-show</span>
-                    <span className="text-sm font-semibold text-slate-500">Ticket forfeited</span>
+                  <div className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
+                    <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">No-show</span>
+                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Ticket forfeited</span>
                   </div>
                 </div>
               </div>
       
               
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 className="font-medium text-lg text-slate-900 mb-4 flex items-center gap-2"><i
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 className="font-medium text-lg text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2"><i
                     className="ph-duotone ph-suitcase text-green-600 text-xl"></i> Baggage</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-xl bg-slate-50 text-center">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 text-center">
                     <i className="ph-fill ph-bag text-2xl text-slate-400 mb-2"></i>
-                    <div className="font-medium text-slate-900 text-sm">Personal Item</div>
-                    <div className="text-xs text-slate-500">Included</div>
+                    <div className="font-medium text-slate-900 dark:text-slate-100 text-sm">Personal Item</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Included</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-slate-50 text-center">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 text-center">
                     <i className="ph-fill ph-suitcase-rolling text-2xl text-slate-400 mb-2"></i>
-                    <div className="font-medium text-slate-900 text-sm">Carry-on</div>
-                    <div className="text-xs text-slate-500">7kg Included</div>
+                    <div className="font-medium text-slate-900 dark:text-slate-100 text-sm">Carry-on</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">7kg Included</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-slate-50 text-center border border-dashed border-slate-300">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 text-center border border-dashed border-slate-300">
                     <i className="ph-fill ph-archive-box text-2xl text-slate-300 mb-2"></i>
-                    <div className="font-medium text-slate-900 text-sm">Checked Bag</div>
-                    <div className="text-xs text-slate-500">0-1 (Varies)</div>
+                    <div className="font-medium text-slate-900 dark:text-slate-100 text-sm">Checked Bag</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">0-1 (Varies)</div>
                   </div>
                 </div>
               </div>
@@ -104,31 +104,31 @@ export default function DetailsPage() {
       
             
             <aside className="lg:col-span-4 space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sticky top-24">
-                <h2 className="font-medium text-lg text-slate-900 mb-4">Your Selection</h2>
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-lg p-6 sticky top-24">
+                <h2 className="font-medium text-lg text-slate-900 dark:text-slate-100 mb-4">Your Selection</h2>
       
                 <div className="mb-4">
-                  <div className="text-sm text-slate-500 font-medium">Airline</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">Airline</div>
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm"
+                      className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm"
                       data-airline-logo>
-                      <div className="w-full h-full flex items-center justify-center text-slate-900 font-medium">â€”</div>
+                      <div className="w-full h-full flex items-center justify-center text-slate-900 dark:text-slate-100 font-medium">â€”</div>
                     </div>
-                    <div className="text-xl font-medium text-slate-900" data-airline>â€”</div>
+                    <div className="text-xl font-medium text-slate-900 dark:text-slate-100" data-airline>â€”</div>
                   </div>
                 </div>
       
                 <div className="mb-4">
-                  <div className="text-sm text-slate-500 font-medium">Schedule</div>
-                  <div className="font-medium text-slate-900" data-times>â€”</div>
-                  <div className="text-sm text-slate-500 mt-1" data-duration>â€”</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">Schedule</div>
+                  <div className="font-medium text-slate-900 dark:text-slate-100" data-times>â€”</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1" data-duration>â€”</div>
                 </div>
       
                 <hr className="border-slate-100 my-4" />
       
                 <div className="flex justify-between items-end mb-2">
-                  <span className="font-medium text-slate-700">Total Price</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">Total Price</span>
                   <span className="text-2xl font-semibold text-green-600" data-price>â€”</span>
                 </div>
                 <div className="text-xs text-right text-slate-400 mb-6">Includes taxes and fees</div>

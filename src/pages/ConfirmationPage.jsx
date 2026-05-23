@@ -24,13 +24,13 @@ export default function ConfirmationPage() {
           <div className="w-full max-w-[600px] relative px-4" data-confirmation>
       
             
-            <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden relative pb-[1px] w-full">
+            <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl overflow-hidden relative pb-[1px] w-full">
       
               
               <div className="p-8 pb-10">
                 
                 <div className="flex justify-between items-center mb-10">
-                  <div className="text-2xl font-bold text-slate-800 tracking-tight" data-confirm-airline>TransitZen</div>
+                  <div className="text-2xl font-bold text-slate-800 dark:text-slate-200 tracking-tight" data-confirm-airline>TransitZen</div>
                   <div className="px-4 py-1.5 bg-rose-50 text-rose-600 font-bold text-xs rounded-full uppercase tracking-wider">
                     Confirmed</div>
                 </div>
@@ -40,10 +40,10 @@ export default function ConfirmationPage() {
       
                   
                   <div className="text-left w-[38%]">
-                    <div className="text-3xl font-extrabold text-slate-900 mb-2 leading-none" data-confirm-origin-city>London
+                    <div className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 mb-2 leading-none" data-confirm-origin-city>London
                     </div>
                     <div className="text-sm font-semibold text-slate-400 mb-2 truncate max-w-full">Origin</div>
-                    <div className="text-sm font-bold text-slate-600" data-confirm-origin-time>Wed Aug, 11:30</div>
+                    <div className="text-sm font-bold text-slate-600 dark:text-slate-400" data-confirm-origin-time>Wed Aug, 11:30</div>
                   </div>
       
                   
@@ -54,7 +54,7 @@ export default function ConfirmationPage() {
                       <div className="absolute w-full h-[2px] border-t-2 border-dashed border-slate-200 top-1/2 -translate-y-1/2">
                       </div>
                       
-                      <div className="bg-white px-3 relative z-10 text-[#16a34a] flex items-center justify-center">
+                      <div className="bg-white dark:bg-slate-800 px-3 relative z-10 text-[#16a34a] flex items-center justify-center">
                         <i className="ph-fill ph-airplane-tilt text-3xl mb-1"></i>
                       </div>
                     </div>
@@ -64,9 +64,9 @@ export default function ConfirmationPage() {
       
                   
                   <div className="text-right w-[38%]">
-                    <div className="text-3xl font-extrabold text-slate-900 mb-2 leading-none" data-confirm-dest-city>Bristol</div>
+                    <div className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 mb-2 leading-none" data-confirm-dest-city>Bristol</div>
                     <div className="text-sm font-semibold text-slate-400 mb-2 truncate max-w-full">Destination</div>
-                    <div className="text-sm font-bold text-slate-600" data-confirm-dest-time>Wed Aug, 13:30</div>
+                    <div className="text-sm font-bold text-slate-600 dark:text-slate-400" data-confirm-dest-time>Wed Aug, 13:30</div>
                   </div>
       
                 </div>
@@ -89,19 +89,19 @@ export default function ConfirmationPage() {
               </div>
       
               
-              <div className="p-8 pt-8 flex sm:flex-row flex-col gap-6 justify-between sm:items-center bg-white relative z-10">
+              <div className="p-8 pt-8 flex sm:flex-row flex-col gap-6 justify-between sm:items-center bg-white dark:bg-slate-800 relative z-10">
       
                 <div className="flex gap-8 justify-between w-full sm:w-auto">
                   
                   <div>
                     <div className="text-sm font-semibold text-slate-400 mb-1">Seats</div>
-                    <div className="text-2xl font-extrabold text-slate-800" data-confirm-seats>42</div>
+                    <div className="text-2xl font-extrabold text-slate-800 dark:text-slate-200" data-confirm-seats>42</div>
                   </div>
       
                   
                   <div>
                     <div className="text-sm font-semibold text-slate-400 mb-1">Gate</div>
-                    <div className="text-2xl font-extrabold text-slate-800" data-confirm-platform>56</div>
+                    <div className="text-2xl font-extrabold text-slate-800 dark:text-slate-200" data-confirm-platform>56</div>
                   </div>
       
                   

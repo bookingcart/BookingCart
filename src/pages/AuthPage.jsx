@@ -48,7 +48,7 @@ function StrengthBar({ strength }) {
 function Field({ id, label, type = 'text', value, onChange, error, icon, placeholder, hint, children }) {
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-sm font-semibold text-slate-700">{label}</label>
+      <label htmlFor={id} className="block text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</label>
       <div className="relative">
         {icon && (
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">
@@ -62,11 +62,11 @@ function Field({ id, label, type = 'text', value, onChange, error, icon, placeho
           onChange={onChange}
           placeholder={placeholder}
           autoComplete={id}
-          className={`w-full rounded-xl border py-3 text-sm font-medium text-slate-900 placeholder-slate-400 transition-all duration-150 focus:outline-none focus:ring-2
+          className={`w-full rounded-xl border py-3 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder-slate-400 transition-all duration-150 focus:outline-none focus:ring-2
             ${icon ? 'pl-11 pr-4' : 'px-4'}
             ${error
               ? 'border-red-400 bg-red-50 focus:ring-red-200'
-              : 'border-slate-200 bg-white focus:ring-green-200 focus:border-green-500'
+              : 'border-slate-200 bg-white dark:bg-slate-800 focus:ring-green-200 focus:border-green-500'
             }`}
         />
         {children}
@@ -257,7 +257,7 @@ export default function AuthPage() {
       type="button"
       onClick={() => switchTab(id)}
       className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-200
-        ${tab === id ? 'bg-white text-green-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        ${tab === id ? 'bg-white dark:bg-slate-800 text-green-700 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300'}`}
     >
       {label}
     </button>
@@ -266,7 +266,7 @@ export default function AuthPage() {
   const cardClass = `transition-all duration-150 ${animating ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'}`;
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-900">
       {/* ── Left panel — decorative ── */}
       <div className="hidden lg:flex lg:w-[45%] xl:w-[42%] relative flex-col justify-between overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #14532d 0%, #166534 40%, #16a34a 100%)' }}>
@@ -282,7 +282,7 @@ export default function AuthPage() {
 
         <div className="relative z-10 p-10 pt-14">
           <Link to="/" className="flex items-center gap-2.5 mb-16">
-            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800/20 flex items-center justify-center">
               <i className="ph-fill ph-airplane-tilt text-white text-xl" />
             </div>
             <span className="text-white font-extrabold text-xl tracking-tight">BookingCart</span>
@@ -304,7 +304,7 @@ export default function AuthPage() {
             { icon: 'airplane', text: 'Real-time Duffel flight data' },
             { icon: 'clock', text: 'Hold orders & pay later' },
           ].map(({ icon, text }) => (
-            <div key={text} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3">
+            <div key={text} className="flex items-center gap-3 bg-white dark:bg-slate-800/10 backdrop-blur-sm rounded-xl px-4 py-3">
               <i className={`ph-fill ph-${icon} text-green-300 text-xl flex-shrink-0`} />
               <span className="text-white/90 text-sm font-semibold">{text}</span>
             </div>
@@ -319,13 +319,13 @@ export default function AuthPage() {
           <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center">
             <i className="ph-fill ph-airplane-tilt text-white" />
           </div>
-          <span className="text-slate-900 font-extrabold text-lg">BookingCart</span>
+          <span className="text-slate-900 dark:text-slate-100 font-extrabold text-lg">BookingCart</span>
         </Link>
 
         <div className="w-full max-w-md">
           {/* ── Tab switcher (Sign In / Register) ── */}
           {tab !== 'forgot' && (
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8 gap-1">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl mb-8 gap-1">
               <TabBtn id="signin" label="Sign In" />
               <TabBtn id="register" label="Create Account" />
             </div>
@@ -335,8 +335,8 @@ export default function AuthPage() {
           {tab === 'signin' && (
             <form onSubmit={handleSignIn} noValidate className={cardClass}>
               <div className="mb-6">
-                <h2 className="text-2xl font-extrabold text-slate-900">Welcome back</h2>
-                <p className="text-slate-500 text-sm mt-1">Sign in to manage your bookings.</p>
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">Welcome back</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sign in to manage your bookings.</p>
               </div>
 
               {/* Google Sign-In */}
@@ -350,9 +350,9 @@ export default function AuthPage() {
 
               {/* Divider */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
                 <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">or continue with email</span>
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
               </div>
 
               <div className="space-y-4">
@@ -364,7 +364,7 @@ export default function AuthPage() {
                   value={form.password} onChange={e => set('password', e.target.value)}
                   error={errors.password} icon="lock-simple" placeholder="Your password">
                   <button type="button" tabIndex={-1}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400 transition-colors"
                     onClick={() => set('showPass', !form.showPass)}>
                     <i className={`ph ph-${form.showPass ? 'eye-slash' : 'eye'} text-lg`} />
                   </button>
@@ -377,7 +377,7 @@ export default function AuthPage() {
                   <input type="checkbox" checked={form.remember}
                     onChange={e => set('remember', e.target.checked)}
                     className="w-4 h-4 rounded border-slate-300 text-green-600 accent-green-600" />
-                  <span className="text-sm text-slate-600 font-medium">Remember me</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Remember me</span>
                 </label>
                 <button type="button" onClick={() => switchTab('forgot')}
                   className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
@@ -392,7 +392,7 @@ export default function AuthPage() {
                 {loading ? <><Spinner />Signing in…</> : <><i className="ph-bold ph-sign-in" />Sign In</>}
               </button>
 
-              <p className="text-center text-sm text-slate-500 mt-5">
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-5">
                 Don't have an account?{' '}
                 <button type="button" onClick={() => switchTab('register')}
                   className="text-green-600 font-bold hover:text-green-700">
@@ -406,8 +406,8 @@ export default function AuthPage() {
           {tab === 'register' && (
             <form onSubmit={handleRegister} noValidate className={cardClass}>
               <div className="mb-6">
-                <h2 className="text-2xl font-extrabold text-slate-900">Create your account</h2>
-                <p className="text-slate-500 text-sm mt-1">Free forever. No credit card required.</p>
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">Create your account</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Free forever. No credit card required.</p>
               </div>
 
               {/* Google Sign-In */}
@@ -417,9 +417,9 @@ export default function AuthPage() {
 
               {/* Divider */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
                 <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">or use email</span>
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
               </div>
 
               <div className="space-y-4">
@@ -439,7 +439,7 @@ export default function AuthPage() {
                     placeholder="Min. 8 chars, 1 number, 1 symbol"
                     hint="At least 8 characters, 1 number and 1 special character.">
                     <button type="button" tabIndex={-1}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400"
                       onClick={() => set('showPass', !form.showPass)}>
                       <i className={`ph ph-${form.showPass ? 'eye-slash' : 'eye'} text-lg`} />
                     </button>
@@ -452,7 +452,7 @@ export default function AuthPage() {
                   value={form.confirm} onChange={e => set('confirm', e.target.value)}
                   error={errors.confirm} icon="lock-key" placeholder="Re-enter password">
                   <button type="button" tabIndex={-1}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400"
                     onClick={() => set('showConfirm', !form.showConfirm)}>
                     <i className={`ph ph-${form.showConfirm ? 'eye-slash' : 'eye'} text-lg`} />
                   </button>
@@ -473,7 +473,7 @@ export default function AuthPage() {
                 <Link to="/privacy" className="text-green-600 font-semibold hover:underline">Privacy Policy</Link>.
               </p>
 
-              <p className="text-center text-sm text-slate-500 mt-4">
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
                 Already have an account?{' '}
                 <button type="button" onClick={() => switchTab('signin')}
                   className="text-green-600 font-bold hover:text-green-700">Sign in</button>
@@ -485,7 +485,7 @@ export default function AuthPage() {
           {tab === 'forgot' && (
             <form onSubmit={handleForgot} noValidate className={cardClass}>
               <button type="button" onClick={() => switchTab('signin')}
-                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 font-semibold mb-6 transition-colors">
+                className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300 font-semibold mb-6 transition-colors">
                 <i className="ph ph-arrow-left" /> Back to Sign In
               </button>
 
@@ -493,8 +493,8 @@ export default function AuthPage() {
                 <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
                   <i className="ph-fill ph-key text-green-600 text-2xl" />
                 </div>
-                <h2 className="text-2xl font-extrabold text-slate-900">Reset your password</h2>
-                <p className="text-slate-500 text-sm mt-2">
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">Reset your password</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
                   Enter your email and we'll send you a reset link.
                 </p>
               </div>

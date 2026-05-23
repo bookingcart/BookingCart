@@ -362,11 +362,11 @@
 
         // Explicit Styling Management for Reliability
         if (isActive) {
-          t.classList.remove("text-slate-500", "hover:text-slate-900", "hover:bg-white/50");
-          t.classList.add("text-green-600", "bg-green-50/50");
+          t.classList.remove("text-slate-500 dark:text-slate-400", "hover:text-slate-900 dark:text-slate-100", "hover:bg-white dark:bg-slate-800/50", "dark:text-slate-400", "dark:hover:text-white", "dark:hover:bg-slate-700/50");
+          t.classList.add("text-green-600", "bg-green-50/50", "dark:text-green-500", "dark:bg-green-900/30");
         } else {
-          t.classList.remove("text-green-600", "bg-green-50/50");
-          t.classList.add("text-slate-500", "hover:text-slate-900", "hover:bg-white/50");
+          t.classList.remove("text-green-600", "bg-green-50/50", "dark:text-green-500", "dark:bg-green-900/30");
+          t.classList.add("text-slate-500 dark:text-slate-400", "hover:text-slate-900 dark:text-slate-100", "hover:bg-white dark:bg-slate-800/50", "dark:text-slate-400", "dark:hover:text-white", "dark:hover:bg-slate-700/50");
         }
       });
 
@@ -912,8 +912,8 @@
       listEl.innerHTML = "";
       if (!list.length) {
         const empty = document.createElement("div");
-        empty.className = "bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm";
-        empty.innerHTML = '<div class="text-lg font-medium text-slate-900 mb-2">No flights match your filters</div><div class="text-slate-500">Try increasing your max price or changing stops/airlines.</div>';
+        empty.className = "bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-100 dark:border-slate-700 shadow-sm";
+        empty.innerHTML = '<div class="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No flights match your filters</div><div class="text-slate-500 dark:text-slate-400">Try increasing your max price or changing stops/airlines.</div>';
         listEl.appendChild(empty);
         return;
       }
@@ -921,17 +921,17 @@
       list.forEach((f, i) => {
         const priceVal = typeof f.price === "object" ? parseFloat(f.price.amount || 0) : f.price;
         const card = document.createElement("div");
-        card.className = "bg-white border border-slate-200 hover:border-green-600 transition-colors p-0 flex flex-col md:flex-row mb-3 group shadow-sm relative";
+        card.className = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-green-600 dark:hover:border-green-500 transition-colors p-0 flex flex-col md:flex-row mb-3 group shadow-sm relative";
         
         let badgesHtml = '';
         if (i === 0) {
           badgesHtml += '<span class="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-sm">Cheapest</span>';
         }
-        badgesHtml += '<span class="bg-green-50 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-sm flex items-center gap-1"><i class="ph ph-suitcase-rolling"></i> Carry-on baggage included</span>';
+        badgesHtml += '<span class="bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-sm flex items-center gap-1"><i class="ph ph-suitcase-rolling"></i> Carry-on baggage included</span>';
         
         const logoHtml = f.airline.logoUrl 
-          ? '<img src="' + f.airline.logoUrl + '" alt="' + f.airline.name + '" class="max-w-full max-h-full object-contain" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';"><div class="w-full h-full items-center justify-center text-slate-900 font-medium" style="display:none;">' + f.airline.logo + '</div>' 
-          : '<div class="w-full h-full flex items-center justify-center text-slate-900 font-medium">' + f.airline.logo + '</div>';
+          ? '<img src="' + f.airline.logoUrl + '" alt="' + f.airline.name + '" class="max-w-full max-h-full object-contain" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';"><div class="w-full h-full items-center justify-center text-slate-900 dark:text-slate-100 font-medium" style="display:none;">' + f.airline.logo + '</div>' 
+          : '<div class="w-full h-full flex items-center justify-center text-slate-900 dark:text-slate-100 font-medium">' + f.airline.logo + '</div>';
 
         const stopsText = f.stops === 0 ? "Nonstop" : f.stops + " stop" + (f.stops > 1 ? "s" : "");
 
@@ -941,34 +941,34 @@
             '<div class="flex items-center gap-8">' +
               '<div class="flex items-center gap-3 w-40 shrink-0">' +
                 '<div class="w-8 h-8 flex items-center justify-center">' + logoHtml + '</div>' +
-                '<span class="text-sm font-medium text-slate-700">' + f.airline.name + '</span>' +
+                '<span class="text-sm font-medium text-slate-700 dark:text-slate-300">' + f.airline.name + '</span>' +
               '</div>' +
               '<div class="flex-1 flex items-center justify-center gap-6">' +
                 '<div class="text-right">' +
-                  '<div class="text-xl font-bold text-slate-900">' + (f.departTime || "--:--") + '</div>' +
-                  '<div class="text-xs text-slate-500 font-medium">' + extractIata(search.from) + '</div>' +
+                  '<div class="text-xl font-bold text-slate-900 dark:text-slate-100">' + (f.departTime || "--:--") + '</div>' +
+                  '<div class="text-xs text-slate-500 dark:text-slate-400 font-medium">' + extractIata(search.from) + '</div>' +
                 '</div>' +
                 '<div class="flex-1 max-w-[150px] flex flex-col items-center">' +
-                  '<div class="text-xs text-slate-400 font-medium mb-1">' + durationLabel(f.durationMin || 0) + '</div>' +
+                  '<div class="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium mb-1">' + durationLabel(f.durationMin || 0) + '</div>' +
                   '<div class="w-full relative flex items-center justify-center">' +
-                    '<div class="w-full h-px bg-slate-300"></div>' +
-                    '<div class="absolute bg-white px-2 text-slate-400"><span class="text-[10px] uppercase">' + stopsText + '</span></div>' +
+                    '<div class="w-full h-px bg-slate-300 dark:bg-slate-600"></div>' +
+                    '<div class="absolute bg-white dark:bg-slate-800 px-2 text-slate-400 dark:text-slate-500 dark:text-slate-400"><span class="text-[10px] uppercase">' + stopsText + '</span></div>' +
                   '</div>' +
                 '</div>' +
                 '<div class="text-left">' +
-                  '<div class="text-xl font-bold text-slate-900">' + (f.arriveTime || "--:--") + '</div>' +
-                  '<div class="text-xs text-slate-500 font-medium">' + extractIata(search.to) + '</div>' +
+                  '<div class="text-xl font-bold text-slate-900 dark:text-slate-100">' + (f.arriveTime || "--:--") + '</div>' +
+                  '<div class="text-xs text-slate-500 dark:text-slate-400 font-medium">' + extractIata(search.to) + '</div>' +
                 '</div>' +
               '</div>' +
             '</div>' +
           '</div>' +
-          '<div class="w-full md:w-48 border-t md:border-t-0 md:border-l border-slate-100 p-5 flex flex-col justify-center items-end bg-slate-50/30">' +
-            '<div class="text-2xl font-bold text-green-600">' + window.money(priceVal, f.currency) + '</div>' +
-            '<div class="text-[10px] text-slate-400 font-medium mb-3">per adult</div>' +
+          '<div class="w-full md:w-48 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-700 p-5 flex flex-col justify-center items-end bg-slate-50 dark:bg-slate-900/30 dark:bg-slate-800/50 rounded-r-xl">' +
+            '<div class="text-2xl font-bold text-green-600 dark:text-green-500">' + window.money(priceVal, f.currency) + '</div>' +
+            '<div class="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium mb-3">per adult</div>' +
             '<a href="#" data-flight-link class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded text-sm w-full text-center flex items-center justify-center gap-1 transition-colors">' +
               'Select <i class="ph-bold ph-caret-right"></i>' +
             '</a>' +
-            '<button data-save-flight class="mt-2 text-slate-500 hover:text-green-600 text-sm font-medium flex items-center justify-center gap-1 transition-colors w-full py-2">' +
+            '<button data-save-flight class="mt-2 text-slate-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-500 text-sm font-medium flex items-center justify-center gap-1 transition-colors w-full py-2">' +
               '<i class="ph ph-heart"></i> Save for later' +
             '</button>' +
           '</div>';
@@ -1022,7 +1022,7 @@
           lbl.innerHTML = `
             <div class="flex items-center gap-3">
               <input type="checkbox" value="${c}" class="w-4 h-4 rounded border-slate-300 accent-green-600" />
-              <span class="text-sm text-slate-700 group-hover:text-slate-900 flex items-center gap-2">
+              <span class="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <div class="w-4 h-4 rounded-sm flex items-center justify-center overflow-hidden"><img src="${airlineRef.logoUrl}" onerror="this.style.display='none'"></div>
                 ${label}
               </span>
@@ -1071,9 +1071,9 @@
           const isActive = i === 0;
           
           const div = document.createElement("div");
-          div.className = `flex-1 min-w-[100px] py-2 cursor-pointer flex flex-col items-center justify-center border-b-2 transition-colors ${isActive ? 'border-green-600 bg-green-50/30' : 'border-transparent hover:bg-slate-50'} border-r border-slate-100 last:border-r-0`;
+          div.className = `flex-1 min-w-[100px] py-2 cursor-pointer flex flex-col items-center justify-center border-b-2 transition-colors ${isActive ? 'border-green-600 bg-green-50/30' : 'border-transparent hover:bg-slate-50 dark:bg-slate-900'} border-r border-slate-100 last:border-r-0`;
           div.innerHTML = `
-            <span class="text-xs font-semibold ${isActive ? 'text-green-600' : 'text-slate-600'}">${dayStr}</span>
+            <span class="text-xs font-semibold ${isActive ? 'text-green-600' : 'text-slate-600 dark:text-slate-400'}">${dayStr}</span>
             <span class="text-[11px] ${isActive ? 'text-green-600 font-bold' : 'text-slate-400 font-medium'}">${window.money(price, currency)}</span>
           `;
           ribbon.appendChild(div);
@@ -1127,7 +1127,7 @@
         if (window.bookingcartLoading && typeof window.bookingcartLoading.setBusy === "function") {
           window.bookingcartLoading.setBusy(listEl, false);
         }
-        listEl.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm"><div class="text-red-500">No search data found. Please go back and search again.</div></div>';
+        listEl.innerHTML = '<div class="bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-100 dark:border-slate-700 shadow-sm"><div class="text-red-500">No search data found. Please go back and search again.</div></div>';
       }
       return;
     }
@@ -1141,7 +1141,7 @@
             if (window.bookingcartLoading && typeof window.bookingcartLoading.setBusy === "function") {
               window.bookingcartLoading.setBusy(listEl, false);
             }
-            listEl.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm"><div class="text-lg font-medium text-slate-900 mb-2">No flights found</div><div class="text-slate-500">No flights available for this route and dates. Try different airports or dates.</div></div>';
+            listEl.innerHTML = '<div class="bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-100 dark:border-slate-700 shadow-sm"><div class="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No flights found</div><div class="text-slate-500 dark:text-slate-400">No flights available for this route and dates. Try different airports or dates.</div></div>';
           }
           const countEl = document.querySelector("[data-flight-count]");
           if (countEl) window.setText(countEl, "0");
@@ -1156,7 +1156,7 @@
           if (window.bookingcartLoading && typeof window.bookingcartLoading.setBusy === "function") {
             window.bookingcartLoading.setBusy(listEl, false);
           }
-          listEl.innerHTML = '<div class="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm"><div class="text-red-500">Error loading flights. Please try again.</div></div>';
+          listEl.innerHTML = '<div class="bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-100 dark:border-slate-700 shadow-sm"><div class="text-red-500">Error loading flights. Please try again.</div></div>';
         }
         const countEl = document.querySelector("[data-flight-count]");
         if (countEl) window.setText(countEl, "0");
@@ -1230,11 +1230,11 @@
             if (signedInEmail) {
               emailInput.value = signedInEmail;
               emailInput.readOnly = true;
-              emailInput.classList.add("bg-slate-50", "text-slate-500", "cursor-not-allowed");
+              emailInput.classList.add("bg-slate-50 dark:bg-slate-900", "text-slate-500 dark:text-slate-400", "cursor-not-allowed");
               emailInput.title = "Alerts will be sent to your account email";
             } else {
               emailInput.readOnly = false;
-              emailInput.classList.remove("bg-slate-50", "text-slate-500", "cursor-not-allowed");
+              emailInput.classList.remove("bg-slate-50 dark:bg-slate-900", "text-slate-500 dark:text-slate-400", "cursor-not-allowed");
             }
           } catch(e) { /* ignore */ }
         }
@@ -1343,7 +1343,7 @@
             const firstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
             
             let html = `<div class="w-full">
-               <div class="text-center font-bold text-slate-800 mb-4">${monthName}</div>
+               <div class="text-center font-bold text-slate-800 dark:text-slate-200 mb-4">${monthName}</div>
                <div class="grid grid-cols-7 text-center text-xs font-semibold text-slate-400 mb-2">
                   <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                </div>
@@ -1500,17 +1500,17 @@
                   <i class="ph-fill ph-check-circle text-5xl text-green-600"></i>
                 </div>
                 <div>
-                  <h2 class="text-2xl font-extrabold text-slate-900 mb-1">Tracking Enabled!</h2>
-                  <p class="text-sm text-slate-500 max-w-xs leading-relaxed">
-                    We're now watching <strong class="text-slate-700">${search.from || "Origin"} → ${search.to || "Destination"}</strong> for you.<br/>
-                    We'll email <strong class="text-green-700">${email}</strong> the moment prices drop below <strong class="text-slate-700">${currency} ${selectedTargetPrice.toFixed(2)}</strong>.
+                  <h2 class="text-2xl font-extrabold text-slate-900 dark:text-slate-100 mb-1">Tracking Enabled!</h2>
+                  <p class="text-sm text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
+                    We're now watching <strong class="text-slate-700 dark:text-slate-300">${search.from || "Origin"} → ${search.to || "Destination"}</strong> for you.<br/>
+                    We'll email <strong class="text-green-700">${email}</strong> the moment prices drop below <strong class="text-slate-700 dark:text-slate-300">${currency} ${selectedTargetPrice.toFixed(2)}</strong>.
                   </p>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-full px-4 py-2">
+                <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-full px-4 py-2">
                   <i class="ph ph-clock text-slate-400"></i>
                   Checking prices every 12 hours
                 </div>
-                <div class="w-full bg-slate-100 rounded-full h-1 mt-2 overflow-hidden">
+                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-2 overflow-hidden">
                   <div class="h-1 bg-green-500 rounded-full animate-[progress_2.5s_linear_forwards]" style="width:0%"></div>
                 </div>
               </div>
@@ -1558,7 +1558,7 @@
     const price = root.querySelector("[data-price]");
 
     if (airline) window.setText(airline, flight.airline.name);
-    if (airlineLogo) airlineLogo.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-900 font-medium">' + flight.airline.logo + '</div>';
+    if (airlineLogo) airlineLogo.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-900 dark:text-slate-100 font-medium">' + flight.airline.logo + '</div>';
     if (times) window.setText(times, (flight.departTime || "--:--") + " → " + (flight.arriveTime || "--:--"));
     if (duration) window.setText(duration, durationLabel(flight.durationMin || 0) + " • " + (flight.stops === 0 ? "Non-stop" : flight.stops + " stop" + (flight.stops > 1 ? "s" : "")));
     if (price) window.setText(price, window.money(priceVal, flight.currency));
@@ -1567,7 +1567,7 @@
     const segmentsContainer = document.getElementById("flight-segments-container");
     if (segmentsContainer && flight.segments && flight.segments.length > 0) {
       let segmentsHtml = `
-        <h2 class="font-medium text-lg text-slate-900 mb-4 flex items-center gap-2">
+        <h2 class="font-medium text-lg text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <i class="ph-duotone ph-airplane-tilt text-green-600 text-xl"></i> Trip Breakdown
         </h2>
         <div class="flex flex-wrap gap-3 mb-6">
@@ -1597,32 +1597,32 @@
         segmentsHtml += `
           <div class="relative pl-10 py-2">
             <!-- Timeline Line -->
-            <div class="absolute top-0 bottom-0 left-3 w-0.5 bg-slate-200 -z-10"></div>
+            <div class="absolute top-0 bottom-0 left-3 w-0.5 bg-slate-200 dark:bg-slate-700 -z-10"></div>
             <!-- Airplane Icon in middle of line -->
-            <div class="absolute left-[3px] top-1/2 -translate-y-1/2 bg-white text-slate-400 py-2 z-10"><i class="ph-fill ph-airplane-in-flight text-xl" style="transform: rotate(90deg); display: block;"></i></div>
+            <div class="absolute left-[3px] top-1/2 -translate-y-1/2 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 dark:text-slate-400 py-2 z-10"><i class="ph-fill ph-airplane-in-flight text-xl" style="transform: rotate(90deg); display: block;"></i></div>
             
             <!-- Departure Node -->
-            <div class="absolute left-[9px] top-4 w-3.5 h-3.5 rounded-full bg-white border-2 border-slate-300 z-10"></div>
+            <div class="absolute left-[9px] top-4 w-3.5 h-3.5 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 z-10"></div>
             
             <!-- Departure Info -->
             <div class="flex justify-between items-start mb-6 pt-2">
               <div>
-                <div class="text-xl font-semibold text-slate-900">${seg.departTime}</div>
-                <div class="text-sm font-medium text-slate-700 mt-1">${seg.departCity || seg.departAirport} <span class="text-slate-400 font-normal">(${seg.departCode})</span></div>
-                ${seg.departTerminal ? `<div class="text-xs text-slate-500 mt-1">Terminal ${seg.departTerminal}</div>` : ''}
+                <div class="text-xl font-semibold text-slate-900 dark:text-slate-100">${seg.departTime}</div>
+                <div class="text-sm font-medium text-slate-700 dark:text-slate-300 mt-1">${seg.departCity || seg.departAirport} <span class="text-slate-400 dark:text-slate-500 dark:text-slate-400 font-normal">(${seg.departCode})</span></div>
+                ${seg.departTerminal ? `<div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Terminal ${seg.departTerminal}</div>` : ''}
               </div>
             </div>
             
             <!-- Flight Meta (Duration, Airline, Aircraft) -->
-            <div class="flex gap-4 items-center mb-6 bg-slate-50 rounded-xl p-3 border border-slate-100">
-              <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-bold text-[10px] text-slate-800 shadow-sm">${seg.airlineCode || 'FL'}</div>
+            <div class="flex gap-4 items-center mb-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700">
+              <div class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-[10px] text-slate-800 dark:text-slate-200 shadow-sm">${seg.airlineCode || 'FL'}</div>
               <div>
-                <div class="text-sm font-medium text-slate-900">${seg.airlineName} <span class="text-slate-500 font-normal ml-1">Flight ${seg.flightNumber || 'TBD'}</span></div>
-                <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                <div class="text-sm font-medium text-slate-900 dark:text-slate-100">${seg.airlineName} <span class="text-slate-500 dark:text-slate-400 font-normal ml-1">Flight ${seg.flightNumber || 'TBD'}</span></div>
+                <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
                   <span>${durationLabel(seg.durationMin)}</span>
-                  <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                  <span class="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
                   <span>${seg.aircraft}</span>
-                  ${seg.cabin_class ? `<span class="w-1 h-1 rounded-full bg-slate-300"></span><span class="capitalize">${seg.cabin_class}</span>` : ''}
+                  ${seg.cabin_class ? `<span class="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span><span class="capitalize">${seg.cabin_class}</span>` : ''}
                 </div>
               </div>
             </div>
@@ -1633,9 +1633,9 @@
             <!-- Arrival Info -->
             <div class="flex justify-between items-start pb-2">
               <div>
-                <div class="text-xl font-semibold text-slate-900">${seg.arriveTime}</div>
-                <div class="text-sm font-medium text-slate-700 mt-1">${seg.arriveCity || seg.arriveAirport} <span class="text-slate-400 font-normal">(${seg.arriveCode})</span></div>
-                ${seg.arriveTerminal ? `<div class="text-xs text-slate-500 mt-1">Terminal ${seg.arriveTerminal}</div>` : ''}
+                <div class="text-xl font-semibold text-slate-900 dark:text-slate-100">${seg.arriveTime}</div>
+                <div class="text-sm font-medium text-slate-700 dark:text-slate-300 mt-1">${seg.arriveCity || seg.arriveAirport} <span class="text-slate-400 font-normal">(${seg.arriveCode})</span></div>
+                ${seg.arriveTerminal ? `<div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Terminal ${seg.arriveTerminal}</div>` : ''}
               </div>
             </div>
           </div>
@@ -1671,30 +1671,30 @@
 
     function travelerCard(i) {
       const wrap = document.createElement("div");
-      wrap.className = "traveler-card bg-white rounded-2xl border border-slate-200 shadow-sm p-6";
+      wrap.className = "traveler-card bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6";
       wrap.innerHTML =
-        '<div class="font-medium text-lg text-slate-900 mb-2">Traveler ' + (i + 1) + '</div>' +
-        '<div class="text-xs text-slate-500 font-medium mb-6">Enter details exactly as they appear on the travel document.</div>' +
+        '<div class="font-medium text-lg text-slate-900 dark:text-slate-100 mb-2">Traveler ' + (i + 1) + '</div>' +
+        '<div class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-6">Enter details exactly as they appear on the travel document.</div>' +
         '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">' +
         // Title
-        '<div><label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Title</label>' +
-        '<select class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="title" required>' +
+        '<div><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Title</label>' +
+        '<select class="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="title" required>' +
         '<option value="">Select title</option>' +
         '<option value="mr">Mr</option><option value="ms">Ms</option><option value="mrs">Mrs</option>' +
         '<option value="miss">Miss</option><option value="dr">Dr</option>' +
         '</select></div>' +
         // Gender
-        '<div><label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Gender</label>' +
-        '<select class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="gender" required>' +
+        '<div><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Gender</label>' +
+        '<select class="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="gender" required>' +
         '<option value="">Select gender</option>' +
         '<option value="m">Male</option><option value="f">Female</option>' +
         '</select></div>' +
         // First / Last name
-        '<div><label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">First Name</label><input class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="firstName" placeholder="e.g., Amina" required></div>' +
-        '<div><label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Last Name</label><input class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="lastName" placeholder="e.g., Hassan" required></div>' +
+        '<div><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">First Name</label><input class="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="firstName" placeholder="e.g., Amina" required></div>' +
+        '<div><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Last Name</label><input class="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="lastName" placeholder="e.g., Hassan" required></div>' +
         // DOB / Passport
-        '<div><label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Date of Birth</label><input class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="dob" type="date" required></div>' +
-        '<div><label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Passport / ID</label><input class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="doc" placeholder="Passport Number" required></div>' +
+        '<div><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Date of Birth</label><input class="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="dob" type="date" required></div>' +
+        '<div><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Passport / ID</label><input class="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" name="doc" placeholder="Passport Number" required></div>' +
         '</div>';
       return wrap;
     }
@@ -1852,15 +1852,15 @@
 
                         html += `
                         <div class="mb-3">
-                            <label class="block text-sm font-bold text-slate-700 mb-1">Passenger ${i + 1}</label>
-                            <select class="seat-select-dynamic w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" data-pax-id="${dPax.id}">
+                            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Passenger ${i + 1}</label>
+                            <select class="seat-select-dynamic w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" data-pax-id="${dPax.id}">
                                 <option value="none">No specific seat preference</option>
                                 ${validSeatsForPax.map(s => `<option value="${s.service.id}" data-price="${s.service.total_amount}">${s.designator} - ${window.money(s.service.total_amount, s.service.total_currency)}</option>`).join('')}
                             </select>
                         </div>
                         `;
                     }
-                    seatMapContainer.innerHTML = html || '<div class="text-sm text-slate-500">No seats available for selection.</div>';
+                    seatMapContainer.innerHTML = html || '<div class="text-sm text-slate-500 dark:text-slate-400">No seats available for selection.</div>';
 
                     seatMapContainer.querySelectorAll('select').forEach(sel => {
                         sel.addEventListener('change', () => {
@@ -1878,17 +1878,17 @@
                         });
                     });
                 } else {
-                    seatMapContainer.innerHTML = '<div class="text-sm text-slate-500">No seats available for selection.</div>';
+                    seatMapContainer.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">No seats available for selection.</div>';
                 }
             }
           } else {
             const smc = document.getElementById('dynamic-seat-map');
-            if (smc) smc.innerHTML = '<div class="text-sm text-slate-500">Seat maps not available for this flight.</div>';
+            if (smc) smc.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">Seat maps not available for this flight.</div>';
           }
         } catch(e){
             console.error(e);
             const smc = document.getElementById('dynamic-seat-map');
-            if (smc) smc.innerHTML = '<div class="text-sm text-slate-500">Unable to load seats.</div>';
+            if (smc) smc.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">Unable to load seats.</div>';
         }
       })();
     }

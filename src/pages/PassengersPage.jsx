@@ -34,9 +34,9 @@ export default function PassengersPage() {
               <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">4</span>
               Passengers
             </a>
-            <a className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-slate-500 border border-slate-200 whitespace-nowrap"
+            <a className="flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 whitespace-nowrap"
               data-step-id="extras" href="#">
-              <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold">5</span>
+              <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold">5</span>
               Extras
             </a>
           </div>
@@ -46,9 +46,9 @@ export default function PassengersPage() {
             
             <section className="lg:col-span-8 space-y-6">
               <div className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-bold text-slate-900">Passenger Information</h1>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Passenger Information</h1>
               </div>
-              <p className="text-slate-500 font-medium">Add traveler details and contact info for ticket delivery.</p>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Add traveler details and contact info for ticket delivery.</p>
       
               <form data-passenger-form className="space-y-6">
       
@@ -58,23 +58,23 @@ export default function PassengersPage() {
                 </div>
       
                 
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                  <h2 className="font-bold text-lg text-slate-900 mb-2 flex items-center gap-2"><i
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2"><i
                       className="ph-duotone ph-envelope-simple text-green-600 text-xl"></i> Booking Delivery & Contact</h2>
-                  <p className="text-sm text-slate-500 mb-4">This information is used by BookingCart to email your e-tickets and notify you of flight changes.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">This information is used by BookingCart to email your e-tickets and notify you of flight changes.</p>
                   <hr className="border-slate-100 mb-4" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Email
                         Address</label>
                       <input
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none"
                         name="email" type="email" placeholder="you@example.com" required />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phone Number</label>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Phone Number</label>
                       <input
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none"
                         name="phone" placeholder="+1 555 000 000" required />
                     </div>
                   </div>
@@ -93,9 +93,9 @@ export default function PassengersPage() {
       
             
             <aside className="lg:col-span-4 space-y-6">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sticky top-24">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-lg p-6 sticky top-24">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-bold text-lg text-slate-900">Traveler Tips</h2>
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100">Traveler Tips</h2>
                   <a href="/" className="text-xs font-bold text-green-600 hover:underline">Change Pax</a>
                 </div>
       
@@ -113,10 +113,10 @@ export default function PassengersPage() {
                 <hr className="border-slate-100 my-4" />
       
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                  <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <i className="ph-fill ph-lock-key text-emerald-500 text-lg"></i> Data is stored locally (demo)
                   </div>
-                  <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                  <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <i className="ph-fill ph-shield-check text-emerald-500 text-lg"></i> Secure checkout styling
                   </div>
                 </div>
