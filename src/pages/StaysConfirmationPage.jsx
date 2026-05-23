@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 const SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/stays.js?v=1'];
 
@@ -67,27 +68,7 @@ export default function StaysConfirmationPage() {
           </div>
         </main>
       
-        <footer className="bg-white border-t border-slate-100 pt-16 pb-8" aria-label="Footer">
-          <div className="container mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10 mb-16">
-              <div className="lg:col-span-2 space-y-4">
-                <a href="#" className="block text-2xl font-bold text-slate-900 tracking-tight">BookingCart</a>
-                <p className="text-slate-500 text-sm">Your Travel, Simplified. Book flights, hotels, and more with confidence and ease.</p>
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 mb-4">Navigate</h3>
-                <ul className="space-y-3 text-sm text-slate-500 font-medium">
-                  <li><a href="/" className="hover:text-green-600 transition-colors">Flights</a></li>
-                  <li><a href="/stays" className="hover:text-green-600 transition-colors">Hotels</a></li>
-                  <li><a href="/events" className="hover:text-green-600 transition-colors">Events</a></li>
-                </ul>
-              </div>
-            </div>
-            <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-400">
-              &copy; 2025 BookingCart. All rights reserved.
-            </div>
-          </div>
-        </footer>
+        <FlightFooter />
     </>
   );
 }

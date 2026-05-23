@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 const SCRIPTS = ['/js/loading-ui.js','/js/auth.js'];
 
 export default function PrivacyPage() {
@@ -93,16 +94,7 @@ export default function PrivacyPage() {
           </main>
       
           
-          <footer className="bg-white border-t border-slate-100 py-8 mt-auto">
-              <div
-                  className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
-                  <div>&copy; 2026 BookingCart. All rights reserved.</div>
-                  <div className="flex gap-6">
-                      <a href="/privacy" className="text-green-600">Privacy Policy</a>
-                      <a href="/terms" className="hover:text-slate-600">Terms of Service</a>
-                  </div>
-              </div>
-          </footer>
+          <FlightFooter />
     </>
   );
 }

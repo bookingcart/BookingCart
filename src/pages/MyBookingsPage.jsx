@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 const SCRIPTS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -124,6 +125,7 @@ export default function MyBookingsPage() {
       
       
           </div>
+          <FlightFooter />
     </>
   );
 }

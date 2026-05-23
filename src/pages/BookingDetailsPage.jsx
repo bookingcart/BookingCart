@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 /* ─── tiny helpers ─────────────────────────────────────────── */
 function Badge({ children, variant = 'gray' }) {
@@ -454,6 +455,8 @@ export default function BookingDetailsPage() {
       >
         <i className="ph ph-chat-circle-dots text-2xl" />
       </button>
+      <FlightFooter />
     </div>
   );
 }
+    

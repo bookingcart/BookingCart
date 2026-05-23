@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, NavLink, useParams } from 'react-router-dom';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 const SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/account-settings.js'];
 
@@ -979,17 +980,7 @@ export default function AccountSettingsPage() {
           </div>
       
           
-          <footer className="bg-white border-t border-slate-100 pt-10 pb-6 mt-10">
-            <div
-              className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400"
-            >
-              <div>&copy; 2026 BookingCart. All rights reserved.</div>
-              <div className="flex gap-6">
-                <a href="/privacy" className="hover:text-slate-600">Privacy Policy</a>
-                <a href="/terms" className="hover:text-slate-600">Terms of Service</a>
-              </div>
-            </div>
-          </footer>
+          <FlightFooter />
     </>
   );
 }

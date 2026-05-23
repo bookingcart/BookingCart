@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 /* ── data ── */
 const TABS = [
@@ -465,6 +466,7 @@ export default function CustomerSupportPage() {
       <ChatWidget open={chatOpen} onClose={() => setChatOpen(false)} initialMessage={chatMsg} />
       {/* ── Phone modal ── */}
       <PhoneModal open={phoneOpen} onClose={() => setPhoneOpen(false)} />
+      <FlightFooter />
     </>
   );
 }
