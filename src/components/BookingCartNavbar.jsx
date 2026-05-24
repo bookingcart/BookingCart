@@ -34,7 +34,9 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
   };
 
   const navItems = [
-    { key: 'flights',  href: '/',           icon: 'ph-airplane-tilt',     label: 'Flights'  },
+    { key: 'flights',  href: '/',          icon: 'ph-airplane-tilt',   label: 'Flights'  },
+    { key: 'explore',  href: '/explore',   icon: 'ph-compass',         label: 'Explore'  },
+    { key: 'tracker',  href: '/tracker',   icon: 'ph-broadcast',       label: 'Tracker'  },
   ];
 
   return (

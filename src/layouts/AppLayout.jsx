@@ -27,6 +27,8 @@ export default function AppLayout() {
     pathname.startsWith('/booking-details')
   ) activeNav = 'bookings';
   else if (pathname.startsWith('/events')) activeNav = 'events';
+  else if (pathname.startsWith('/tracker')) activeNav = 'tracker';
+  else if (pathname.startsWith('/explore')) activeNav = 'explore';
 
   return (
     <>
