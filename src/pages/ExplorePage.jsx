@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default icon issue with bundlers
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -12,207 +11,322 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const MOCK_DESTINATIONS = [
-  { id: 1, city: 'Kigali', country: 'Rwanda', iata: 'KGL', dates: 'May 30 - Jun 7', duration: '23h 40m', tripType: 'round-trip', stops: '1 stop', price: 372, lat: -1.9441, lng: 30.0619, image: 'https://images.unsplash.com/photo-1620216503831-f2f2165aabfc?q=80&w=600&auto=format&fit=crop' },
-  { id: 2, city: 'Dar Es Salaam', country: 'Tanzania', iata: 'DAR', dates: 'Jun 3 - Jun 4', duration: '14h 20m', tripType: 'round-trip', stops: '1 stop', price: 214, lat: -6.7924, lng: 39.2083, image: 'https://images.unsplash.com/photo-1542224566-6e85f2e6772f?q=80&w=600&auto=format&fit=crop' },
-  { id: 3, city: 'Nairobi', country: 'Kenya', iata: 'NBO', dates: 'May 25 - May 27', duration: '11h 10m', tripType: 'round-trip', stops: 'Nonstop', price: 320, lat: -1.2921, lng: 36.8219, image: 'https://images.unsplash.com/photo-1614531341773-3bff8b7cb3fc?q=80&w=600&auto=format&fit=crop' },
-  { id: 4, city: 'Zanzibar', country: 'Tanzania', iata: 'ZNZ', dates: 'May 31 - Jun 1', duration: '15h 00m', tripType: 'round-trip', stops: '1 stop', price: 291, lat: -6.1659, lng: 39.1989, image: 'https://images.unsplash.com/photo-1586861635167-e5223aadc9fe?q=80&w=600&auto=format&fit=crop' },
-  { id: 5, city: 'London', country: 'United Kingdom', iata: 'LHR', dates: 'Jul 10 - Jul 20', duration: '8h 30m', tripType: 'round-trip', stops: 'Nonstop', price: 801, lat: 51.5074, lng: -0.1278, image: 'https://images.unsplash.com/photo-1513635269975-5969336cd182?q=80&w=600&auto=format&fit=crop' },
-  { id: 6, city: 'New York', country: 'USA', iata: 'JFK', dates: 'Aug 5 - Aug 12', duration: '14h 45m', tripType: 'round-trip', stops: '1 stop', price: 1435, lat: 40.7128, lng: -74.0060, image: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=600&auto=format&fit=crop' },
-  { id: 7, city: 'Dubai', country: 'UAE', iata: 'DXB', dates: 'Jun 15 - Jun 22', duration: '6h 20m', tripType: 'round-trip', stops: 'Nonstop', price: 519, lat: 25.2048, lng: 55.2708, image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=600&auto=format&fit=crop' },
-  { id: 8, city: 'Bangkok', country: 'Thailand', iata: 'BKK', dates: 'Jul 1 - Jul 14', duration: '12h 05m', tripType: 'round-trip', stops: '1 stop', price: 728, lat: 13.7563, lng: 100.5018, image: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?q=80&w=600&auto=format&fit=crop' },
-  { id: 9, city: 'Paris', country: 'France', iata: 'CDG', dates: 'Jun 10 - Jun 17', duration: '9h 15m', tripType: 'round-trip', stops: '1 stop', price: 839, lat: 48.8566, lng: 2.3522, image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=600&auto=format&fit=crop' },
-  { id: 10, city: 'Mumbai', country: 'India', iata: 'BOM', dates: 'Aug 10 - Aug 20', duration: '5h 55m', tripType: 'round-trip', stops: 'Nonstop', price: 636, lat: 19.0760, lng: 72.8777, image: 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?q=80&w=600&auto=format&fit=crop' },
-  { id: 11, city: 'Accra', country: 'Ghana', iata: 'ACC', dates: 'Jun 20 - Jun 27', duration: '8h 40m', tripType: 'round-trip', stops: '1 stop', price: 547, lat: 5.6037, lng: -0.1870, image: 'https://images.unsplash.com/photo-1555990693-c8b0aca65e2a?q=80&w=600&auto=format&fit=crop' },
-  { id: 12, city: 'Johannesburg', country: 'South Africa', iata: 'JNB', dates: 'Jul 5 - Jul 12', duration: '9h 30m', tripType: 'round-trip', stops: '1 stop', price: 497, lat: -26.2041, lng: 28.0473, image: 'https://images.unsplash.com/photo-1577948000111-9c970dfe3743?q=80&w=600&auto=format&fit=crop' },
-  { id: 13, city: 'Cairo', country: 'Egypt', iata: 'CAI', dates: 'Jun 8 - Jun 15', duration: '5h 10m', tripType: 'round-trip', stops: 'Nonstop', price: 387, lat: 30.0444, lng: 31.2357, image: 'https://images.unsplash.com/photo-1572252009286-268acec5ca0a?q=80&w=600&auto=format&fit=crop' },
-  { id: 14, city: 'São Paulo', country: 'Brazil', iata: 'GRU', dates: 'Aug 15 - Aug 25', duration: '16h 30m', tripType: 'round-trip', stops: '1 stop', price: 1840, lat: -23.5505, lng: -46.6333, image: 'https://images.unsplash.com/photo-1518639192441-8fce0a366e2e?q=80&w=600&auto=format&fit=crop' },
-  { id: 15, city: 'Singapore', country: 'Singapore', iata: 'SIN', dates: 'Sep 1 - Sep 10', duration: '14h 20m', tripType: 'round-trip', stops: '1 stop', price: 807, lat: 1.3521, lng: 103.8198, image: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?q=80&w=600&auto=format&fit=crop' },
-  { id: 16, city: 'Addis Ababa', country: 'Ethiopia', iata: 'ADD', dates: 'Jun 5 - Jun 10', duration: '2h 15m', tripType: 'round-trip', stops: 'Nonstop', price: 289, lat: 9.1450, lng: 40.4897, image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=600&auto=format&fit=crop' },
-  { id: 17, city: 'Mombasa', country: 'Kenya', iata: 'MBA', dates: 'Jun 1 - Jun 7', duration: '12h 30m', tripType: 'round-trip', stops: '1 stop', price: 506, lat: -4.0435, lng: 39.6682, image: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?q=80&w=600&auto=format&fit=crop' },
-  { id: 18, city: 'Casablanca', country: 'Morocco', iata: 'CMN', dates: 'Jul 20 - Jul 27', duration: '7h 45m', tripType: 'round-trip', stops: '1 stop', price: 987, lat: 33.5731, lng: -7.5898, image: 'https://images.unsplash.com/photo-1569383746724-6f1b882b8f46?q=80&w=600&auto=format&fit=crop' },
+// All destinations pool — the map filters to those in viewport
+const ALL_DESTINATIONS = [
+  { id:1,  city:'Kigali',       country:'Rwanda',       iata:'KGL', dates:'May 30 - Jun 7',   duration:'23h 40m', tripType:'round-trip', stops:'1 stop',    price:372,  lat:-1.9441,  lng:30.0619,  image:'https://images.unsplash.com/photo-1620216503831-f2f2165aabfc?q=80&w=600&auto=format&fit=crop' },
+  { id:2,  city:'Dar Es Salaam',country:'Tanzania',     iata:'DAR', dates:'Jun 3 - Jun 4',    duration:'14h 20m', tripType:'round-trip', stops:'1 stop',    price:214,  lat:-6.7924,  lng:39.2083,  image:'https://images.unsplash.com/photo-1542224566-6e85f2e6772f?q=80&w=600&auto=format&fit=crop' },
+  { id:3,  city:'Nairobi',      country:'Kenya',        iata:'NBO', dates:'May 25 - May 27',  duration:'11h 10m', tripType:'round-trip', stops:'Nonstop',   price:320,  lat:-1.2921,  lng:36.8219,  image:'https://images.unsplash.com/photo-1614531341773-3bff8b7cb3fc?q=80&w=600&auto=format&fit=crop' },
+  { id:4,  city:'Zanzibar',     country:'Tanzania',     iata:'ZNZ', dates:'May 31 - Jun 1',   duration:'15h 00m', tripType:'round-trip', stops:'1 stop',    price:291,  lat:-6.1659,  lng:39.1989,  image:'https://images.unsplash.com/photo-1586861635167-e5223aadc9fe?q=80&w=600&auto=format&fit=crop' },
+  { id:5,  city:'London',       country:'UK',           iata:'LHR', dates:'Jul 10 - Jul 20',  duration:'8h 30m',  tripType:'round-trip', stops:'Nonstop',   price:801,  lat:51.5074,  lng:-0.1278,  image:'https://images.unsplash.com/photo-1513635269975-5969336cd182?q=80&w=600&auto=format&fit=crop' },
+  { id:6,  city:'New York',     country:'USA',          iata:'JFK', dates:'Aug 5 - Aug 12',   duration:'14h 45m', tripType:'round-trip', stops:'1 stop',    price:1435, lat:40.7128,  lng:-74.0060, image:'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=600&auto=format&fit=crop' },
+  { id:7,  city:'Dubai',        country:'UAE',          iata:'DXB', dates:'Jun 15 - Jun 22',  duration:'6h 20m',  tripType:'round-trip', stops:'Nonstop',   price:519,  lat:25.2048,  lng:55.2708,  image:'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=600&auto=format&fit=crop' },
+  { id:8,  city:'Bangkok',      country:'Thailand',     iata:'BKK', dates:'Jul 1 - Jul 14',   duration:'12h 05m', tripType:'round-trip', stops:'1 stop',    price:728,  lat:13.7563,  lng:100.5018, image:'https://images.unsplash.com/photo-1508009603885-50cf7c579365?q=80&w=600&auto=format&fit=crop' },
+  { id:9,  city:'Paris',        country:'France',       iata:'CDG', dates:'Jun 10 - Jun 17',  duration:'9h 15m',  tripType:'round-trip', stops:'1 stop',    price:839,  lat:48.8566,  lng:2.3522,   image:'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=600&auto=format&fit=crop' },
+  { id:10, city:'Mumbai',       country:'India',        iata:'BOM', dates:'Aug 10 - Aug 20',  duration:'5h 55m',  tripType:'round-trip', stops:'Nonstop',   price:636,  lat:19.0760,  lng:72.8777,  image:'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?q=80&w=600&auto=format&fit=crop' },
+  { id:11, city:'Accra',        country:'Ghana',        iata:'ACC', dates:'Jun 20 - Jun 27',  duration:'8h 40m',  tripType:'round-trip', stops:'1 stop',    price:547,  lat:5.6037,   lng:-0.1870,  image:'https://images.unsplash.com/photo-1555990693-c8b0aca65e2a?q=80&w=600&auto=format&fit=crop' },
+  { id:12, city:'Johannesburg', country:'South Africa', iata:'JNB', dates:'Jul 5 - Jul 12',   duration:'9h 30m',  tripType:'round-trip', stops:'1 stop',    price:497,  lat:-26.2041, lng:28.0473,  image:'https://images.unsplash.com/photo-1577948000111-9c970dfe3743?q=80&w=600&auto=format&fit=crop' },
+  { id:13, city:'Cairo',        country:'Egypt',        iata:'CAI', dates:'Jun 8 - Jun 15',   duration:'5h 10m',  tripType:'round-trip', stops:'Nonstop',   price:387,  lat:30.0444,  lng:31.2357,  image:'https://images.unsplash.com/photo-1572252009286-268acec5ca0a?q=80&w=600&auto=format&fit=crop' },
+  { id:14, city:'São Paulo',    country:'Brazil',       iata:'GRU', dates:'Aug 15 - Aug 25',  duration:'16h 30m', tripType:'round-trip', stops:'1 stop',    price:1840, lat:-23.5505, lng:-46.6333, image:'https://images.unsplash.com/photo-1518639192441-8fce0a366e2e?q=80&w=600&auto=format&fit=crop' },
+  { id:15, city:'Singapore',    country:'Singapore',    iata:'SIN', dates:'Sep 1 - Sep 10',   duration:'14h 20m', tripType:'round-trip', stops:'1 stop',    price:807,  lat:1.3521,   lng:103.8198, image:'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?q=80&w=600&auto=format&fit=crop' },
+  { id:16, city:'Addis Ababa',  country:'Ethiopia',     iata:'ADD', dates:'Jun 5 - Jun 10',   duration:'2h 15m',  tripType:'round-trip', stops:'Nonstop',   price:289,  lat:9.1450,   lng:40.4897,  image:'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?q=80&w=600&auto=format&fit=crop' },
+  { id:17, city:'Mombasa',      country:'Kenya',        iata:'MBA', dates:'Jun 1 - Jun 7',    duration:'12h 30m', tripType:'round-trip', stops:'1 stop',    price:506,  lat:-4.0435,  lng:39.6682,  image:'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?q=80&w=600&auto=format&fit=crop' },
+  { id:18, city:'Casablanca',   country:'Morocco',      iata:'CMN', dates:'Jul 20 - Jul 27',  duration:'7h 45m',  tripType:'round-trip', stops:'1 stop',    price:987,  lat:33.5731,  lng:-7.5898,  image:'https://images.unsplash.com/photo-1569383746724-6f1b882b8f46?q=80&w=600&auto=format&fit=crop' },
+  { id:19, city:'Athens',       country:'Greece',       iata:'ATH', dates:'Jun 7 - Jun 18',   duration:'7h 50m',  tripType:'round-trip', stops:'1 stop',    price:783,  lat:37.9838,  lng:23.7275,  image:'https://images.unsplash.com/photo-1555993539-1732b0258235?q=80&w=600&auto=format&fit=crop' },
+  { id:20, city:'Amsterdam',    country:'Netherlands',  iata:'AMS', dates:'Jun 15 - Jun 25',  duration:'9h 00m',  tripType:'round-trip', stops:'Nonstop',   price:916,  lat:52.3676,  lng:4.9041,   image:'https://images.unsplash.com/photo-1534351590666-13e3e96b5017?q=80&w=600&auto=format&fit=crop' },
+  { id:21, city:'Istanbul',     country:'Turkey',       iata:'IST', dates:'Jul 3 - Jul 10',   duration:'5h 30m',  tripType:'round-trip', stops:'Nonstop',   price:562,  lat:41.0082,  lng:28.9784,  image:'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?q=80&w=600&auto=format&fit=crop' },
+  { id:22, city:'Zurich',       country:'Switzerland',  iata:'ZRH', dates:'Jun 1 - Jun 20',   duration:'8h 45m',  tripType:'round-trip', stops:'2 stops',   price:810,  lat:47.3769,  lng:8.5417,   image:'https://images.unsplash.com/photo-1515488764276-beab7607c1e6?q=80&w=600&auto=format&fit=crop' },
+  { id:23, city:'Lisbon',       country:'Portugal',     iata:'LIS', dates:'Mar 26 - Apr 6',   duration:'10h 00m', tripType:'round-trip', stops:'2 stops',   price:720,  lat:38.7223,  lng:-9.1393,  image:'https://images.unsplash.com/photo-1513735492246-483525079686?q=80&w=600&auto=format&fit=crop' },
+  { id:24, city:'Milan',        country:'Italy',        iata:'MXP', dates:'Aug 9 - Aug 29',   duration:'9h 20m',  tripType:'round-trip', stops:'1 stop',    price:884,  lat:45.4642,  lng:9.1900,   image:'https://images.unsplash.com/photo-1520175480921-4edfa2983e0f?q=80&w=600&auto=format&fit=crop' },
+  { id:25, city:'Doha',         country:'Qatar',        iata:'DOH', dates:'Jun 20 - Jun 28',  duration:'5h 45m',  tripType:'round-trip', stops:'Nonstop',   price:445,  lat:25.2854,  lng:51.5310,  image:'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=600&auto=format&fit=crop' },
+  { id:26, city:'Cape Town',    country:'South Africa', iata:'CPT', dates:'Jul 12 - Jul 22',  duration:'11h 10m', tripType:'round-trip', stops:'1 stop',    price:386,  lat:-33.9249, lng:18.4241,  image:'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?q=80&w=600&auto=format&fit=crop' },
+  { id:27, city:'Kampala',      country:'Uganda',       iata:'EBB', dates:'May 20 - May 25',  duration:'1h 30m',  tripType:'round-trip', stops:'Nonstop',   price:95,   lat:0.3476,   lng:32.5825,  image:'https://images.unsplash.com/photo-1571319261037-f67b3b1f3cd9?q=80&w=600&auto=format&fit=crop' },
+  { id:28, city:'Dakar',        country:'Senegal',      iata:'DSS', dates:'Aug 1 - Aug 10',   duration:'10h 00m', tripType:'round-trip', stops:'1 stop',    price:1113, lat:14.7167,  lng:-17.4677, image:'https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=600&auto=format&fit=crop' },
 ];
 
-// Custom price marker icon factory
+// Mock schedule data for the nonstop modal
+const MOCK_SCHEDULES = {
+  default: [
+    {
+      airline: 'Qatar Airways',
+      logo: '🇶🇦',
+      color: '#8D1B3D',
+      flightCount: 2,
+      expanded: false,
+      flights: [
+        { flightNo: '435', times: '12:05 pm - 12:05 pm+1', days: [false,true,false,false,false,false,false], dates: 'May 25 - Jun 1' },
+        { flightNo: '423', times: '11:00 pm - 10:59 pm+1', days: [false,false,true,false,true,false,false], dates: 'Jun 2 - Jun 30' },
+      ],
+    },
+    {
+      airline: 'RwandAir',
+      logo: '🇷🇼',
+      color: '#00A86B',
+      flightCount: 10,
+      expanded: true,
+      flights: [
+        { flightNo: '435', times: '12:05 pm - 12:05 pm+1', days: [false,true,false,false,false,false,false], dates: 'May 25 - Jun 1' },
+        { flightNo: '423', times: '9:30 pm - 9:25 pm+1',   days: [true,false,true,false,false,false,false],  dates: 'May 26 - May 31' },
+        { flightNo: '435', times: '11:00 am - 10:50 am+1', days: [false,false,true,false,false,false,false], dates: 'May 26 - Jun 2' },
+        { flightNo: '435', times: '11:00 am - 10:50 am+1', days: [true,false,false,true,false,true,false],   dates: 'May 27 - May 31' },
+        { flightNo: '435', times: '11:00 am - 10:50 am+1', days: [false,false,false,false,true,false,true],  dates: 'May 28 - May 30' },
+        { flightNo: '423', times: '9:30 pm - 9:25 pm+1',   days: [false,true,false,false,false,false,true],  dates: 'May 30 - Jun 6' },
+        { flightNo: '423', times: '11:00 pm - 10:59 pm+1', days: [false,false,true,false,true,false,false],  dates: 'Jun 2 - Jun 30' },
+        { flightNo: '423', times: '9:30 pm - 9:25 pm+1',   days: [true,false,false,true,false,true,false],   dates: 'Jun 3 - Jun 12' },
+        { flightNo: '435', times: '11:00 am - 10:50 am+1', days: [true,true,false,true,false,true,false],    dates: 'Jun 3 - Jun 21' },
+        { flightNo: '435', times: '11:00 am - 10:50 am+1', days: [false,false,false,false,true,false,true],  dates: 'Jun 4 - Jun 9' },
+      ],
+    },
+    {
+      airline: 'Ethiopian Airlines',
+      logo: '🇪🇹',
+      color: '#179F4B',
+      flightCount: 7,
+      expanded: false,
+      flights: [
+        { flightNo: '311', times: '8:00 am - 7:45 am+1',   days: [true,true,true,true,true,true,true],       dates: 'May 25 - Jun 30' },
+        { flightNo: '312', times: '2:30 pm - 2:15 pm+1',   days: [false,true,false,true,false,true,false],    dates: 'Jun 1 - Jun 28' },
+      ],
+    },
+  ],
+};
+
 const createPriceIcon = (price, isSelected) => {
   const bg = isSelected ? '#1e293b' : 'white';
   const color = isSelected ? 'white' : '#1e293b';
   const border = isSelected ? '#1e293b' : '#cbd5e1';
-  const shadow = isSelected ? '0 4px 12px rgba(0,0,0,0.4)' : '0 2px 6px rgba(0,0,0,0.15)';
+  const shadow = isSelected ? '0 4px 12px rgba(0,0,0,0.35)' : '0 2px 6px rgba(0,0,0,0.12)';
   return L.divIcon({
     className: '',
-    html: `<div style="
-      background:${bg};
-      color:${color};
-      border:1.5px solid ${border};
-      border-radius:6px;
-      padding:3px 7px;
-      font-size:11px;
-      font-weight:700;
-      white-space:nowrap;
-      box-shadow:${shadow};
-      font-family:system-ui,-apple-system,sans-serif;
-      position:relative;
-      cursor:pointer;
-      transition:all 0.15s;
-    ">${price}</div>`,
+    html: `<div style="background:${bg};color:${color};border:1.5px solid ${border};border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:${shadow};font-family:system-ui,-apple-system,sans-serif;cursor:pointer;">${price}</div>`,
     iconSize: [null, null],
     iconAnchor: [0, 0],
   });
 };
 
-// Component to fly map to a position
+// Tracks map bounds and reports visible destinations
+function ViewportTracker({ onBoundsChange }) {
+  const map = useMapEvents({
+    moveend: () => onBoundsChange(map.getBounds(), map.getZoom()),
+    zoomend: () => onBoundsChange(map.getBounds(), map.getZoom()),
+    load:    () => onBoundsChange(map.getBounds(), map.getZoom()),
+  });
+  useEffect(() => {
+    onBoundsChange(map.getBounds(), map.getZoom());
+  }, []);
+  return null;
+}
+
 function MapFlyTo({ dest }) {
   const map = useMap();
   useEffect(() => {
-    if (dest) {
-      map.flyTo([dest.lat, dest.lng], Math.max(map.getZoom(), 6), { duration: 1.2 });
-    }
+    if (dest) map.flyTo([dest.lat, dest.lng], Math.max(map.getZoom(), 6), { duration: 1.2 });
   }, [dest?.id]);
   return null;
+}
+
+const DAYS = ['S','M','T','W','T','F','S'];
+
+function NonstopScheduleModal({ dest, onClose }) {
+  const [expandedAirlines, setExpandedAirlines] = useState({ 'RwandAir': true });
+  const schedules = MOCK_SCHEDULES.default;
+
+  const toggleAirline = (name) => setExpandedAirlines(p => ({ ...p, [name]: !p[name] }));
+
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div
+        className="relative w-full sm:max-w-[520px] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="font-bold text-slate-900">Nonstop schedule</h3>
+            <p className="text-xs text-slate-400 mt-0.5">EBB → {dest.iata} · {dest.city}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        {/* Column headers */}
+        <div className="grid grid-cols-[90px_1fr_auto_auto] gap-2 px-5 py-2 bg-slate-50 border-b border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Flight</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Times</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide pr-2">Schedule</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Dates</span>
+        </div>
+
+        {/* Airlines + Flights */}
+        <div className="flex-1 overflow-y-auto">
+          {schedules.map(airline => (
+            <div key={airline.airline}>
+              {/* Airline row */}
+              <button
+                onClick={() => toggleAirline(airline.airline)}
+                className="w-full flex items-center justify-between px-5 py-3 bg-white hover:bg-slate-50 transition-colors border-b border-slate-100"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">{airline.logo}</span>
+                  <span className="font-bold text-sm text-slate-900">{airline.airline}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-400">
+                  <span className="text-xs font-medium">{airline.flightCount} flights</span>
+                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ transform: expandedAirlines[airline.airline] ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </button>
+
+              {/* Flight rows */}
+              {expandedAirlines[airline.airline] && airline.flights.map((fl, fi) => (
+                <div key={fi} className="grid grid-cols-[90px_1fr_auto_auto] gap-2 items-center px-5 py-2.5 border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                  <span className="text-xs font-bold text-slate-700">{fl.flightNo}</span>
+                  <span className="text-[11px] text-slate-500 leading-tight">{fl.times}</span>
+                  <div className="flex gap-0.5 pr-2">
+                    {DAYS.map((d, di) => (
+                      <div key={di} className={`w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold border ${fl.days[di] ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-200 text-slate-400'}`}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-slate-400 whitespace-nowrap">{fl.dates}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
+          <p className="text-[10px] text-slate-400 text-center">Prices shown are estimated based on recent searches for one passenger · Round-trip · Economy Class</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ExplorePage() {
   const { routeId } = useParams();
   const navigate = useNavigate();
   const [selectedDest, setSelectedDest] = useState(null);
+  const [visibleDests, setVisibleDests] = useState(ALL_DESTINATIONS);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [isFetchingSchedule, setIsFetchingSchedule] = useState(false);
 
   useEffect(() => {
     if (routeId) {
       const parts = routeId.split('-');
       if (parts.length === 2) {
-        const destCode = parts[1].toUpperCase();
-        const found = MOCK_DESTINATIONS.find(d => d.iata === destCode);
+        const found = ALL_DESTINATIONS.find(d => d.iata === parts[1].toUpperCase());
         if (found) setSelectedDest(found);
       }
     } else {
       setSelectedDest(null);
+      setShowScheduleModal(false);
     }
   }, [routeId]);
 
+  const handleBoundsChange = useCallback((bounds, zoom) => {
+    // Filter destinations within the current viewport, with padding
+    const pad = 2; // degrees of padding
+    const filtered = ALL_DESTINATIONS.filter(d =>
+      d.lat >= bounds.getSouth() - pad &&
+      d.lat <= bounds.getNorth() + pad &&
+      d.lng >= bounds.getWest() - pad &&
+      d.lng <= bounds.getEast() + pad
+    );
+    setVisibleDests(filtered.length > 0 ? filtered : ALL_DESTINATIONS);
+  }, []);
+
   const handleSelectDest = (dest) => {
     if (dest) navigate(`/explore/EBB-${dest.iata}`);
-    else navigate('/explore');
+    else { navigate('/explore'); setShowScheduleModal(false); }
   };
+
+  // Sidebar list always sorted by price for the visible ones
+  const sidebarList = [...visibleDests].sort((a, b) => a.price - b.price);
 
   return (
     <div className="relative w-full h-[calc(100vh-80px)] overflow-hidden">
       {/* Leaflet Map */}
       <div className="absolute inset-0 z-0">
-        <MapContainer
-          center={[10, 25]}
-          zoom={3}
-          style={{ width: '100%', height: '100%' }}
-          zoomControl={false}
-          attributionControl={true}
-        >
-          {/* OpenStreetMap Tiles — clean light style without country labels spam */}
+        <MapContainer center={[10, 25]} zoom={3} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={true}>
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
             subdomains="abcd"
             maxZoom={19}
           />
-
-          {/* Fly to selected dest */}
+          <ViewportTracker onBoundsChange={handleBoundsChange} />
           <MapFlyTo dest={selectedDest} />
 
-          {/* Price markers */}
-          {MOCK_DESTINATIONS.map(dest => {
+          {/* Only render markers in viewport */}
+          {visibleDests.map(dest => {
             const isSelected = selectedDest?.id === dest.id;
             return (
               <Marker
                 key={dest.id}
                 position={[dest.lat, dest.lng]}
                 icon={createPriceIcon(`$${dest.price}`, isSelected)}
-                eventHandlers={{
-                  click: () => handleSelectDest(dest),
-                }}
-              >
-                {isSelected && (
-                  <Popup closeButton={false} className="explore-popup" offset={[0, -4]}>
-                    <div className="text-xs font-bold text-slate-900">
-                      {dest.city} — ${dest.price}
-                    </div>
-                    <button
-                      onClick={() => handleSelectDest(dest)}
-                      className="text-[10px] text-blue-600 font-semibold mt-1 hover:underline"
-                    >
-                      View flights →
-                    </button>
-                  </Popup>
-                )}
-              </Marker>
+                eventHandlers={{ click: () => handleSelectDest(dest) }}
+              />
             );
           })}
         </MapContainer>
       </div>
 
-      {/* Custom Zoom Controls (bottom right) */}
+      {/* Zoom controls */}
+      <style>{`.leaflet-control-zoom{display:none!important}.leaflet-popup-content-wrapper{border-radius:10px!important}.leaflet-popup-tip{display:none!important}`}</style>
       <div className="absolute bottom-8 right-4 flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden z-[1000]">
-        <button
-          onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()}
-          className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 border-b border-slate-100 transition-colors text-lg font-light"
-        >+</button>
-        <button
-          onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()}
-          className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 transition-colors text-lg font-light"
-        >−</button>
+        <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 border-b border-slate-100 text-lg">+</button>
+        <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 text-lg">−</button>
       </div>
-      {/* Hidden Leaflet zoom controls (we use our own UI) */}
-      <style>{`.leaflet-control-zoom { display:none !important; } .leaflet-popup-content-wrapper { border-radius:10px !important; padding:4px 0 !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important; } .leaflet-popup-content { margin: 8px 12px !important; } .leaflet-popup-tip { display:none !important; }`}</style>
 
       {/* Floating Sidebar */}
-      <div className="absolute top-4 bottom-4 left-4 w-full max-w-[340px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[1000]">
+      <div className="absolute top-4 bottom-4 left-4 w-full max-w-[340px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[1000]">
         {!selectedDest ? (
           <>
-            {/* Search Header */}
             <div className="p-4 border-b border-slate-100">
               <div className="flex gap-1.5 mb-3">
-                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2.5">
-                  <input type="text" defaultValue="Entebbe (EBB)" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 outline-none" />
-                </div>
-                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2.5">
-                  <input type="text" placeholder="Where to?" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none" />
-                </div>
+                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2.5"><input type="text" defaultValue="Entebbe (EBB)" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 outline-none" /></div>
+                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2.5"><input type="text" placeholder="Where to?" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none" /></div>
               </div>
               <div className="bg-slate-100 rounded-lg px-3 py-2.5 mb-3 cursor-pointer hover:bg-slate-200 transition-colors">
                 <span className="text-sm text-slate-600 font-medium">Any time, any duration</span>
               </div>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {['Stops', 'Price', 'Flight duration'].map(f => (
+                {['Stops','Price','Flight duration'].map(f => (
                   <button key={f} className="flex items-center gap-1 bg-white border border-slate-200 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 whitespace-nowrap transition-colors">
                     {f} <span className="text-[10px]">▾</span>
                   </button>
                 ))}
               </div>
             </div>
-
-            {/* Destination List */}
+            {/* Visible destinations sorted cheapest first */}
             <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
-              {MOCK_DESTINATIONS.map(dest => (
-                <div key={dest.id} onClick={() => handleSelectDest(dest)} className="flex gap-3 px-3 py-3 hover:bg-slate-50 cursor-pointer transition-colors group">
+              {sidebarList.map(dest => (
+                <div key={dest.id} onClick={() => handleSelectDest(dest)} className="flex gap-3 px-3 py-3 hover:bg-slate-50 cursor-pointer transition-colors">
                   <img src={dest.image} alt={dest.city} className="w-[60px] h-[60px] rounded-xl object-cover flex-shrink-0 bg-slate-200" />
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div className="flex items-start justify-between">
                       <span className="font-bold text-sm text-slate-900 truncate">{dest.city}</span>
-                      <button onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-red-400 transition-colors ml-2 flex-shrink-0">
+                      <button onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-red-400 transition-colors ml-2">
                         <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/></svg>
                       </button>
                     </div>
-                    <div className="text-[11px] text-slate-400 font-medium">{dest.dates}</div>
+                    <div className="text-[11px] text-slate-400">{dest.dates}</div>
                     <div className="text-[11px] text-slate-400">{dest.stops}</div>
                   </div>
-                  <div className="flex items-end pb-0.5 flex-shrink-0">
-                    <span className="font-extrabold text-sm text-slate-900">${dest.price}</span>
-                  </div>
+                  <div className="flex items-end pb-0.5"><span className="font-extrabold text-sm text-slate-900">${dest.price}</span></div>
                 </div>
               ))}
+            </div>
+            {/* Info about viewport filtering */}
+            <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-center">
+              <span className="text-[10px] text-slate-400">{visibleDests.length} destinations in this area</span>
             </div>
           </>
         ) : (
           <>
-            {/* Detail View */}
             <div className="relative h-[180px] flex-shrink-0">
               <img src={selectedDest.image} alt={selectedDest.city} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
@@ -224,17 +338,14 @@ export default function ExplorePage() {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    {selectedDest.city}<span className="text-orange-500">.</span>
-                  </h2>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedDest.city}<span className="text-green-600">.</span></h2>
                   <p className="text-slate-500 text-sm font-medium">{selectedDest.country}</p>
                 </div>
-                <button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-400 bg-slate-50 rounded-full transition-colors">
+                <button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-400 bg-slate-50 rounded-full">
                   <svg width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/></svg>
                 </button>
               </div>
 
-              {/* Cheapest card */}
               <div className="border border-slate-200 rounded-xl p-4 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -246,19 +357,16 @@ export default function ExplorePage() {
                     <div className="text-[10px] text-slate-400">{selectedDest.tripType}</div>
                   </div>
                 </div>
-                <button className="w-full bg-[#FF5C35] hover:bg-[#e04a25] text-white font-bold py-3 rounded-lg transition-colors">
-                  View flights
-                </button>
+                <button onClick={() => navigate('/results')} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">View flights</button>
               </div>
 
-              {/* Nonstop schedule */}
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-slate-100 flex justify-between items-center">
                   <span className="font-bold text-sm text-slate-900">Nonstop flights</span>
                   <div className="flex gap-1 items-center">
-                    {['blue','red','green'].map((c,i) => (
-                      <div key={i} className={`w-5 h-5 rounded-full bg-${c}-100 text-${c}-500 flex items-center justify-center text-[8px] font-bold`}>✈</div>
-                    ))}
+                    <span className="text-base">🇶🇦</span>
+                    <span className="text-base">🇷🇼</span>
+                    <span className="text-base">🇪🇹</span>
                     <span className="text-[10px] text-slate-400 font-bold ml-0.5">+10</span>
                   </div>
                 </div>
@@ -267,18 +375,36 @@ export default function ExplorePage() {
                     <div key={label}>
                       <div className="text-xs font-bold text-slate-800 mb-2">{label} <span className="text-slate-400 font-normal ml-1">{route}</span></div>
                       <div className="grid grid-cols-7 gap-1">
-                        {['S','M','T','W','T','F','S'].map((d,i) => (
-                          <div key={i} className="aspect-square rounded border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                            {d}
-                          </div>
+                        {DAYS.map((d,i) => (
+                          <div key={i} className="aspect-square rounded border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">{d}</div>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="border-t border-slate-100 p-3">
-                  <button className="w-full text-sm font-bold text-slate-800 hover:text-orange-500 transition-colors text-center">
-                    View nonstop schedule
+                  <button
+                    onClick={() => {
+                      setIsFetchingSchedule(true);
+                      setTimeout(() => {
+                        setIsFetchingSchedule(false);
+                        setShowScheduleModal(true);
+                      }, 1500);
+                    }}
+                    disabled={isFetchingSchedule}
+                    className="w-full text-sm font-bold text-slate-800 hover:text-green-600 transition-colors text-center flex items-center justify-center gap-2"
+                  >
+                    {isFetchingSchedule ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Fetching live schedule...
+                      </>
+                    ) : (
+                      "View nonstop schedule"
+                    )}
                   </button>
                 </div>
               </div>
@@ -286,6 +412,11 @@ export default function ExplorePage() {
           </>
         )}
       </div>
+
+      {/* Nonstop Schedule Modal */}
+      {showScheduleModal && selectedDest && (
+        <NonstopScheduleModal dest={selectedDest} onClose={() => setShowScheduleModal(false)} />
+      )}
     </div>
   );
 }
