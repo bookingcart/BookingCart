@@ -926,57 +926,140 @@
       list.forEach((f, i) => {
         const priceVal = typeof f.price === "object" ? parseFloat(f.price.amount || 0) : f.price;
         const card = document.createElement("div");
-        card.className = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-green-600 dark:hover:border-green-500 transition-colors p-0 flex flex-col md:flex-row mb-3 group shadow-sm relative";
-        
-        let badgesHtml = '';
-        if (i === 0) {
-          badgesHtml += '<span class="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-sm">Cheapest</span>';
-        }
-        badgesHtml += '<span class="bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-sm flex items-center gap-1"><i class="ph ph-suitcase-rolling"></i> Carry-on baggage included</span>';
-        
+        card.className = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded mb-4 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.05)] relative transition-shadow hover:shadow-md flex flex-col";
+
         const logoHtml = f.airline.logoUrl 
           ? '<img src="' + f.airline.logoUrl + '" alt="' + f.airline.name + '" class="max-w-full max-h-full object-contain" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';"><div class="w-full h-full items-center justify-center text-slate-900 dark:text-slate-100 font-medium" style="display:none;">' + f.airline.logo + '</div>' 
           : '<div class="w-full h-full flex items-center justify-center text-slate-900 dark:text-slate-100 font-medium">' + f.airline.logo + '</div>';
 
-        const stopsText = f.stops === 0 ? "Nonstop" : f.stops + " stop" + (f.stops > 1 ? "s" : "");
+        const stopsText = f.stops === 0 ? "nonstop" : f.stops + " stop" + (f.stops > 1 ? "s" : "");
+
+        let bestBadge = '';
+        if (i === 0) {
+          bestBadge = '<div class="text-emerald-600 font-bold text-[11px] mb-1">Cheapest</div>';
+        } else if (i === 1) {
+          bestBadge = '<div class="text-blue-500 font-bold text-[11px] mb-1">Best Buy</div>';
+        }
+
+        // Parse 12-hour times for kayak style (e.g. 9:40 am)
+        function formatAmPm(timeStr) {
+           if (!timeStr) return "--:--";
+           const parts = timeStr.split(':');
+           let h = parseInt(parts[0], 10) || 0;
+           const ampm = h >= 12 ? 'pm' : 'am';
+           h = h % 12;
+           h = h ? h : 12;
+           return h + ':' + (parts[1] || '00') + ' ' + ampm;
+        }
+
+        const dep = formatAmPm(f.departTime);
+        const arr = formatAmPm(f.arriveTime);
 
         card.innerHTML = 
-          '<div class="absolute top-0 left-0 flex gap-1 -mt-2.5 ml-4 z-10">' + badgesHtml + '</div>' +
-          '<div class="flex-1 flex flex-col justify-center p-5 pt-6">' +
-            '<div class="flex items-center gap-8">' +
-              '<div class="flex items-center gap-3 w-40 shrink-0">' +
-                '<div class="w-8 h-8 flex items-center justify-center">' + logoHtml + '</div>' +
-                '<span class="text-sm font-medium text-slate-700 dark:text-slate-300">' + f.airline.name + '</span>' +
+          '<div class="flex flex-col md:flex-row w-full">' +
+            // Summary Container
+            '<div class="flex-1 flex flex-col px-4 py-3 cursor-pointer flight-summary">' +
+              // Top action bar
+              '<div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">' +
+                '<div class="flex items-center gap-2">' +
+                   '<button data-save-flight class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 border border-slate-200 dark:border-slate-600 rounded transition-colors"><i class="ph-bold ph-heart"></i></button>' +
+                   '<button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-200 dark:border-slate-600 rounded transition-colors"><i class="ph-bold ph-share-network"></i></button>' +
+                '</div>' +
+                '<div class="flex items-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">' +
+                   '<span class="flex items-center gap-1"><i class="ph-bold ph-bag text-[16px]"></i> 1</span>' +
+                   '<span class="flex items-center gap-1"><i class="ph-bold ph-suitcase-rolling text-[16px]"></i> ' + (f.extras && f.extras.baggage > 0 ? f.extras.baggage : '1') + '</span>' +
+                '</div>' +
               '</div>' +
-              '<div class="flex-1 flex items-center justify-center gap-6">' +
-                '<div class="text-right">' +
-                  '<div class="text-xl font-bold text-slate-900 dark:text-slate-100">' + (f.departTime || "--:--") + '</div>' +
-                  '<div class="text-xs text-slate-500 dark:text-slate-400 font-medium">' + extractIata(search.from) + '</div>' +
-                '</div>' +
-                '<div class="flex-1 max-w-[150px] flex flex-col items-center">' +
-                  '<div class="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium mb-1">' + durationLabel(f.durationMin || 0) + '</div>' +
-                  '<div class="w-full relative flex items-center justify-center">' +
-                    '<div class="w-full h-px bg-slate-300 dark:bg-slate-600"></div>' +
-                    '<div class="absolute bg-white dark:bg-slate-800 px-2 text-slate-400 dark:text-slate-500 dark:text-slate-400"><span class="text-[10px] uppercase">' + stopsText + '</span></div>' +
-                  '</div>' +
-                '</div>' +
-                '<div class="text-left">' +
-                  '<div class="text-xl font-bold text-slate-900 dark:text-slate-100">' + (f.arriveTime || "--:--") + '</div>' +
-                  '<div class="text-xs text-slate-500 dark:text-slate-400 font-medium">' + extractIata(search.to) + '</div>' +
+              
+              // Flight Row
+              '<div class="flex items-start gap-4 mb-2 pl-1">' +
+                '<div class="pt-1"><input type="checkbox" class="w-4 h-4 rounded border-slate-300 accent-green-600 cursor-pointer" /></div>' +
+                '<div class="w-8 h-8 flex-shrink-0 mt-0.5">' + logoHtml + '</div>' +
+                
+                '<div class="flex flex-1 flex-wrap md:flex-nowrap items-start justify-between gap-x-6 gap-y-2">' +
+                   // Time and Airline
+                   '<div class="flex flex-col">' +
+                     '<div class="text-base text-slate-900 dark:text-slate-100 mb-0.5"><span class="font-bold">' + dep + '</span> &ndash; <span class="font-bold">' + arr + '</span></div>' +
+                     '<div class="text-sm text-slate-500 dark:text-slate-400">' + f.airline.name + '</div>' +
+                   '</div>' +
+                   // Stops
+                   '<div class="flex flex-col text-left md:text-center mx-0 md:mx-auto pt-0.5">' +
+                     '<div class="text-sm font-bold text-slate-900 dark:text-slate-100 mb-0.5">' + stopsText + '</div>' +
+                   '</div>' +
+                   // Duration and Route
+                   '<div class="flex flex-col text-left md:text-right pt-0.5">' +
+                     '<div class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-0.5">' + durationLabel(f.durationMin || 0) + '</div>' +
+                     '<div class="text-[13px] text-slate-500 dark:text-slate-400 font-medium">' + extractIata(search.from) + '-' + extractIata(search.to) + '</div>' +
+                   '</div>' +
                 '</div>' +
               '</div>' +
             '</div>' +
+            
+            // Right Pricing Panel
+            '<div class="w-full md:w-[220px] md:border-l border-t md:border-t-0 border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-end relative bg-white dark:bg-slate-800">' +
+              '<div class="mt-auto">' +
+                bestBadge +
+                '<div class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-none mb-1">' + window.money(priceVal, f.currency) + '</div>' +
+                '<div class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-4">Economy Cabin</div>' +
+                '<a href="#" data-flight-link class="bg-green-600 hover:bg-green-700 text-white font-bold py-[10px] px-4 rounded-md w-full text-center block transition-colors">' +
+                  'Select' +
+                '</a>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
-          '<div class="w-full md:w-48 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-700 p-5 flex flex-col justify-center items-end bg-slate-50 dark:bg-slate-900/30 dark:bg-slate-800/50 rounded-r-xl">' +
-            '<div class="text-2xl font-bold text-green-600 dark:text-green-500">' + window.money(priceVal, f.currency) + '</div>' +
-            '<div class="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium mb-3">per adult</div>' +
-            '<a href="#" data-flight-link class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded text-sm w-full text-center flex items-center justify-center gap-1 transition-colors">' +
-              'Select <i class="ph-bold ph-caret-right"></i>' +
-            '</a>' +
-            '<button data-save-flight class="mt-2 text-slate-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-500 text-sm font-medium flex items-center justify-center gap-1 transition-colors w-full py-2">' +
-              '<i class="ph ph-heart"></i> Save for later' +
-            '</button>' +
+          
+          // Expanded Timeline View
+          '<div class="flight-details hidden w-full border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-6 flex flex-col gap-6">' +
+             // Header
+             '<div class="flex justify-between items-center">' +
+               '<div class="font-bold text-slate-900 dark:text-slate-100">Depart &bull; ' + (search.depart || "Selected Date") + '</div>' +
+               '<div class="text-sm font-semibold text-slate-500">' + durationLabel(f.durationMin || 0) + '</div>' +
+             '</div>' +
+             
+             // Aircraft pill
+             '<div class="flex items-center gap-3">' +
+                '<div class="w-6 h-6">' + logoHtml + '</div>' +
+                '<div class="text-sm text-slate-700 dark:text-slate-300 font-medium">' + f.airline.name + ' ' + (f.flightNumber || Math.floor(Math.random() * 900 + 100)) + '</div>' +
+             '</div>' +
+             '<div class="ml-9 border border-slate-300 dark:border-slate-600 rounded px-2 py-0.5 text-xs text-slate-500 w-max bg-white dark:bg-slate-800">' +
+                (f.aircraft || 'Commercial jet aircraft') +
+             '</div>' +
+             
+             // Vertical timeline
+             '<div class="ml-[42px] mt-2 flex relative min-h-[80px]">' +
+                // Line track
+                '<div class="absolute left-[-21px] top-1.5 bottom-1.5 flex flex-col items-center">' +
+                   '<div class="w-1.5 h-1.5 rounded-full border border-slate-400 bg-white dark:bg-slate-800 z-10"></div>' +
+                   '<div class="w-px flex-1 bg-slate-300 dark:bg-slate-600 my-1"></div>' +
+                   '<div class="bg-slate-100 dark:bg-slate-700 p-1 rounded-full text-slate-500 z-10"><i class="ph-fill ph-airplane-tilt text-sm"></i></div>' +
+                   '<div class="w-px flex-1 bg-slate-300 dark:bg-slate-600 my-1"></div>' +
+                   '<div class="w-1.5 h-1.5 rounded-full border border-slate-400 bg-white dark:bg-slate-800 z-10"></div>' +
+                '</div>' +
+                
+                // Timeline content
+                '<div class="flex flex-col justify-between w-full h-full gap-8 py-0.5">' +
+                   '<div class="flex items-center gap-4">' +
+                      '<div class="font-bold text-slate-900 dark:text-slate-100 min-w-[70px]">' + dep + '</div>' +
+                      '<div class="text-slate-600 dark:text-slate-400">' + extractIata(search.from) + ' Airport</div>' +
+                   '</div>' +
+                   '<div class="flex items-center gap-4">' +
+                      '<div class="font-bold text-slate-900 dark:text-slate-100 min-w-[70px]">' + arr + '</div>' +
+                      '<div class="text-slate-600 dark:text-slate-400">' + extractIata(search.to) + ' Airport</div>' +
+                   '</div>' +
+                '</div>' +
+             '</div>' +
           '</div>';
+
+        const summaryClick = card.querySelector('.flight-summary');
+        const detailsPanel = card.querySelector('.flight-details');
+        if (summaryClick && detailsPanel) {
+            summaryClick.addEventListener('click', (e) => {
+                if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a')) {
+                    return;
+                }
+                detailsPanel.classList.toggle('hidden');
+            });
+        }
 
         const link = card.querySelector("[data-flight-link]");
         if (link) link.setAttribute("href", "/details?flight=" + encodeURIComponent(f.id));
