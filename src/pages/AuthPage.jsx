@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import BookingCartNavbar from '../components/BookingCartNavbar.jsx';
@@ -91,6 +91,7 @@ export default function AuthPage() {
 
   const [tab, setTab] = useState(resetToken ? 'forgot' : defaultTab);
   const [animating, setAnimating] = useState(false);
+  const googleBtnRef = useRef(null);
 
   /* ── Form state ── */
   const [form, setForm] = useState({
@@ -156,19 +157,6 @@ export default function AuthPage() {
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [form, tab]);
-
-  /* ── Save token + user to localStorage, update AuthContext ── */
-  function persistSession(token, user) {
-    localStorage.setItem(STORAGE_TOKEN, token);
-    localStorage.setItem(STORAGE_USER, JSON.stringify({
-      name: user.name || '',
-      email: user.email || '',
-      picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.email)}&background=16a34a&color=fff`,
-      authMethod: 'email'
-    }));
-    refresh(); // re-read from localStorage in AuthContext
-    if (typeof window.applyAuthUI === 'function') window.applyAuthUI();
-  }
 
   /* ── Submit handlers ── */
   async function handleSignIn(e) {

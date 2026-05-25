@@ -552,6 +552,104 @@ app.get('/api/amadeus-airports', searchLimiter, async (req, res) => {
   }
 });
 
+// ─── OpenSky Network Proxy (reliable, no CORS, fast) ─────────────────────────
+const OPENSKY_BASE = 'https://opensky-network.org/api';
+
+async function openskyFetch(path, timeoutMs = 12000) {
+  const url = `${OPENSKY_BASE}${path}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'BookingCart/1.0' },
+      signal: controller.signal
+    });
+    if (!res.ok) throw new Error(`OpenSky upstream ${res.status}`);
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Normalize OpenSky state vector array → ADSB-style object
+// State: [icao24, callsign, origin_country, time_pos, last_contact,
+//         lon, lat, baro_alt(m), on_ground, velocity(m/s),
+//         true_track, vert_rate, sensors, geo_alt(m), squawk, spi, pos_source]
+function normalizeState(s) {
+  return {
+    hex:      s[0] || '',
+    flight:   (s[1] || '').trim() || s[0],
+    lat:      s[6],
+    lon:      s[5],
+    alt_baro: s[7] != null ? s[7] / 0.3048 : 'ground', // m → ft for frontend compat
+    gs:       s[9] != null ? s[9] / 0.514444 : 0,       // m/s → knots
+    track:    s[10] || 0,
+    baro_rate: s[11] || 0,
+    r:        s[0],
+    type:     s[2] || '',
+    on_ground: s[8]
+  };
+}
+
+// Bounding box / radius fetch: /api/adsb/area?lat=X&lon=Y&dist=Z
+app.get('/api/adsb/area', apiLimiter, async (req, res) => {
+  try {
+    const { lat, lon, dist } = req.query;
+    if (!lat || !lon || !dist) return res.status(400).json({ ok: false, error: 'Missing lat, lon, dist' });
+
+    const centerLat = parseFloat(lat);
+    const centerLon = parseFloat(lon);
+    const distNm    = Math.min(parseInt(dist), 250);
+    const deg       = (distNm * 1.852) / 111.32; // nm → degrees
+
+    const lamin = (centerLat - deg).toFixed(4);
+    const lamax = (centerLat + deg).toFixed(4);
+    const lomin = (centerLon - deg).toFixed(4);
+    const lomax = (centerLon + deg).toFixed(4);
+
+    const data = await openskyFetch(`/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`);
+    const ac   = (data.states || [])
+      .filter(s => s[5] != null && s[6] != null)
+      .map(normalizeState);
+
+    return res.json({ ok: true, ac });
+  } catch (err) {
+    console.error('Area proxy error:', err.message);
+    return res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// Callsign search: /api/adsb/callsign/:callsign
+// OpenSky doesn't support callsign filter, so fetch a wide area and filter locally
+app.get('/api/adsb/callsign/:callsign', apiLimiter, async (req, res) => {
+  try {
+    const callsign = String(req.params.callsign || '').trim().toUpperCase();
+    if (!callsign) return res.status(400).json({ ok: false, error: 'Missing callsign' });
+
+    // Fetch a large area (Europe+Africa+Middle East covers most common flights)
+    const regions = [
+      { lamin: -40, lamax: 75, lomin: -30, lomax: 70 },   // Europe/Africa
+      { lamin: -10, lamax: 55, lomin: 60,  lomax: 160 },  // Asia/Pacific
+      { lamin: 10,  lamax: 75, lomin: -170,lomax: -30 },  // Americas
+    ];
+
+    for (const r of regions) {
+      const data = await openskyFetch(`/states/all?lamin=${r.lamin}&lomin=${r.lomin}&lamax=${r.lamax}&lomax=${r.lomax}`, 15000);
+      const states = (data.states || []).filter(s => s[5] != null && s[6] != null);
+      const match  = states.find(s => (s[1] || '').trim().toUpperCase() === callsign ||
+                                      (s[1] || '').trim().toUpperCase().startsWith(callsign));
+      if (match) {
+        return res.json({ ok: true, ac: [normalizeState(match)] });
+      }
+    }
+
+    return res.json({ ok: true, ac: [] });
+  } catch (err) {
+    console.error('Callsign proxy error:', err.message);
+    return res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
 if (!API_ONLY && SERVE_STATIC && fs.existsSync(DIST_DIR)) {
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();

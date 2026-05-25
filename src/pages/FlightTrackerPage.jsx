@@ -3,8 +3,8 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// ─── ADSB.lol API — real live flight data, excellent global coverage ──────────
-const ADSB_URL = 'https://api.adsb.lol/v2';
+// ─── ADSB Proxy (via our own server to avoid CORS) ────────────────────────────
+const ADSB_PROXY = '/api/adsb';
 const REFRESH_INTERVAL = 15000; // 15 seconds
 
 // ─── Build a rotated aircraft SVG icon ────────────────────────────────────────
@@ -51,6 +51,13 @@ const getAirlineName = (callsign) => {
   return AIRLINE_NAMES[code] || callsign.trim();
 };
 
+const IATA_TO_ICAO = {
+  'RW': 'RWD', 'WB': 'RWD', 'ET': 'ETH', 'KQ': 'KQA', 'EK': 'UAE',
+  'QR': 'QTR', 'BA': 'BAW', 'LH': 'DLH', 'AF': 'AFR', 'KL': 'KLM',
+  'DL': 'DAL', 'AA': 'AAL', 'UA': 'UAL', 'FR': 'RYR', 'U2': 'EZY',
+  'TK': 'THY', 'MS': 'MSR', 'SA': 'SAA', 'SQ': 'SIA', 'AI': 'AIC'
+};
+
 // ─── Format helpers ───────────────────────────────────────────────────────────
 const fmtAlt = (m) => m != null ? `${Math.round(m * 3.281)}ft / ${Math.round(m)}m` : 'N/A';
 const fmtSpd = (ms) => ms != null ? `${Math.round(ms * 1.944)} kt` : 'N/A';
@@ -79,41 +86,63 @@ function MapFlyTo({ target }) {
   return null;
 }
 
-// ─── Static EBB schedule board ────────────────────────────────────────────────
-const EBB_BOARD = [
-  { flight:'RW101', airline:'RwandAir',          dest:'Kigali',      code:'KGL', time:'06:30', status:'On Time',  type:'dep', logo:'🇷🇼' },
-  { flight:'ET311', airline:'Ethiopian Airlines', dest:'Addis Ababa', code:'ADD', time:'07:15', status:'On Time',  type:'dep', logo:'🇪🇹' },
-  { flight:'QR543', airline:'Qatar Airways',      dest:'Doha',        code:'DOH', time:'08:00', status:'Boarding', type:'dep', logo:'🇶🇦' },
-  { flight:'KQ441', airline:'Kenya Airways',      dest:'Nairobi',     code:'NBO', time:'09:20', status:'On Time',  type:'dep', logo:'🇰🇪' },
-  { flight:'EK729', airline:'Emirates',           dest:'Dubai',       code:'DXB', time:'10:45', status:'On Time',  type:'dep', logo:'🇦🇪' },
-  { flight:'RW204', airline:'RwandAir',           dest:'Nairobi',     code:'NBO', time:'11:30', status:'Delayed',  type:'dep', logo:'🇷🇼' },
-  { flight:'ET847', airline:'Ethiopian',          dest:'London',      code:'LHR', time:'13:00', status:'On Time',  type:'dep', logo:'🇪🇹' },
-  { flight:'RW102', airline:'RwandAir',           dest:'Kigali',      code:'KGL', time:'06:10', status:'Landed',   type:'arr', logo:'🇷🇼' },
-  { flight:'ET312', airline:'Ethiopian Airlines', dest:'Addis Ababa', code:'ADD', time:'06:55', status:'Landed',   type:'arr', logo:'🇪🇹' },
-  { flight:'KQ442', airline:'Kenya Airways',      dest:'Nairobi',     code:'NBO', time:'08:40', status:'Arrived',  type:'arr', logo:'🇰🇪' },
-  { flight:'EK730', airline:'Emirates',           dest:'Dubai',       code:'DXB', time:'09:50', status:'On Time',  type:'arr', logo:'🇦🇪' },
-  { flight:'QR545', airline:'Qatar Airways',      dest:'Doha',        code:'DOH', time:'11:15', status:'On Time',  type:'arr', logo:'🇶🇦' },
-  { flight:'MS789', airline:'EgyptAir',           dest:'Cairo',       code:'CAI', time:'15:20', status:'On Time',  type:'arr', logo:'🇪🇬' },
-];
-const STATUS_S = {
-  'On Time':  { bg:'bg-green-100',  text:'text-green-700',  dot:'bg-green-500'  },
-  'Boarding': { bg:'bg-blue-100',   text:'text-blue-700',   dot:'bg-blue-500'   },
-  'Delayed':  { bg:'bg-amber-100',  text:'text-amber-700',  dot:'bg-amber-500'  },
-  'Landed':   { bg:'bg-slate-100',  text:'text-slate-500',  dot:'bg-slate-400'  },
-  'Arrived':  { bg:'bg-slate-100',  text:'text-slate-500',  dot:'bg-slate-400'  },
-};
+// ─── Removed Static Schedule Board ──────────────────────────────────────────────
 
 // ─── Quick-jump airports ──────────────────────────────────────────────────────
 const AIRPORTS = [
-  { code:'EBB', city:'Entebbe',     lat: 0.04,  lng:32.44, zoom:9  },
-  { code:'NBO', city:'Nairobi',     lat:-1.32,  lng:36.82, zoom:9  },
-  { code:'KGL', city:'Kigali',      lat:-1.97,  lng:30.14, zoom:10 },
-  { code:'ADD', city:'Addis Ababa', lat: 8.98,  lng:38.80, zoom:9  },
-  { code:'DXB', city:'Dubai',       lat:25.25,  lng:55.36, zoom:9  },
-  { code:'LHR', city:'London',      lat:51.48,  lng:-0.46, zoom:9  },
-  { code:'JFK', city:'New York',    lat:40.64,  lng:-73.78, zoom:9 },
-  { code:'CDG', city:'Paris',       lat:49.00,  lng: 2.55, zoom:9  },
+  { city: 'New York', code: 'JFK', lat: 40.6413, lng: -73.7781, zoom: 10 },
+  { city: 'New York', code: 'EWR', lat: 40.6925, lng: -74.1686, zoom: 10 },
+  { city: 'Los Angeles', code: 'LAX', lat: 33.9416, lng: -118.4085, zoom: 10 },
+  { city: 'Chicago', code: 'ORD', lat: 41.9742, lng: -87.9073, zoom: 10 },
+  { city: 'San Francisco', code: 'SFO', lat: 37.6213, lng: -122.3790, zoom: 10 },
+  { city: 'Miami', code: 'MIA', lat: 25.7959, lng: -80.2870, zoom: 10 },
+  { city: 'London', code: 'LHR', lat: 51.4700, lng: -0.4543, zoom: 10 },
+  { city: 'London', code: 'LGW', lat: 51.1537, lng: -0.1821, zoom: 10 },
+  { city: 'Paris', code: 'CDG', lat: 49.0097, lng: 2.5479, zoom: 10 },
+  { city: 'Amsterdam', code: 'AMS', lat: 52.3105, lng: 4.7683, zoom: 10 },
+  { city: 'Frankfurt', code: 'FRA', lat: 50.0379, lng: 8.5622, zoom: 10 },
+  { city: 'Dubai', code: 'DXB', lat: 25.2532, lng: 55.3657, zoom: 10 },
+  { city: 'Doha', code: 'DOH', lat: 25.2730, lng: 51.6080, zoom: 10 },
+  { city: 'Cairo', code: 'CAI', lat: 30.1219, lng: 31.4056, zoom: 10 },
+  { city: 'Mumbai', code: 'BOM', lat: 19.0902, lng: 72.8628, zoom: 10 },
+  { city: 'Delhi', code: 'DEL', lat: 28.5562, lng: 77.1000, zoom: 10 },
+  { city: 'Tokyo', code: 'HND', lat: 35.5494, lng: 139.7798, zoom: 10 },
+  { city: 'Tokyo', code: 'NRT', lat: 35.7720, lng: 140.3929, zoom: 10 },
+  { city: 'Seoul', code: 'ICN', lat: 37.4602, lng: 126.4407, zoom: 10 },
+  { city: 'Singapore', code: 'SIN', lat: 1.3644, lng: 103.9915, zoom: 10 },
+  { city: 'Hong Kong', code: 'HKG', lat: 22.3080, lng: 113.9185, zoom: 10 },
+  { city: 'Bangkok', code: 'BKK', lat: 13.6900, lng: 100.7501, zoom: 10 },
+  { city: 'Sydney', code: 'SYD', lat: -33.9461, lng: 151.1772, zoom: 10 },
+  { city: 'Toronto', code: 'YYZ', lat: 43.6777, lng: -79.6248, zoom: 10 },
+  { city: 'São Paulo', code: 'GRU', lat: -23.4356, lng: -46.4731, zoom: 10 },
+  { city: 'Nairobi', code: 'NBO', lat: -1.3192, lng: 36.9278, zoom: 10 },
+  { city: 'Entebbe', code: 'EBB', lat: 0.0424, lng: 32.4435, zoom: 10 },
+  { city: 'Kigali', code: 'KGL', lat: -1.9686, lng: 30.1395, zoom: 10 },
+  { city: 'Addis Ababa', code: 'ADD', lat: 8.9778, lng: 38.7993, zoom: 10 },
+  { city: 'Johannesburg', code: 'JNB', lat: -26.1367, lng: 28.2411, zoom: 10 },
+  { city: 'Lagos', code: 'LOS', lat: 6.5774, lng: 3.3215, zoom: 10 }
 ];
+
+function getNearestAirport(lat, lng) {
+  let minD = Infinity;
+  let nearest = AIRPORTS[6]; // default LHR
+  const toRad = x => x * Math.PI / 180;
+  for (const ap of AIRPORTS) {
+    const R = 6371;
+    const dLat = toRad(ap.lat - lat);
+    const dLon = toRad(ap.lng - lng);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat)) * Math.cos(toRad(ap.lat)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const d = R * c;
+    if (d < minD) {
+      minD = d;
+      nearest = ap;
+    }
+  }
+  return nearest;
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function FlightTrackerPage() {
@@ -125,6 +154,12 @@ export default function FlightTrackerPage() {
   const [error, setError] = useState(null);
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000);
   const [boardTab, setBoardTab] = useState('dep');
+  const [trackerTab, setTrackerTab] = useState('flight');
+  const [nearestAirport, setNearestAirport] = useState(AIRPORTS[6]);
+  const [flightSearch, setFlightSearch] = useState({ airline: '', flightNumber: '', date: '2026-05-24' });
+  const [airportSearch, setAirportSearch] = useState({ airport: '', airline: '', date: '2026-05-24', time: 'Morning 6:00am - 12:00pm' });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [formError, setFormError] = useState('');
   const [flyTarget, setFlyTarget] = useState(null);
   const [searchVal, setSearchVal] = useState('');
   const [totalInView, setTotalInView] = useState(0);
@@ -133,6 +168,65 @@ export default function FlightTrackerPage() {
   const countRef = useRef(null);
   const boundsRef = useRef(null);
   const flightsRef = useRef([]); // To hold the latest flights for the animation loop
+
+  const handleTrackFlight = async () => {
+    setFormError('');
+    if (trackerTab === 'flight') {
+      let air = flightSearch.airline.trim().toUpperCase();
+      if (IATA_TO_ICAO[air]) air = IATA_TO_ICAO[air];
+      const num = flightSearch.flightNumber.trim().toUpperCase();
+      const callsign = air + num;
+      if (!callsign) {
+        setFormError('Please enter a flight number.');
+        return;
+      }
+      
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`${ADSB_PROXY}/callsign/${encodeURIComponent(callsign)}`);
+        if (!res.ok) throw new Error('Live data not found for this flight.');
+        const data = await res.json();
+        const plane = data.ac && data.ac.length > 0 ? data.ac[0] : null;
+        if (plane && plane.lat && plane.lon) {
+           setFlyTarget({ lat: plane.lat, lng: plane.lon, zoom: 8 });
+           setSearchVal(callsign);
+        } else {
+           setFormError('Flight not currently airborne or in coverage.');
+        }
+      } catch (err) {
+        setFormError(err.message);
+      } finally {
+        setSearchLoading(false);
+      }
+    } else {
+      const code = airportSearch.airport.trim().toUpperCase();
+      if (!code) {
+        setFormError('Please enter an airport.');
+        return;
+      }
+      
+      setSearchLoading(true);
+      try {
+        const found = AIRPORTS.find(a => a.code === code || a.city.toUpperCase().startsWith(code));
+        if (found) {
+          setFlyTarget(found);
+        } else {
+          // Global airport search via Nominatim
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(airportSearch.airport + ' airport')}&format=json&limit=1`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setFlyTarget({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), zoom: 10 });
+          } else {
+            setFormError(`Airport not found: ${airportSearch.airport}`);
+          }
+        }
+      } catch (err) {
+        setFormError('Error searching for airport.');
+      } finally {
+        setSearchLoading(false);
+      }
+    }
+  };
 
   // Fetch from ADSB.lol
   const fetchFlights = useCallback(async () => {
@@ -150,7 +244,7 @@ export default function FlightTrackerPage() {
 
     let parsed = [];
     try {
-      const url = `${ADSB_URL}/lat/${center.lat.toFixed(3)}/lon/${center.lng.toFixed(3)}/dist/${radiusNm}`;
+      const url = `${ADSB_PROXY}/area?lat=${center.lat.toFixed(3)}&lon=${center.lng.toFixed(3)}&dist=${radiusNm}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -216,6 +310,18 @@ export default function FlightTrackerPage() {
     return () => clearInterval(timerRef.current);
   }, [fetchFlights]);
 
+  // Geolocation on load
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setFlyTarget({ lat: pos.coords.latitude, lng: pos.coords.longitude, zoom: 9 });
+        },
+        (err) => console.warn('Geolocation failed or denied', err)
+      );
+    }
+  }, []);
+
   // Countdown ticker
   useEffect(() => {
     countRef.current = setInterval(() => {
@@ -229,6 +335,9 @@ export default function FlightTrackerPage() {
     boundsRef.current = b;
     setBounds(b);
     fetchFlights();
+    
+    const center = b.getCenter();
+    setNearestAirport(getNearestAirport(center.lat, center.lng));
   }, [fetchFlights]);
 
   // Filter by search
@@ -326,20 +435,86 @@ export default function FlightTrackerPage() {
       </div>
 
       {/* ── Main area ── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+
+        {/* ── Left Tracker Search Overlay ── */}
+        <div className="absolute top-6 left-6 z-[1000] w-[400px] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+          <div className="p-6">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-5">Flight Tracker</h2>
+            
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 mb-5">
+              <button
+                onClick={() => setTrackerTab('flight')}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors mr-6 ${trackerTab === 'flight' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              >
+                Flight number
+              </button>
+              <button
+                onClick={() => setTrackerTab('airport')}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors ${trackerTab === 'airport' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              >
+                Airport
+              </button>
+            </div>
+
+            {/* Flight number tab */}
+            {trackerTab === 'flight' && (
+              <div className="space-y-3">
+                <input type="text" placeholder="Airline" value={flightSearch.airline} onChange={e => setFlightSearch({...flightSearch, airline: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <input type="text" placeholder="Flight Number" value={flightSearch.flightNumber} onChange={e => setFlightSearch({...flightSearch, flightNumber: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <div className="relative">
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H32V48ZM208,208H48V96H208V208Z"></path></svg>
+                  <input type="date" value={flightSearch.date} onChange={e => setFlightSearch({...flightSearch, date: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg pl-11 pr-4 py-3.5 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" style={{ colorScheme: 'light' }} />
+                </div>
+              </div>
+            )}
+
+            {/* Airport tab */}
+            {trackerTab === 'airport' && (
+              <div className="space-y-3">
+                <input type="text" placeholder="Airport (required)" value={airportSearch.airport} onChange={e => setAirportSearch({...airportSearch, airport: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <input type="text" placeholder="Airline (optional)" value={airportSearch.airline} onChange={e => setAirportSearch({...airportSearch, airline: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <div className="flex gap-3">
+                  <div className="relative w-1/2">
+                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H32V48ZM208,208H48V96H208V208Z"></path></svg>
+                    <input type="date" value={airportSearch.date} onChange={e => setAirportSearch({...airportSearch, date: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg pl-11 pr-2 py-3.5 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" style={{ colorScheme: 'light' }} />
+                  </div>
+                  <div className="w-1/2 relative">
+                    <select value={airportSearch.time} onChange={e => setAirportSearch({...airportSearch, time: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-3.5 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors appearance-none">
+                      <option>Morning 6:00am - 12:00pm</option>
+                      <option>Afternoon 12:00pm - 6:00pm</option>
+                      <option>Evening 6:00pm - 12:00am</option>
+                    </select>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formError && (
+              <div className="mt-3 text-red-500 text-xs font-semibold px-1">{formError}</div>
+            )}
+
+            <button onClick={handleTrackFlight} disabled={searchLoading} className="w-full bg-[#ff5a30] hover:bg-[#ff4515] text-white font-bold py-3.5 rounded-lg mt-5 transition-colors shadow-md disabled:opacity-70 flex items-center justify-center gap-2">
+              {searchLoading ? <svg className="animate-spin" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.1"/></svg> : null}
+              Track Flight
+            </button>
+          </div>
+        </div>
 
         {/* ── Live Radar Map ── */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative z-0">
           <MapContainer
-            center={[0.04, 32.44]}
-            zoom={6}
+            center={[51.48, -0.46]}
+            zoom={8}
             style={{ width: '100%', height: '100%', background: '#e2e8f0' }}
             zoomControl={false}
           >
             {/* Light map tiles */}
             <TileLayer
               url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a> | Flight data: <a href="https://adsb.lol">adsb.lol</a>'
+              attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a> | Flight data: <a href="https://opensky-network.org">OpenSky Network</a>'
               subdomains="abcd"
               maxZoom={19}
             />
@@ -378,7 +553,7 @@ export default function FlightTrackerPage() {
               <span className="text-[10px] text-slate-600 font-semibold">Selected</span>
             </div>
             <div className="w-px h-4 bg-slate-200" />
-            <span className="text-[10px] text-slate-500 font-medium">adsb.lol · Live</span>
+                        <span className="text-[10px] text-slate-500 font-medium">OpenSky · Live</span>
           </div>
 
           {/* Selected flight popup */}
@@ -419,94 +594,75 @@ export default function FlightTrackerPage() {
           )}
         </div>
 
-        {/* ── Right: EBB Flight Board ── */}
-        <div className="w-[300px] flex-shrink-0 flex flex-col bg-white border-l border-slate-200 overflow-hidden">
+        {/* ── Right: Live Area Traffic Board ── */}
+        <div className="w-[300px] flex-shrink-0 flex flex-col bg-white border-l border-slate-200 overflow-hidden relative z-10 pointer-events-auto">
 
           {/* Board header */}
           <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg width="13" height="13" fill="#16a34a" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-slate-900 font-black text-sm">Entebbe <span className="text-green-600">EBB</span></p>
-                <p className="text-slate-500 text-[9px] font-medium">Entebbe International · EAT (UTC+3)</p>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg width="13" height="13" fill="#16a34a" viewBox="0 0 24 24"><path d="M12 2.5L8.5 10H5l1.5 2.5H10l-1 5H7l1 2 4-1 4 1 1-2h-2l-1-5h3.5L17 10h-3.5L12 2.5z"/></svg>
+                </div>
+                <div>
+                  <p className="text-slate-900 font-black text-sm leading-tight">{nearestAirport ? `${nearestAirport.city} ${nearestAirport.code}` : 'Live Area Traffic'}</p>
+                  <p className="text-slate-500 text-[9px] font-medium">Nearest airport to map center</p>
+                </div>
               </div>
               <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                 <span className="text-[9px] text-green-700 font-bold">LIVE</span>
               </div>
             </div>
-
-            <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-              {[{key:'dep', label:'✈ Departures'},{key:'arr', label:'🛬 Arrivals'}].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setBoardTab(t.key)}
-                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-md transition-all ${boardTab === t.key ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Column labels */}
-          <div className="grid grid-cols-[36px_1fr_44px_52px] gap-1 px-3 py-1.5 border-b border-slate-100">
-            {['FLT', boardTab === 'dep' ? 'TO' : 'FROM', 'TIME', 'STATUS'].map(h => (
+          <div className="grid grid-cols-[60px_1fr_40px] gap-2 px-4 py-1.5 border-b border-slate-100 bg-slate-50">
+            {['FLIGHT', 'DETAILS', 'ALT'].map(h => (
               <span key={h} className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{h}</span>
             ))}
           </div>
 
-          {/* Flights */}
+          {/* Flights list */}
           <div className="flex-1 overflow-y-auto">
-            {EBB_BOARD.filter(f => f.type === boardTab).map((f, i) => {
-              const s = STATUS_S[f.status] || STATUS_S['On Time'];
-              return (
+            {displayed.length === 0 ? (
+               <div className="p-8 text-center text-slate-400 text-xs font-medium">No aircraft detected in this area.</div>
+            ) : displayed.map(f => (
                 <div
-                  key={i}
-                  className="grid grid-cols-[36px_1fr_44px_52px] gap-1 items-center px-3 py-2.5 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-default group"
+                  key={f.icao24}
+                  onClick={() => handleSelectFlight(f)}
+                  className={`grid grid-cols-[60px_1fr_40px] gap-2 items-center px-4 py-3 border-b border-slate-50 transition-colors cursor-pointer group ${selected?.icao24 === f.icao24 ? 'bg-green-50' : 'hover:bg-slate-50'}`}
                 >
                   <div>
-                    <div className="text-[9px] font-black text-slate-800 group-hover:text-green-600 leading-tight">{f.flight}</div>
-                    <div className="text-[10px]">{f.logo}</div>
+                    <div className={`text-xs font-black leading-tight ${selected?.icao24 === f.icao24 ? 'text-green-700' : 'text-slate-800 group-hover:text-green-600'}`}>{f.callsign}</div>
+                    <div className="text-[9px] text-slate-500 font-mono mt-0.5">{f.icao24}</div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-bold text-slate-900 truncate">{f.dest}</div>
-                    <div className="text-[9px] text-slate-500 font-mono">{f.code}</div>
+                    <div className="text-[10px] font-bold text-slate-700 truncate" title={getAirlineName(f.callsign)}>{getAirlineName(f.callsign)}</div>
+                    <div className="text-[9px] text-slate-500 truncate">{fmtSpd(f.speed)} • {fmtHead(f.heading)}</div>
                   </div>
-                  <div>
-                    <div className="text-[11px] font-black text-slate-800 font-mono">{f.time}</div>
-                  </div>
-                  <div>
-                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black ${s.bg} ${s.text}`}>
-                      <span className={`w-1 h-1 rounded-full flex-shrink-0 ${s.dot}`} />
-                      {f.status}
-                    </span>
+                  <div className="text-right">
+                    <div className="text-[10px] font-black text-slate-800">{f.onGround ? 'GND' : Math.round(f.alt * 3.281)}</div>
+                    {!f.onGround && <div className="text-[8px] text-slate-400">ft</div>}
                   </div>
                 </div>
-              );
-            })}
+            ))}
           </div>
 
           {/* Board footer stats */}
           <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
-            <div className="grid grid-cols-3 gap-2 text-center mb-2">
+            <div className="grid grid-cols-2 gap-2 text-center mb-2">
               <div className="bg-white border border-slate-100 shadow-sm rounded-lg py-1.5">
                 <p className="text-green-600 font-black text-sm">{totalInView}</p>
-                <p className="text-[8px] text-slate-500 font-bold">In Air</p>
+                <p className="text-[8px] text-slate-500 font-bold">In Area</p>
               </div>
               <div className="bg-white border border-slate-100 shadow-sm rounded-lg py-1.5">
-                <p className="text-blue-600 font-black text-sm">{EBB_BOARD.filter(f=>f.type==='dep').length}</p>
-                <p className="text-[8px] text-slate-500 font-bold">Departing</p>
-              </div>
-              <div className="bg-white border border-slate-100 shadow-sm rounded-lg py-1.5">
-                <p className="text-amber-600 font-black text-sm">{EBB_BOARD.filter(f=>f.status==='Delayed').length}</p>
-                <p className="text-[8px] text-slate-500 font-bold">Delayed</p>
+                <p className="text-blue-600 font-black text-sm">{displayed.filter(f => !f.onGround).length}</p>
+                <p className="text-[8px] text-slate-500 font-bold">Airborne</p>
               </div>
             </div>
             <p className="text-[9px] text-slate-500 font-medium text-center">
-              Aircraft data: <span className="text-slate-400">adsb.lol API</span>
+              Aircraft data: <span className="text-slate-400">OpenSky Network</span>
             </p>
           </div>
         </div>
