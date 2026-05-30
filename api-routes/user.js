@@ -88,13 +88,38 @@ module.exports = async (req, res) => {
           }));
         } else {
           // In-memory fallback (dev only)
-          userList = Object.entries(global.__users || {}).map(([email, state]) => ({
+          const googleUsers = Object.entries(global.__users || {}).map(([email, state]) => ({
             id: email,
             email,
             name: (state && state.name) || '',
-            authMethod: 'email',
+            authMethod: 'google',
             createdAt: (state && state.signedUpAt) || null,
           }));
+
+          const localUsers = [];
+          if (global.__bc_auth_users) {
+            for (const [id, user] of global.__bc_auth_users.entries()) {
+              localUsers.push({
+                id: String(user._id || id),
+                email: user.email || '',
+                name: user.name || '',
+                authMethod: 'email',
+                createdAt: user.createdAt || null,
+              });
+            }
+          }
+
+          // Combine and deduplicate by email
+          const combined = [...localUsers, ...googleUsers];
+          const unique = [];
+          const seen = new Set();
+          for (const u of combined) {
+            if (!seen.has(u.email)) {
+              seen.add(u.email);
+              unique.push(u);
+            }
+          }
+          userList = unique.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         }
         return res.json({ ok: true, users: userList });
       }
