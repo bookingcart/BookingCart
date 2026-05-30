@@ -358,7 +358,7 @@ export default function HomePage() {
                       <div className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-green-600 transition-colors">
                         View results
                       </div>
-                      <button className="w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors shadow-sm shadow-orange-500/20">
+                      <button className="w-10 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white flex items-center justify-center transition-colors shadow-sm shadow-green-600/20">
                         <i className="ph-bold ph-magnifying-glass text-lg"></i>
                       </button>
                     </div>
@@ -374,9 +374,9 @@ export default function HomePage() {
                 </div>
                 <div className="font-bold text-slate-900 dark:text-white mb-4">Start a new search</div>
                 <div className="flex gap-2">
-                  <div className="w-8 h-8 rounded bg-orange-500 text-white flex items-center justify-center"><i className="ph-fill ph-airplane-tilt"></i></div>
-                  <div className="w-8 h-8 rounded bg-orange-500 text-white flex items-center justify-center"><i className="ph-fill ph-bed"></i></div>
-                  <div className="w-8 h-8 rounded bg-orange-500 text-white flex items-center justify-center"><i className="ph-fill ph-car"></i></div>
+                  <div className="w-8 h-8 rounded bg-green-600 text-white flex items-center justify-center"><i className="ph-fill ph-airplane-tilt"></i></div>
+                  <div className="w-8 h-8 rounded bg-green-600 text-white flex items-center justify-center"><i className="ph-fill ph-bed"></i></div>
+                  <div className="w-8 h-8 rounded bg-green-600 text-white flex items-center justify-center"><i className="ph-fill ph-car"></i></div>
                 </div>
               </div>
             </div>
