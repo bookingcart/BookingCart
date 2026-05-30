@@ -336,6 +336,26 @@ function UsersPanel() {
 
   useEffect(() => { loadUsers(); }, []);
 
+  async function deleteUser(email) {
+    if (!confirm(`Are you sure you want to delete ${email}? This action cannot be undone.`)) return;
+    try {
+      const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+      const resp = await fetch(`/api/user?email=${encodeURIComponent(email)}`, {
+        method: 'DELETE',
+        headers: t ? { 'Authorization': `Bearer ${t}` } : {}
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        alert('User successfully deleted.');
+        loadUsers();
+      } else {
+        alert('Failed to delete user: ' + (data.error || 'Unknown error'));
+      }
+    } catch (e) {
+      alert('Network error while deleting user.');
+    }
+  }
+
   function copyEmail(email) {
     navigator.clipboard?.writeText(email).then(() => {
       setCopied(email);
@@ -429,6 +449,7 @@ function UsersPanel() {
                 <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Auth</th>
                 <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Joined</th>
                 <th className="text-right px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Copy</th>
+                <th className="text-right px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -475,6 +496,15 @@ function UsersPanel() {
                       }`}>
                       <i className={`ph ${copied === u.email ? 'ph-check' : 'ph-copy'} mr-1`} />
                       {copied === u.email ? 'Copied!' : 'Copy'}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => deleteUser(u.email)}
+                      title="Delete user"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 hover:text-red-700">
+                      <i className="ph ph-trash mr-1" />
+                      Delete
                     </button>
                   </td>
                 </tr>

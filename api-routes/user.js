@@ -197,8 +197,19 @@ module.exports = async (req, res) => {
         .trim()
         .toLowerCase();
       if (!email) return res.status(400).json({ ok: false, error: 'Missing email' });
-      if (auth.email !== email) {
-        return res.status(403).json({ ok: false, error: 'Email does not match signed-in account' });
+
+      let canDelete = false;
+      if (auth.email === email) {
+        canDelete = true;
+      } else {
+        const adminCheck = await requireAdminEmail(req);
+        if (adminCheck.ok) {
+          canDelete = true;
+        }
+      }
+
+      if (!canDelete) {
+        return res.status(403).json({ ok: false, error: 'Email does not match signed-in account and user is not admin' });
       }
 
       if (dbReady) {

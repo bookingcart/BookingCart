@@ -302,7 +302,8 @@ function showToast(message, type = "success") {
   const toast = document.createElement("div");
   const icon = type === "success" ? "ph-check-circle" : "ph-x-circle";
   toast.className = `toast ${type}`;
-  toast.innerHTML = `<i class="ph ${icon} text-xl"></i> ${message}`;
+  toast.innerHTML = `<i class="ph ${icon} text-xl"></i> <span></span>`;
+  toast.querySelector("span").textContent = message;
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.opacity = "0";
@@ -548,10 +549,10 @@ function renderLoginActivity() {
         <i class="ph ph-${a.device.includes("iPhone") || a.device.includes("iPad") ? "device-mobile" : "desktop"} text-xl ${a.current ? "text-green-600" : "text-slate-500 dark:text-slate-400"}"></i>
       </div>
       <div class="flex-1 min-w-0">
-        <div class="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">${a.device} ${a.current ? '<span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full ml-1">Current</span>' : ""}</div>
-        <div class="text-xs text-slate-500 dark:text-slate-400">${a.location} · ${a.date}</div>
+        <div class="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">${escapeHTML(a.device)} ${a.current ? '<span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full ml-1">Current</span>' : ""}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">${escapeHTML(a.location)} · ${escapeHTML(a.date)}</div>
       </div>
-      ${!a.current ? `<button onclick="removeDevice('${a.device}')" class="text-xs text-red-500 font-semibold hover:text-red-700 flex-shrink-0">Revoke</button>` : ""}
+      ${!a.current ? `<button onclick="removeDevice('${escapeHTML(a.device)}')" class="text-xs text-red-500 font-semibold hover:text-red-700 flex-shrink-0">Revoke</button>` : ""}
     </div>
   `,
     )
