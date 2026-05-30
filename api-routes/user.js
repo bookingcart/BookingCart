@@ -24,7 +24,7 @@ async function verifyAuthToken(req) {
       // Get user email from database
       if (isDbConfigured()) {
         try {
-          const result = await query('SELECT email FROM users WHERE id = $1', [decoded.userId]);
+          const result = await query('SELECT email FROM bc_users WHERE id = $1', [decoded.userId]);
           if (result.rows.length > 0) {
             return { ok: true, email: result.rows[0].email, userId: decoded.userId };
           }
@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 
         let count = 0;
         if (dbReady) {
-          const result = await query('SELECT COUNT(*) AS cnt FROM users');
+          const result = await query('SELECT COUNT(*) AS cnt FROM bc_users');
           count = parseInt(result.rows[0].cnt, 10);
         } else {
           count = Object.keys(global.__users || {}).length;
@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
         let userList = [];
         if (dbReady) {
           const result = await query(
-            'SELECT id, email, name, auth_method, created_at FROM users ORDER BY created_at DESC'
+            'SELECT id, email, name, auth_method, created_at FROM bc_users ORDER BY created_at DESC'
           );
           userList = result.rows.map(d => ({
             id: String(d.id),
@@ -141,7 +141,7 @@ module.exports = async (req, res) => {
       }
 
       if (dbReady) {
-        const result = await query('SELECT state FROM users WHERE email = $1', [email]);
+        const result = await query('SELECT state FROM bc_users WHERE email = $1', [email]);
         return res.json({ ok: true, state: result.rows.length > 0 ? result.rows[0].state : null });
       }
       return res.json({ ok: true, state: global.__users[email] || null });
@@ -166,7 +166,7 @@ module.exports = async (req, res) => {
 
       if (dbReady) {
         await query(
-          `INSERT INTO users (email, name, state, profile, updated_at)
+          `INSERT INTO bc_users (email, name, state, profile, updated_at)
            VALUES ($1, $2, $3, $4, NOW())
            ON CONFLICT (email) DO UPDATE SET
              state = $3,
@@ -202,7 +202,7 @@ module.exports = async (req, res) => {
       }
 
       if (dbReady) {
-        await query('DELETE FROM users WHERE email = $1', [email]);
+        await query('DELETE FROM bc_users WHERE email = $1', [email]);
       } else {
         delete global.__users[email];
       }

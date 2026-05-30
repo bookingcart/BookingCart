@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
       let threads = [];
       if (isAdmin) {
         if (dbReady) {
-          const result = await query('SELECT * FROM support ORDER BY updated_at DESC');
+          const result = await query('SELECT * FROM bc_support ORDER BY updated_at DESC');
           threads = result.rows.map(rowToThread);
         } else {
           threads = global.__support;
@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
         }
         
         if (dbReady) {
-          const result = await query('SELECT * FROM support WHERE email = $1 ORDER BY updated_at DESC', [email]);
+          const result = await query('SELECT * FROM bc_support WHERE email = $1 ORDER BY updated_at DESC', [email]);
           threads = result.rows.map(rowToThread);
         } else {
           threads = global.__support.filter(t => t.email === email);
@@ -84,17 +84,17 @@ module.exports = async (req, res) => {
       };
 
       if (dbReady) {
-        const existing = await query('SELECT id, messages FROM support WHERE thread_id = $1', [threadId]);
+        const existing = await query('SELECT id, messages FROM bc_support WHERE thread_id = $1', [threadId]);
         if (existing.rows.length > 0) {
           const messages = existing.rows[0].messages || [];
           messages.push(newMessage);
           await query(
-            `UPDATE support SET messages = $1, updated_at = to_timestamp($2 / 1000.0), admin_read = $3, status = 'open' WHERE thread_id = $4`,
+            `UPDATE bc_support SET messages = $1, updated_at = to_timestamp($2 / 1000.0), admin_read = $3, status = 'open' WHERE thread_id = $4`,
             [JSON.stringify(messages), ts, isAdmin, threadId]
           );
         } else {
           await query(
-            `INSERT INTO support (thread_id, email, topic, status, admin_read, messages, created_at, updated_at)
+            `INSERT INTO bc_support (thread_id, email, topic, status, admin_read, messages, created_at, updated_at)
              VALUES ($1, $2, $3, 'open', $4, $5, to_timestamp($6 / 1000.0), to_timestamp($6 / 1000.0))`,
             [threadId, emailRaw, topic || message.slice(0, 60), isAdmin, JSON.stringify([newMessage]), ts]
           );
@@ -137,7 +137,7 @@ module.exports = async (req, res) => {
         if (typeof adminRead === 'boolean') { sets.push(`admin_read = $${idx++}`); vals.push(adminRead); }
         if (sets.length > 0) {
           vals.push(id);
-          await query(`UPDATE support SET ${sets.join(', ')} WHERE thread_id = $${idx}`, vals);
+          await query(`UPDATE bc_support SET ${sets.join(', ')} WHERE thread_id = $${idx}`, vals);
         }
       } else {
         const thread = global.__support.find(t => t.id === id);

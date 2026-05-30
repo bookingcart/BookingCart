@@ -18,7 +18,7 @@ module.exports = async function priceAlertHandler(req, res) {
       if (isDbConfigured()) {
         await initDb();
         await query(
-          `INSERT INTO price_alerts (email, origin, destination, depart_date, target_price, currency, is_nonstop, status, created_at, updated_at)
+          `INSERT INTO bc_price_alerts (email, origin, destination, depart_date, target_price, currency, is_nonstop, status, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', NOW(), NOW())`,
           [email, from, to, departDate || '', parseFloat(targetPrice), currency || 'USD', !!isNonstop]
         );

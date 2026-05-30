@@ -117,12 +117,12 @@ module.exports = async (req, res) => {
 
     if (dbReady) {
       // Check for duplicate
-      const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+      const existing = await query('SELECT id FROM bc_users WHERE email = $1', [email]);
       if (existing.rows.length > 0) {
         return res.status(409).json({ ok: false, error: 'An account with this email already exists.' });
       }
       const result = await query(
-        `INSERT INTO users (email, name, password_hash, auth_method, profile, state, created_at, updated_at)
+        `INSERT INTO bc_users (email, name, password_hash, auth_method, profile, state, created_at, updated_at)
          VALUES ($1, $2, $3, 'email', $4, $5, $6, $6)
          RETURNING id`,
         [
@@ -163,7 +163,7 @@ module.exports = async (req, res) => {
 
     let userDoc = null;
     if (dbReady) {
-      const result = await query('SELECT id, email, name, password_hash FROM users WHERE email = $1', [email]);
+      const result = await query('SELECT id, email, name, password_hash FROM bc_users WHERE email = $1', [email]);
       if (result.rows.length > 0) {
         const row = result.rows[0];
         userDoc = { id: row.id, email: row.email, name: row.name, passwordHash: row.password_hash };

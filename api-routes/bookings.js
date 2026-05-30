@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
       if (dbReady) {
         const now = new Date().toISOString();
         await query(
-          `INSERT INTO bookings (ref, contact_email, status, route, dates, flight, passengers, contact, extras, total, payment, created_at, updated_at)
+          `INSERT INTO bc_bookings (ref, contact_email, status, route, dates, flight, passengers, contact, extras, total, payment, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
            ON CONFLICT (ref) DO UPDATE SET
              status = COALESCE($3, bookings.status),
@@ -84,7 +84,7 @@ module.exports = async (req, res) => {
 
       let all = [];
       if (dbReady) {
-        const result = await query('SELECT * FROM bookings ORDER BY created_at DESC');
+        const result = await query('SELECT * FROM bc_bookings ORDER BY created_at DESC');
         all = result.rows.map(rowToBooking);
       } else {
         all = global.__bookings;
@@ -105,7 +105,7 @@ module.exports = async (req, res) => {
       let found = [];
       if (dbReady) {
         const result = await query(
-          'SELECT * FROM bookings WHERE LOWER(contact_email) = LOWER($1) ORDER BY created_at DESC',
+          'SELECT * FROM bc_bookings WHERE LOWER(contact_email) = LOWER($1) ORDER BY created_at DESC',
           [String(email).trim()]
         );
         found = result.rows.map(rowToBooking);
@@ -125,7 +125,7 @@ module.exports = async (req, res) => {
 
       if (dbReady) {
         const result = await query(
-          'UPDATE bookings SET status = $1, updated_at = NOW() WHERE ref = $2 RETURNING *',
+          'UPDATE bc_bookings SET status = $1, updated_at = NOW() WHERE ref = $2 RETURNING *',
           [status, id]
         );
         if (result.rows.length === 0) return res.status(404).json({ ok: false, error: 'Booking not found' });
@@ -143,14 +143,14 @@ module.exports = async (req, res) => {
       if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.error });
 
       if (dbReady) {
-        const result = await query('SELECT * FROM bookings WHERE ref = $1', [id]);
+        const result = await query('SELECT * FROM bc_bookings WHERE ref = $1', [id]);
         if (result.rows.length === 0) return res.status(404).json({ ok: false, error: 'Booking not found' });
         const b = result.rows[0];
         const em = (b.contact_email || '').trim().toLowerCase();
         if (!em || em !== auth.email) {
           return res.status(403).json({ ok: false, error: 'Not allowed for this booking' });
         }
-        await query("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE ref = $1", [id]);
+        await query("UPDATE bc_bookings SET status = 'cancelled', updated_at = NOW() WHERE ref = $1", [id]);
       } else {
         const idx = global.__bookings.findIndex((x) => x.ref === id);
         if (idx === -1) return res.status(404).json({ ok: false, error: 'Booking not found' });
@@ -171,7 +171,7 @@ module.exports = async (req, res) => {
       if (!id) return res.status(400).json({ ok: false, error: 'Missing id' });
 
       if (dbReady) {
-        await query('DELETE FROM bookings WHERE ref = $1', [id]);
+        await query('DELETE FROM bc_bookings WHERE ref = $1', [id]);
       } else {
         global.__bookings = global.__bookings.filter((b) => b.ref !== id);
       }
@@ -186,7 +186,7 @@ module.exports = async (req, res) => {
 
       if (dbReady) {
         const result = await query(
-          "UPDATE bookings SET status = 'issued', ticket = $1, updated_at = NOW() WHERE ref = $2 RETURNING *",
+          "UPDATE bc_bookings SET status = 'issued', ticket = $1, updated_at = NOW() WHERE ref = $2 RETURNING *",
           [JSON.stringify(ticket), id]
         );
         if (result.rows.length === 0) return res.status(404).json({ ok: false, error: 'Booking not found' });
@@ -204,7 +204,7 @@ module.exports = async (req, res) => {
 
       if (dbReady) {
         await query(
-          'UPDATE bookings SET download_count = download_count + 1 WHERE ref = $1',
+          'UPDATE bc_bookings SET download_count = download_count + 1 WHERE ref = $1',
           [id]
         );
       } else {

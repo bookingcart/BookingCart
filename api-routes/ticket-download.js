@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
     }
 
     if (dbReady) {
-      const result = await query('SELECT * FROM bookings WHERE ref = $1', [ref]);
+      const result = await query('SELECT * FROM bc_bookings WHERE ref = $1', [ref]);
       if (result.rows.length > 0) {
         const row = result.rows[0];
         booking = {
