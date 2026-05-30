@@ -305,6 +305,188 @@ const SCRIPTS = [
   '/js/admin-page.js'
 ];
 
+/* ─── Users Panel ───────────────────────────────────────────────── */
+function UsersPanel() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+  const [copied, setCopied] = useState(null);
+
+  async function loadUsers() {
+    setLoading(true);
+    setError(null);
+    try {
+      const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
+      const resp = await fetch('/api/user?action=list', {
+        headers: t ? { 'Authorization': `Bearer ${t}` } : {}
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setUsers(data.users || []);
+      } else {
+        setError(data.error || 'Failed to load users');
+      }
+    } catch (e) {
+      setError('Network error — could not load users');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadUsers(); }, []);
+
+  function copyEmail(email) {
+    navigator.clipboard?.writeText(email).then(() => {
+      setCopied(email);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  const filtered = users.filter(u =>
+    !search ||
+    (u.email || '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  function initials(u) {
+    const name = u.name || u.email || '?';
+    return name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  function avatarColor(email) {
+    const colors = [
+      'bg-violet-100 text-violet-700',
+      'bg-blue-100 text-blue-700',
+      'bg-teal-100 text-teal-700',
+      'bg-rose-100 text-rose-700',
+      'bg-amber-100 text-amber-700',
+      'bg-indigo-100 text-indigo-700',
+    ];
+    let h = 0;
+    for (let i = 0; i < (email || '').length; i++) h = (h * 31 + email.charCodeAt(i)) & 0xffff;
+    return colors[h % colors.length];
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 dark:bg-slate-900">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+            <i className="ph ph-users text-white text-lg" />
+          </div>
+          <div>
+            <h2 className="font-extrabold text-slate-900 dark:text-slate-100">Registered Users</h2>
+            <p className="text-xs text-slate-400">{loading ? 'Loading…' : `${filtered.length} of ${users.length} users`}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search email or name…"
+              className="pl-8 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 w-56 transition-all"
+            />
+          </div>
+          <button onClick={loadUsers}
+            className="w-9 h-9 rounded-xl border border-slate-200 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            title="Refresh">
+            <i className="ph ph-arrows-clockwise" />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {loading ? (
+        <div className="py-16 flex flex-col items-center gap-3 text-slate-400">
+          <i className="ph ph-spinner-gap text-3xl animate-spin" />
+          <p className="text-sm font-medium">Loading users…</p>
+        </div>
+      ) : error ? (
+        <div className="py-16 flex flex-col items-center gap-3 text-red-400">
+          <i className="ph ph-warning-circle text-3xl" />
+          <p className="text-sm font-medium">{error}</p>
+          <button onClick={loadUsers} className="text-xs text-blue-600 hover:underline mt-1">Try again</button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 flex flex-col items-center gap-2 text-slate-400">
+          <i className="ph ph-users-three text-4xl" />
+          <p className="text-sm font-medium">{search ? 'No users match your search' : 'No users yet'}</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200">
+                <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs w-12">#</th>
+                <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">User</th>
+                <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Email</th>
+                <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Auth</th>
+                <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Joined</th>
+                <th className="text-right px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Copy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((u, i) => (
+                <tr key={u.id || u.email} className="border-b border-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <td className="px-6 py-4 text-slate-400 text-xs font-mono">{i + 1}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${avatarColor(u.email)}`}>
+                        {initials(u)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[160px]">
+                          {u.name || <span className="text-slate-400 italic">No name</span>}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="font-mono text-sm text-slate-700 dark:text-slate-300 select-all">{u.email || '—'}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {u.authMethod === 'email' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">
+                        <i className="ph ph-envelope" /> Email
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-600">
+                        <i className="ph ph-google-logo" /> Google
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
+                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => copyEmail(u.email)}
+                      title="Copy email"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        copied === u.email
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700'
+                      }`}>
+                      <i className={`ph ${copied === u.email ? 'ph-check' : 'ph-copy'} mr-1`} />
+                      {copied === u.email ? 'Copied!' : 'Copy'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   useEffect(() => { document.title = 'BookingCart — Admin'; }, []);
   useLegacyScripts(SCRIPTS, 'admin');
@@ -405,8 +587,14 @@ export default function AdminPage() {
                     ${adminTab === 'support' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-chat-dots" /> Support Inbox
                 </button>
+                <button onClick={() => setAdminTab('users')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'users' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-users" /> Users
+                </button>
               </div>
               {adminTab === 'support' && <SupportInbox />}
+              {adminTab === 'users' && <UsersPanel />}
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">

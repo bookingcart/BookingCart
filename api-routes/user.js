@@ -69,6 +69,36 @@ module.exports = async (req, res) => {
         return res.json({ ok: true, count });
       }
 
+      if (action === 'list') {
+        const gate = await requireAdminEmail(req);
+        if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
+
+        let userList = [];
+        if (users) {
+          const docs = await users
+            .find({}, { projection: { passwordHash: 0 } })
+            .sort({ createdAt: -1 })
+            .toArray();
+          userList = docs.map(d => ({
+            id: String(d._id),
+            email: d.profile?.email || d.email || '',
+            name: d.profile?.name || d.name || '',
+            authMethod: d.authMethod || 'google',
+            createdAt: d.createdAt || null,
+          }));
+        } else {
+          // In-memory fallback (dev only)
+          userList = Object.entries(global.__users || {}).map(([email, state]) => ({
+            id: email,
+            email,
+            name: (state && state.name) || '',
+            authMethod: 'email',
+            createdAt: (state && state.signedUpAt) || null,
+          }));
+        }
+        return res.json({ ok: true, users: userList });
+      }
+
       const email = String(req.query.email || '').trim().toLowerCase();
       if (!email) return res.status(400).json({ ok: false, error: 'Missing email' });
 

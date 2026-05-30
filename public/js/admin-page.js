@@ -88,18 +88,22 @@
         }
 
         async function loadUserCount() {
+            const el = document.getElementById('stat-users');
             try {
                 const resp = await fetch('/api/user?action=count', {
                     headers: getAuthHeaders()
                 });
                 const data = await resp.json();
-                if (data.ok) {
-                    document.getElementById('stat-users').textContent = data.count || 0;
+                if (el) {
+                    el.textContent = (data.ok && data.count != null) ? data.count : 0;
                 }
                 if (loadingUi && typeof loadingUi.setBusy === 'function') {
-                    loadingUi.setBusy(document.getElementById('stat-users'), false);
+                    loadingUi.setBusy(el, false);
                 }
-            } catch (e) { console.error('Failed to load user count:', e); }
+            } catch (e) {
+                console.error('Failed to load user count:', e);
+                if (el) el.textContent = 0;
+            }
         }
 
         function renderStats() {
