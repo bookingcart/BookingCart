@@ -2,14 +2,14 @@
  * api-routes/auth.js
  * Email + password authentication: register, login, logout, forgot-password.
  * Uses bcrypt for hashing and JWT for session tokens.
- * All user records are stored in the existing MongoDB "users" collection.
+ * All user records are stored in Postgres "users" table.
  */
 require('dotenv').config();
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
-const { getCollections } = require('../lib/mongo');
+const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 
 const SALT_ROUNDS = 12;
@@ -45,7 +45,7 @@ function isStrongPassword(p) {
 /** Sign a JWT for a user document */
 function signToken(user) {
   return jwt.sign(
-    { sub: String(user._id || user.email), email: user.email, name: user.name || '' },
+    { sub: String(user.id || user.email), email: user.email, name: user.name || '' },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -81,11 +81,13 @@ module.exports = async (req, res) => {
     return res.status(429).json({ ok: false, error: 'Too many requests. Please wait a moment.' });
   }
 
-  // ── Connect to MongoDB (fall back to in-memory for dev) ──────────────────────
-  let usersCol = null;
+  // ── Connect to Postgres (fall back to in-memory for dev) ──────────────────────
+  let dbReady = false;
   try {
-    const { users } = await getCollections();
-    usersCol = users;
+    if (isDbConfigured()) {
+      await initDb();
+      dbReady = true;
+    }
   } catch {
     // dev fallback — in-memory store
   }
@@ -113,21 +115,26 @@ module.exports = async (req, res) => {
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     const now = new Date();
 
-    if (usersCol) {
+    if (dbReady) {
       // Check for duplicate
-      const existing = await usersCol.findOne({ 'profile.email': email });
-      if (existing) {
+      const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.rows.length > 0) {
         return res.status(409).json({ ok: false, error: 'An account with this email already exists.' });
       }
-      const result = await usersCol.insertOne({
-        profile: { email, name },
-        passwordHash: hash,
-        authMethod: 'email',
-        createdAt: now,
-        updatedAt: now,
-        state: { name, email, signedUpAt: now.toISOString() }
-      });
-      const newUser = { _id: result.insertedId, email, name };
+      const result = await query(
+        `INSERT INTO users (email, name, password_hash, auth_method, profile, state, created_at, updated_at)
+         VALUES ($1, $2, $3, 'email', $4, $5, $6, $6)
+         RETURNING id`,
+        [
+          email,
+          name,
+          hash,
+          JSON.stringify({ email, name }),
+          JSON.stringify({ name, email, signedUpAt: now.toISOString() }),
+          now,
+        ]
+      );
+      const newUser = { id: result.rows[0].id, email, name };
       const token = signToken(newUser);
       return res.status(201).json({ ok: true, token, user: { email, name } });
     } else {
@@ -138,7 +145,7 @@ module.exports = async (req, res) => {
       }
       const id = `mem_${Date.now()}`;
       store.set(email, { id, email, name, passwordHash: hash, createdAt: now });
-      const token = signToken({ _id: id, email, name });
+      const token = signToken({ id, email, name });
       return res.status(201).json({ ok: true, token, user: { email, name } });
     }
   }
@@ -155,8 +162,12 @@ module.exports = async (req, res) => {
     }
 
     let userDoc = null;
-    if (usersCol) {
-      userDoc = await usersCol.findOne({ 'profile.email': email });
+    if (dbReady) {
+      const result = await query('SELECT id, email, name, password_hash FROM users WHERE email = $1', [email]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        userDoc = { id: row.id, email: row.email, name: row.name, passwordHash: row.password_hash };
+      }
     } else {
       userDoc = getMemStore().get(email) || null;
     }
@@ -170,11 +181,9 @@ module.exports = async (req, res) => {
       return res.status(401).json({ ok: false, error: 'Incorrect email or password.' });
     }
 
-    const email_ = userDoc.profile?.email || userDoc.email;
-    const name_ = userDoc.profile?.name || userDoc.name || '';
-    const token = signToken({ _id: userDoc._id || userDoc.id, email: email_, name: name_ });
+    const token = signToken({ id: userDoc.id, email: userDoc.email, name: userDoc.name || '' });
 
-    return res.json({ ok: true, token, user: { email: email_, name: name_ } });
+    return res.json({ ok: true, token, user: { email: userDoc.email, name: userDoc.name || '' } });
   }
 
   // ════════════════════════════════════════════════════════════════════════════

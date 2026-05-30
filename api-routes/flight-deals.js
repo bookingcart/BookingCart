@@ -1,8 +1,8 @@
-// api/flight-deals.js – Fetch trending flight deals (Duffel API + MongoDB Cache)
+// api/flight-deals.js – Fetch trending flight deals (Duffel API + Postgres Cache)
 
 const fetch = require('node-fetch');
 const { getCorsHeaders } = require('../lib/cors');
-const { getCollections, isMongoConfigured, getCache, setCache } = require('../lib/mongo');
+const { isDbConfigured, initDb, getCache, setCache } = require('../lib/db');
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
@@ -34,7 +34,7 @@ const ROUTES = {
     'NBO': [
         { to: 'DXB', city: 'Dubai', country: 'UAE', image: 'dubai' },
         { to: 'LHR', city: 'London', country: 'UK', image: 'london' },
-        { to: 'EBB', city: 'Kampala', country: 'Uganda', image: 'paris' }, // using a nice fallback image
+        { to: 'EBB', city: 'Kampala', country: 'Uganda', image: 'paris' },
         { to: 'DAR', city: 'Dar es Salaam', country: 'Tanzania', image: 'cancun' },
         { to: 'IST', city: 'Istanbul', country: 'Turkey', image: 'istanbul' },
         { to: 'BKK', city: 'Bangkok', country: 'Thailand', image: 'bangkok' }
@@ -146,12 +146,12 @@ module.exports = async (req, res) => {
 
     // Check cache first
     const cacheKey = `deals_${overrideIata || ip}`;
-    let searchCacheCollection = null;
-    if (isMongoConfigured()) {
+    let dbReady = false;
+    if (isDbConfigured()) {
         try {
-            const collections = await getCollections();
-            searchCacheCollection = collections.searchCache;
-            const cached = await getCache(searchCacheCollection, cacheKey);
+            await initDb();
+            dbReady = true;
+            const cached = await getCache(cacheKey);
             if (cached) {
                 return res.json({ ok: true, ...cached.payload, cached: true });
             }
@@ -250,9 +250,9 @@ module.exports = async (req, res) => {
         deals: enriched
     };
 
-    if (searchCacheCollection) {
+    if (dbReady) {
         try {
-            await setCache(searchCacheCollection, cacheKey, result, CACHE_TTL_MS, {
+            await setCache(cacheKey, result, CACHE_TTL_MS, {
                 origin: iata,
                 source: 'flight-deals'
             });

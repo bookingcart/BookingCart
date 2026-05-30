@@ -1,5 +1,5 @@
 const puppeteer = require('puppeteer');
-const { getCollections } = require('../lib/mongo');
+const { query, isDbConfigured, initDb } = require('../lib/db');
 const { verifyRequestBearer } = require('../lib/google-verify');
 
 module.exports = async (req, res) => {
@@ -14,16 +14,34 @@ module.exports = async (req, res) => {
     if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.error });
 
     let booking = null;
-    let collections = null;
+    let dbReady = false;
     
     try {
-      collections = await getCollections();
+      if (isDbConfigured()) {
+        await initDb();
+        dbReady = true;
+      }
     } catch (e) {
       // Fallback
     }
 
-    if (collections && collections.bookings) {
-      booking = await collections.bookings.findOne({ ref });
+    if (dbReady) {
+      const result = await query('SELECT * FROM bookings WHERE ref = $1', [ref]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        booking = {
+          ref: row.ref,
+          status: row.status,
+          route: row.route,
+          dates: row.dates,
+          flight: row.flight || {},
+          passengers: row.passengers || [],
+          contact: row.contact || {},
+          extras: row.extras || {},
+          total: row.total ? parseFloat(row.total) : 0,
+          ticket: row.ticket || null,
+        };
+      }
     } else if (global.__bookings) {
       booking = global.__bookings.find((b) => b.ref === ref);
     }
@@ -82,7 +100,6 @@ module.exports = async (req, res) => {
     <body class="p-8">
         
         <div class="max-w-4xl mx-auto">
-            <!-- Top section: Prepared For & Logo -->
             <div class="flex justify-between items-start mb-6">
                 <div>
                     <p class="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">PREPARED FOR</p>
@@ -97,14 +114,11 @@ module.exports = async (req, res) => {
                 </div>
             </div>
 
-            <!-- Trip Header -->
             <div class="trip-header py-2 mb-6">
                 <h2 class="text-base font-bold uppercase tracking-wide">${departDate} ${returnDate !== departDate && returnDate !== '—' ? '- ' + returnDate : ''} TRIP TO ${to.toUpperCase()}</h2>
             </div>
 
-            <!-- Flight Block 1 -->
             <div class="mb-8">
-                <!-- Flight Header -->
                 <div class="flight-header py-2 px-2 mb-4 flex items-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform rotate-45" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
@@ -113,58 +127,41 @@ module.exports = async (req, res) => {
                     <span class="text-[10px] text-gray-500 ml-4">Please verify flight times prior to departure</span>
                 </div>
 
-                <!-- Flight Details Grid -->
                 <div class="grid grid-cols-4 gap-4 px-2 mb-4">
-                    
-                    <!-- Col 1: Airline & Basics -->
                     <div>
                         <p class="text-sm font-bold uppercase">${airline}</p>
                         <p class="text-sm font-bold uppercase mb-4">${flight.number || ''}</p>
-                        
                         <div class="space-y-1">
                             <p class="text-[10px] text-gray-500">Duration:</p>
                             <p class="text-[11px] font-medium">${flight.duration || 'Check with airline'}</p>
-                            
                             <p class="text-[10px] text-gray-500 mt-2">Cabin:</p>
-                            <p class="text-[11px] font-medium">${booking.flight?.cabin || 'Economy'}</p>
-                            
+                            <p class="text-[11px] font-medium">${flight.cabin || 'Economy'}</p>
                             <p class="text-[10px] text-gray-500 mt-2">Status:</p>
                             <p class="text-[11px] font-medium">Confirmed</p>
                         </div>
                     </div>
-
-                    <!-- Col 2: Departure -->
                     <div>
                         <p class="text-lg font-bold">${from.toUpperCase()}</p>
                         <p class="text-[10px] text-gray-500 mb-4">Departing At:</p>
-                        
                         <p class="text-sm font-bold">${departTime}</p>
                         <p class="text-[10px] text-gray-500 mt-2">Terminal:</p>
-                        <p class="text-[11px] font-medium">${booking.flight?.departureTerminal || 'Not Available'}</p>
+                        <p class="text-[11px] font-medium">${flight.departureTerminal || 'Not Available'}</p>
                     </div>
-
-                    <!-- Col 3: Arrival -->
                     <div>
                         <p class="text-lg font-bold">${to.toUpperCase()}</p>
                         <p class="text-[10px] text-gray-500 mb-4">Arriving At:</p>
-                        
                         <p class="text-sm font-bold">${arriveTime}</p>
                         <p class="text-[10px] text-gray-500 mt-2">Terminal:</p>
-                        <p class="text-[11px] font-medium">${booking.flight?.arrivalTerminal || 'Not Available'}</p>
+                        <p class="text-[11px] font-medium">${flight.arrivalTerminal || 'Not Available'}</p>
                     </div>
-
-                    <!-- Col 4: Aircraft & Extra -->
                     <div>
                         <p class="text-[10px] text-gray-500">Aircraft:</p>
-                        <p class="text-[11px] font-medium mb-3">${booking.flight?.aircraft || 'Passenger Plane'}</p>
-                        
+                        <p class="text-[11px] font-medium mb-3">${flight.aircraft || 'Passenger Plane'}</p>
                         <p class="text-[10px] text-gray-500">Meals:</p>
                         <p class="text-[11px] font-medium">Check with airline</p>
                     </div>
-                    
                 </div>
 
-                <!-- Pax Bar -->
                 <div class="pax-bar py-2 px-2 flex">
                     <div class="w-1/3">
                         <p class="text-[10px] text-gray-500">Passenger Name:</p>
@@ -181,7 +178,6 @@ module.exports = async (req, res) => {
                 </div>
             </div>
             
-            <!-- Payment Block -->
             <div class="mt-12 border-t-2 border-black pt-4 flex justify-between">
                 <div>
                     <h3 class="text-sm font-bold uppercase">Payment Summary</h3>
@@ -192,7 +188,6 @@ module.exports = async (req, res) => {
                 </div>
             </div>
 
-            <!-- Footer -->
             <div class="mt-8 text-center text-[10px] text-gray-500">
                 <p>Data Protection Notice: Your personal data will be processed in accordance with the applicable carrier's privacy policy and, if your booking is made via a reservation system provider ("GDS"), with its privacy policy.</p>
                 <p class="mt-2">BookingCart Support: support@bookingcart.com</p>

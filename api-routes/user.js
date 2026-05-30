@@ -1,6 +1,6 @@
-// api/user.js – persist Account Settings (MongoDB or local fallback)
+// api/user.js – persist Account Settings (Postgres or local fallback)
 
-const { getCollections } = require('../lib/mongo');
+const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { verifyRequestBearer } = require('../lib/google-verify');
 const { requireAdminEmail } = require('../lib/admin');
@@ -22,10 +22,13 @@ async function verifyAuthToken(req) {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (decoded && decoded.userId) {
       // Get user email from database
-      const collections = await getCollections();
-      const user = await collections.users.findOne({ _id: new require('mongodb').ObjectId(decoded.userId) });
-      if (user) {
-        return { ok: true, email: user.email, userId: decoded.userId };
+      if (isDbConfigured()) {
+        try {
+          const result = await query('SELECT email FROM users WHERE id = $1', [decoded.userId]);
+          if (result.rows.length > 0) {
+            return { ok: true, email: result.rows[0].email, userId: decoded.userId };
+          }
+        } catch {}
       }
     }
   } catch (jwtErr) {
@@ -43,15 +46,16 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    let collections;
+    let dbReady = false;
     try {
-      collections = await getCollections();
+      if (isDbConfigured()) {
+        await initDb();
+        dbReady = true;
+      }
     } catch (err) {
       if (process.env.NODE_ENV === 'production') throw err;
       if (!global.__users) global.__users = {};
     }
-
-    const users = collections ? collections.users : null;
 
     if (req.method === 'GET') {
       const action = req.query.action;
@@ -61,8 +65,9 @@ module.exports = async (req, res) => {
         if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
 
         let count = 0;
-        if (users) {
-          count = await users.countDocuments({});
+        if (dbReady) {
+          const result = await query('SELECT COUNT(*) AS cnt FROM users');
+          count = parseInt(result.rows[0].cnt, 10);
         } else {
           count = Object.keys(global.__users || {}).length;
         }
@@ -74,17 +79,16 @@ module.exports = async (req, res) => {
         if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
 
         let userList = [];
-        if (users) {
-          const docs = await users
-            .find({}, { projection: { passwordHash: 0 } })
-            .sort({ createdAt: -1 })
-            .toArray();
-          userList = docs.map(d => ({
-            id: String(d._id),
-            email: d.profile?.email || d.email || '',
-            name: d.profile?.name || d.name || '',
-            authMethod: d.authMethod || 'google',
-            createdAt: d.createdAt || null,
+        if (dbReady) {
+          const result = await query(
+            'SELECT id, email, name, auth_method, created_at FROM users ORDER BY created_at DESC'
+          );
+          userList = result.rows.map(d => ({
+            id: String(d.id),
+            email: d.email || '',
+            name: d.name || '',
+            authMethod: d.auth_method || 'google',
+            createdAt: d.created_at || null,
           }));
         } else {
           // In-memory fallback (dev only)
@@ -109,7 +113,6 @@ module.exports = async (req, res) => {
             }
           }
 
-          // Combine and deduplicate by email
           const combined = [...localUsers, ...googleUsers];
           const unique = [];
           const seen = new Set();
@@ -127,8 +130,8 @@ module.exports = async (req, res) => {
       const email = String(req.query.email || '').trim().toLowerCase();
       if (!email) return res.status(400).json({ ok: false, error: 'Missing email' });
 
-      if (process.env.NODE_ENV === 'production' && !users) {
-        return res.status(503).json({ ok: false, error: 'Database is not configured (MONGODB_URI)' });
+      if (process.env.NODE_ENV === 'production' && !dbReady) {
+        return res.status(503).json({ ok: false, error: 'Database is not configured (DATABASE_URL)' });
       }
 
       const auth = await verifyAuthToken(req);
@@ -137,16 +140,16 @@ module.exports = async (req, res) => {
         return res.status(403).json({ ok: false, error: 'Email does not match signed-in account' });
       }
 
-      if (users) {
-        const doc = await users.findOne({ 'profile.email': email });
-        return res.json({ ok: true, state: doc ? doc.state : null });
+      if (dbReady) {
+        const result = await query('SELECT state FROM users WHERE email = $1', [email]);
+        return res.json({ ok: true, state: result.rows.length > 0 ? result.rows[0].state : null });
       }
       return res.json({ ok: true, state: global.__users[email] || null });
     }
 
     if (req.method === 'POST') {
-      if (process.env.NODE_ENV === 'production' && !users) {
-        return res.status(503).json({ ok: false, error: 'Database is not configured (MONGODB_URI)' });
+      if (process.env.NODE_ENV === 'production' && !dbReady) {
+        return res.status(503).json({ ok: false, error: 'Database is not configured (DATABASE_URL)' });
       }
 
       const auth = await verifyAuthToken(req);
@@ -161,17 +164,20 @@ module.exports = async (req, res) => {
         return res.status(403).json({ ok: false, error: 'Email does not match signed-in account' });
       }
 
-      if (users) {
-        await users.updateOne(
-          { 'profile.email': emailRaw },
-          {
-            $set: {
-              'profile.email': emailRaw,
-              state: body.state,
-              updatedAt: new Date()
-            }
-          },
-          { upsert: true }
+      if (dbReady) {
+        await query(
+          `INSERT INTO users (email, name, state, profile, updated_at)
+           VALUES ($1, $2, $3, $4, NOW())
+           ON CONFLICT (email) DO UPDATE SET
+             state = $3,
+             profile = $4,
+             updated_at = NOW()`,
+          [
+            emailRaw,
+            body.state.name || '',
+            JSON.stringify(body.state),
+            JSON.stringify({ email: emailRaw, name: body.state.name || '' }),
+          ]
         );
       } else {
         global.__users[emailRaw] = body.state;
@@ -180,8 +186,8 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'DELETE') {
-      if (process.env.NODE_ENV === 'production' && !users) {
-        return res.status(503).json({ ok: false, error: 'Database is not configured (MONGODB_URI)' });
+      if (process.env.NODE_ENV === 'production' && !dbReady) {
+        return res.status(503).json({ ok: false, error: 'Database is not configured (DATABASE_URL)' });
       }
 
       const auth = await verifyAuthToken(req);
@@ -195,8 +201,8 @@ module.exports = async (req, res) => {
         return res.status(403).json({ ok: false, error: 'Email does not match signed-in account' });
       }
 
-      if (users) {
-        await users.deleteOne({ 'profile.email': email });
+      if (dbReady) {
+        await query('DELETE FROM users WHERE email = $1', [email]);
       } else {
         delete global.__users[email];
       }

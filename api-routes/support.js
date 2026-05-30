@@ -1,4 +1,4 @@
-const { getCollections } = require('../lib/mongo');
+const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { requireAdminEmail } = require('../lib/admin');
 const { verifyRequestBearer } = require('../lib/google-verify');
@@ -10,15 +10,16 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    let collections;
+    let dbReady = false;
     try {
-      collections = await getCollections();
+      if (isDbConfigured()) {
+        await initDb();
+        dbReady = true;
+      }
     } catch (err) {
       if (process.env.NODE_ENV === 'production') throw err;
       if (!global.__support) global.__support = [];
     }
-
-    const support = collections ? collections.support : null;
 
     if (req.method === 'GET') {
       const email = String(req.query.email || '').trim().toLowerCase();
@@ -28,14 +29,13 @@ module.exports = async (req, res) => {
       
       let threads = [];
       if (isAdmin) {
-        // Admin gets all threads
-        if (support) {
-          threads = await support.find({}).sort({ updatedAt: -1 }).toArray();
+        if (dbReady) {
+          const result = await query('SELECT * FROM support ORDER BY updated_at DESC');
+          threads = result.rows.map(rowToThread);
         } else {
           threads = global.__support;
         }
       } else {
-        // User gets only their threads
         if (!email) return res.status(400).json({ ok: false, error: 'Missing email' });
         
         const auth = await verifyRequestBearer(req);
@@ -44,8 +44,9 @@ module.exports = async (req, res) => {
           return res.status(403).json({ ok: false, error: 'Email does not match signed-in account' });
         }
         
-        if (support) {
-          threads = await support.find({ email }).sort({ updatedAt: -1 }).toArray();
+        if (dbReady) {
+          const result = await query('SELECT * FROM support WHERE email = $1 ORDER BY updated_at DESC', [email]);
+          threads = result.rows.map(rowToThread);
         } else {
           threads = global.__support.filter(t => t.email === email);
         }
@@ -82,33 +83,21 @@ module.exports = async (req, res) => {
         ts
       };
 
-      if (support) {
-        const existing = await support.findOne({ id: threadId });
-        if (existing) {
-          await support.updateOne(
-            { id: threadId },
-            { 
-              $push: { messages: newMessage },
-              $set: { 
-                updatedAt: ts,
-                adminRead: isAdmin, // If admin replies, it's read by admin. If user replies, admin needs to read it
-                status: 'open'
-              }
-            }
+      if (dbReady) {
+        const existing = await query('SELECT id, messages FROM support WHERE thread_id = $1', [threadId]);
+        if (existing.rows.length > 0) {
+          const messages = existing.rows[0].messages || [];
+          messages.push(newMessage);
+          await query(
+            `UPDATE support SET messages = $1, updated_at = to_timestamp($2 / 1000.0), admin_read = $3, status = 'open' WHERE thread_id = $4`,
+            [JSON.stringify(messages), ts, isAdmin, threadId]
           );
         } else {
-          // Create new thread
-          const newThread = {
-            id: threadId,
-            email: emailRaw,
-            topic: topic || message.slice(0, 60),
-            status: 'open',
-            adminRead: isAdmin,
-            createdAt: ts,
-            updatedAt: ts,
-            messages: [newMessage]
-          };
-          await support.insertOne(newThread);
+          await query(
+            `INSERT INTO support (thread_id, email, topic, status, admin_read, messages, created_at, updated_at)
+             VALUES ($1, $2, $3, 'open', $4, $5, to_timestamp($6 / 1000.0), to_timestamp($6 / 1000.0))`,
+            [threadId, emailRaw, topic || message.slice(0, 60), isAdmin, JSON.stringify([newMessage]), ts]
+          );
         }
       } else {
         const existing = global.__support.find(t => t.id === threadId);
@@ -140,19 +129,21 @@ module.exports = async (req, res) => {
       const { id, status, adminRead } = req.body || {};
       if (!id) return res.status(400).json({ ok: false, error: 'Missing id' });
 
-      const updates = {};
-      if (status) updates.status = status;
-      if (typeof adminRead === 'boolean') updates.adminRead = adminRead;
-
-      if (Object.keys(updates).length > 0) {
-        if (support) {
-          await support.updateOne({ id }, { $set: updates });
-        } else {
-          const thread = global.__support.find(t => t.id === id);
-          if (thread) {
-            if (status) thread.status = status;
-            if (typeof adminRead === 'boolean') thread.adminRead = adminRead;
-          }
+      if (dbReady) {
+        const sets = [];
+        const vals = [];
+        let idx = 1;
+        if (status) { sets.push(`status = $${idx++}`); vals.push(status); }
+        if (typeof adminRead === 'boolean') { sets.push(`admin_read = $${idx++}`); vals.push(adminRead); }
+        if (sets.length > 0) {
+          vals.push(id);
+          await query(`UPDATE support SET ${sets.join(', ')} WHERE thread_id = $${idx}`, vals);
+        }
+      } else {
+        const thread = global.__support.find(t => t.id === id);
+        if (thread) {
+          if (status) thread.status = status;
+          if (typeof adminRead === 'boolean') thread.adminRead = adminRead;
         }
       }
       return res.json({ ok: true });
@@ -164,3 +155,16 @@ module.exports = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 };
+
+function rowToThread(row) {
+  return {
+    id: row.thread_id,
+    email: row.email,
+    topic: row.topic,
+    status: row.status,
+    adminRead: row.admin_read,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
+    messages: row.messages || [],
+  };
+}

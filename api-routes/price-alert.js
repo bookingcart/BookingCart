@@ -1,5 +1,5 @@
 const { Resend } = require('resend');
-const { getCollections } = require('../lib/mongo');
+const { query, isDbConfigured, initDb } = require('../lib/db');
 
 module.exports = async function priceAlertHandler(req, res) {
   if (req.method !== 'POST') {
@@ -13,26 +13,21 @@ module.exports = async function priceAlertHandler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Save to Database (MongoDB or memory fallback)
+    // Save to Database (Postgres or memory fallback)
     try {
-      const collections = await getCollections();
-      if (collections && collections.priceAlerts) {
-        await collections.priceAlerts.insertOne({
-          email,
-          from,
-          to,
-          departDate,
-          targetPrice: parseFloat(targetPrice),
-          currency,
-          isNonstop: !!isNonstop,
-          status: 'active',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-        console.log(`Saved price alert for ${email} to MongoDB.`);
+      if (isDbConfigured()) {
+        await initDb();
+        await query(
+          `INSERT INTO price_alerts (email, origin, destination, depart_date, target_price, currency, is_nonstop, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', NOW(), NOW())`,
+          [email, from, to, departDate || '', parseFloat(targetPrice), currency || 'USD', !!isNonstop]
+        );
+        console.log(`Saved price alert for ${email} to Postgres.`);
+      } else {
+        throw new Error('DB not configured');
       }
     } catch (e) {
-      console.warn('Failed to save price alert to MongoDB, using memory fallback:', e.message);
+      console.warn('Failed to save price alert to DB, using memory fallback:', e.message);
       if (!global.__priceAlerts) global.__priceAlerts = [];
       global.__priceAlerts.push({
         email,

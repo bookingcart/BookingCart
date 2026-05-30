@@ -1,32 +1,32 @@
 require('dotenv').config();
-const { getCollections } = require('./lib/mongo');
+const { query, isDbConfigured, initDb } = require('./lib/db');
 
-async function test() {
-  try {
-    const collections = await getCollections();
-    console.log("Connected to collections:", Object.keys(collections));
-    
-    // 1. Test saving a booking
-    const bookingRes = await collections.bookings.updateOne(
-      { ref: 'TEST-123' },
-      { $set: { status: 'new', test: true } },
-      { upsert: true }
-    );
-    console.log("Saved booking:", bookingRes.acknowledged);
-
-    // 2. Test saving a profile edit
-    const userRes = await collections.users.updateOne(
-      { 'profile.email': 'test@example.com' },
-      { $set: { 'profile.email': 'test@example.com', state: { savedFlights: ['flight1'] }, updatedAt: new Date() } },
-      { upsert: true }
-    );
-    console.log("Saved profile & saved flights:", userRes.acknowledged);
-
-    console.log("All DB saves successful!");
-    process.exit(0);
-  } catch (err) {
-    console.error("DB Test failed:", err);
+async function testConnection() {
+  console.log('Testing Postgres Connection...');
+  if (!isDbConfigured()) {
+    console.error('DATABASE_URL is not set!');
     process.exit(1);
   }
+
+  try {
+    await initDb();
+    const result = await query('SELECT NOW() as time');
+    console.log('✅ Connection successful!');
+    console.log('Server time:', result.rows[0].time);
+    
+    // Check tables
+    const tables = await query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+    console.log('Tables found:', tables.rows.map(r => r.table_name).join(', '));
+    
+  } catch (err) {
+    console.error('❌ Connection failed:', err);
+  } finally {
+    process.exit(0);
+  }
 }
-test();
+
+testConnection();
