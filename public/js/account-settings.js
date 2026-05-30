@@ -602,6 +602,8 @@ async function confirmDelete() {
   // Clear local session data
   localStorage.removeItem("bookingcart_user");
   localStorage.removeItem("bookingcart_google_id_token");
+  localStorage.removeItem("bookingcart_jwt_token");
+  localStorage.removeItem("bookingcart_token");
 
   showToast("Account deleted successfully. Logging out...");
 
