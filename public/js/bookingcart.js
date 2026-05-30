@@ -695,6 +695,17 @@
         return;
       }
 
+      try {
+        const history = JSON.parse(localStorage.getItem("bc_recent_searches") || "[]");
+        const entry = { ...payload, timestamp: Date.now() };
+        // Remove duplicate searches
+        const filtered = history.filter(s => !(s.from === payload.from && s.to === payload.to && s.depart === payload.depart && s.return === payload.return));
+        filtered.unshift(entry);
+        localStorage.setItem("bc_recent_searches", JSON.stringify(filtered.slice(0, 5)));
+      } catch (e) {
+        console.error("Could not save recent search", e);
+      }
+
       window.writeState({ search: payload, bookingRef: null, _bookingSaved: null, duffelPassengers: null });
       if (typeof window.__bcNavigate === "function") window.__bcNavigate("/results");
       else window.location.href = "/results";
