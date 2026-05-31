@@ -27,6 +27,16 @@
             }
         }
 
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        function inlineJsonArg(value) {
+            return escapeHtml(JSON.stringify(String(value || '')));
+        }
+
         // ── Auth Helper ──
         function getAuthHeaders() {
             const token = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
@@ -152,29 +162,34 @@
                     cancelled: 'bg-red-100 text-red-700'
                 };
                 const badge = statusColors[b.status] || 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
-                const email = (b.contact && b.contact.email) || '—';
+                const ref = escapeHtml(b.ref || '—');
+                const refArg = inlineJsonArg(b.ref || '');
+                const email = escapeHtml((b.contact && b.contact.email) || '—');
                 const paxCount = (b.passengers && b.passengers.length) || 1;
                 const clientContent = `<div>${email}</div><div class="text-xs text-slate-400 mt-0.5">${paxCount} passenger${paxCount > 1 ? 's' : ''}</div>`;
-                const airline = (b.flight && b.flight.airline) ? b.flight.airline : '—';
-                const routeContent = `<div>${b.route || '—'}</div><div class="text-xs font-bold text-indigo-600 mt-0.5"><i class="ph-fill ph-airplane-tilt"></i> ${airline}</div>`;
-                const total = b.total ? ('$' + b.total) : '—';
+                const airline = escapeHtml((b.flight && b.flight.airline) ? b.flight.airline : '—');
+                const route = escapeHtml(b.route || '—');
+                const routeContent = `<div>${route}</div><div class="text-xs font-bold text-indigo-600 mt-0.5"><i class="ph-fill ph-airplane-tilt"></i> ${airline}</div>`;
+                const total = b.total ? escapeHtml('$' + b.total) : '—';
+                const dates = escapeHtml(b.dates || '—');
+                const status = escapeHtml(b.status || 'new');
 
                 return `
           <tr class="border-b border-slate-100 hover:bg-slate-50 dark:bg-slate-900/50 transition-colors">
-            <td class="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">${b.ref || '—'}</td>
+            <td class="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">${ref}</td>
             <td class="px-6 py-4 text-slate-600 dark:text-slate-400">${clientContent}</td>
             <td class="px-6 py-4 font-medium text-slate-700 dark:text-slate-300">${routeContent}</td>
-            <td class="px-6 py-4 text-slate-600 dark:text-slate-400">${b.dates || '—'}</td>
+            <td class="px-6 py-4 text-slate-600 dark:text-slate-400">${dates}</td>
             <td class="px-6 py-4 font-bold text-green-600">${total}</td>
-            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badge} capitalize">${b.status}</span></td>
+            <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badge} capitalize">${status}</span></td>
             <td class="px-6 py-4 text-right">
               <div class="flex justify-end gap-2">
-                ${(b.status === 'confirmed') ? `<button onclick="generateTicketPDF('${b.ref}')" class="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition-colors"><i class="ph-bold ph-magic-wand"></i> Generate</button>` : ''}
-                ${(b.status === 'confirmed') ? `<button onclick="openUploadModal('${b.ref}')" class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors"><i class="ph-bold ph-upload-simple"></i> Upload</button>` : ''}
-                ${(b.status === 'issued') ? `<button onclick="generateTicketPDF('${b.ref}')" class="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition-colors"><i class="ph-bold ph-magic-wand"></i> Regenerate</button>` : ''}
-                ${(b.status === 'issued') ? `<button onclick="openUploadModal('${b.ref}')" class="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition-colors"><i class="ph-bold ph-arrows-down-up"></i> Update</button>` : ''}
-                ${(b.status !== 'confirmed' && b.status !== 'issued') ? `<button onclick="setStatus('${b.ref}','confirmed')" class="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-bold hover:bg-green-200 transition-colors">Confirm</button>` : ''}
-                ${b.status !== 'cancelled' ? `<button onclick="setStatus('${b.ref}','cancelled')" class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors">Cancel</button>` : ''}
+                ${(b.status === 'confirmed') ? `<button onclick="generateTicketPDF(${refArg})" class="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition-colors"><i class="ph-bold ph-magic-wand"></i> Generate</button>` : ''}
+                ${(b.status === 'confirmed') ? `<button onclick="openUploadModal(${refArg})" class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors"><i class="ph-bold ph-upload-simple"></i> Upload</button>` : ''}
+                ${(b.status === 'issued') ? `<button onclick="generateTicketPDF(${refArg})" class="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition-colors"><i class="ph-bold ph-magic-wand"></i> Regenerate</button>` : ''}
+                ${(b.status === 'issued') ? `<button onclick="openUploadModal(${refArg})" class="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition-colors"><i class="ph-bold ph-arrows-down-up"></i> Update</button>` : ''}
+                ${(b.status !== 'confirmed' && b.status !== 'issued') ? `<button onclick="setStatus(${refArg},'confirmed')" class="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-bold hover:bg-green-200 transition-colors">Confirm</button>` : ''}
+                ${b.status !== 'cancelled' ? `<button onclick="setStatus(${refArg},'cancelled')" class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors">Cancel</button>` : ''}
               </div>
             </td>
           </tr>`;
@@ -213,7 +228,7 @@
 
             const paxCount = (b.passengers && b.passengers.length) || 1;
             const paxName = (b.passengers && b.passengers[0]) ? ((b.passengers[0].firstName || '') + ' ' + (b.passengers[0].lastName || '')).trim().toUpperCase() : (b.contact && b.contact.email ? b.contact.email.split('@')[0].toUpperCase() : 'PASSENGER');
-            document.getElementById('upload-pax').innerHTML = `<div>${paxName}</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${paxCount} traveler${paxCount > 1 ? 's' : ''}</div>`;
+            document.getElementById('upload-pax').innerHTML = `<div>${escapeHtml(paxName)}</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${paxCount} traveler${paxCount > 1 ? 's' : ''}</div>`;
 
             document.getElementById('upload-overlay').style.display = 'flex';
         }

@@ -1,15 +1,27 @@
 const fetch = require("node-fetch");
 const Stripe = require("stripe");
 const crypto = require("crypto");
-const { getCorsHeaders } = require("../../lib/cors");
-const flightDealsHandler = require("../../api/flight-deals");
-const bookingsHandler = require("../../api/bookings");
-const userHandler = require("../../api/user");
-const duffelSearchHandler = require("../../api/duffel-search");
-const duffelAirportsHandler = require("../../api/duffel-airports");
+const { assertAllowedOrigin, getCorsHeaders } = require("../../lib/cors");
+const flightDealsHandler = require("../../api-routes/flight-deals");
+const bookingsHandler = require("../../api-routes/bookings");
+const userHandler = require("../../api-routes/user");
+const duffelSearchHandler = require("../../api-routes/duffel-search");
+const duffelAirportsHandler = require("../../api-routes/duffel-airports");
+const duffelOrdersHandler = require("../../api-routes/duffel-orders");
+const duffelOfferHandler = require("../../api-routes/duffel-offer");
+const duffelPaymentsHandler = require("../../api-routes/duffel-payments");
+const duffelSeatMapsHandler = require("../../api-routes/duffel-seat-maps");
+const duffelOrderCancellationsHandler = require("../../api-routes/duffel-order-cancellations");
+const duffelOrderChangesHandler = require("../../api-routes/duffel-order-changes");
+const duffelOrderServicesHandler = require("../../api-routes/duffel-order-services");
+const duffelClientKeyHandler = require("../../api-routes/duffel-client-key");
+const authHandler = require("../../api-routes/auth");
+const supportHandler = require("../../api-routes/support");
+const ticketDownloadHandler = require("../../api-routes/ticket-download");
+const priceAlertHandler = require("../../api-routes/price-alert");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
-const stripe = STRIPE_SECRET_KEY ? Stripe(STRIPE_SECRET_KEY) : null;
+const stripe = STRIPE_SECRET_KEY && !STRIPE_SECRET_KEY.startsWith("rk_") ? Stripe(STRIPE_SECRET_KEY) : null;
 
 const VISA_ADMIN_TOKEN = process.env.VISA_ADMIN_TOKEN || "";
 
@@ -109,13 +121,14 @@ function safeJsonParse(s) {
   }
 }
 
-function buildExpressLikeReq(event) {
+function buildExpressLikeReq(event, params = {}) {
   const forwardedFor = String(event.headers?.["x-forwarded-for"] || "").split(",")[0].trim();
   return {
     method: event.httpMethod,
     headers: event.headers || {},
     query: event.queryStringParameters || {},
     body: safeJsonParse(event.body || "{}") || {},
+    params,
     socket: {
       remoteAddress: forwardedFor || event.headers?.["x-real-ip"] || ""
     }
@@ -146,6 +159,17 @@ function buildExpressLikeRes() {
       };
     },
     end(body = "") {
+      if (Buffer.isBuffer(body)) {
+        return {
+          statusCode,
+          headers: {
+            ...corsHeaders(),
+            ...headers
+          },
+          body: body.toString("base64"),
+          isBase64Encoded: true
+        };
+      }
       return {
         statusCode,
         headers: {
@@ -160,8 +184,8 @@ function buildExpressLikeRes() {
   return res;
 }
 
-async function invokeExpressHandler(handler, event) {
-  const req = buildExpressLikeReq(event);
+async function invokeExpressHandler(handler, event, params = {}) {
+  const req = buildExpressLikeReq(event, params);
   const res = buildExpressLikeRes();
   const result = await handler(req, res);
   if (result && typeof result.statusCode === "number" && result.body !== undefined) {
@@ -584,29 +608,30 @@ async function handleVisaAdminUpdate(event) {
 
 async function handleStripeCreateSession(event) {
   if (!stripe) {
-    return json(500, { ok: false, error: "Stripe is not configured (missing STRIPE_SECRET_KEY)" });
+    return json(503, { ok: false, error: "Stripe is not configured with a valid STRIPE_SECRET_KEY" });
   }
 
   const payload = safeJsonParse(event.body || "{}") || {};
-  const {
-    amountCents,
-    currency = "usd",
-    description = "BookingCart booking",
-    bookingRef = "",
-    customerEmail = "",
-    successPath = "/confirmation",
-    cancelPath = "/payment"
-  } = payload;
+  const amountCents = payload.amountCents;
+  const currency = String(payload.currency || "usd").toLowerCase();
+  const description = String(payload.description || "BookingCart booking").slice(0, 120);
+  const bookingRef = String(payload.bookingRef || "").trim();
+  const customerEmail = String(payload.customerEmail || "").trim().toLowerCase();
+  const successPath = String(payload.successPath || "/confirmation");
+  const cancelPath = String(payload.cancelPath || "/payment");
+  const paymentPurpose = String(payload.paymentPurpose || "booking").trim().toLowerCase();
+  const duffelOrderId = String(payload.duffelOrderId || "").trim();
 
   const unitAmount = Math.round(Number(amountCents));
   if (!Number.isFinite(unitAmount) || unitAmount < 50) {
     return json(400, { ok: false, error: "Invalid amountCents" });
   }
 
-  const origin = resolveCheckoutOrigin(event);
-  if (!origin) {
-    return json(500, { ok: false, error: "Unable to determine site origin" });
+  const originCheck = assertAllowedOrigin(resolveCheckoutOrigin(event));
+  if (!originCheck.ok) {
+    return json(originCheck.status, { ok: false, error: originCheck.error });
   }
+  const origin = originCheck.origin;
 
   const sp = String(successPath || "/confirmation");
   const cp = String(cancelPath || "/payment");
@@ -615,31 +640,48 @@ async function handleStripeCreateSession(event) {
   const successSep = successUrlPath.includes("?") ? "&" : "?";
   const cancelSep = cancelUrlPath.includes("?") ? "&" : "?";
 
+  const metadata = {
+    paymentPurpose,
+    amountCents: String(unitAmount)
+  };
+  if (bookingRef) metadata.bookingRef = bookingRef;
+  if (duffelOrderId) metadata.duffelOrderId = duffelOrderId;
+
+  const idempotencyKey = bookingRef
+    ? `bookingcart:${crypto.createHash("sha256").update([
+        "checkout-session",
+        bookingRef,
+        paymentPurpose,
+        currency,
+        unitAmount
+      ].join(":").toLowerCase()).digest("hex")}`
+    : undefined;
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
       {
-        price_data: {
-          currency: String(currency).toLowerCase(),
-          product_data: { name: String(description).slice(0, 120) },
+          price_data: {
+          currency,
+          product_data: { name: description },
           unit_amount: Math.round(unitAmount)
         },
         quantity: 1
       }
     ],
-    customer_email: String(customerEmail || "").trim() || undefined,
+    customer_email: customerEmail || undefined,
     client_reference_id: bookingRef ? String(bookingRef).slice(0, 64) : undefined,
-    metadata: bookingRef ? { bookingRef: String(bookingRef).slice(0, 64) } : undefined,
+    metadata,
     success_url: `${origin}${successUrlPath}${successSep}session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}${cancelUrlPath}${cancelSep}canceled=1`
-  });
+  }, idempotencyKey ? { idempotencyKey } : undefined);
 
-  return json(200, { ok: true, id: session.id, url: session.url });
+  return json(200, { ok: true, id: session.id, url: session.url, paymentPurpose, reused: false });
 }
 
 async function handleStripeSession(event) {
   if (!stripe) {
-    return json(500, { ok: false, error: "Stripe is not configured (missing STRIPE_SECRET_KEY)" });
+    return json(503, { ok: false, error: "Stripe is not configured with a valid STRIPE_SECRET_KEY" });
   }
 
   const sessionId = String(event.queryStringParameters?.session_id || "");
@@ -696,6 +738,44 @@ exports.handler = async (event) => {
       return await invokeExpressHandler(duffelAirportsHandler, event);
     }
 
+    if (route === "duffel-orders" && (event.httpMethod === "POST" || event.httpMethod === "GET")) {
+      if (!duffelRateLimitOk(event)) {
+        return json(429, { ok: false, error: "Too many requests" });
+      }
+      return await invokeExpressHandler(duffelOrdersHandler, event);
+    }
+
+    if (route === "duffel-payments" && event.httpMethod === "POST") {
+      if (!duffelRateLimitOk(event)) {
+        return json(429, { ok: false, error: "Too many requests" });
+      }
+      return await invokeExpressHandler(duffelPaymentsHandler, event);
+    }
+
+    if (route === "duffel-offer" && event.httpMethod === "GET") {
+      return await invokeExpressHandler(duffelOfferHandler, event);
+    }
+
+    if (route === "duffel-seat-maps" && event.httpMethod === "GET") {
+      return await invokeExpressHandler(duffelSeatMapsHandler, event);
+    }
+
+    if (route === "duffel-order-cancellations" && (event.httpMethod === "POST" || event.httpMethod === "GET")) {
+      return await invokeExpressHandler(duffelOrderCancellationsHandler, event);
+    }
+
+    if (route === "duffel-order-changes" && (event.httpMethod === "POST" || event.httpMethod === "GET")) {
+      return await invokeExpressHandler(duffelOrderChangesHandler, event);
+    }
+
+    if (route === "duffel-order-services" && (event.httpMethod === "POST" || event.httpMethod === "GET")) {
+      return await invokeExpressHandler(duffelOrderServicesHandler, event);
+    }
+
+    if (route === "duffel-client-key" && event.httpMethod === "POST") {
+      return await invokeExpressHandler(duffelClientKeyHandler, event);
+    }
+
     if (route === "flight-deals" && (event.httpMethod === "GET" || event.httpMethod === "POST")) {
       return await invokeExpressHandler(flightDealsHandler, event);
     }
@@ -706,6 +786,22 @@ exports.handler = async (event) => {
 
     if (route === "user" && (event.httpMethod === "GET" || event.httpMethod === "POST" || event.httpMethod === "DELETE")) {
       return await invokeExpressHandler(userHandler, event);
+    }
+
+    if (route === "support" && (event.httpMethod === "GET" || event.httpMethod === "POST" || event.httpMethod === "PATCH")) {
+      return await invokeExpressHandler(supportHandler, event);
+    }
+
+    if (route === "ticket-download" && event.httpMethod === "GET") {
+      return await invokeExpressHandler(ticketDownloadHandler, event);
+    }
+
+    if (route === "price-alert" && event.httpMethod === "POST") {
+      return await invokeExpressHandler(priceAlertHandler, event);
+    }
+
+    if (route.startsWith("auth/") && event.httpMethod === "POST") {
+      return await invokeExpressHandler(authHandler, event, { action: route.slice("auth/".length) });
     }
 
     if (route === "stripe/create-checkout-session" && event.httpMethod === "POST") {

@@ -9,7 +9,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const Stripe = require('stripe');
-const { pickAllowOrigin } = require('./lib/cors');
+const { assertAllowedOrigin, pickAllowOrigin } = require('./lib/cors');
 
 const bookingsHandler = require('./api-routes/bookings');
 const userHandler = require('./api-routes/user');
@@ -64,7 +64,7 @@ app.use(
   cors({
     origin: (origin, cb) => {
       const allow = pickAllowOrigin(origin || '');
-      cb(null, allow || (!origin ? true : false));
+      cb(null, !origin || !!allow);
     },
     credentials: true
   })
@@ -103,7 +103,7 @@ app.post('/api/bookings', apiLimiter, run(bookingsHandler));
 app.all('/api/user', apiLimiter, run(userHandler));
 app.post('/api/duffel-search', searchLimiter, run(duffelSearchHandler));
 app.get('/api/duffel-airports', searchLimiter, run(duffelAirportsHandler));
-app.post('/api/duffel-orders', searchLimiter, run(duffelOrdersHandler));
+app.all('/api/duffel-orders', searchLimiter, run(duffelOrdersHandler));
 app.post('/api/duffel-payments', searchLimiter, run(duffelPaymentsHandler));
 app.get('/api/duffel-offer', searchLimiter, run(duffelOfferHandler));
 app.get('/api/duffel-seat-maps', searchLimiter, run(duffelSeatMapsHandler));
@@ -131,6 +131,14 @@ app.post('/api/auth/logout', apiLimiter, (req, res, next) => {
 });
 app.post('/api/auth/forgot-password', apiLimiter, (req, res, next) => {
   req.params = { action: 'forgot-password' };
+  return Promise.resolve(authHandler(req, res)).catch(next);
+});
+app.post('/api/auth/reset-password', apiLimiter, (req, res, next) => {
+  req.params = { action: 'reset-password' };
+  return Promise.resolve(authHandler(req, res)).catch(next);
+});
+app.post('/api/auth/change-password', apiLimiter, (req, res, next) => {
+  req.params = { action: 'change-password' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
 
@@ -187,10 +195,11 @@ app.post('/api/stripe/create-checkout-session', apiLimiter, async (req, res) => 
       return res.status(400).json({ ok: false, error: 'Invalid amountCents' });
     }
 
-    const origin = resolveCheckoutOrigin(req);
-    if (!origin) {
-      return res.status(500).json({ ok: false, error: 'Unable to determine site origin' });
+    const originCheck = assertAllowedOrigin(resolveCheckoutOrigin(req));
+    if (!originCheck.ok) {
+      return res.status(originCheck.status).json({ ok: false, error: originCheck.error });
     }
+    const origin = originCheck.origin;
 
     const successUrlPath = successPath.startsWith('/') ? successPath : `/${successPath}`;
     const cancelUrlPath = cancelPath.startsWith('/') ? cancelPath : `/${cancelPath}`;

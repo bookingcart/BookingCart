@@ -258,31 +258,7 @@ export default function PaymentPage() {
         contact: nextState.contact || {},
         passengers: nextState.travelers || nextState.passengers || [],
         total: totals.total,
-        extras: nextState.extras || {},
-        status: "airline_paid_platform_pending",
-        duffelOrderId: orderData.orderId,
-        duffelBookingReference: orderData.bookingReference || null,
-        duffelOrderStatus: orderData.status || 'confirmed',
-        paymentSplit: {
-          airline: {
-            provider: 'duffel',
-            status: 'paid',
-            amountTotal: Math.round(Number(totals.flightCost) * 100),
-            currency: totals.currency
-          },
-          platform: {
-            provider: 'stripe',
-            status: 'pending',
-            amountTotal: Math.round(Number(totals.markupCost) * 100),
-            currency: totals.currency
-          }
-        },
-        payment: {
-          provider: "split",
-          status: "platform_pending",
-          amountTotal: Math.round(Number(totals.total) * 100),
-          currency: totals.currency
-        }
+        extras: nextState.extras || {}
       };
 
       const saveResp = await fetch("/api/bookings", {
@@ -334,32 +310,18 @@ export default function PaymentPage() {
         contact: state.contact || {},
         passengers: state.travelers || state.passengers || [],
         total: totals.total,
-        extras: state.extras || {},
-        status: state._duffelOrderId ? "airline_paid_platform_pending" : "held",
-        duffelOrderId: state._duffelOrderId || null,
-        duffelBookingReference: state._duffelBookingReference || null,
-        paymentSplit: {
-          airline: {
-            provider: 'duffel',
-            status: state._duffelOrderId ? 'paid' : 'pending',
-            amountTotal: Math.round(Number(totals.flightCost) * 100),
-            currency: totals.currency
-          },
-          platform: {
-            provider: 'stripe',
-            status: 'pending',
-            amountTotal: Math.round(Number(totals.markupCost) * 100),
-            currency: totals.currency
-          }
-        },
-        payment: { provider: "split", status: "platform_pending", amountTotal: Math.round(Number(totals.total) * 100), currency: totals.currency }
+        extras: state.extras || {}
       };
 
-      await fetch("/api/bookings", {
+      const saveResp = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save", booking })
       });
+      const saveData = await saveResp.json().catch(() => null);
+      if (!saveResp.ok || !saveData?.ok) {
+        throw new Error(saveData?.error || 'Unable to save booking before payment.');
+      }
 
       await startPlatformCheckout(state);
     } catch (e) {

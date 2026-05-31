@@ -4,38 +4,9 @@ const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { verifyRequestBearer } = require('../lib/google-verify');
 const { requireAdminEmail } = require('../lib/admin');
-const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Verify token (supports both JWT and Google)
 async function verifyAuthToken(req) {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '');
-  
-  if (!token) {
-    return { ok: false, error: 'No token provided' };
-  }
-  
-  // Try JWT verification first (new auth system)
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded && decoded.userId) {
-      // Get user email from database
-      if (isDbConfigured()) {
-        try {
-          const result = await query('SELECT email FROM bc_users WHERE id = $1', [decoded.userId]);
-          if (result.rows.length > 0) {
-            return { ok: true, email: result.rows[0].email, userId: decoded.userId };
-          }
-        } catch {}
-      }
-    }
-  } catch (jwtErr) {
-    // JWT failed, try Google verification
-  }
-  
-  // Fall back to Google token verification
   return await verifyRequestBearer(req);
 }
 
@@ -165,18 +136,27 @@ module.exports = async (req, res) => {
       }
 
       if (dbReady) {
+        const profile = body.state.profile || {};
+        const displayName = String(
+          profile.name ||
+          [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
+          body.state.name ||
+          ''
+        ).trim();
+
         await query(
           `INSERT INTO bc_users (email, name, state, profile, updated_at)
            VALUES ($1, $2, $3, $4, NOW())
            ON CONFLICT (email) DO UPDATE SET
+             name = $2,
              state = $3,
              profile = $4,
              updated_at = NOW()`,
           [
             emailRaw,
-            body.state.name || '',
+            displayName,
             JSON.stringify(body.state),
-            JSON.stringify({ email: emailRaw, name: body.state.name || '' }),
+            JSON.stringify({ ...profile, accountEmail: emailRaw, name: displayName }),
           ]
         );
       } else {

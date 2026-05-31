@@ -89,7 +89,7 @@ export default function AuthPage() {
   const resetToken = searchParams.get('reset') || '';
   const defaultTab = searchParams.get('tab') === 'register' ? 'register' : 'signin';
 
-  const [tab, setTab] = useState(resetToken ? 'forgot' : defaultTab);
+  const [tab, setTab] = useState(resetToken ? 'reset' : defaultTab);
   const [animating, setAnimating] = useState(false);
   const googleBtnRef = useRef(null);
 
@@ -147,6 +147,12 @@ export default function AuthPage() {
     if (!isValidEmail(form.email)) e.email = 'Enter a valid email address.';
     if (tab === 'register') {
       if (!form.name.trim()) e.name = 'Full name is required.';
+      if (form.password.length < 8) e.password = 'Password must be at least 8 characters.';
+      else if (!/[0-9]/.test(form.password)) e.password = 'Add at least one number.';
+      else if (!/[^A-Za-z0-9]/.test(form.password)) e.password = 'Add at least one special character.';
+      if (form.confirm !== form.password) e.confirm = 'Passwords do not match.';
+    }
+    if (tab === 'reset') {
       if (form.password.length < 8) e.password = 'Password must be at least 8 characters.';
       else if (!/[0-9]/.test(form.password)) e.password = 'Add at least one number.';
       else if (!/[^A-Za-z0-9]/.test(form.password)) e.password = 'Add at least one special character.';
@@ -239,6 +245,28 @@ export default function AuthPage() {
     }
   }
 
+  async function handleReset(e) {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true); setGlobalError(''); setSuccessMsg('');
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password: form.password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Password reset failed.');
+      setSuccessMsg(data.message || 'Password updated. You can now sign in.');
+      setForm(f => ({ ...f, password: '', confirm: '' }));
+      setTimeout(() => switchTab('signin'), 1200);
+    } catch (err) {
+      setGlobalError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   /* ── Tab pill ── */
   const TabBtn = ({ id, label }) => (
     <button
@@ -312,7 +340,7 @@ export default function AuthPage() {
 
         <div className="w-full max-w-md">
           {/* ── Tab switcher (Sign In / Register) ── */}
-          {tab !== 'forgot' && (
+          {tab !== 'forgot' && tab !== 'reset' && (
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl mb-8 gap-1">
               <TabBtn id="signin" label="Sign In" />
               <TabBtn id="register" label="Create Account" />
@@ -502,6 +530,67 @@ export default function AuthPage() {
               <button type="submit" disabled={loading || !!successMsg}
                 className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-green-600/25 mt-6 disabled:opacity-60 disabled:cursor-not-allowed">
                 {loading ? <><Spinner />Sending…</> : <><i className="ph-bold ph-paper-plane-tilt" />Send Reset Link</>}
+              </button>
+            </form>
+          )}
+
+          {/* ── RESET PASSWORD ── */}
+          {tab === 'reset' && (
+            <form onSubmit={handleReset} noValidate className={cardClass}>
+              <button type="button" onClick={() => switchTab('signin')}
+                className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300 font-semibold mb-6 transition-colors">
+                <i className="ph ph-arrow-left" /> Back to Sign In
+              </button>
+
+              <div className="mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center mb-4">
+                  <i className="ph-fill ph-lock-key text-green-600 text-2xl" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">Create a new password</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
+                  Use at least 8 characters with a number and a special character.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Field id="reset-password" label="New password"
+                    type={form.showPass ? 'text' : 'password'}
+                    value={form.password} onChange={e => set('password', e.target.value)}
+                    error={errors.password} icon="lock-simple"
+                    placeholder="Min. 8 chars, 1 number, 1 symbol">
+                    <button type="button" tabIndex={-1}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400"
+                      onClick={() => set('showPass', !form.showPass)}>
+                      <i className={`ph ph-${form.showPass ? 'eye-slash' : 'eye'} text-lg`} />
+                    </button>
+                  </Field>
+                  <StrengthBar strength={form.password ? strength : 0} />
+                </div>
+
+                <Field id="reset-confirm" label="Confirm password"
+                  type={form.showConfirm ? 'text' : 'password'}
+                  value={form.confirm} onChange={e => set('confirm', e.target.value)}
+                  error={errors.confirm} icon="lock-key" placeholder="Re-enter password">
+                  <button type="button" tabIndex={-1}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-400"
+                    onClick={() => set('showConfirm', !form.showConfirm)}>
+                    <i className={`ph ph-${form.showConfirm ? 'eye-slash' : 'eye'} text-lg`} />
+                  </button>
+                </Field>
+              </div>
+
+              {globalError && <ErrorBanner msg={globalError} className="mt-4" />}
+              {successMsg && (
+                <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-green-50 border border-green-200">
+                  <i className="ph-fill ph-check-circle text-green-600 text-xl flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-800 font-semibold">{successMsg}</p>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading || !!successMsg}
+                className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-green-600/25 mt-6 disabled:opacity-60 disabled:cursor-not-allowed">
+                {loading ? <><Spinner />Updating…</> : <><i className="ph-bold ph-check" />Update Password</>}
               </button>
             </form>
           )}
