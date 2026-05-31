@@ -10,10 +10,10 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const { query, isDbConfigured, initDb } = require('../lib/db');
-const { applyCors } = require('../lib/cors');
+const { applyCors, assertAllowedOrigin, parseAllowedOrigins } = require('../lib/cors');
+const { getJwtSecret, signBookingCartJwt, verifyRequestBearer } = require('../lib/google-verify');
 
 const SALT_ROUNDS = 12;
-const JWT_SECRET = process.env.JWT_SECRET || 'bc_jwt_dev_secret_change_in_prod';
 const JWT_EXPIRES_IN = '30d';
 
 // Simple in-memory rate limit: { key -> { count, resetAt } }
@@ -42,11 +42,31 @@ function isStrongPassword(p) {
   return s.length >= 8 && /[0-9]/.test(s) && /[^A-Za-z0-9]/.test(s);
 }
 
+function getPublicAppUrl(req) {
+  const configured = String(process.env.APP_URL || '').trim();
+  if (configured) return configured.replace(/\/+$/, '');
+
+  const origin = String(req.headers?.origin || '').trim();
+  if (origin) {
+    const allowed = assertAllowedOrigin(origin);
+    if (allowed.ok) return allowed.origin;
+  }
+
+  const allowedOrigins = parseAllowedOrigins();
+  if (allowedOrigins.length > 0) return allowedOrigins[0];
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('APP_URL or ALLOWED_ORIGINS is required in production');
+  }
+
+  const proto = String(req.headers?.['x-forwarded-proto'] || 'http').split(',')[0].trim();
+  const host = String(req.headers?.['x-forwarded-host'] || req.headers?.host || 'localhost:5173').trim();
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
 /** Sign a JWT for a user document */
 function signToken(user) {
-  return jwt.sign(
-    { sub: String(user.id || user.email), email: user.email, name: user.name || '' },
-    JWT_SECRET,
+  return signBookingCartJwt(
+    { sub: String(user.id || user.email), userId: user.id || null, email: user.email, name: user.name || '' },
     { expiresIn: JWT_EXPIRES_IN }
   );
 }
@@ -63,6 +83,8 @@ function getMemStore() {
  *   POST /api/auth/login
  *   POST /api/auth/logout
  *   POST /api/auth/forgot-password
+ *   POST /api/auth/reset-password
+ *   POST /api/auth/change-password
  */
 module.exports = async (req, res) => {
   applyCors(req, res);
@@ -79,6 +101,14 @@ module.exports = async (req, res) => {
   const rateLimitKey = `${action}:${ip}`;
   if (!checkRateLimit(rateLimitKey, 10, 60_000)) {
     return res.status(429).json({ ok: false, error: 'Too many requests. Please wait a moment.' });
+  }
+
+  if (['register', 'login', 'forgot-password', 'reset-password'].includes(action)) {
+    try {
+      getJwtSecret();
+    } catch (err) {
+      return res.status(503).json({ ok: false, error: err.message });
+    }
   }
 
   // ── Connect to Postgres (fall back to in-memory for dev) ──────────────────────
@@ -203,8 +233,18 @@ module.exports = async (req, res) => {
     }
 
     // Generate a short-lived reset token (15 minutes)
-    const resetToken = jwt.sign({ sub: email, purpose: 'reset' }, JWT_SECRET, { expiresIn: '15m' });
-    const resetLink = `${process.env.APP_URL || 'http://localhost:3000'}/auth?reset=${resetToken}`;
+    let resetToken;
+    try {
+      resetToken = jwt.sign({ sub: email, purpose: 'reset' }, getJwtSecret(), { expiresIn: '15m' });
+    } catch (err) {
+      return res.status(503).json({ ok: false, error: err.message });
+    }
+    let resetLink;
+    try {
+      resetLink = `${getPublicAppUrl(req)}/auth?reset=${resetToken}`;
+    } catch (err) {
+      return res.status(503).json({ ok: false, error: err.message });
+    }
 
     console.log(`[AUTH] Password reset link for ${email}: ${resetLink}`);
 
@@ -240,6 +280,112 @@ module.exports = async (req, res) => {
       ok: true,
       message: "If an account exists for that email, a reset link has been sent."
     });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // RESET PASSWORD
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === 'reset-password') {
+    const resetToken = String(body.token || '').trim();
+    const password = String(body.password || '');
+
+    if (!resetToken) {
+      return res.status(400).json({ ok: false, error: 'Reset token is required.' });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Password must be at least 8 characters and include a number and a special character.'
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, getJwtSecret());
+    } catch (err) {
+      if (err && err.message === 'JWT_SECRET is required in production') {
+        return res.status(503).json({ ok: false, error: err.message });
+      }
+      return res.status(400).json({ ok: false, error: 'Reset link is invalid or has expired.' });
+    }
+
+    const email = String(decoded?.sub || '').trim().toLowerCase();
+    if (!email || decoded?.purpose !== 'reset') {
+      return res.status(400).json({ ok: false, error: 'Reset link is invalid or has expired.' });
+    }
+
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    if (dbReady) {
+      const result = await query(
+        `UPDATE bc_users
+         SET password_hash = $1, auth_method = 'email', updated_at = NOW()
+         WHERE email = $2`,
+        [hash, email]
+      );
+      if (result.rowCount === 0) {
+        return res.status(400).json({ ok: false, error: 'Reset link is invalid or has expired.' });
+      }
+    } else {
+      const store = getMemStore();
+      const user = store.get(email);
+      if (!user) {
+        return res.status(400).json({ ok: false, error: 'Reset link is invalid or has expired.' });
+      }
+      user.passwordHash = hash;
+      store.set(email, user);
+    }
+
+    return res.json({ ok: true, message: 'Password updated. You can now sign in.' });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CHANGE PASSWORD
+  // ════════════════════════════════════════════════════════════════════════════
+  if (action === 'change-password') {
+    const auth = await verifyRequestBearer(req);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.error });
+
+    const currentPassword = String(body.currentPassword || '');
+    const newPassword = String(body.newPassword || '');
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ ok: false, error: 'Current and new password are required.' });
+    }
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Password must be at least 8 characters and include a number and a special character.'
+      });
+    }
+
+    let userDoc = null;
+    if (dbReady) {
+      const result = await query('SELECT id, email, name, password_hash FROM bc_users WHERE email = $1', [auth.email]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        userDoc = { id: row.id, email: row.email, name: row.name, passwordHash: row.password_hash };
+      }
+    } else {
+      userDoc = getMemStore().get(auth.email) || null;
+    }
+
+    if (!userDoc?.passwordHash) {
+      return res.status(400).json({ ok: false, error: 'Password changes are only available for email/password accounts.' });
+    }
+
+    const match = await bcrypt.compare(currentPassword, userDoc.passwordHash);
+    if (!match) {
+      return res.status(401).json({ ok: false, error: 'Current password is incorrect.' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    if (dbReady) {
+      await query('UPDATE bc_users SET password_hash = $1, updated_at = NOW() WHERE email = $2', [hash, auth.email]);
+    } else {
+      userDoc.passwordHash = hash;
+      getMemStore().set(auth.email, userDoc);
+    }
+
+    return res.json({ ok: true, message: 'Password changed successfully.' });
   }
 
   return res.status(404).json({ ok: false, error: 'Unknown auth action.' });

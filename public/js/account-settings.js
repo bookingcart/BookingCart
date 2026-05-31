@@ -11,7 +11,11 @@ function userApiHeaders() {
   // fallback - check for new JWT token first, then Google token
   let token = "";
   if (typeof localStorage !== "undefined") {
-    token = localStorage.getItem("bookingcart_token") || localStorage.getItem("bookingcart_google_id_token") || "";
+    token =
+      localStorage.getItem("bookingcart_jwt_token") ||
+      localStorage.getItem("bookingcart_google_id_token") ||
+      localStorage.getItem("bookingcart_token") ||
+      "";
   }
   const h = { "Content-Type": "application/json" };
   if (token) h.Authorization = "Bearer " + token;
@@ -24,6 +28,7 @@ const defaultName = storedUser ? storedUser.name : "Alex Johnson";
 const defFirst = storedUser ? storedUser.given_name || storedUser.name.split(' ')[0] : "Alex";
 const defLast = storedUser ? storedUser.family_name || storedUser.name.split(' ').slice(1).join(' ') : "Johnson";
 const defEmail = storedUser ? storedUser.email : "alex.johnson@email.com";
+const accountEmail = storedUser ? String(storedUser.email || "").trim().toLowerCase() : defEmail;
 const defAvatar = storedUser ? storedUser.picture : `https://ui-avatars.com/api/?name=${encodeURIComponent(defaultName)}&background=dcfce7&color=15803d&size=200`;
 
 let state = {
@@ -118,9 +123,9 @@ const AIRLINES = [
    DB SYNC
 ══════════════════════════════════════════════════ */
 async function saveStateToDB() {
-  if (!state.profile.email) {
-    console.warn("[saveStateToDB] No profile email, skipping save");
-    return;
+  if (!accountEmail) {
+    console.warn("[saveStateToDB] No account email, skipping save");
+    return false;
   }
   
   const headers = userApiHeaders();
@@ -130,7 +135,7 @@ async function saveStateToDB() {
     const resp = await fetch("/api/user", {
       method: "POST",
       headers: headers,
-      body: JSON.stringify({ email: state.profile.email, state }),
+      body: JSON.stringify({ email: accountEmail, state }),
     });
     
     const data = await resp.json();
@@ -138,23 +143,26 @@ async function saveStateToDB() {
     
     if (!resp.ok || !data.ok) {
       console.error("[saveStateToDB] Save failed:", data.error);
+      return false;
     } else {
       console.log("[saveStateToDB] Save successful");
+      return true;
     }
   } catch (e) { 
     console.error("[saveStateToDB] Could not sync settings to DB:", e); 
+    return false;
   }
 }
 
 async function loadStateFromDB() {
-  let userEmail = defEmail;
+  let userEmail = accountEmail;
   if (!userEmail) return;
   try {
     const resp = await fetch("/api/user?email=" + encodeURIComponent(userEmail), {
       headers: userApiHeaders(),
     });
     const data = await resp.json();
-    if (data && data.state) {
+    if (resp.ok && data && data.ok && data.state) {
       state = { ...state, ...data.state };
     }
   } catch (e) { console.error("Could not load settings from DB:", e); }
@@ -317,7 +325,7 @@ function showToast(message, type = "success") {
    PROFILE
 ══════════════════════════════════════════════════ */
 async function loadProfile() {
-  // First try to load from MongoDB
+  // First try to load from the account API
   try {
     const headers = userApiHeaders();
     if (headers.Authorization) {
@@ -326,11 +334,11 @@ async function loadProfile() {
       if (resp.ok && data.ok && data.state && data.state.profile) {
         // Merge database profile with local state
         state.profile = { ...state.profile, ...data.state.profile };
-        console.log('[loadProfile] Loaded from MongoDB:', state.profile);
+        console.log('[loadProfile] Loaded from account API:', state.profile);
       }
     }
   } catch (err) {
-    console.error('[loadProfile] Failed to load from MongoDB:', err);
+    console.error('[loadProfile] Failed to load from account API:', err);
   }
   
   // Populate form fields from state
@@ -388,7 +396,7 @@ function previewAvatar(input) {
   reader.readAsDataURL(file);
 }
 
-function saveProfile(e) {
+async function saveProfile(e) {
   e.preventDefault();
   let valid = true;
 
@@ -420,7 +428,7 @@ function saveProfile(e) {
   state.profile.language = document.getElementById("language").value;
 
   updateHeaderInfo();
-  saveStateToDB();
+  const saved = await saveStateToDB();
 
   // Sync core changes back to bookingcart_user so they reflect across all pages immediately
   try {
@@ -428,13 +436,12 @@ function saveProfile(e) {
     if (gUserStr) {
       const gUser = JSON.parse(gUserStr);
       gUser.name = `${firstName} ${lastName}`.trim();
-      gUser.email = email;
       localStorage.setItem('bookingcart_user', JSON.stringify(gUser));
       if (window.applyAuthUI) window.applyAuthUI(); // Update the header immediately
     }
   } catch (e) { }
 
-  showToast("Profile updated successfully!");
+  showToast(saved ? "Profile updated successfully!" : "Profile saved locally, but account sync failed.", saved ? "success" : "error");
 }
 
 async function resetProfile() {
@@ -486,7 +493,7 @@ function checkStrength(val) {
       : "Enter a password";
 }
 
-function changePassword(e) {
+async function changePassword(e) {
   e.preventDefault();
   const cur = document.getElementById("current-pass").value;
   const nw = document.getElementById("new-pass").value;
@@ -507,6 +514,26 @@ function changePassword(e) {
     showToast("Password must be at least 8 characters", "error");
     return;
   }
+  if (!/[0-9]/.test(nw) || !/[^A-Za-z0-9]/.test(nw)) {
+    showToast("Password needs a number and a special character", "error");
+    return;
+  }
+
+  try {
+    const resp = await fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: userApiHeaders(),
+      body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) {
+      showToast(data.error || "Could not change password", "error");
+      return;
+    }
+  } catch (err) {
+    showToast("Could not change password", "error");
+    return;
+  }
 
   errEl.classList.add("hidden");
   document.getElementById("confirm-pass").classList.remove("error");
@@ -516,7 +543,6 @@ function changePassword(e) {
     if (s) s.style.background = "#e2e8f0";
   });
   document.getElementById("strength-label").textContent = "Enter a password";
-  saveStateToDB();
   showToast("Password changed successfully!");
 }
 

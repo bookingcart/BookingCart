@@ -76,6 +76,7 @@ export default function PaymentPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState(1); // 1 = Flight, 2 = Markup
   const [errorMsg, setErrorMsg] = useState(null);
+  const [processingMessage, setProcessingMessage] = useState('');
   const cardFormRef = useRef(null);
   const { ref, createCardForTemporaryUse } = useDuffelCardFormActions();
   const [cardValid, setCardValid] = useState(false);
@@ -99,10 +100,62 @@ export default function PaymentPage() {
       .catch(e => setErrorMsg('Failed to initialize payment system.'));
   }, []);
 
+  const startPlatformCheckout = async (sourceState = readState()) => {
+    const state = sourceState || readState();
+    const amountCents = Math.round(Number(totals.markupCost) * 100);
+    const bookingRef = state.bookingRef;
+    const contactEmail = state.contact?.email || "";
+
+    if (state._platformStripeSessionId && state._platformStripeStatus === 'paid') {
+      setErrorMsg('BookingCart payment has already been completed for this booking.');
+      return;
+    }
+
+    if (!Number.isFinite(amountCents) || amountCents < 50) {
+      writeState({ _platformStripeStatus: 'not_required' });
+      window.location.href = '/confirmation';
+      return;
+    }
+
+    setProcessingMessage('Airline payment confirmed. Opening secure BookingCart payment...');
+    const resp = await fetch("/api/stripe/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amountCents,
+        currency: totals.currency.toLowerCase(),
+        description: "BookingCart Fees & Extras " + bookingRef,
+        bookingRef,
+        customerEmail: contactEmail,
+        successPath: "/confirmation",
+        cancelPath: "/payment",
+        paymentPurpose: "platform_fees",
+        duffelOrderId: state._duffelOrderId || ""
+      })
+    });
+
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || "Unable to create Stripe checkout session");
+
+    writeState({
+      _platformStripeSessionId: data.id,
+      _platformStripeStatus: 'checkout_started',
+      _platformPaymentAmountCents: amountCents
+    });
+    window.location.href = data.url;
+  };
+
   const handleFlightPayment = async () => {
     setIsProcessing(true);
     setErrorMsg(null);
+    setProcessingMessage('Preparing secure airline payment...');
     try {
+      const state = readState();
+      if (state._duffelOrderId && state._airlinePaymentStatus === 'paid') {
+        await startPlatformCheckout(state);
+        return;
+      }
+
       // 1. Create card using Duffel Card Form
       await createCardForTemporaryUse();
       // Execution continues in onCreateCardForTemporaryUseSuccess
@@ -110,6 +163,7 @@ export default function PaymentPage() {
       console.error(error);
       setErrorMsg('Failed to process card. Please check details.');
       setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -117,6 +171,15 @@ export default function PaymentPage() {
     try {
       const state = readState();
       const flightId = state.selectedFlightId;
+      const bookingRef = state.bookingRef || "BC" + Math.random().toString(36).slice(2, 8).toUpperCase();
+      if (!state.bookingRef) writeState({ bookingRef });
+
+      if (state._duffelOrderId && state._airlinePaymentStatus === 'paid') {
+        await startPlatformCheckout(state);
+        return;
+      }
+
+      setProcessingMessage('Authenticating card with the airline...');
       
       const services = [];
       if (state.extras && state.extras.baggage > 0 && state._baggageServiceId) {
@@ -141,6 +204,7 @@ export default function PaymentPage() {
         throw new Error('Card authentication failed or was cancelled.');
       }
 
+      setProcessingMessage('Issuing airline ticket. Do not close this page...');
       // 3. Create Duffel Order with card
       // We will create the order with hold = true first, or directly pay it.
       // Wait, we can pass payments directly to duffel-orders!
@@ -151,6 +215,8 @@ export default function PaymentPage() {
           offerId: flightId,
           totalAmount: totals.flightCost,
           currency: totals.currency,
+          bookingRef,
+          idempotencyKey: `duffel-order:${bookingRef}`,
           passengers: state.travelers.map((t, idx) => ({
              id: state.duffelPassengers[idx]?.id,
              given_name: t.firstName,
@@ -175,19 +241,46 @@ export default function PaymentPage() {
       const orderData = await duffelOrderReq.json();
       if (!orderData.ok) throw new Error(orderData.error || 'Failed to book flight with airline.');
 
-      // Save Duffel order ID to state
-      writeState({
+      const nextState = writeState({
         _duffelOrderId: orderData.orderId,
-        bookingRef: orderData.bookingReference || state.bookingRef
+        _duffelBookingReference: orderData.bookingReference || null,
+        _airlinePaymentStatus: 'paid',
+        bookingRef
       });
 
-      // Proceed to Step 2!
-      setStep(2);
+      const s = nextState.search || {};
+      const flight = (nextState.flights || []).find(f => f.id === nextState.selectedFlightId) || (nextState.flights || [])[0];
+      const booking = {
+        ref: bookingRef,
+        route: (s.from || "") + " → " + (s.to || ""),
+        dates: (s.depart || "") + (s.return ? " → " + s.return : ""),
+        flight: flight ? { airline: flight.airline.name, time: flight.departTime + " → " + flight.arriveTime } : null,
+        contact: nextState.contact || {},
+        passengers: nextState.travelers || nextState.passengers || [],
+        total: totals.total,
+        extras: nextState.extras || {}
+      };
+
+      const saveResp = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save", booking })
+      });
+      const saveData = await saveResp.json().catch(() => null);
+      if (!saveResp.ok || !saveData?.ok) {
+        throw new Error(saveData?.error || 'Unable to save booking before BookingCart payment.');
+      }
+
+      writeState({ _bookingSaved: true });
+      await startPlatformCheckout(nextState);
     } catch (e) {
       console.error(e);
       setErrorMsg(e.message || 'Payment failed.');
+      const stateAfterError = readState();
+      setStep(stateAfterError._duffelOrderId && stateAfterError._airlinePaymentStatus === 'paid' ? 2 : 1);
     } finally {
       setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -200,11 +293,10 @@ export default function PaymentPage() {
   const handleStripePayment = async () => {
     setIsProcessing(true);
     setErrorMsg(null);
+    setProcessingMessage('Opening secure BookingCart payment...');
     try {
       const state = readState();
-      const amountCents = Math.round(Number(totals.markupCost) * 100);
       const bookingRef = state.bookingRef;
-      const contactEmail = state.contact?.email || "";
 
       // Save pending booking
       const s = state.search || {};
@@ -218,41 +310,25 @@ export default function PaymentPage() {
         contact: state.contact || {},
         passengers: state.travelers || state.passengers || [],
         total: totals.total,
-        extras: state.extras || {},
-        status: "held", // Will be paid after stripe
-        duffelOrderId: state._duffelOrderId || null,
-        duffelBookingReference: bookingRef,
-        payment: { provider: "none", status: "pending", amountTotal: totals.total * 100, currency: totals.currency }
+        extras: state.extras || {}
       };
 
-      await fetch("/api/bookings", {
+      const saveResp = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save", booking })
       });
+      const saveData = await saveResp.json().catch(() => null);
+      if (!saveResp.ok || !saveData?.ok) {
+        throw new Error(saveData?.error || 'Unable to save booking before payment.');
+      }
 
-      const resp = await fetch("/api/stripe/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amountCents,
-          currency: totals.currency.toLowerCase(),
-          description: "BookingCart Fees & Extras " + bookingRef,
-          bookingRef,
-          customerEmail: contactEmail,
-          successPath: "/confirmation",
-          cancelPath: "/payment"
-        })
-      });
-
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Unable to create Stripe checkout session");
-
-      window.location.href = data.url;
+      await startPlatformCheckout(state);
     } catch (e) {
       console.error(e);
       setErrorMsg(e.message || 'Failed to initialize final payment.');
       setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -261,6 +337,18 @@ export default function PaymentPage() {
   return (
     <>
       <main className="flex-grow container mx-auto px-6 py-8">
+        {isProcessing && processingMessage && (
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center px-6">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-md text-center">
+              <div className="w-14 h-14 rounded-full bg-green-50 text-green-600 flex items-center justify-center mx-auto mb-4">
+                <i className="ph-bold ph-circle-notch animate-spin text-3xl"></i>
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-900 mb-2">Processing payment</h2>
+              <p className="text-sm text-slate-600">{processingMessage}</p>
+              <p className="text-xs font-semibold text-slate-400 mt-4">Please do not close or refresh this page.</p>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-4 mb-8 overflow-x-auto no-scrollbar steps text-sm font-medium">
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white whitespace-nowrap">
             <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">6</span>
@@ -281,7 +369,7 @@ export default function PaymentPage() {
               </div>
             </div>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => { window.location.href = '/'; }}
               className="mt-4 w-full bg-amber-600 text-white py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors"
             >
               Search for Flights
@@ -316,10 +404,10 @@ export default function PaymentPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6">
                 <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
                   <span className="bg-green-100 text-green-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span>
-                  Airline Flight Payment
+                  Flight and BookingCart Payment
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                  Please enter your <strong>Billing Information</strong> below. This must match the cardholder details associated with your payment method. You will be charged {money(totals.flightCost, totals.currency)} directly by the airline.
+                  Enter your billing information once. The airline charges {money(totals.flightCost, totals.currency)} for the ticket, then BookingCart opens the secure fee payment for {money(totals.markupCost, totals.currency)}.
                 </p>
 
                 {clientKey ? (
@@ -344,7 +432,7 @@ export default function PaymentPage() {
                     disabled={isProcessing || !cardValid}
                     className="bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-bold py-4 px-8 rounded-xl transition-all flex items-center gap-2"
                   >
-                    {isProcessing ? 'Processing with Airline...' : `Pay Airline ${money(totals.flightCost, totals.currency)}`}
+                    {isProcessing ? 'Processing...' : `Pay and Book ${money(totals.total, totals.currency)}`}
                     {!isProcessing && <i className="ph-bold ph-lock-key"></i>}
                   </button>
                 </div>
@@ -355,13 +443,13 @@ export default function PaymentPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm p-6 border-l-4 border-l-green-500">
                 <h2 className="font-bold text-lg text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
                   <span className="bg-green-100 text-green-700 w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span>
-                  BookingCart Extras & Fees
+                  BookingCart Fees
                 </h2>
                 <div className="bg-green-50 text-green-800 p-4 rounded-xl mb-6 flex items-start gap-3">
                   <i className="ph-fill ph-check-circle text-green-600 text-xl mt-0.5"></i>
                   <div>
                     <strong className="block mb-1">Airline ticket issued!</strong>
-                    <span className="text-sm">Your flight is confirmed. Now, complete the payment for your selected extras (insurance, meals) and platform fees.</span>
+                    <span className="text-sm">Your airline payment is already recorded for this booking. Finish the BookingCart payment to unlock the ticket.</span>
                   </div>
                 </div>
 

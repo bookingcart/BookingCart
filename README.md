@@ -4,7 +4,7 @@ Static HTML/JS front end with serverless APIs on **Netlify** (`/api/*` → `netl
 
 ## Quick start (local)
 
-1. Copy [.env.example](.env.example) to `.env` and set at least `GOOGLE_CLIENT_ID`, `ADMIN_PIN`, `DUFFEL_API_KEY`, `MONGODB_URI`, and `STRIPE_SECRET_KEY` where needed.
+1. Copy [.env.example](.env.example) to `.env` and set at least `GOOGLE_CLIENT_ID`, `JWT_SECRET`, `DATABASE_URL`, `VITE_ADMIN_EMAILS`, `DUFFEL_API_KEY`, `ALLOWED_ORIGINS`, and `STRIPE_SECRET_KEY` where needed.
 2. `npm ci`
 3. `npm run dev` or `npm start`
 4. Open `http://localhost:3000`
@@ -14,7 +14,7 @@ Static HTML/JS front end with serverless APIs on **Netlify** (`/api/*` → `netl
 - Set environment variables in the Netlify UI (same keys as `.env.example`).
 - Use **Node 20** (see [netlify.toml](netlify.toml)).
 - `ALLOWED_ORIGINS` should list your live site URL(s) for browser CORS.
-- Production expects **`MONGODB_URI`** for bookings and persisted account settings.
+- Production expects **`DATABASE_URL`** for bookings, users, support, cache, and Duffel idempotency state.
 - Production checkout requires **`STRIPE_SECRET_KEY`**.
 
 ## Security notes
