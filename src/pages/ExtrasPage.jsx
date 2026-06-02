@@ -130,10 +130,6 @@ export default function ExtrasPage() {
     // Duffel calls onPayloadReady(payload, metadata)
     // payload = { services: [{id, quantity}, ...], passengers: [...] }
     // metadata contains pricing breakdown per service type
-    const services = Array.isArray(payload) ? payload : (payload?.services || []);
-    writeState({ _selectedServices: services, _servicesMetadata: metadata });
-    setServicesReady(true);
-
     const state = readState();
     const fareInfo = getBaseFare(state);
     let extrasCost = 0;
@@ -151,6 +147,14 @@ export default function ExtrasPage() {
       if (metadata?.seats?.total?.amount) extrasCost += Number(metadata.seats.total.amount);
       if (metadata?.cancel_for_any_reason?.total?.amount) extrasCost += Number(metadata.cancel_for_any_reason.total.amount);
     }
+
+    const services = Array.isArray(payload) ? payload : (payload?.services || []);
+    writeState({ 
+      _selectedServices: services, 
+      _servicesMetadata: metadata,
+      _ancillariesCost: extrasCost 
+    });
+    setServicesReady(true);
 
     const subtotal = fareInfo.base + extrasCost;
     const taxes = Math.round(subtotal * 0.11);

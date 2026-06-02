@@ -49,17 +49,7 @@ function computeTotals(state) {
   const base = flight ? flightPriceAmount(flight) * totalPax : 0;
 
   const selectedServices = state._selectedServices || [];
-  let ancillariesCost = 0;
-  if (flight && flight.available_services) {
-    selectedServices.forEach(srv => {
-      const availableService = flight.available_services.find(s => s.id === srv.id);
-      if (availableService && availableService.total_amount) {
-        ancillariesCost += Number(availableService.total_amount) * srv.quantity;
-      }
-    });
-  } else if (state._servicesMetadata && state._servicesMetadata.total_amount) {
-    ancillariesCost = Number(state._servicesMetadata.total_amount);
-  }
+  let ancillariesCost = state._ancillariesCost || 0;
 
   const extras = state.extras || {};
   const insurance = extras.insurance ? 19 * totalPax : 0;
