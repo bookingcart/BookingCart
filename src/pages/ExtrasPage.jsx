@@ -126,18 +126,32 @@ export default function ExtrasPage() {
 
   }, []);
 
-  const handlePayloadReady = (services, metadata) => {
-    writeState({ _selectedServices: services || [], _servicesMetadata: metadata });
+  const handlePayloadReady = (payload, metadata) => {
+    // Duffel calls onPayloadReady(payload, metadata)
+    // payload = { services: [{id, quantity}, ...], passengers: [...] }
+    // metadata contains pricing breakdown per service type
+    const services = Array.isArray(payload) ? payload : (payload?.services || []);
+    writeState({ _selectedServices: services, _servicesMetadata: metadata });
     setServicesReady(true);
-    // Update summary with ancillary cost from metadata
+
     const state = readState();
     const fareInfo = getBaseFare(state);
     let extrasCost = 0;
-    if (metadata && metadata.total_amount != null) {
+
+    // Try all known Duffel metadata structures for the total ancillary cost
+    if (metadata?.total?.amount != null) {
+      // { total: { amount: "66.00", currency: "USD" } }
+      extrasCost = Number(metadata.total.amount);
+    } else if (metadata?.total_amount != null) {
+      // { total_amount: "66.00" }
       extrasCost = Number(metadata.total_amount);
-    } else if (Array.isArray(services)) {
-      services.forEach(s => { extrasCost += Number(s.total_amount || 0) * (s.quantity || 1); });
+    } else {
+      // Sum bags + seats + cfar separately
+      if (metadata?.bags?.total?.amount) extrasCost += Number(metadata.bags.total.amount);
+      if (metadata?.seats?.total?.amount) extrasCost += Number(metadata.seats.total.amount);
+      if (metadata?.cancel_for_any_reason?.total?.amount) extrasCost += Number(metadata.cancel_for_any_reason.total.amount);
     }
+
     const subtotal = fareInfo.base + extrasCost;
     const taxes = Math.round(subtotal * 0.11);
     setSummary({
@@ -148,6 +162,7 @@ export default function ExtrasPage() {
       currency: fareInfo.currency,
     });
   };
+
 
   const handleContinue = (e) => {
     e.preventDefault();
