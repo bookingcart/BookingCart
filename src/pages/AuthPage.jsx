@@ -93,6 +93,14 @@ export default function AuthPage() {
   const [animating, setAnimating] = useState(false);
   const googleBtnRef = useRef(null);
 
+  /* ── Redirect authenticated users to home ── */
+  useEffect(() => {
+    if (user) {
+      const redirectTo = searchParams.get('redirect') || '/';
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, navigate, searchParams]);
+
   /* ── Form state ── */
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirm: '',

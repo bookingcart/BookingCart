@@ -1857,168 +1857,7 @@
 
 
 
-  function initExtras() {
-    const root = document.querySelector("[data-extras]");
-    if (!root) return;
 
-    const state = window.readState();
-    const extras = state.extras || { baggage: 0, seat: "none", insurance: false, meal: "none" };
-
-    const baggage = root.querySelector("input[name='baggage']");
-    const seat = root.querySelector("select[name='seat']");
-    const insurance = root.querySelector("input[name='insurance']");
-    const meal = root.querySelector("select[name='meal']");
-
-    if (baggage) baggage.value = String(extras.baggage || 0);
-    if (seat) seat.value = extras.seat || "none";
-    if (insurance) insurance.checked = Boolean(extras.insurance);
-    if (meal) meal.value = extras.meal || "none";
-
-    const summary = {
-      base: document.querySelector("[data-sum-base]"),
-      extras: document.querySelector("[data-sum-extras]"),
-      taxes: document.querySelector("[data-sum-taxes]"),
-      total: document.querySelector("[data-sum-total]"),
-    };
-
-    const updateSummary = () => {
-      const stateNow = window.readState();
-      const totals = window.computeTotals(stateNow);
-      const ccy = totals.currency;
-      const extrasCost = totals.baggage + totals.seats + totals.insurance + totals.meals;
-      if (summary.base) window.setText(summary.base, window.money(totals.base, ccy));
-      if (summary.extras) window.setText(summary.extras, window.money(extrasCost, ccy));
-      if (summary.taxes) window.setText(summary.taxes, window.money(totals.taxes, ccy));
-      if (summary.total) window.setText(summary.total, window.money(totals.total, ccy));
-      window.dispatchEvent(new CustomEvent("bookingcart_totals_updated"));
-    };
-
-    if (state.selectedFlightId && state.selectedFlightId.startsWith("off_")) {
-      (async () => {
-        try {
-          const resp = await fetch('/api/duffel-offer?id=' + encodeURIComponent(state.selectedFlightId));
-          const data = await resp.json().catch(()=>null);
-          if (data && data.ok && data.offer && data.offer.available_services) {
-            const bags = data.offer.available_services.filter(s => s.type === 'baggage');
-            if (bags.length > 0) {
-              window.writeState({ _baggageServiceId: bags[0].id, _baggagePrice: parseFloat(bags[0].total_amount) });
-              updateSummary();
-            }
-          }
-        } catch(e){}
-      })();
-
-      (async () => {
-        try {
-          const resp = await fetch('/api/duffel-seat-maps?offer_id=' + encodeURIComponent(state.selectedFlightId));
-          const data = await resp.json().catch(()=>null);
-          if (data && data.ok && data.seatMaps) {
-            const seatsArr = [];
-            data.seatMaps.forEach(map => {
-              (map.cabins || []).forEach(cabin => {
-                 (cabin.rows || []).forEach(row => {
-                    (row.sections || []).forEach(section => {
-                       (section.elements || []).forEach(element => {
-                          if (element.type === 'seat' && element.available_services && element.available_services.length > 0) {
-                             seatsArr.push({
-                               designator: element.designator,
-                               services: element.available_services
-                             });
-                          }
-                       })
-                    })
-                 })
-              })
-            });
-
-            const seatMapContainer = document.getElementById('dynamic-seat-map');
-            if (seatMapContainer) {
-                if (seatsArr.length > 0) {
-                    const duffelPax = state.duffelPassengers || [];
-                    const paxCount = duffelPax.length;
-                    
-                    let html = '';
-                    for (let i = 0; i < paxCount; i++) {
-                        const dPax = duffelPax[i];
-                        if (dPax.type === 'infant_without_seat') continue;
-
-                        const validSeatsForPax = seatsArr.map(s => {
-                            const matchingService = s.services.find(srv => srv.passenger_id === dPax.id);
-                            return matchingService ? { designator: s.designator, service: matchingService } : null;
-                        }).filter(Boolean);
-
-                        if (validSeatsForPax.length === 0) continue;
-
-                        html += `
-                        <div class="mb-3">
-                            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Passenger ${i + 1}</label>
-                            <select class="seat-select-dynamic w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:ring-2 focus:ring-green-500 outline-none" data-pax-id="${dPax.id}">
-                                <option value="none">No specific seat preference</option>
-                                ${validSeatsForPax.map(s => `<option value="${s.service.id}" data-price="${s.service.total_amount}">${s.designator} - ${window.money(s.service.total_amount, s.service.total_currency)}</option>`).join('')}
-                            </select>
-                        </div>
-                        `;
-                    }
-                    seatMapContainer.innerHTML = html || '<div class="text-sm text-slate-500 dark:text-slate-400">No seats available for selection.</div>';
-
-                    seatMapContainer.querySelectorAll('select').forEach(sel => {
-                        sel.addEventListener('change', () => {
-                            const selections = [];
-                            let seatCost = 0;
-                            seatMapContainer.querySelectorAll('select').forEach(s => {
-                                if (s.value !== 'none') {
-                                    selections.push({ id: s.value, passenger_id: s.dataset.paxId });
-                                    const opt = s.options[s.selectedIndex];
-                                    seatCost += parseFloat(opt.dataset.price || 0);
-                                }
-                            });
-                            window.writeState({ _selectedSeats: selections, _seatCost: seatCost });
-                            updateSummary();
-                        });
-                    });
-                } else {
-                    seatMapContainer.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">No seats available for selection.</div>';
-                }
-            }
-          } else {
-            const smc = document.getElementById('dynamic-seat-map');
-            if (smc) smc.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">Seat maps not available for this flight.</div>';
-          }
-        } catch(e){
-            console.error(e);
-            const smc = document.getElementById('dynamic-seat-map');
-            if (smc) smc.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">Unable to load seats.</div>';
-        }
-      })();
-    }
-
-    function refresh() {
-      const next = {
-        baggage: baggage ? Number(baggage.value || 0) : 0,
-        seat: seat ? seat.value : "none",
-        insurance: insurance ? Boolean(insurance.checked) : false,
-        meal: meal ? meal.value : "none"
-      };
-      window.writeState({ extras: next });
-      updateSummary();
-    }
-
-    [baggage, seat, insurance, meal].forEach((el) => {
-      if (!el) return;
-      el.addEventListener("input", refresh);
-      el.addEventListener("change", refresh);
-    });
-
-    updateSummary();
-
-    const form = root.querySelector("form[data-extras-form]");
-    if (form)
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        if (typeof window.__bcNavigate === "function") window.__bcNavigate("/payment");
-        else window.location.href = "/payment";
-      });
-  }
 
   async function createDuffelOrder(state, totals, hold = false) {
     const flight = (state.flights || []).find(f => f.id === state.selectedFlightId) || (state.flights || [])[0];
@@ -2073,24 +1912,7 @@
       }
     } catch (err) { }
 
-    const services = [];
-    if (state.extras && state.extras.baggage > 0 && state._baggageServiceId && adultPaxIds.length > 0) {
-      services.push({
-        id: state._baggageServiceId,
-        quantity: Math.min(Number(state.extras.baggage), 6),
-        passengers: [adultPaxIds[0]]
-      });
-    }
-
-    if (state._selectedSeats && state._selectedSeats.length > 0) {
-      state._selectedSeats.forEach(sel => {
-        services.push({
-          id: sel.id,
-          quantity: 1,
-          passengers: [sel.passenger_id]
-        });
-      });
-    }
+    const services = state._selectedServices || [];
 
     try {
       const orderResp = await fetch('/api/duffel-orders', {
@@ -2613,7 +2435,7 @@
     // Note: fetchFlightsAndDisplay, displayFlights, fetchFlightsFromSearch, extractAirportCode
     // are legacy functions kept below for backward compatibility but initResults handles everything.
     initPassengers();
-    initExtras();
+
     // initPayment(); // Disabled for React-based Duffel Component
     initConfirmation();
     console.log("✅ BookingCart initialization complete");

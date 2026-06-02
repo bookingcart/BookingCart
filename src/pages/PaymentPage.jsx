@@ -48,26 +48,34 @@ function computeTotals(state) {
     || (state.flights || [])[0];
   const base = flight ? flightPriceAmount(flight) * totalPax : 0;
 
-  const extras = state.extras || {};
-  const baggagePrice = state._baggagePrice || 45;
-  const seatPrice = state._seatPrice || 14;
+  const selectedServices = state._selectedServices || [];
+  let ancillariesCost = 0;
+  if (flight && flight.available_services) {
+    selectedServices.forEach(srv => {
+      const availableService = flight.available_services.find(s => s.id === srv.id);
+      if (availableService && availableService.total_amount) {
+        ancillariesCost += Number(availableService.total_amount) * srv.quantity;
+      }
+    });
+  } else if (state._servicesMetadata && state._servicesMetadata.total_amount) {
+    ancillariesCost = Number(state._servicesMetadata.total_amount);
+  }
 
-  const baggage = Number(extras.baggage || 0) * baggagePrice;
-  const seats = typeof state._seatCost === 'number' ? state._seatCost : 
-                (extras.seat === "standard" ? seatPrice * totalPax : extras.seat === "extra" ? (seatPrice * 2) * totalPax : 0);
+  const extras = state.extras || {};
   const insurance = extras.insurance ? 19 * totalPax : 0;
   const meals = extras.meal === "premium" ? 12 * totalPax : extras.meal === "standard" ? 7 * totalPax : 0;
+  const platformFee = 25; // Flat $25 BookingCart fee
 
-  const subtotal = base + baggage + seats + insurance + meals;
+  const subtotal = base + ancillariesCost + insurance + meals;
   const taxes = Math.round(subtotal * 0.11);
-  const total = subtotal + taxes;
+  const total = subtotal + taxes + platformFee;
   const currency = flight ? (flight.currency || "USD") : "USD";
 
   // Split calculations
-  const flightCost = base + baggage + seats;
-  const markupCost = insurance + meals + taxes;
+  const flightCost = base + ancillariesCost;
+  const markupCost = insurance + meals + taxes + platformFee;
 
-  return { totalPax, base, baggage, seats, insurance, meals, taxes, total, flightCost, markupCost, currency };
+  return { totalPax, base, ancillariesCost, insurance, meals, platformFee, taxes, total, flightCost, markupCost, currency };
 }
 
 export default function PaymentPage() {
@@ -181,15 +189,7 @@ export default function PaymentPage() {
 
       setProcessingMessage('Authenticating card with the airline...');
       
-      const services = [];
-      if (state.extras && state.extras.baggage > 0 && state._baggageServiceId) {
-         services.push({ id: state._baggageServiceId, quantity: Math.min(Number(state.extras.baggage), 6) });
-      }
-      if (state._selectedSeats && state._selectedSeats.length > 0) {
-        state._selectedSeats.forEach(sel => {
-          services.push({ id: sel.id, quantity: 1 });
-        });
-      }
+      const services = state._selectedServices || [];
 
       // 2. 3D Secure Session
       const session = await createThreeDSecureSession(
