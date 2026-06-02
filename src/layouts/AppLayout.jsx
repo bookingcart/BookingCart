@@ -1,5 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import BookingCartNavbar from '../components/BookingCartNavbar.jsx';
+import { SignInPopup } from '../components/SignInPopup.jsx';
 import { useEffect } from 'react';
 import { legacyHrefToRoute } from '../lib/legacyRoutes.js';
 
@@ -30,10 +31,14 @@ export default function AppLayout() {
   else if (pathname.startsWith('/tracker')) activeNav = 'tracker';
   else if (pathname.startsWith('/explore')) activeNav = 'explore';
 
+  // Don't show the sign-in popup on the auth/login/register pages
+  const isAuthPage = ['/auth', '/login', '/register'].includes(pathname);
+
   return (
     <>
       <BookingCartNavbar activeNav={activeNav} />
       <Outlet />
+      {!isAuthPage && <SignInPopup />}
     </>
   );
 }
