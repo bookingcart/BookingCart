@@ -27,6 +27,22 @@ function writeState(updates) {
   }
 }
 
+function money(amount, currency) {
+  if (amount == null || isNaN(amount)) return '—';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(amount);
+}
+
+function getBaseFare(state) {
+  const pax = state.passengers || { adults: 1, children: 0, infants: 0 };
+  const totalPax = (pax.adults || 0) + (pax.children || 0) + (pax.infants || 0) || 1;
+  const flight = (state.flights || []).find(f => f.id === state.selectedFlightId)
+    || state.selectedFlight
+    || (state.flights || [])[0];
+  if (!flight) return { base: 0, currency: 'USD', totalPax };
+  const price = typeof flight.price === 'object' ? parseFloat(flight.price.amount || 0) : Number(flight.price || 0);
+  return { base: price * totalPax, currency: flight.currency || 'USD', totalPax };
+}
+
 export default function ExtrasPage() {
   const navigate = useNavigate();
   const [clientKey, setClientKey] = useState(null);
@@ -35,6 +51,7 @@ export default function ExtrasPage() {
   const [passengers, setPassengers] = useState([]);
   const [servicesReady, setServicesReady] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('Loading available extras...');
+  const [summary, setSummary] = useState(null); // { base, extras, taxes, total, currency }
 
   useLegacyScripts(SCRIPTS, 'extras');
 
@@ -82,6 +99,17 @@ export default function ExtrasPage() {
 
     setPassengers(formattedPassengers);
 
+    // Set initial price summary (base fare only, no extras yet)
+    const fareInfo = getBaseFare(state);
+    const initialTaxes = Math.round(fareInfo.base * 0.11);
+    setSummary({
+      base: fareInfo.base,
+      extras: 0,
+      taxes: initialTaxes + 25, // includes $25 platform fee
+      total: fareInfo.base + initialTaxes + 25,
+      currency: fareInfo.currency,
+    });
+
     // Fetch Duffel Client Key
     setLoadingMsg('Connecting to Duffel...');
     fetch('/api/duffel-client-key', { method: 'POST' })
@@ -101,6 +129,24 @@ export default function ExtrasPage() {
   const handlePayloadReady = (services, metadata) => {
     writeState({ _selectedServices: services || [], _servicesMetadata: metadata });
     setServicesReady(true);
+    // Update summary with ancillary cost from metadata
+    const state = readState();
+    const fareInfo = getBaseFare(state);
+    let extrasCost = 0;
+    if (metadata && metadata.total_amount != null) {
+      extrasCost = Number(metadata.total_amount);
+    } else if (Array.isArray(services)) {
+      services.forEach(s => { extrasCost += Number(s.total_amount || 0) * (s.quantity || 1); });
+    }
+    const subtotal = fareInfo.base + extrasCost;
+    const taxes = Math.round(subtotal * 0.11);
+    setSummary({
+      base: fareInfo.base,
+      extras: extrasCost,
+      taxes: taxes + 25,
+      total: subtotal + taxes + 25,
+      currency: fareInfo.currency,
+    });
   };
 
   const handleContinue = (e) => {
@@ -210,15 +256,21 @@ export default function ExtrasPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Base Fare</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100" data-sum-base>-</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {summary ? money(summary.base, summary.currency) : '—'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Extras</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100" data-sum-extras>-</span>
+                    <span className={`font-bold ${summary?.extras > 0 ? 'text-green-700' : 'text-slate-900 dark:text-slate-100'}`}>
+                      {summary ? (summary.extras > 0 ? money(summary.extras, summary.currency) : 'None') : '—'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Taxes & Fees</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100" data-sum-taxes>-</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {summary ? money(summary.taxes, summary.currency) : '—'}
+                    </span>
                   </div>
                 </div>
       
@@ -226,7 +278,9 @@ export default function ExtrasPage() {
       
                 <div className="flex justify-between items-end mb-2">
                   <span className="font-bold text-slate-700 dark:text-slate-300">Total Due</span>
-                  <span className="text-2xl font-extrabold text-green-600" data-sum-total>-</span>
+                  <span className="text-2xl font-extrabold text-green-600">
+                    {summary ? money(summary.total, summary.currency) : '—'}
+                  </span>
                 </div>
                 <div className="text-xs text-right text-slate-400">Updates automatically</div>
 
