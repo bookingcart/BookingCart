@@ -309,6 +309,13 @@ export default function ExtrasPage() {
                     Extras saved! Continue to payment.
                   </div>
                 )}
+                
+                {/* TEMPORARY DEBUG BLOCK TO SEE METADATA SHAPE */}
+                <div className="mt-4 p-2 bg-slate-100 rounded text-[10px] text-slate-700 overflow-x-auto">
+                  <p className="font-bold mb-1">Debug Info (Please Screenshot this):</p>
+                  <pre>{JSON.stringify(readState()._servicesMetadata, null, 2)}</pre>
+                  <pre>{JSON.stringify(readState()._selectedServices, null, 2)}</pre>
+                </div>
       
               </div>
             </aside>
