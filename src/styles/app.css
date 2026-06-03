@@ -690,3 +690,50 @@ details.filter-chip[open] > summary .filter-chip-caret {
   from { width: 0%; }
   to   { width: 100%; }
 }
+
+/* Legacy Toast Notification Styles from bookingcart.js */
+.toast {
+    position: fixed;
+    bottom: -100px;
+    right: 24px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-left: 4px solid #ef4444; /* red for errors */
+}
+
+.dark .toast {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+
+.toast[data-open="true"] {
+    bottom: 24px;
+    opacity: 1;
+}
+
+.toast__title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+}
+.dark .toast__title { color: #f8fafc; }
+
+.toast__desc {
+    margin: 0;
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
+}
+.dark .toast__desc { color: #cbd5e1; }
