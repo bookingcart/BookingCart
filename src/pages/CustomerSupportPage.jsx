@@ -132,6 +132,7 @@ function ChatWidget({ open, onClose, initialMessage }) {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const [authError, setAuthError] = useState(false);
+  const [localOnly, setLocalOnly] = useState(false);
   const [sendError, setSendError] = useState(null);
   const bottomRef = useRef(null);
   const sentRef = useRef(false);
@@ -141,6 +142,7 @@ function ChatWidget({ open, onClose, initialMessage }) {
   useEffect(() => {
     if (!open) return;
     setAuthError(false);
+    setLocalOnly(currentEmail === 'Guest');
     setSendError(null);
     async function initThreads() {
       if (currentEmail === 'Guest') return;
@@ -196,6 +198,10 @@ function ChatWidget({ open, onClose, initialMessage }) {
   }, [messages, typing]);
 
   async function persistMessage(msg) {
+    if (currentEmail === 'Guest') {
+      setLocalOnly(true);
+      return;
+    }
     const email = currentEmail === 'Guest' ? 'guest@anonymous' : currentEmail;
     const result = await appendMessage(threadIdRef.current, email, msg.slice(0, 60), msg);
     if (!result.ok) {
@@ -257,6 +263,12 @@ function ChatWidget({ open, onClose, initialMessage }) {
         <div className="mx-3 mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-center gap-2">
           <i className="ph ph-warning text-amber-500 text-base shrink-0" />
           <span>Session expired. Please <a href="/sign-in" className="underline font-semibold">sign in again</a> to save messages.</span>
+        </div>
+      )}
+      {localOnly && (
+        <div className="mx-3 mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-center gap-2">
+          <i className="ph ph-warning text-amber-500 text-base shrink-0" />
+          <span>Sign in to save support messages and continue the chat after refresh.</span>
         </div>
       )}
       {sendError && (

@@ -10,6 +10,39 @@ async function verifyAuthToken(req) {
   return await verifyRequestBearer(req);
 }
 
+function splitName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || '',
+    lastName: parts.slice(1).join(' ')
+  };
+}
+
+function normalizeUserState(state, email) {
+  const input = state && typeof state === 'object' ? state : {};
+  const profileInput = input.profile && typeof input.profile === 'object' ? input.profile : {};
+  const fromName = splitName(profileInput.name || input.name);
+  const profile = {
+    ...profileInput,
+    firstName: String(profileInput.firstName || input.given_name || fromName.firstName || '').trim(),
+    lastName: String(profileInput.lastName || input.family_name || fromName.lastName || '').trim(),
+    email,
+    avatar: String(profileInput.avatar || input.picture || '').trim(),
+    language: String(profileInput.language || 'en').trim() || 'en',
+    phone: String(profileInput.phone || '').trim(),
+    phoneCode: String(profileInput.phoneCode || '+1').trim() || '+1',
+    dob: String(profileInput.dob || '').trim(),
+    nationality: String(profileInput.nationality || '').trim(),
+  };
+
+  return {
+    ...input,
+    email,
+    profile,
+    name: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || input.name || '',
+  };
+}
+
 module.exports = async (req, res) => {
   applyCors(req, res);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -135,12 +168,14 @@ module.exports = async (req, res) => {
         return res.status(403).json({ ok: false, error: 'Email does not match signed-in account' });
       }
 
+      const normalizedState = normalizeUserState(body.state, emailRaw);
+
       if (dbReady) {
-        const profile = body.state.profile || {};
+        const profile = normalizedState.profile || {};
         const displayName = String(
           profile.name ||
           [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
-          body.state.name ||
+          normalizedState.name ||
           ''
         ).trim();
 
@@ -155,12 +190,12 @@ module.exports = async (req, res) => {
           [
             emailRaw,
             displayName,
-            JSON.stringify(body.state),
+            JSON.stringify(normalizedState),
             JSON.stringify({ ...profile, accountEmail: emailRaw, name: displayName }),
           ]
         );
       } else {
-        global.__users[emailRaw] = body.state;
+        global.__users[emailRaw] = normalizedState;
       }
       return res.json({ ok: true });
     }

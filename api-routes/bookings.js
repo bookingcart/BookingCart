@@ -11,8 +11,6 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'POST only' });
-  const { action, booking, email, id, status, pin } = req.body || {};
 
   try {
     let dbReady = false;
@@ -30,6 +28,25 @@ module.exports = async (req, res) => {
     if (process.env.NODE_ENV === 'production' && !dbReady) {
       return res.status(503).json({ ok: false, error: 'Database is not configured (DATABASE_URL)' });
     }
+
+    if (req.method === 'GET') {
+      const ref = String(req.query?.ref || req.query?.id || '').trim();
+      if (!ref) return res.status(400).json({ ok: false, error: 'Missing booking reference' });
+
+      let found = null;
+      if (dbReady) {
+        const result = await query('SELECT * FROM bc_bookings WHERE ref = $1', [ref]);
+        found = result.rows.length ? rowToBooking(result.rows[0]) : null;
+      } else {
+        found = (global.__bookings || []).find((b) => b.ref === ref) || null;
+      }
+
+      if (!found) return res.status(404).json({ ok: false, error: 'Booking not found' });
+      return res.json({ ok: true, booking: found });
+    }
+
+    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+    const { action, booking, email, id, status } = req.body || {};
 
     if (action === 'save') {
       if (!booking) return res.status(400).json({ ok: false, error: 'Missing booking' });

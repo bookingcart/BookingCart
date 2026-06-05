@@ -67,6 +67,8 @@ const fmtHead = (deg) => {
   return `${dirs[Math.round(deg / 45) % 8]} ${Math.round(deg)}°`;
 };
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
 // ─── Viewport tracker ─────────────────────────────────────────────────────────
 function BoundsTracker({ onBoundsChange }) {
   const map = useMapEvents({
@@ -156,8 +158,8 @@ export default function FlightTrackerPage() {
   const [boardTab, setBoardTab] = useState('dep');
   const [trackerTab, setTrackerTab] = useState('flight');
   const [nearestAirport, setNearestAirport] = useState(AIRPORTS[6]);
-  const [flightSearch, setFlightSearch] = useState({ airline: '', flightNumber: '', date: '2026-05-24' });
-  const [airportSearch, setAirportSearch] = useState({ airport: '', airline: '', date: '2026-05-24', time: 'Morning 6:00am - 12:00pm' });
+  const [flightSearch, setFlightSearch] = useState(() => ({ airline: '', flightNumber: '', date: todayIso() }));
+  const [airportSearch, setAirportSearch] = useState(() => ({ airport: '', airline: '', date: todayIso(), time: 'Morning 6:00am - 12:00pm' }));
   const [searchLoading, setSearchLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [flyTarget, setFlyTarget] = useState(null);
