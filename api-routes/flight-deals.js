@@ -106,31 +106,17 @@ async function fetchDeal(origin, destination, date) {
     }
 }
 
-// Generate mock deal when Duffel is unavailable (fallback)
-function mockDeal(origin, routeInfo, index) {
-    const prices = [180, 240, 320, 440, 560, 290, 380, 195, 650, 275];
-    const airlines = ['Emirates', 'Qatar Airways', 'Turkish Airlines', 'British Airways', 'Air France', 'Flydubai', 'Kenya Airways'];
-    const price = prices[index % prices.length] + Math.floor(Math.random() * 40);
-    const date = getNextDates(21 + index * 7);
-    return {
-        price,
-        currency: 'USD',
-        airline: airlines[index % airlines.length],
-        airlineCode: '',
-        duration: '',
-        stops: index % 3 === 0 ? 0 : 1,
-        departTime: '',
-        arriveTime: '',
-        date,
-        offerId: null,
-        isMock: true
-    };
-}
-
 module.exports = async (req, res) => {
     const ch = getCorsHeaders(req);
     Object.entries(ch).forEach(([k, v]) => res.setHeader(k, v));
     if (req.method === 'OPTIONS') return res.status(200).end();
+    if (!DUFFEL_API_KEY) {
+        return res.status(503).json({
+            ok: false,
+            error: 'Flight deals are unavailable because Duffel is not configured.',
+            deals: []
+        });
+    }
 
     // Get client IP
     const ip =
@@ -194,13 +180,18 @@ module.exports = async (req, res) => {
     );
     const rawDeals = await Promise.all(dealPromises);
 
-    // Step 4: Fill in mocks where Duffel returned null
-    const deals = rawDeals.map((d, i) => {
-        const route = routes[i];
-        if (d) return d;
-        const mock = mockDeal(iata, route, i);
-        return { ...mock, ...route, from: iata };
-    }).filter(Boolean);
+    const deals = rawDeals.filter(Boolean);
+
+    if (deals.length === 0) {
+        return res.status(502).json({
+            ok: false,
+            error: 'No live flight deals are available right now.',
+            origin: iata,
+            city: city || iata,
+            country,
+            deals: []
+        });
+    }
 
     // Curated Pexels images per destination
     const DEST_IMAGES = {

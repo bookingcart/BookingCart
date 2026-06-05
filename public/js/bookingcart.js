@@ -1589,7 +1589,8 @@
             })
           });
 
-          if (!res.ok) throw new Error("Failed to activate price alert");
+          const alertData = await res.json().catch(() => ({}));
+          if (!res.ok || !alertData.ok) throw new Error(alertData.error || "Failed to activate price alert");
 
           isAlertActive = true;
           localStorage.setItem(alertKey, "true");
@@ -1606,8 +1607,9 @@
                 <div>
                   <h2 class="text-2xl font-extrabold text-slate-900 dark:text-slate-100 mb-1">Tracking Enabled!</h2>
                   <p class="text-sm text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
-                    We're now watching <strong class="text-slate-700 dark:text-slate-300">${search.from || "Origin"} → ${search.to || "Destination"}</strong> for you.<br/>
-                    We'll email <strong class="text-green-700">${email}</strong> the moment prices drop below <strong class="text-slate-700 dark:text-slate-300">${currency} ${selectedTargetPrice.toFixed(2)}</strong>.
+                    ${alertData.message || "Price alert saved."}<br/>
+                    Route: <strong class="text-slate-700 dark:text-slate-300">${search.from || "Origin"} → ${search.to || "Destination"}</strong><br/>
+                    Target: <strong class="text-slate-700 dark:text-slate-300">${currency} ${selectedTargetPrice.toFixed(2)}</strong>.
                   </p>
                 </div>
                 <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-full px-4 py-2">
@@ -1628,7 +1630,7 @@
 
         } catch (err) {
           console.error(err);
-          window.toast("Error", "Could not set up price alert. Please try again.", "error");
+          window.toast("Error", err.message || "Could not set up price alert. Please try again.", "error");
           enableAlertBtn.innerHTML = originalText;
           enableAlertBtn.disabled = false;
         }

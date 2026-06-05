@@ -1,462 +1,199 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 
-/* ─── tiny helpers ─────────────────────────────────────────── */
-function Badge({ children, variant = 'gray' }) {
-  const cls = {
-    red: 'bg-red-50 text-red-600 border-red-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    blue: 'bg-green-50 text-green-700 border-green-200',
-    gray: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-  }[variant];
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${cls}`}>
-      {children}
-    </span>
-  );
+function money(value, currency = 'USD') {
+  const n = Number(value || 0);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number.isFinite(n) ? n : 0);
 }
 
-function Divider() {
-  return <hr className="border-slate-100 my-5" />;
+function statusClass(status) {
+  const s = String(status || '').toLowerCase();
+  if (['confirmed', 'issued', 'paid'].includes(s)) return 'bg-green-50 text-green-700 border-green-200';
+  if (['cancelled', 'canceled', 'failed'].includes(s)) return 'bg-red-50 text-red-600 border-red-200';
+  return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-/* ─── mock data ─────────────────────────────────────────────── */
-const booking = {
-  status: 'Canceled',
-  reason: 'Payment failed',
-  bookingRef: 'BC-20240423-8812',
-  pin: '7734',
-  totalUsd: 2101.0,
-  ticketFare: 1820.0,
-  taxesFees: 341.0,
-  discount: 60.0,
-  passenger: { name: 'Jordan M. Nakamura', nationality: 'Canadian', gender: 'Male' },
-  outbound: {
-    from: 'Entebbe', fromCode: 'EBB', fromFull: 'Entebbe International Airport',
-    to: 'Toronto', toCode: 'YYZ', toFull: 'Toronto Pearson International Airport',
-    date: 'Thu, 12 Jun 2025',
-    segments: [
-      {
-        dep: '03:45', depAirport: 'EBB', depTerminal: 'Terminal 1',
-        arr: '08:55', arrAirport: 'DXB', arrTerminal: 'Terminal 3',
-        duration: '5h 10m', airline: 'Emirates', flightNo: 'EK 723',
-        aircraft: 'Boeing 777-300ER', stops: 0,
-      },
-      {
-        dep: '10:25', depAirport: 'DXB', depTerminal: 'Terminal 3',
-        arr: '21:05', arrAirport: 'YYZ', arrTerminal: 'Terminal 1',
-        duration: '14h 40m', airline: 'Emirates', flightNo: 'EK 241',
-        aircraft: 'Airbus A380-800', stops: 0,
-      },
-    ],
-    layovers: [
-      { at: 'DXB', duration: '1h 30m', warnings: ['Terminal change required', 'Check visa requirements for UAE transit'] },
-    ],
-  },
-  inbound: {
-    from: 'Toronto', fromCode: 'YYZ', fromFull: 'Toronto Pearson International Airport',
-    to: 'Entebbe', toCode: 'EBB', toFull: 'Entebbe International Airport',
-    date: 'Sun, 22 Jun 2025',
-    segments: [
-      {
-        dep: '22:30', depAirport: 'YYZ', depTerminal: 'Terminal 1',
-        arr: '16:50+1', arrAirport: 'DXB', arrTerminal: 'Terminal 3',
-        duration: '12h 20m', airline: 'Emirates', flightNo: 'EK 242',
-        aircraft: 'Airbus A380-800', stops: 0,
-      },
-      {
-        dep: '18:40', depAirport: 'DXB', depTerminal: 'Terminal 3',
-        arr: '23:55', arrAirport: 'EBB', arrTerminal: 'Terminal 1',
-        duration: '5h 15m', airline: 'Emirates', flightNo: 'EK 724',
-        aircraft: 'Boeing 777-300ER', stops: 0,
-      },
-    ],
-    layovers: [
-      { at: 'DXB', duration: '1h 50m', warnings: ['Overnight transfer', 'Terminal change required'] },
-    ],
-  },
-};
-
-/* ─── FlightSegment ──────────────────────────────────────────── */
-function FlightSegment({ seg }) {
-  return (
-    <div className="flex gap-4 items-start">
-      {/* Airline logo placeholder */}
-      <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center shrink-0 mt-0.5">
-        <i className="ph ph-airplane-tilt text-green-600 text-lg" />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        {/* Times row */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="text-center">
-            <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 leading-none">{seg.dep}</div>
-            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">{seg.depAirport}</div>
-          </div>
-
-          <div className="flex-1 flex flex-col items-center min-w-[80px]">
-            <div className="text-xs font-semibold text-slate-400 mb-1">{seg.duration}</div>
-            <div className="relative w-full flex items-center">
-              <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
-              <i className="ph ph-airplane-tilt text-green-500 text-sm mx-1" />
-              <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1" />
-            </div>
-            <div className="text-[10px] text-slate-400 mt-1">Direct</div>
-          </div>
-
-          <div className="text-center">
-            <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 leading-none">{seg.arr}</div>
-            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">{seg.arrAirport}</div>
-          </div>
-        </div>
-
-        {/* Details row */}
-        <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
-          <span className="flex items-center gap-1"><i className="ph ph-tag" />{seg.airline} · {seg.flightNo}</span>
-          <span className="flex items-center gap-1"><i className="ph ph-airplane" />{seg.aircraft}</span>
-          <span className="flex items-center gap-1"><i className="ph ph-map-pin" />Dep: {seg.depTerminal}</span>
-          <span className="flex items-center gap-1"><i className="ph ph-map-pin" />Arr: {seg.arrTerminal}</span>
-        </div>
-      </div>
-    </div>
-  );
+function extractSegments(booking) {
+  const flight = booking?.flight || {};
+  if (Array.isArray(flight.segments) && flight.segments.length) return flight.segments;
+  if (Array.isArray(flight.slices)) return flight.slices.flatMap((slice) => slice.segments || []);
+  return [];
 }
 
-/* ─── LayoverBadge ───────────────────────────────────────────── */
-function LayoverBadge({ layover }) {
-  return (
-    <div className="relative flex items-start gap-3 py-3 px-4 rounded-xl bg-amber-50 border border-amber-100 my-3">
-      <div className="mt-0.5">
-        <i className="ph ph-clock-countdown text-amber-500 text-lg" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-amber-800">
-          Layover at {layover.at} · {layover.duration}
-        </p>
-        <ul className="mt-1 space-y-0.5">
-          {layover.warnings.map((w, i) => (
-            <li key={i} className="flex items-center gap-1.5 text-xs text-amber-700">
-              <i className="ph ph-warning-circle shrink-0" />{w}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-/* ─── FlightLeg ──────────────────────────────────────────────── */
-function FlightLeg({ leg, label }) {
-  return (
-    <div className="space-y-4">
-      {/* Leg header */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold">
-          <i className={label === 'Return' ? 'ph ph-airplane-landing' : 'ph ph-airplane-takeoff'} />
-          {label}
-        </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 font-semibold">
-          <span className="font-extrabold text-slate-900 dark:text-slate-100">{leg.fromCode}</span>
-          <span className="text-slate-400">→</span>
-          <span className="font-extrabold text-slate-900 dark:text-slate-100">{leg.toCode}</span>
-          <span className="text-slate-400">·</span>
-          <span className="font-medium text-slate-500 dark:text-slate-400">{leg.date}</span>
-        </div>
-      </div>
-
-      {/* Airports */}
-      <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
-        <span><span className="text-slate-700 dark:text-slate-300 font-semibold">{leg.from}:</span> {leg.fromFull}</span>
-        <span className="text-slate-300">|</span>
-        <span><span className="text-slate-700 dark:text-slate-300 font-semibold">{leg.to}:</span> {leg.toFull}</span>
-      </div>
-
-      {/* Segments + layovers interleaved */}
-      <div className="space-y-0">
-        {leg.segments.map((seg, idx) => (
-          <div key={idx}>
-            <FlightSegment seg={seg} />
-            {leg.layovers && leg.layovers[idx] && (
-              <LayoverBadge layover={leg.layovers[idx]} />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── RatingWidget ───────────────────────────────────────────── */
-function RatingWidget() {
-  const [selected, setSelected] = useState(null);
-  const emojis = ['😞', '😕', '😐', '🙂', '😊', '😄', '😁', '🤩', '🥰', '😍', '🎉'];
-
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
-      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-        How likely are you to recommend booking flights on BookingCart?
-      </p>
-      <p className="text-xs text-slate-400 mb-4">0 = Not likely · 10 = Extremely likely</p>
-
-      <div className="flex gap-1.5 flex-wrap">
-        {Array.from({ length: 11 }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => setSelected(i)}
-            className={`w-9 h-9 rounded-xl text-sm font-bold border transition-all duration-150
-              ${selected === i
-                ? 'bg-green-600 text-white border-green-600 scale-110 shadow-lg shadow-green-100'
-                : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 hover:border-green-300 hover:bg-green-50'
-              }`}
-            title={`${i} – ${emojis[i]}`}
-          >
-            {i}
-          </button>
-        ))}
-      </div>
-
-      {selected !== null && (
-        <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 animate-fade-in">
-          <span className="text-2xl">{emojis[selected]}</span>
-          <span>Thanks for rating us <strong>{selected}/10</strong>!</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── PromoBanner ────────────────────────────────────────────── */
-function PromoBanner() {
-  return (
-    <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg shadow-green-100">
-      <div className="absolute right-0 top-0 bottom-0 w-48 opacity-10">
-        <i className="ph ph-buildings text-[160px] leading-none text-white" />
-      </div>
-
-      <Badge variant="blue">
-        <i className="ph ph-star-four text-yellow-300" /> Limited Offer
-      </Badge>
-
-      <h3 className="text-lg font-extrabold mt-3 mb-1">Book your stay for less 🏨</h3>
-      <p className="text-sm text-green-100 mb-4">
-        Save up to <span className="font-bold text-white">30% off</span> hotels when you bundle with your next flight.
-      </p>
-
-      <button className="inline-flex items-center gap-2 bg-white dark:bg-slate-800 text-green-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-green-50 transition-all">
-        <i className="ph ph-bed" /> Browse Hotels
-      </button>
-    </div>
-  );
-}
-
-/* ─── Page ───────────────────────────────────────────────────── */
 export default function BookingDetailsPage() {
+  const { ref: refParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const bookingRef = refParam || searchParams.get('ref') || searchParams.get('id') || '';
+  const [booking, setBooking] = useState(null);
+  const [loading, setLoading] = useState(!!bookingRef);
+  const [error, setError] = useState('');
+
   useEffect(() => { document.title = 'Booking Details | BookingCart'; }, []);
 
-  const fmt = (n) => `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  useEffect(() => {
+    let cancelled = false;
+    async function loadBooking() {
+      if (!bookingRef) {
+        setLoading(false);
+        setError('Missing booking reference.');
+        return;
+      }
+      setLoading(true);
+      setError('');
+      try {
+        const resp = await fetch(`/api/bookings?ref=${encodeURIComponent(bookingRef)}`);
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok) throw new Error(data.error || 'Booking not found');
+        if (!cancelled) setBooking(data.booking);
+      } catch (err) {
+        if (!cancelled) setError(err.message || 'Booking not found');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadBooking();
+    return () => { cancelled = true; };
+  }, [bookingRef]);
+
+  const segments = useMemo(() => extractSegments(booking), [booking]);
+  const passengers = Array.isArray(booking?.passengers) ? booking.passengers : [];
+  const currency = booking?.flight?.currency || booking?.payment?.currency || 'USD';
+
+  if (loading) {
+    return (
+      <>
+        <main className="max-w-5xl mx-auto px-4 py-10">
+          <div className="h-8 w-56 bg-slate-100 rounded animate-pulse mb-6" />
+          <div className="h-72 bg-slate-100 rounded-2xl animate-pulse" />
+        </main>
+        <FlightFooter />
+      </>
+    );
+  }
+
+  if (error || !booking) {
+    return (
+      <>
+        <main className="max-w-3xl mx-auto px-4 py-14">
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-8 text-center">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+              <i className="ph ph-airplane-tilt text-3xl text-slate-400" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-slate-900">Booking not found</h1>
+            <p className="text-sm text-slate-500 mt-2">{error || 'We could not find a booking with that reference.'}</p>
+            <Link to="/my-bookings" className="btn-primary inline-flex mt-6">Back to My Bookings</Link>
+          </div>
+        </main>
+        <FlightFooter />
+      </>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans">
-
-
-      {/* ── Main ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-6 flex-wrap">
-          <a href="/my-bookings" className="hover:text-green-600 transition-colors">All Bookings</a>
+    <>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <nav className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-6">
+          <Link to="/my-bookings" className="hover:text-green-600">My Bookings</Link>
           <i className="ph ph-caret-right text-slate-300" />
-          <a href="/my-bookings" className="hover:text-green-600 transition-colors">Flight Bookings</a>
-          <i className="ph ph-caret-right text-slate-300" />
-          <span className="text-slate-700 dark:text-slate-300 font-semibold">Booking Details</span>
+          <span className="text-slate-700 font-semibold">{booking.ref}</span>
         </nav>
 
-        {/* Two-column grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-
-          {/* ── LEFT COLUMN ── */}
-          <div className="space-y-5">
-
-            {/* ── Status card ── */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
+          <section className="space-y-5">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
-                  {/* Status */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-                      <i className="ph ph-x-circle text-red-500 text-lg" />
-                    </div>
-                    <span className="text-2xl font-extrabold text-red-600 tracking-tight">Canceled</span>
-                  </div>
-
-                  {/* Reason */}
-                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
-                    <i className="ph ph-info text-slate-400" />
-                    <span>Reason for cancellation: <span className="text-slate-700 dark:text-slate-300 font-semibold">payment failed</span></span>
-                  </div>
-
-                  {/* Booking refs */}
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Booking Number</span>
-                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200 font-mono tracking-wide">{booking.bookingRef}</span>
-                    </div>
-                    <div className="w-px bg-slate-100 dark:bg-slate-800 hidden sm:block" />
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PIN Code</span>
-                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200 font-mono tracking-widest">{booking.pin}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <button className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-all shadow-sm shadow-green-200 shrink-0 self-start">
-                  <i className="ph ph-arrows-clockwise" /> Book Again
-                </button>
-              </div>
-            </div>
-
-            {/* ── Flight Details ── */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-xl bg-green-50 flex items-center justify-center">
-                  <i className="ph ph-airplane-tilt text-green-600 text-lg" />
-                </div>
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Flight Details</h2>
-                <Badge variant="green">Round Trip</Badge>
-              </div>
-
-              <FlightLeg leg={booking.outbound} label="Outbound" />
-
-              <div className="my-6 border-t border-dashed border-slate-200" />
-
-              <FlightLeg leg={booking.inbound} label="Return" />
-            </div>
-
-            {/* ── Passenger Information ── */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <i className="ph ph-user text-slate-500 dark:text-slate-400 text-lg" />
-                </div>
-                <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Passenger Information</h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                  { label: 'Full Name', value: booking.passenger.name, icon: 'ph-identification-card' },
-                  { label: 'Nationality', value: booking.passenger.nationality, icon: 'ph-globe' },
-                  { label: 'Gender', value: booking.passenger.gender, icon: 'ph-user-circle' },
-                ].map(({ label, value, icon }) => (
-                  <div key={label} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-100">
-                    <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 flex items-center justify-center shrink-0">
-                      <i className={`ph ${icon} text-slate-500 dark:text-slate-400`} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</div>
-                      <div className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">{value}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Rating ── */}
-            <RatingWidget />
-
-            {/* ── Promo ── */}
-            <PromoBanner />
-
-          </div>
-
-          {/* ── RIGHT SIDEBAR ── */}
-          <div className="space-y-4 lg:sticky lg:top-24">
-
-            {/* Price Summary card */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mb-4">Price Summary</h3>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Ticket Fare</span>
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{fmt(booking.ticketFare)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Taxes &amp; Fees</span>
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{fmt(booking.taxesFees)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
-                    <i className="ph ph-tag text-green-500" /> Discount
+                  <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-sm font-bold capitalize ${statusClass(booking.status)}`}>
+                    <i className="ph ph-circle" /> {booking.status || 'new'}
                   </span>
-                  <span className="text-sm font-bold text-green-600">−{fmt(booking.discount)}</span>
+                  <h1 className="text-2xl font-extrabold text-slate-900 mt-4">{booking.route || 'Flight booking'}</h1>
+                  <p className="text-sm text-slate-500 mt-1">{booking.dates || 'Dates unavailable'}</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Booking number</div>
+                  <div className="text-sm font-extrabold text-slate-800 font-mono">{booking.ref}</div>
+                  {booking.duffelBookingReference && (
+                    <div className="mt-2 text-xs text-slate-500">Airline ref: {booking.duffelBookingReference}</div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <Divider />
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Total Amount</span>
-                <div className="text-right">
-                  <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{fmt(booking.totalUsd)}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">USD · incl. all taxes</div>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 mb-4">Flight details</h2>
+              {segments.length ? (
+                <div className="space-y-4">
+                  {segments.map((seg, index) => (
+                    <div key={`${seg.id || index}`} className="flex gap-4 items-start border-b border-slate-100 last:border-0 pb-4 last:pb-0">
+                      <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+                        <i className="ph ph-airplane-tilt text-green-600 text-lg" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <strong className="text-slate-900">{seg.departCode || seg.departAirport || seg.origin?.iata_code || '--'}</strong>
+                          <span className="text-slate-400">→</span>
+                          <strong className="text-slate-900">{seg.arriveCode || seg.arriveAirport || seg.destination?.iata_code || '--'}</strong>
+                          <span className="text-sm text-slate-500">{seg.departTime || seg.departing_at || ''} {seg.arriveTime ? `- ${seg.arriveTime}` : ''}</span>
+                        </div>
+                        <div className="mt-1 text-sm text-slate-500">
+                          {seg.airlineName || seg.airline || seg.marketing_carrier?.name || 'Airline unavailable'}
+                          {seg.flightNumber ? ` · ${seg.flightNumber}` : ''}
+                          {seg.durationMin ? ` · ${Math.floor(seg.durationMin / 60)}h ${seg.durationMin % 60}m` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-sm text-slate-500">Flight segment details are unavailable for this booking.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 mb-4">Passengers</h2>
+              {passengers.length ? (
+                <div className="grid gap-3">
+                  {passengers.map((p, index) => (
+                    <div key={index} className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                      <strong>{[p.firstName, p.lastName, p.name].filter(Boolean).join(' ') || `Passenger ${index + 1}`}</strong>
+                      {p.type && <span className="text-slate-500 ml-2 capitalize">{p.type}</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">Passenger details are unavailable.</p>
+              )}
+            </div>
+          </section>
+
+          <aside className="space-y-5">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 mb-4">Price summary</h2>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Total</span>
+                <strong className="text-green-600 text-lg">{money(booking.total, currency)}</strong>
               </div>
-
-              <p className="mt-4 text-[11px] text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100">
-                <i className="ph ph-info-circle mr-1" />
-                Refunds are processed to the original payment method only. Prepaid &amp; virtual cards may not be supported.
-              </p>
+              {booking.payment?.status && (
+                <div className="mt-3 text-xs text-slate-500">Payment status: {booking.payment.status}</div>
+              )}
             </div>
 
-            {/* Quick actions */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</h3>
-
-              {[
-                { icon: 'ph-arrows-clockwise', label: 'Book Again', color: 'text-green-600' },
-                { icon: 'ph-printer', label: 'Print Booking', color: 'text-slate-600 dark:text-slate-400' },
-                { icon: 'ph-envelope', label: 'Email Confirmation', color: 'text-slate-600 dark:text-slate-400' },
-                { icon: 'ph-headset', label: 'Contact Support', color: 'text-slate-600 dark:text-slate-400' },
-              ].map(({ icon, label, color }) => (
-                <button
-                  key={label}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900 transition-all border border-transparent hover:border-slate-100"
-                >
-                  <i className={`ph ${icon} ${color} text-base`} />
-                  {label}
-                </button>
-              ))}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 mb-4">Ticket</h2>
+              {booking.ticket ? (
+                <div className="text-sm text-slate-600">
+                  <div><strong>{booking.ticket.airline}</strong></div>
+                  <div className="font-mono">{booking.ticket.ticketNumber}</div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No ticket has been issued yet.</p>
+              )}
             </div>
-
-            {/* Need help? */}
-            <div className="rounded-2xl border border-green-100 bg-green-50 p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <i className="ph ph-headset text-green-600 text-lg" />
-                <span className="text-sm font-bold text-green-900">Need help?</span>
-              </div>
-              <p className="text-xs text-green-700 mb-3 leading-relaxed">
-                Our 24/7 support team is ready to assist with your booking.
-              </p>
-              <button className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 rounded-xl transition-all">
-                Chat with Support
-              </button>
-            </div>
-
-          </div>
+          </aside>
         </div>
-      </div>
-
-      {/* ── Floating support button ── */}
-      <button
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-xl shadow-green-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        title="Live Support"
-      >
-        <i className="ph ph-chat-circle-dots text-2xl" />
-      </button>
+      </main>
       <FlightFooter />
-    </div>
+    </>
   );
 }
-    

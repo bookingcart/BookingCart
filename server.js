@@ -108,7 +108,7 @@ app.get('/api/config', apiLimiter, (req, res) => {
   });
 });
 
-app.post('/api/bookings', apiLimiter, run(bookingsHandler));
+app.all('/api/bookings', apiLimiter, run(bookingsHandler));
 app.all('/api/user', apiLimiter, run(userHandler));
 app.post('/api/duffel-search', searchLimiter, run(duffelSearchHandler));
 app.get('/api/duffel-airports', searchLimiter, run(duffelAirportsHandler));
@@ -519,7 +519,7 @@ app.get('/api/events/search-combined', apiLimiter, async (req, res) => {
     }
 
     if (combined.length === 0 && !EVENTBRITE_TOKEN && !TICKETMASTER_API_KEY) {
-      return res.status(500).json({
+      return res.status(503).json({
         ok: false,
         error: 'No events providers configured. Set EVENTBRITE_TOKEN and/or TICKETMASTER_API_KEY.'
       });

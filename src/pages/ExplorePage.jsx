@@ -455,15 +455,15 @@ export default function ExplorePage() {
   // Get display price for a dest (live if available, fallback to static)
   const getDisplayPrice = (dest) => {
     const lp = livePrices[dest.iata];
-    if (lp?.loading) return { label: '···', isLoading: true };
+    if (!lp || lp.loading) return { label: '···', isLoading: true };
     if (lp?.price) return { label: `$${lp.price}`, isLoading: false };
-    return { label: `$${dest.price}`, isLoading: false };
+    return { label: 'Unavailable', isLoading: false, isUnavailable: true };
   };
 
   const getDisplayPriceValue = (dest) => {
     const lp = livePrices[dest.iata];
     if (lp?.price) return lp.price;
-    return dest.price;
+    return Number.POSITIVE_INFINITY;
   };
 
   const sidebarList = [...visibleDests].sort((a, b) => getDisplayPriceValue(a) - getDisplayPriceValue(b));
@@ -539,7 +539,7 @@ export default function ExplorePage() {
             <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
               {sidebarList.map(dest => {
                 const lp = livePrices[dest.iata];
-                const displayPrice = lp?.price ? `$${lp.price}` : `$${dest.price}`;
+                const displayPrice = lp?.loading || !lp ? '···' : lp?.price ? `$${lp.price}` : 'Unavailable';
                 const isLive = !!lp?.price;
                 return (
                   <div key={dest.id} onClick={() => handleSelectDest(dest)} className="flex gap-3 px-3 py-3 hover:bg-slate-50 cursor-pointer transition-colors">
@@ -554,7 +554,7 @@ export default function ExplorePage() {
                       <div className="text-[11px] text-slate-400">{dest.stops}</div>
                     </div>
                     <div className="flex flex-col items-end justify-center gap-0.5">
-                      <span className={`font-extrabold text-sm ${isLive ? 'text-green-600' : 'text-slate-900'}`}>{displayPrice}</span>
+                      <span className={`font-extrabold text-sm ${isLive ? 'text-green-600' : 'text-slate-500'}`}>{displayPrice}</span>
                       {isLive && <span className="text-[9px] text-green-500 font-bold">LIVE</span>}
                       {lp?.loading && <span className="text-[9px] text-slate-400">···</span>}
                     </div>
@@ -578,7 +578,7 @@ export default function ExplorePage() {
               {/* Live price badge on hero */}
               {(() => {
                 const lp = livePrices[selectedDest.iata];
-                const displayPrice = lp?.price ? `$${lp.price}` : `$${selectedDest.price}`;
+                const displayPrice = lp?.loading || !lp ? 'Checking...' : lp?.price ? `$${lp.price}` : 'Unavailable';
                 const isLive = !!lp?.price;
                 return (
                   <div className="absolute bottom-3 right-3">
@@ -615,8 +615,9 @@ export default function ExplorePage() {
                     {(() => {
                       const lp = livePrices[selectedDest.iata];
                       if (lp?.loading) return <div className="text-xl font-black text-slate-400">···</div>;
-                      const price = lp?.price ?? selectedDest.price;
-                      return <div className={`text-xl font-black ${lp?.price ? 'text-green-600' : 'text-slate-900'}`}>${price}</div>;
+                      if (!lp) return <div className="text-xl font-black text-slate-400">···</div>;
+                      if (lp.error && !lp.price) return <div className="text-sm font-black text-slate-500">Unavailable</div>;
+                      return <div className={`text-xl font-black ${lp?.price ? 'text-green-600' : 'text-slate-400'}`}>{lp?.price ? `$${lp.price}` : '···'}</div>;
                     })()}
                     <div className="text-[10px] text-slate-400">{selectedDest.tripType}</div>
                   </div>

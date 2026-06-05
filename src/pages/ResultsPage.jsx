@@ -218,22 +218,7 @@ export default function ResultsPage(){
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">Airlines</h3>
             <input type="text" placeholder="All airlines" className="w-full border border-slate-300 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 dark:text-slate-200 px-3 py-1.5 text-sm mb-3 focus:outline-none focus:border-green-600" />
             <div className="space-y-2.5" id="sidebar-airline-list">
-              {/* Populated dynamically via JS, but we'll put some mocks for visuals if JS doesn't wipe it completely, actually bookingcart.js rewrites it. Wait, the JS rewrites a SELECT element, not checkboxes. We'll update the JS to handle this or just leave the mock visual. */}
-              <label className="flex justify-between items-center cursor-pointer group">
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-green-600" />
-                  <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:text-slate-100 dark:group-hover:text-white flex items-center gap-2"><div className="w-4 h-4 bg-red-600 rounded-sm"></div> China Eastern</span>
-                </div>
-                <span className="text-xs text-slate-400 font-medium">US$543</span>
-              </label>
-              <label className="flex justify-between items-center cursor-pointer group">
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-green-600" />
-                  <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:text-slate-100 dark:group-hover:text-white flex items-center gap-2"><div className="w-4 h-4 bg-red-500 rounded-sm"></div> Hong Kong Airlines</span>
-                </div>
-                <span className="text-xs text-slate-400 font-medium">US$117</span>
-              </label>
-              <button className="text-green-600 text-sm font-medium mt-1 hover:underline">Show More <i className="ph ph-caret-down text-xs"></i></button>
+              <p className="text-sm text-slate-400">Airline filters appear after live results load.</p>
             </div>
             {/* Hidden native select for JS logic compatibility */}
             <select name="airline" className="hidden"><option value="any">Any airline</option></select>
@@ -247,23 +232,23 @@ export default function ResultsPage(){
         <section className="lg:col-span-9 w-full min-w-0">
           
           <div className="bg-green-600 rounded-t-xl px-5 py-3 text-white flex justify-between items-center">
-            <h2 className="font-bold text-lg flex items-center gap-2">Departing for <span data-route-dest>Bangkok</span></h2>
-            <span className="text-sm text-green-100 font-medium"><span data-flight-count>66</span> flights found</span>
+            <h2 className="font-bold text-lg flex items-center gap-2">Departing for <span data-route-dest>Destination</span></h2>
+            <span className="text-sm text-green-100 font-medium"><span data-flight-count>0</span> flights found</span>
           </div>
 
           {/* Sort Tabs */}
           <div className="flex border border-t-0 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 mb-4 shadow-sm text-sm" role="tablist">
             <button className="flex-1 py-3 text-center border-b-2 border-green-600 text-green-600 font-bold relative">
               Recommended <i className="ph ph-info text-slate-400 font-normal"></i>
-              <div className="text-xs font-semibold mt-0.5">US$112</div>
+              <div className="text-xs font-semibold mt-0.5" data-tab-recommended-price>--</div>
             </button>
             <button className="flex-1 py-3 text-center border-b-2 border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700/50 font-medium border-l border-slate-100 dark:border-slate-700">
               Nonstop first
-              <div className="text-xs text-slate-400 mt-0.5">US$112</div>
+              <div className="text-xs text-slate-400 mt-0.5" data-tab-nonstop-price>--</div>
             </button>
             <button className="flex-1 py-3 text-center border-b-2 border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700/50 font-medium border-l border-slate-100 dark:border-slate-700">
               Cheapest
-              <div className="text-xs text-slate-400 mt-0.5">US$112</div>
+              <div className="text-xs text-slate-400 mt-0.5" data-tab-cheapest-price>--</div>
             </button>
             <button className="flex-1 py-3 text-center border-b-2 border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700/50 font-bold border-l border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center">
               Sort by <i className="ph ph-caret-down"></i>
@@ -284,17 +269,17 @@ export default function ResultsPage(){
             </div>
           </div>
           
-          {/* Price Trend Graph Mock */}
+          {/* Price Trend Graph */}
           <div className="mt-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 shadow-sm" id="price-trend-graph" style={{display: 'none'}}>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
                 <i className="ph-fill ph-chart-line-up text-orange-500 text-xl"></i>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100">Prices are likely to <span className="text-orange-500">increase</span>—book now!</h3>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100">Price trend</h3>
               </div>
               <i className="ph ph-caret-up text-slate-400"></i>
             </div>
             <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-300 mb-6">
-              <span>Current lowest price: <span className="font-bold text-green-600">US$112.00</span></span>
+              <span>Current lowest price: <span className="font-bold text-green-600" data-current-lowest-price>--</span></span>
               <span>Typical price <i className="ph ph-question text-slate-400"></i></span>
             </div>
             <div className="w-full h-32 relative flex items-end px-4 border-b border-slate-200 dark:border-slate-700 pb-2">
@@ -304,8 +289,8 @@ export default function ResultsPage(){
                 <circle cx="40" cy="75" r="4" fill="#16a34a" />
               </svg>
               {/* Axis labels */}
-              <div className="absolute right-0 top-0 text-[10px] text-slate-400">US$159.92</div>
-              <div className="absolute right-0 bottom-4 text-[10px] text-slate-400">US$116.92</div>
+              <div className="absolute right-0 top-0 text-[10px] text-slate-400" data-trend-high>--</div>
+              <div className="absolute right-0 bottom-4 text-[10px] text-slate-400" data-trend-low>--</div>
             </div>
           </div>
 
@@ -340,9 +325,9 @@ export default function ResultsPage(){
           {/* Route info */}
           <div>
             <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg flex items-center gap-2">
-              <span data-alert-from>Hong Kong</span>
+              <span data-alert-from>Origin</span>
               <i className="ph-bold ph-arrow-right text-slate-400 text-sm"></i>
-              <span data-alert-to>Bangkok</span>
+              <span data-alert-to>Destination</span>
             </h3>
             <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 capitalize" data-alert-trip-type>One-way</div>
           </div>
@@ -357,7 +342,7 @@ export default function ResultsPage(){
 
           {/* Price target slider area */}
           <div>
-             <label className="text-sm font-bold text-slate-900 dark:text-slate-100 block mb-2">Want a better deal? We'll notify you when the price drops below <span className="text-green-600" data-alert-target-price>US$104</span>.</label>
+             <label className="text-sm font-bold text-slate-900 dark:text-slate-100 block mb-2">Want a better deal? We'll notify you when the price drops below <span className="text-green-600" data-alert-target-price>--</span>.</label>
              <div className="flex justify-end mb-2">
                 <span className="text-[10px] font-bold tracking-wide uppercase bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded">High chances of success</span>
              </div>
@@ -380,11 +365,11 @@ export default function ResultsPage(){
                 <div className="flex justify-between mt-3 text-xs font-semibold text-slate-400">
                    <div className="text-center relative -ml-4">
                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 h-4 border-l border-dashed border-slate-300 dark:border-slate-600"></div>
-                     <span data-alert-min-price>US$97</span>
+                     <span data-alert-min-price>--</span>
                    </div>
                    <div className="text-center relative text-green-600 dark:text-green-500 ml-auto mr-[15%]">
                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 h-4 border-l border-dashed border-green-300 dark:border-green-600/50"></div>
-                     Recommended: <span data-alert-target-price>US$104</span>
+                     Recommended: <span data-alert-target-price>--</span>
                    </div>
                 </div>
              </div>

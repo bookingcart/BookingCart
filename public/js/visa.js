@@ -870,40 +870,14 @@
                 body: JSON.stringify({ eligibility: result })
               });
               addAppId(created.id);
-              // If the server returned a fallback, store the app locally
               if (created.fallback === "local") {
-                try {
-                  localStorage.setItem(`bookingcart_visa_local_app_${created.id}`, JSON.stringify({
-                    id: created.id,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    status: "Draft",
-                    eligibility: result
-                  }));
-                } catch {
-                  // ignore
-                }
+                throw new Error("Visa applications are not connected to the server.");
               }
-              if (typeof window.__bcNavigate === "function") window.__bcNavigate(`visa-dashboard.html?app=${encodeURIComponent(created.id)}`);
-              else window.location.href = `visa-dashboard.html?app=${encodeURIComponent(created.id)}`;
+              if (typeof window.__bcNavigate === "function") window.__bcNavigate(`/visa/dashboard?app=${encodeURIComponent(created.id)}`);
+              else window.location.href = `/visa/dashboard?app=${encodeURIComponent(created.id)}`;
             } catch (err) {
-              const localId = `local_${Date.now()}`;
-              addAppId(localId);
-              try {
-                localStorage.setItem(`bookingcart_visa_local_app_${localId}`, JSON.stringify({
-                  id: localId,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                  status: "Draft",
-                  eligibility: result
-                }));
-              } catch {
-                // ignore
-              }
               startBtn.disabled = false;
-              alert((err && err.message ? err.message : "Failed to create application") + "\n\nSaved locally for demo mode.");
-              if (typeof window.__bcNavigate === "function") window.__bcNavigate(`visa-dashboard.html?app=${encodeURIComponent(localId)}`);
-              else window.location.href = `visa-dashboard.html?app=${encodeURIComponent(localId)}`;
+              alert(err && err.message ? err.message : "Failed to create application");
             }
           });
         }

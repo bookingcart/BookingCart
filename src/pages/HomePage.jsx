@@ -269,7 +269,7 @@ export default function HomePage() {
                     </div>
       
                       <div data-multicity style={{"display":"none"}} className="p-2 border-t border-slate-100 dark:border-slate-700 lg:col-span-3">
-                        <div className="text-sm text-slate-500 dark:text-slate-400">Multi-city is a UI preview.</div>
+                        <div className="text-sm text-slate-500 dark:text-slate-400">Multi-city search is not available yet.</div>
                       </div>
       
                   </form>

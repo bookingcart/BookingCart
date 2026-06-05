@@ -114,7 +114,7 @@ export default function PassengersPage() {
       
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
-                    <i className="ph-fill ph-lock-key text-emerald-500 text-lg"></i> Data is stored locally (demo)
+                    <i className="ph-fill ph-lock-key text-emerald-500 text-lg"></i> Passenger details are used for this booking flow
                   </div>
                   <div className="flex items-center gap-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                     <i className="ph-fill ph-shield-check text-emerald-500 text-lg"></i> Secure checkout styling
