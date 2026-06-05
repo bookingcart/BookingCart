@@ -6,7 +6,24 @@ const { applyCors } = require('../lib/cors');
 const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
 const DUFFEL_BASE_URL = 'https://api.duffel.com';
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const SEARCH_CACHE_MAX_SIZE = 500;
 const searchCache = global.__duffelSearchCache || (global.__duffelSearchCache = new Map());
+
+function evictExpiredCache() {
+  const now = Date.now();
+  for (const [k, v] of searchCache.entries()) {
+    if (now - v.ts >= SEARCH_CACHE_TTL_MS) searchCache.delete(k);
+  }
+  // If still too large after TTL eviction, drop oldest entries
+  if (searchCache.size > SEARCH_CACHE_MAX_SIZE) {
+    const overage = searchCache.size - SEARCH_CACHE_MAX_SIZE;
+    let i = 0;
+    for (const k of searchCache.keys()) {
+      if (i++ >= overage) break;
+      searchCache.delete(k);
+    }
+  }
+}
 
 module.exports = async (req, res) => {
   applyCors(req, res);
@@ -88,6 +105,8 @@ module.exports = async (req, res) => {
     if (cached && Date.now() - cached.ts < SEARCH_CACHE_TTL_MS) {
       return res.json(cached.payload);
     }
+    // Evict stale entries before adding a new one
+    if (searchCache.size >= SEARCH_CACHE_MAX_SIZE) evictExpiredCache();
 
     const createResponse = await fetch(`${DUFFEL_BASE_URL}/air/offer_requests`, {
       method: 'POST',
@@ -103,7 +122,8 @@ module.exports = async (req, res) => {
           passengers,
           cabin_class: cabin
         }
-      })
+      }),
+      signal: AbortSignal.timeout(20000)
     });
 
     if (!createResponse.ok) {
@@ -132,7 +152,8 @@ module.exports = async (req, res) => {
           Accept: 'application/json',
           'Duffel-Version': 'v2',
           Authorization: `Bearer ${DUFFEL_API_KEY}`
-        }
+        },
+        signal: AbortSignal.timeout(20000)
       }
     );
 

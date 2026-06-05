@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout.jsx';
 import PageLoading from './components/PageLoading.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const ResultsPage = lazy(() => import('./pages/ResultsPage.jsx'));
@@ -32,8 +33,9 @@ const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'));
 
 export default function App() {
   return (
-    <Suspense fallback={<PageLoading />}>
-      <Routes>
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/results" element={<ResultsPage />} />
@@ -69,7 +71,8 @@ export default function App() {
           <Route path="/explore/:routeId" element={<ExplorePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   );
 }

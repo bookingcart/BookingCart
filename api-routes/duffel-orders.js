@@ -3,6 +3,7 @@ require('dotenv').config();
 const fetch = require('node-fetch');
 const { applyCors } = require('../lib/cors');
 const { query, isDbConfigured, initDb } = require('../lib/db');
+const { verifyRequestBearer } = require('../lib/google-verify');
 
 const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
 const DUFFEL_BASE_URL = 'https://api.duffel.com';
@@ -226,6 +227,12 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ── Auth gate: creating a real booking charges Duffel balance \u2014 require valid session ──
+  const authResult = await verifyRequestBearer(req);
+  if (!authResult.ok) {
+    return res.status(authResult.status || 401).json({ ok: false, error: authResult.error || 'Authentication required' });
+  }
+
   const body = req.body || {};
   const { offerId, totalAmount, currency, passengers, hold, services, payment } = body;
   const bookingRef = normalizeRef(body.bookingRef || body.idempotencyKey);
@@ -355,7 +362,8 @@ module.exports = async (req, res) => {
     const duffelRes = await fetch(`${DUFFEL_BASE_URL}/air/orders`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(orderPayload)
+      body: JSON.stringify(orderPayload),
+      signal: AbortSignal.timeout(30000)
     });
 
     const duffelText = await duffelRes.text();

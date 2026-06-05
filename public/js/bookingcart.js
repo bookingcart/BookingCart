@@ -1,5 +1,13 @@
 (function () {
-  console.log("🔥 BOOKINGCART JS LOADED!"); // Simple test
+  // Helper: escape untrusted strings before injecting into HTML
+  function escapeHTML(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
   const STORAGE_KEY = "bookingcart_flights_v1";
   const FLIGHT_RESULTS_CACHE_KEY = "bookingcart_flight_results_cache_v1";
   const FLIGHT_RESULTS_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -104,7 +112,13 @@
     const icon = type === 'success' ? '✓' : '✕';
     const bgClass = type === 'success' ? 'bg-green-600' : 'bg-red-600';
     toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 min-w-[200px] animate-fade-in`;
-    toast.innerHTML = `<span class="font-bold">${icon}</span><span>${message}</span>`;
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'font-bold';
+    iconSpan.textContent = icon;
+    const msgSpan = document.createElement('span');
+    msgSpan.textContent = message;
+    toast.appendChild(iconSpan);
+    toast.appendChild(msgSpan);
     (document.getElementById('toast-container') || document.body).appendChild(toast);
     setTimeout(() => {
       toast.style.opacity = '0';
@@ -228,25 +242,18 @@
   }
 
   async function searchDuffelAirports(keyword) {
-    console.log("🔍 searchDuffelAirports called with:", keyword);
     if (!keyword || keyword.length < 2) {
-      console.log("❌ Keyword too short, returning []");
       return [];
     }
     try {
-      console.log("🔍 Searching Duffel airports for:", keyword);
       const resp = await fetch(`/api/duffel-airports?keyword=${encodeURIComponent(keyword)}`);
-      console.log("🔍 Duffel API response status:", resp.status);
       const data = await resp.json().catch(() => null);
-      console.log("🔍 Duffel API data:", data);
       if (data && data.ok && Array.isArray(data.airports)) {
-        console.log("✅ Found airports:", data.airports.length);
         return data.airports;
       }
     } catch (e) {
-      console.error("❌ Duffel airport search failed:", e);
+      console.error('Airport search failed:', e);
     }
-    console.log("❌ Returning empty array");
     return [];
   }
 
@@ -259,14 +266,11 @@
     let searchTimeout = null;
 
     function render(items) {
-      console.log("🔍 Rendering airport results:", items.length, items);
       list.innerHTML = "";
       if (!items.length) {
-        console.log("🔍 No results, hiding dropdown");
         list.setAttribute("data-open", "false");
         return;
       }
-      console.log("🔍 Showing dropdown with results");
       list.setAttribute("data-open", "true");
       items.slice(0, 8).forEach((a) => {
         const li = document.createElement("li");
@@ -274,18 +278,23 @@
         li.setAttribute("role", "option");
         li.setAttribute("tabindex", "0");
         const displayName = a.name && a.name !== a.city ? a.name : "";
-        li.innerHTML =
-          '<span>' +
-          a.city +
-          (displayName ? ' <span class="small">' + displayName + "</span>" : "") +
-          "</span><span class=\"suggest__code\">" +
-          a.code +
-          "</span>";
+        // Use textContent/createElement to avoid XSS from API data
+        const textSpan = document.createElement('span');
+        textSpan.textContent = a.city;
+        if (displayName) {
+          const small = document.createElement('span');
+          small.className = 'small';
+          small.textContent = ' ' + displayName;
+          textSpan.appendChild(small);
+        }
+        const codeSpan = document.createElement('span');
+        codeSpan.className = 'suggest__code';
+        codeSpan.textContent = a.code;
+        li.appendChild(textSpan);
+        li.appendChild(codeSpan);
         li.addEventListener("click", () => {
-          console.log("Airport selected:", a.city, a.code); // Debug log
           input.value = a.city + " (" + a.code + ")";
           input.setAttribute("data-airport-code", a.code);
-          console.log("Set data-airport-code to:", a.code); // Debug log
           list.setAttribute("data-open", "false");
         });
         li.addEventListener("keydown", (ev) => {
@@ -314,7 +323,6 @@
 
     input.addEventListener("input", () => {
       const q = input.value.trim();
-      console.log("🔍 Airport input changed:", q);
 
       // Clear previous timeout
       if (searchTimeout) {
@@ -323,10 +331,8 @@
 
       // Only search with API calls for 2+ characters
       if (q.length >= 2) {
-        console.log("🔍 Starting search for:", q);
         searchTimeout = setTimeout(() => performSearch(q), 300);
       } else {
-        console.log("🔍 Too short, clearing results");
         render([]);
       }
     });
@@ -759,7 +765,6 @@
 
       const data = await resp.json().catch(() => null);
       if (data && data.ok && Array.isArray(data.flights)) {
-        console.log(`Duffel search successful: ${data.flights.length} flights`);
         // Persist Duffel passenger IDs — needed by /api/duffel-orders (Step 3)
         if (Array.isArray(data.duffelPassengers) && data.duffelPassengers.length > 0) {
           window.writeState({ duffelPassengers: data.duffelPassengers });
@@ -991,7 +996,7 @@
                    // Time and Airline
                    '<div class="flex flex-col">' +
                      '<div class="text-base text-slate-900 dark:text-slate-100 mb-0.5"><span class="font-bold">' + dep + '</span> &ndash; <span class="font-bold">' + arr + '</span></div>' +
-                     '<div class="text-sm text-slate-500 dark:text-slate-400">' + f.airline.name + '</div>' +
+                     '<div class="text-sm text-slate-500 dark:text-slate-400">' + escapeHTML(f.airline.name) + '</div>' +
                    '</div>' +
                    // Stops
                    '<div class="flex flex-col text-left md:text-center mx-0 md:mx-auto pt-0.5">' +
@@ -1120,10 +1125,10 @@
           lbl.className = "flex justify-between items-center cursor-pointer group";
           lbl.innerHTML = `
             <div class="flex items-center gap-3">
-              <input type="checkbox" value="${c}" class="w-4 h-4 rounded border-slate-300 accent-green-600" />
+              <input type="checkbox" value="${escapeHTML(c)}" class="w-4 h-4 rounded border-slate-300 accent-green-600" />
               <span class="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <div class="w-4 h-4 rounded-sm flex items-center justify-center overflow-hidden"><img src="${airlineRef.logoUrl}" onerror="this.style.display='none'"></div>
-                ${label}
+                <div class="w-4 h-4 rounded-sm flex items-center justify-center overflow-hidden"><img src="${escapeHTML(airlineRef.logoUrl)}" onerror="this.style.display='none'"></div>
+                ${escapeHTML(label)}
               </span>
             </div>
             <span class="text-xs text-slate-400 font-medium">${window.money(minPrice, currentFlights[0].currency)}</span>
@@ -1939,18 +1944,14 @@
   function initPayment() {
     const root = document.querySelector("[data-payment]");
     if (!root) {
-      console.log("[initPayment] data-payment root not found, retrying...");
       // Retry up to 50 times (5 seconds) then give up
       if (!window.__paymentRetryCount) window.__paymentRetryCount = 0;
       window.__paymentRetryCount++;
       if (window.__paymentRetryCount < 50) {
         setTimeout(initPayment, 100);
-      } else {
-        console.warn("[initPayment] Giving up after 50 retries - payment form never found");
       }
       return;
     }
-    console.log("[initPayment] Found data-payment root");
 
     const query = window.getQuery();
     if (query.canceled === "1") {
@@ -1979,12 +1980,10 @@
 
     const form = root.querySelector("form[data-payment-form]");
     if (!form) {
-      console.log("[initPayment] form[data-payment-form] not found, retrying...");
       // Retry after a short delay if form not found (React might still be rendering)
       setTimeout(initPayment, 100);
       return;
     }
-    console.log("[initPayment] Found payment form");
 
     const submitBtn = form.querySelector("button[type='submit']");
     form.addEventListener("submit", async (e) => {

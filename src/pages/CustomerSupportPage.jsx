@@ -89,22 +89,24 @@ function detectIntent(msg) {
 
 /* ── Chat Widget ── */
 async function loadThreads(email) {
+  if (!email) return { ok: true, threads: [] };
   try {
     const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    if (!email) return [];
-    
     const resp = await fetch(`/api/support?email=${encodeURIComponent(email)}`, {
       headers: t ? { 'Authorization': `Bearer ${t}` } : {}
     });
-    const data = await resp.json();
-    return data.ok ? data.threads : [];
-  } catch { return []; }
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) return { ok: false, status: resp.status, error: data.error || `HTTP ${resp.status}`, threads: [] };
+    return { ok: true, threads: data.ok ? data.threads : [] };
+  } catch (err) {
+    return { ok: false, status: 0, error: err.message || 'Network error', threads: [] };
+  }
 }
 
 async function appendMessage(threadId, email, topic, text) {
   try {
     const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    await fetch('/api/support', {
+    const resp = await fetch('/api/support', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -112,7 +114,12 @@ async function appendMessage(threadId, email, topic, text) {
       },
       body: JSON.stringify({ threadId, email: email || 'guest@anonymous', topic, message: text })
     });
-  } catch {}
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) return { ok: false, status: resp.status, error: data.error || `HTTP ${resp.status}` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, status: 0, error: err.message || 'Network error' };
+  }
 }
 
 function ChatWidget({ open, onClose, initialMessage }) {
@@ -124,23 +131,57 @@ function ChatWidget({ open, onClose, initialMessage }) {
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
+  const [authError, setAuthError] = useState(false);
+  const [sendError, setSendError] = useState(null);
   const bottomRef = useRef(null);
   const sentRef = useRef(false);
   const threadIdRef = useRef(`thread_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const latestTsRef = useRef(0);
 
   useEffect(() => {
+    if (!open) return;
+    setAuthError(false);
+    setSendError(null);
     async function initThreads() {
       if (currentEmail === 'Guest') return;
-      const threads = await loadThreads(currentEmail);
-      if (threads.length > 0) {
-        const latest = threads[0];
+      const result = await loadThreads(currentEmail);
+      if (!result.ok) {
+        if (result.status === 401 || result.status === 403 ||
+            /invalid|expired|session|auth/i.test(result.error || '')) {
+          setAuthError(true);
+        }
+        return;
+      }
+      if (result.threads.length > 0) {
+        const latest = result.threads[0];
         threadIdRef.current = latest.id;
-        // Load messages from the latest thread
-        const hist = latest.messages.map(m => ({ from: m.from === 'user' ? 'user' : 'bot', text: m.text, ts: m.ts }));
-        if (hist.length > 0) setMessages(hist);
+        const hist = latest.messages.map(m => ({ from: m.from === 'user' ? 'user' : 'bot', text: m.text, ts: m.ts || 0 }));
+        if (hist.length > 0) {
+          setMessages(hist);
+          latestTsRef.current = Math.max(...hist.map(m => m.ts || 0), 0);
+        }
       }
     }
-    if (open) initThreads();
+    initThreads();
+  }, [open, currentEmail]);
+
+  // Poll for new admin replies every 15 s while the chat is open
+  useEffect(() => {
+    if (!open || currentEmail === 'Guest') return;
+    const poll = setInterval(async () => {
+      const result = await loadThreads(currentEmail);
+      if (!result.ok || result.threads.length === 0) return;
+      const thread = result.threads.find(t => t.id === threadIdRef.current) || result.threads[0];
+      if (!thread) return;
+      const newMsgs = thread.messages
+        .filter(m => m.from === 'admin' && (m.ts || 0) > latestTsRef.current)
+        .map(m => ({ from: 'bot', text: m.text, ts: m.ts || 0 }));
+      if (newMsgs.length > 0) {
+        setMessages(prev => [...prev, ...newMsgs]);
+        latestTsRef.current = Math.max(...newMsgs.map(m => m.ts || 0), latestTsRef.current);
+      }
+    }, 15000);
+    return () => clearInterval(poll);
   }, [open, currentEmail]);
 
   useEffect(() => {
@@ -154,27 +195,35 @@ function ChatWidget({ open, onClose, initialMessage }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
 
-  async function persistMessage(msg, reply) {
-    // Persist for all users, including guests (with fallback email)
+  async function persistMessage(msg) {
     const email = currentEmail === 'Guest' ? 'guest@anonymous' : currentEmail;
-    await appendMessage(threadIdRef.current, email, msg.slice(0, 60), msg);
-    // Note: bot auto-replies are UI only. Real admin replies come from the admin panel.
+    const result = await appendMessage(threadIdRef.current, email, msg.slice(0, 60), msg);
+    if (!result.ok) {
+      if (result.status === 401 || result.status === 403) {
+        setAuthError(true);
+      } else {
+        setSendError('Message not saved — check your connection and try again.');
+      }
+    }
   }
 
   function sendMessage(text) {
     const msg = text || input.trim();
     if (!msg) return;
     setInput('');
-    setMessages(prev => [...prev, { from: 'user', text: msg }]);
+    setSendError(null);
+    const ts = Date.now();
+    setMessages(prev => [...prev, { from: 'user', text: msg, ts }]);
+    latestTsRef.current = Math.max(ts, latestTsRef.current);
+    persistMessage(msg);
     setTyping(true);
     setTimeout(() => {
       const intent = detectIntent(msg);
       const reply = intent
         ? SMART_REPLIES[intent]
         : "Thanks for reaching out! Our team will respond shortly. In the meantime, check our FAQ below for quick answers.";
-      setMessages(prev => [...prev, { from: 'bot', text: reply }]);
+      setMessages(prev => [...prev, { from: 'bot', text: reply, ts: Date.now() }]);
       setTyping(false);
-      persistMessage(msg, reply);
     }, 1200);
   }
 
@@ -203,6 +252,19 @@ function ChatWidget({ open, onClose, initialMessage }) {
         </button>
       </div>
 
+      {/* error banners */}
+      {authError && (
+        <div className="mx-3 mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-center gap-2">
+          <i className="ph ph-warning text-amber-500 text-base shrink-0" />
+          <span>Session expired. Please <a href="/sign-in" className="underline font-semibold">sign in again</a> to save messages.</span>
+        </div>
+      )}
+      {sendError && (
+        <div className="mx-3 mt-1.5 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5"><i className="ph ph-warning-circle text-red-500 text-base" />{sendError}</span>
+          <button onClick={() => setSendError(null)} className="text-red-400 hover:text-red-600 shrink-0"><i className="ph ph-x text-sm" /></button>
+        </div>
+      )}
       {/* messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900">
         {messages.map((m, i) => (
