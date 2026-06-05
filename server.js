@@ -64,7 +64,8 @@ app.use(
   cors({
     origin: (origin, cb) => {
       const allow = pickAllowOrigin(origin || '');
-      cb(null, !origin || !!allow);
+      // Only allow explicitly listed origins — reject requests with no Origin header in production
+      cb(null, !!allow);
     },
     credentials: true
   })
@@ -86,6 +87,14 @@ const searchLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false
+});
+// Strict limiter for auth endpoints to prevent brute-force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many attempts. Please try again in 15 minutes.' }
 });
 
 function run(handler) {
@@ -116,12 +125,12 @@ app.post('/api/duffel-client-key', searchLimiter, run(duffelClientKeyHandler));
 app.get('/api/ticket-download', apiLimiter, run(ticketDownloadHandler));
 app.post('/api/price-alert', apiLimiter, run(priceAlertHandler));
 
-// Email + password auth endpoints
-app.post('/api/auth/register', apiLimiter, (req, res, next) => {
+// Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
+app.post('/api/auth/register', authLimiter, (req, res, next) => {
   req.params = { action: 'register' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
-app.post('/api/auth/login', apiLimiter, (req, res, next) => {
+app.post('/api/auth/login', authLimiter, (req, res, next) => {
   req.params = { action: 'login' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
@@ -129,15 +138,15 @@ app.post('/api/auth/logout', apiLimiter, (req, res, next) => {
   req.params = { action: 'logout' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
-app.post('/api/auth/forgot-password', apiLimiter, (req, res, next) => {
+app.post('/api/auth/forgot-password', authLimiter, (req, res, next) => {
   req.params = { action: 'forgot-password' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
-app.post('/api/auth/reset-password', apiLimiter, (req, res, next) => {
+app.post('/api/auth/reset-password', authLimiter, (req, res, next) => {
   req.params = { action: 'reset-password' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
-app.post('/api/auth/change-password', apiLimiter, (req, res, next) => {
+app.post('/api/auth/change-password', authLimiter, (req, res, next) => {
   req.params = { action: 'change-password' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });

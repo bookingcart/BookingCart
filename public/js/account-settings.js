@@ -23,25 +23,25 @@ function userApiHeaders() {
 }
 
 /* ── State ── */
-const storedUser = JSON.parse(localStorage.getItem('bookingcart_user') || 'null');
-const defaultName = storedUser ? storedUser.name : "Alex Johnson";
-const defFirst = storedUser ? storedUser.given_name || storedUser.name.split(' ')[0] : "Alex";
-const defLast = storedUser ? storedUser.family_name || storedUser.name.split(' ').slice(1).join(' ') : "Johnson";
-const defEmail = storedUser ? storedUser.email : "alex.johnson@email.com";
-const accountEmail = storedUser ? String(storedUser.email || "").trim().toLowerCase() : defEmail;
-const defAvatar = storedUser ? storedUser.picture : `https://ui-avatars.com/api/?name=${encodeURIComponent(defaultName)}&background=dcfce7&color=15803d&size=200`;
+/** Read the signed-in account email fresh from localStorage at call-time. */
+function getAccountEmail() {
+  try {
+    const u = JSON.parse(localStorage.getItem('bookingcart_user') || 'null');
+    return u ? String(u.email || '').trim().toLowerCase() : '';
+  } catch { return ''; }
+}
 
 let state = {
   profile: {
-    firstName: defFirst,
-    lastName: defLast,
-    email: defEmail,
-    phone: "+1 (555) 012-3456",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
     phoneCode: "+1",
-    dob: "1990-06-15",
-    nationality: "American",
+    dob: "",
+    nationality: "",
     language: "en",
-    avatar: defAvatar,
+    avatar: "",
   },
   cards: [
     { id: 1, brand: "Visa", last4: "4587", expiry: "12/26", isDefault: true },
@@ -123,6 +123,7 @@ const AIRLINES = [
    DB SYNC
 ══════════════════════════════════════════════════ */
 async function saveStateToDB() {
+  const accountEmail = getAccountEmail();
   if (!accountEmail) {
     console.warn("[saveStateToDB] No account email, skipping save");
     return false;
@@ -155,7 +156,7 @@ async function saveStateToDB() {
 }
 
 async function loadStateFromDB() {
-  let userEmail = accountEmail;
+  let userEmail = getAccountEmail();
   if (!userEmail) return;
   try {
     const resp = await fetch("/api/user?email=" + encodeURIComponent(userEmail), {
@@ -254,6 +255,19 @@ function bindAccountSettingsUiOnce() {
 async function bootAccountSettingsPage() {
   if (!document.getElementById("firstName")) return;
 
+  // Re-read user from localStorage at runtime so profile defaults reflect the signed-in user
+  try {
+    const runtimeUser = JSON.parse(localStorage.getItem('bookingcart_user') || 'null');
+    if (runtimeUser) {
+      const rFirst = runtimeUser.given_name || (runtimeUser.name || '').split(' ')[0] || '';
+      const rLast = runtimeUser.family_name || (runtimeUser.name || '').split(' ').slice(1).join(' ') || '';
+      const rEmail = runtimeUser.email || '';
+      const rAvatar = runtimeUser.picture ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(runtimeUser.name || 'U')}&background=dcfce7&color=15803d&size=200`;
+      state.profile = { ...state.profile, firstName: rFirst, lastName: rLast, email: rEmail, avatar: rAvatar };
+    }
+  } catch {}
+
   showInitialLoading();
   try {
     await loadStateFromDB();
@@ -325,23 +339,7 @@ function showToast(message, type = "success") {
    PROFILE
 ══════════════════════════════════════════════════ */
 async function loadProfile() {
-  // First try to load from the account API
-  try {
-    const headers = userApiHeaders();
-    if (headers.Authorization) {
-      const resp = await fetch('/api/user', { headers });
-      const data = await resp.json();
-      if (resp.ok && data.ok && data.state && data.state.profile) {
-        // Merge database profile with local state
-        state.profile = { ...state.profile, ...data.state.profile };
-        console.log('[loadProfile] Loaded from account API:', state.profile);
-      }
-    }
-  } catch (err) {
-    console.error('[loadProfile] Failed to load from account API:', err);
-  }
-  
-  // Populate form fields from state
+  // State is already synced from DB via loadStateFromDB(); just populate the form.
   const p = state.profile;
   setVal("firstName", p.firstName);
   setVal("lastName", p.lastName);
@@ -564,6 +562,15 @@ function toggle2FA(enabled) {
 }
 
 /* ── Login Activity ── */
+function escapeHTML(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderLoginActivity() {
   const list = document.getElementById("login-activity-list");
   if (!list) return;

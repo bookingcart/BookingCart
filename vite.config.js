@@ -9,6 +9,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   publicDir: 'public',
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet')) {
+            return 'vendor-maps';
+          }
+          if (id.includes('node_modules/@duffel')) {
+            return 'vendor-duffel';
+          }
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor-react';
+          }
+        }
+      }
+    }
+  },
   server: {
     host: '127.0.0.1',
     port: 3000,
