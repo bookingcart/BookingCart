@@ -91,14 +91,17 @@ test('support API rejects anonymous persistence', async () => {
   });
 });
 
-test('flight deals return unavailable when Duffel is not configured', async () => {
+test('flight deals fall back to curated origin-aware routes when Duffel is not configured', async () => {
   await withEnv({ DUFFEL_API_KEY: undefined, DATABASE_URL: undefined }, async () => {
-    const req = { method: 'GET', headers: {}, query: { origin: 'EBB' }, body: {} };
+    const req = { method: 'GET', headers: {}, query: { origin: 'KGL' }, body: {} };
     const res = makeRes();
     await flightDealsHandler(req, res);
-    assert.strictEqual(res.statusCode, 503);
-    assert.strictEqual(res.body.ok, false);
-    assert.deepStrictEqual(res.body.deals, []);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.ok, true);
+    assert.strictEqual(res.body.origin, 'KGL');
+    assert.strictEqual(res.body.estimated, true);
+    assert.ok(res.body.deals.length > 0);
+    assert.ok(res.body.deals.every((deal) => deal.from === 'KGL'));
   });
 });
 

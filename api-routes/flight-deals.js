@@ -5,8 +5,6 @@ const { getCorsHeaders } = require('../lib/cors');
 const { isDbConfigured, initDb, getCache, setCache } = require('../lib/db');
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
-
 // Cities to IATA mapping for common lookups
 const CITY_TO_IATA = {
     'kampala': 'EBB', 'entebbe': 'EBB', 'nairobi': 'NBO', 'dar es salaam': 'DAR',
@@ -19,6 +17,19 @@ const CITY_TO_IATA = {
 const COUNTRY_TO_IATA = {
     'Uganda': 'EBB', 'Kenya': 'NBO', 'Tanzania': 'DAR', 'Rwanda': 'KGL',
     'Ethiopia': 'ADD', 'Nigeria': 'LOS', 'South Africa': 'JNB', 'Egypt': 'CAI'
+};
+
+const IATA_TO_CITY = {
+    'EBB': 'Entebbe', 'NBO': 'Nairobi', 'DAR': 'Dar es Salaam',
+    'KGL': 'Kigali', 'JNB': 'Johannesburg', 'CPT': 'Cape Town',
+    'LOS': 'Lagos', 'ACC': 'Accra', 'CAI': 'Cairo', 'ADD': 'Addis Ababa',
+    'LHR': 'London', 'CDG': 'Paris', 'FRA': 'Frankfurt',
+    'AMS': 'Amsterdam', 'FCO': 'Rome', 'MAD': 'Madrid',
+    'JFK': 'New York', 'LAX': 'Los Angeles', 'ORD': 'Chicago',
+    'YYZ': 'Toronto', 'DXB': 'Dubai', 'AUH': 'Abu Dhabi',
+    'DEL': 'New Delhi', 'BOM': 'Mumbai', 'SIN': 'Singapore',
+    'SYD': 'Sydney', 'NRT': 'Tokyo', 'PEK': 'Beijing',
+    'IST': 'Istanbul', 'GRU': 'São Paulo', 'BKK': 'Bangkok',
 };
 
 // Hand-picked routes for common starting points
@@ -39,6 +50,14 @@ const ROUTES = {
         { to: 'IST', city: 'Istanbul', country: 'Turkey', image: 'istanbul' },
         { to: 'BKK', city: 'Bangkok', country: 'Thailand', image: 'bangkok' }
     ],
+    'KGL': [
+        { to: 'DXB', city: 'Dubai', country: 'UAE', image: 'dubai' },
+        { to: 'NBO', city: 'Nairobi', country: 'Kenya', image: 'nairobi' },
+        { to: 'EBB', city: 'Entebbe', country: 'Uganda', image: 'nairobi' },
+        { to: 'ADD', city: 'Addis Ababa', country: 'Ethiopia', image: 'cairo' },
+        { to: 'JNB', city: 'Johannesburg', country: 'South Africa', image: 'johannesburg' },
+        { to: 'LHR', city: 'London', country: 'UK', image: 'london' }
+    ],
     'DEFAULT': [
         { to: 'DXB', city: 'Dubai', country: 'UAE', image: 'dubai' },
         { to: 'LHR', city: 'London', country: 'UK', image: 'london' },
@@ -49,6 +68,16 @@ const ROUTES = {
     ]
 };
 
+const FALLBACK_PRICES = {
+    DXB: 542, LHR: 1019, CDG: 890, JFK: 1317, AMS: 780, SIN: 980,
+    NBO: 368, EBB: 420, DAR: 330, IST: 690, JNB: 610, BOM: 740,
+    BKK: 1141, ADD: 310, ACC: 820, CAI: 760
+};
+
+function getDuffelApiKey() {
+    return process.env.DUFFEL_API_KEY || '';
+}
+
 function getNextDates(daysFromNow = 30) {
     const d = new Date();
     d.setDate(d.getDate() + daysFromNow);
@@ -57,6 +86,7 @@ function getNextDates(daysFromNow = 30) {
 
 // Fetch single cheapest offer from Duffel
 async function fetchDeal(origin, destination, date) {
+    const DUFFEL_API_KEY = getDuffelApiKey();
     if (!DUFFEL_API_KEY) return null;
 
     try {
@@ -106,17 +136,38 @@ async function fetchDeal(origin, destination, date) {
     }
 }
 
+function makeFallbackDeal(origin, route, index, date) {
+    const basePrice = FALLBACK_PRICES[route.to] || (420 + index * 85);
+    const regionalDiscount = ['NBO', 'EBB', 'DAR', 'ADD'].includes(route.to) ? 0 : 1;
+    const price = Math.max(180, basePrice + (origin === 'KGL' ? 0 : regionalDiscount * index * 18));
+
+    return {
+        ...route,
+        from: origin,
+        price,
+        currency: 'USD',
+        airline: index % 2 === 0 ? 'Multiple airlines' : 'Best available fare',
+        airlineCode: '',
+        duration: '',
+        stops: ['NBO', 'EBB', 'ADD', 'DXB', 'IST', 'AMS'].includes(route.to) ? 0 : 1,
+        departTime: '',
+        arriveTime: '',
+        date,
+        offerId: '',
+        estimated: true,
+        source: 'curated'
+    };
+}
+
+function buildFallbackDeals(origin, date) {
+    const routes = ROUTES[origin] || ROUTES.DEFAULT;
+    return routes.slice(0, 6).map((route, index) => makeFallbackDeal(origin, route, index, date));
+}
+
 module.exports = async (req, res) => {
     const ch = getCorsHeaders(req);
     Object.entries(ch).forEach(([k, v]) => res.setHeader(k, v));
     if (req.method === 'OPTIONS') return res.status(200).end();
-    if (!DUFFEL_API_KEY) {
-        return res.status(503).json({
-            ok: false,
-            error: 'Flight deals are unavailable because Duffel is not configured.',
-            deals: []
-        });
-    }
 
     // Get client IP
     const ip =
@@ -126,12 +177,12 @@ module.exports = async (req, res) => {
         '';
 
     // If override provided in query/body, use it
-    const overrideIata = (req.query && req.query.origin) || (req.body && req.body.origin) || '';
+    const overrideIata = String((req.query && req.query.origin) || (req.body && req.body.origin) || '').trim().toUpperCase();
     const clientCity = (req.body && req.body.city) || '';
     const clientCountry = (req.body && req.body.country) || '';
 
     // Check cache first
-    const cacheKey = `deals_${overrideIata || ip}`;
+    const cacheKey = `deals_${overrideIata || clientCity || clientCountry || ip || 'default'}`.toLowerCase();
     let dbReady = false;
     if (isDbConfigured()) {
         try {
@@ -181,17 +232,7 @@ module.exports = async (req, res) => {
     const rawDeals = await Promise.all(dealPromises);
 
     const deals = rawDeals.filter(Boolean);
-
-    if (deals.length === 0) {
-        return res.status(502).json({
-            ok: false,
-            error: 'No live flight deals are available right now.',
-            origin: iata,
-            city: city || iata,
-            country,
-            deals: []
-        });
-    }
+    const displayDeals = deals.length ? deals : buildFallbackDeals(iata, departureDate);
 
     // Curated Pexels images per destination
     const DEST_IMAGES = {
@@ -213,32 +254,21 @@ module.exports = async (req, res) => {
     };
     const FALLBACK_IMG = 'https://images.pexels.com/photos/358319/pexels-photo-358319.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop';
 
-    const enriched = deals.map(d => ({
+    const enriched = displayDeals.map(d => ({
         ...d,
         imageUrl: DEST_IMAGES[(d.image || '').toLowerCase()] || DEST_IMAGES[(d.city || '').toLowerCase()] || FALLBACK_IMG,
         hot: d.price < 300,
-        tripType: 'one-way'
+        tripType: 'one-way',
+        live: !d.estimated
     }));
-
-    // IATA → city name mapping for display
-    const IATA_TO_CITY = {
-        'EBB': 'Kampala', 'NBO': 'Nairobi', 'DAR': 'Dar es Salaam',
-        'JNB': 'Johannesburg', 'CPT': 'Cape Town', 'LOS': 'Lagos',
-        'ACC': 'Accra', 'CAI': 'Cairo', 'ADD': 'Addis Ababa',
-        'LHR': 'London', 'CDG': 'Paris', 'FRA': 'Frankfurt',
-        'AMS': 'Amsterdam', 'FCO': 'Rome', 'MAD': 'Madrid',
-        'JFK': 'New York', 'LAX': 'Los Angeles', 'ORD': 'Chicago',
-        'YYZ': 'Toronto', 'DXB': 'Dubai', 'AUH': 'Abu Dhabi',
-        'DEL': 'New Delhi', 'BOM': 'Mumbai', 'SIN': 'Singapore',
-        'SYD': 'Sydney', 'NRT': 'Tokyo', 'PEK': 'Beijing',
-        'IST': 'Istanbul', 'GRU': 'São Paulo', 'BKK': 'Bangkok',
-    };
 
     const result = {
         origin: iata,
         city: city || IATA_TO_CITY[iata] || iata,
         country,
-        deals: enriched
+        deals: enriched,
+        live: deals.length > 0,
+        estimated: deals.length === 0
     };
 
     if (dbReady) {
