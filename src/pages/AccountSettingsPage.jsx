@@ -163,6 +163,7 @@ export default function AccountSettingsPage() {
   const hasGoogleToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('bookingcart_google_id_token');
   const hasJwtToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('bookingcart_jwt_token');
   const canChangePassword = hasJwtToken && !hasGoogleToken;
+  const accountEmail = String(user?.email || '').trim().toLowerCase();
 
   useEffect(() => {
     if (activeSection) document.title = `${SECTION_TITLE[activeSection]} · Account | BookingCart`;
@@ -205,17 +206,24 @@ export default function AccountSettingsPage() {
   const progressPct = Math.min(100, state.rewards.nextThreshold > 0 ? (state.rewards.points / state.rewards.nextThreshold) * 100 : 0);
 
   async function persist(nextState, message = 'Saved') {
-    if (!isAuthenticated || !nextState.profile.email) {
+    if (!isAuthenticated || !accountEmail) {
       setStatus('Sign in to save account settings.');
       return false;
     }
+    const stateToSave = {
+      ...nextState,
+      profile: {
+        ...nextState.profile,
+        email: accountEmail,
+      },
+    };
     setSaving(true);
     setStatus('');
     try {
       const resp = await fetch('/api/user', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ email: nextState.profile.email, state: nextState }),
+        body: JSON.stringify({ email: accountEmail, state: stateToSave }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) throw new Error(data.error || 'Save failed');
@@ -223,9 +231,9 @@ export default function AccountSettingsPage() {
         const storedUser = JSON.parse(localStorage.getItem('bookingcart_user') || '{}');
         localStorage.setItem('bookingcart_user', JSON.stringify({
           ...storedUser,
-          email: nextState.profile.email,
-          name: displayName(nextState.profile),
-          picture: nextState.profile.avatar || storedUser.picture,
+          email: accountEmail,
+          name: displayName(stateToSave.profile),
+          picture: stateToSave.profile.avatar || storedUser.picture,
         }));
         refresh();
         window.applyAuthUI?.();
@@ -252,11 +260,11 @@ export default function AccountSettingsPage() {
         ...state.profile,
         firstName: state.profile.firstName.trim(),
         lastName: state.profile.lastName.trim(),
-        email: state.profile.email.trim().toLowerCase(),
+        email: accountEmail,
       },
     };
-    if (!next.profile.firstName || !next.profile.lastName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.profile.email)) {
-      setStatus('First name, last name, and a valid email are required.');
+    if (!next.profile.firstName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.profile.email)) {
+      setStatus('First name and a valid account email are required.');
       return;
     }
     setState(next);
@@ -390,8 +398,8 @@ export default function AccountSettingsPage() {
                 <div className="settings-card-sub">Update your name, email, and contact information.</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <TextField label="First name" value={profile.firstName} onChange={(v) => updateProfileField('firstName', v)} required />
-                  <TextField label="Last name" value={profile.lastName} onChange={(v) => updateProfileField('lastName', v)} required />
-                  <TextField label="Email address" type="email" value={profile.email} onChange={(v) => updateProfileField('email', v)} required />
+                  <TextField label="Last name" value={profile.lastName} onChange={(v) => updateProfileField('lastName', v)} />
+                  <TextField label="Account email" type="email" value={accountEmail || profile.email} onChange={() => {}} readOnly required help="Used for sign-in and account security." />
                   <TextField label="Phone number" value={profile.phone} onChange={(v) => updateProfileField('phone', v)} />
                   <TextField label="Date of birth" type="date" value={profile.dob} onChange={(v) => updateProfileField('dob', v)} />
                   <SelectField label="Nationality" value={profile.nationality} onChange={(v) => updateProfileField('nationality', v)} options={['', 'American', 'British', 'Canadian', 'French', 'German', 'Kenyan', 'Nigerian', 'Rwandan', 'Ugandan']} />
@@ -523,11 +531,22 @@ function PageHeading({ title, subtitle }) {
   );
 }
 
-function TextField({ label, value, onChange, type = 'text', required = false, maxLength }) {
+function TextField({ label, value, onChange, type = 'text', required = false, maxLength, readOnly = false, help = '' }) {
   return (
     <label className="block">
       <span className="field-label">{label}</span>
-      <input className="field-input" type={type} value={value || ''} maxLength={maxLength} required={required} onChange={(event) => onChange(event.target.value)} />
+      <input
+        className={`field-input ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+        type={type}
+        value={value || ''}
+        maxLength={maxLength}
+        required={required}
+        readOnly={readOnly}
+        onChange={(event) => {
+          if (!readOnly) onChange(event.target.value);
+        }}
+      />
+      {help && <span className="mt-1 block text-xs font-medium text-slate-400">{help}</span>}
     </label>
   );
 }

@@ -45,7 +45,7 @@
 
     // ── City → IATA (client-side mapping for geo override) ───────────────────────
     const CITY_TO_IATA = {
-        'kampala': 'EBB', 'entebbe': 'EBB', 'nairobi': 'NBO',
+        'kampala': 'EBB', 'entebbe': 'EBB', 'kigali': 'KGL', 'nairobi': 'NBO',
         'dar es salaam': 'DAR', 'johannesburg': 'JNB',
         'cape town': 'CPT', 'lagos': 'LOS', 'accra': 'ACC',
         'cairo': 'CAI', 'dubai': 'DXB', 'london': 'LHR',
@@ -56,7 +56,7 @@
         'bangkok': 'BKK', 'istanbul': 'IST',
     };
     const COUNTRY_TO_IATA = {
-        'Uganda': 'EBB', 'Kenya': 'NBO', 'Tanzania': 'DAR',
+        'Uganda': 'EBB', 'Rwanda': 'KGL', 'Kenya': 'NBO', 'Tanzania': 'DAR',
         'South Africa': 'JNB', 'Nigeria': 'LOS', 'Ghana': 'ACC',
         'Egypt': 'CAI', 'United Kingdom': 'LHR', 'France': 'CDG',
         'Germany': 'FRA', 'Netherlands': 'AMS', 'Italy': 'FCO',
@@ -78,17 +78,41 @@
         localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 50)));
     }
 
-    function getClientCache() {
+    function getCacheKey(origin) {
+        return `${CACHE_KEY}_${String(origin || 'default').toUpperCase()}`;
+    }
+
+    function getClientCache(origin) {
         try {
-            const raw = localStorage.getItem(CACHE_KEY);
+            const raw = localStorage.getItem(getCacheKey(origin));
             if (!raw) return null;
             const { data, expires } = JSON.parse(raw);
             if (Date.now() < expires) return data;
         } catch { }
         return null;
     }
-    function setClientCache(data) {
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data, expires: Date.now() + CACHE_TTL })); } catch { }
+    function setClientCache(origin, data) {
+        try { localStorage.setItem(getCacheKey(origin), JSON.stringify({ data, expires: Date.now() + CACHE_TTL })); } catch { }
+    }
+
+    function originFromTimeZone() {
+        try {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            const map = {
+                'Africa/Kigali': 'KGL',
+                'Africa/Kampala': 'EBB',
+                'Africa/Nairobi': 'NBO',
+                'Africa/Dar_es_Salaam': 'DAR',
+                'Africa/Addis_Ababa': 'ADD',
+                'Africa/Johannesburg': 'JNB',
+                'Africa/Lagos': 'LOS',
+                'Africa/Accra': 'ACC',
+                'Africa/Cairo': 'CAI'
+            };
+            return map[tz] || '';
+        } catch {
+            return '';
+        }
     }
 
     function getImage(key) {
@@ -97,10 +121,12 @@
 
     // ── Client-side IP Geolocation ──────────────────────────────────────────
     async function detectUserLocation() {
-        // Try ipapi.co first (works from browser, no API key, returns JSON)
+        const tzIata = originFromTimeZone();
+
+        // Try HTTPS geolocation APIs only. Mixed-content HTTP APIs are blocked on production.
         const apis = [
             { url: 'https://ipapi.co/json/', parse: d => ({ city: d.city, country: d.country_name, iata: CITY_TO_IATA[(d.city || '').toLowerCase()] || COUNTRY_TO_IATA[d.country_name] || '' }) },
-            { url: 'https://ip-api.com/json/?fields=city,country', parse: d => ({ city: d.city, country: d.country, iata: CITY_TO_IATA[(d.city || '').toLowerCase()] || COUNTRY_TO_IATA[d.country] || '' }) },
+            { url: 'https://ipwho.is/', parse: d => ({ city: d.city, country: d.country, iata: CITY_TO_IATA[(d.city || '').toLowerCase()] || COUNTRY_TO_IATA[d.country] || '' }) },
         ];
         for (const api of apis) {
             try {
@@ -111,11 +137,12 @@
                 if (resp.ok) {
                     const data = await resp.json();
                     const result = api.parse(data);
+                    if (!result.iata && tzIata) result.iata = tzIata;
                     if (result.city) return result;
                 }
             } catch { }
         }
-        return { city: '', country: '', iata: '' };
+        return { city: '', country: '', iata: tzIata };
     }
 
     // ── AI Personalization ───────────────────────────────────────────────
@@ -169,6 +196,7 @@
     // ── Card HTML ──────────────────────────────────────────────────────────
     function renderCard(deal, originCode) {
         const price = window.money(deal.price, deal.currency);
+        const priceLabel = deal.estimated ? 'estimated' : 'per person';
         const stops = deal.stops === 0 ? 'Direct' : `${deal.stops} stop${deal.stops > 1 ? 's' : ''}`;
         const stopsIcon = deal.stops === 0 ? 'ph-check-circle' : 'ph-arrow-bend-right-down';
         const stopsColor = deal.stops === 0 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
@@ -211,7 +239,7 @@
           </div>
           <div class="text-right">
             <div class="text-2xl font-extrabold text-green-600 leading-tight">${price}</div>
-            <div class="text-[10px] text-slate-400 font-medium">per person</div>
+            <div class="text-[10px] text-slate-400 font-medium">${priceLabel}</div>
           </div>
         </div>
 
@@ -341,8 +369,20 @@
 
         renderSkeletons(grid);
 
-        // Check client cache
-        const cached = getClientCache();
+        // Step 1: Detect user location from browser (client-side IP geo)
+        let detectedOrigin = '';
+        let detectedCity = '';
+        let detectedCountry = '';
+        try {
+            const loc = await detectUserLocation();
+            detectedCity = loc.city || '';
+            detectedCountry = loc.country || '';
+            detectedOrigin = loc.iata || '';
+        } catch { }
+        const requestedOrigin = detectedOrigin || 'EBB';
+
+        // Check client cache after location detection so a previous origin does not bleed into this session.
+        const cached = getClientCache(requestedOrigin);
         if (cached) {
             currentDeals = cached.deals;
             currentOrigin = cached.origin;
@@ -355,23 +395,12 @@
             return;
         }
 
-        // Step 1: Detect user location from browser (client-side IP geo)
-        let detectedOrigin = '';
-        let detectedCity = '';
-        let detectedCountry = '';
-        try {
-            const loc = await detectUserLocation();
-            detectedCity = loc.city || '';
-            detectedCountry = loc.country || '';
-            detectedOrigin = loc.iata || '';
-        } catch { }
-
         // Step 2: Fetch deals from server, passing detected origin
         try {
             const resp = await fetch('/api/flight-deals', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ origin: detectedOrigin, city: detectedCity, country: detectedCountry })
+                body: JSON.stringify({ origin: requestedOrigin, city: detectedCity, country: detectedCountry })
             });
             const data = await resp.json();
             if (data.ok && data.deals && data.deals.length) {
@@ -379,17 +408,17 @@
                 currentOrigin = data.origin;
                 // Use the detected city for display (more accurate)
                 currentCity = detectedCity || data.city || currentOrigin;
-                currentCountry = detectedCountry || '';
+                currentCountry = detectedCountry || data.country || '';
                 if (titleEl) titleEl.textContent = `Top Deals from ${currentCity}`;
                 if (originInput) originInput.value = currentOrigin;
-                setClientCache({ deals: currentDeals, origin: currentOrigin, city: currentCity, country: currentCountry });
+                setClientCache(currentOrigin, { deals: currentDeals, origin: currentOrigin, city: currentCity, country: currentCountry });
                 updateSEO(currentOrigin, currentCity, currentDeals);
                 renderDeals();
             } else {
-                grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">Could not load deals right now.</p></div>';
+                grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">No routes are available for this origin yet.</p></div>';
             }
         } catch (err) {
-            grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">Could not load deals right now.</p></div>';
+            grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">No routes are available for this origin yet.</p></div>';
         }
     }
 
@@ -436,20 +465,23 @@
             const val = (originInput.value || '').trim().toUpperCase();
             if (val.length === 3) {
                 localStorage.removeItem(CACHE_KEY);
+                localStorage.removeItem(getCacheKey(val));
                 const grid = document.getElementById('deals-grid');
                 renderSkeletons(grid);
                 try {
                     const resp = await fetch(`/api/flight-deals?origin=${val}`);
                     const data = await resp.json();
-                    if (data.ok) {
+                    if (data.ok && data.deals && data.deals.length) {
                         currentDeals = data.deals;
                         currentOrigin = data.origin;
                         currentCity = data.city || val;
                         currentCountry = getCountryByIata(val);
                         const titleEl = document.getElementById('deals-title');
                         if (titleEl) titleEl.textContent = `Top Deals from ${currentCity}`;
-                        setClientCache({ deals: currentDeals, origin: val, city: currentCity, country: currentCountry });
+                        setClientCache(currentOrigin, { deals: currentDeals, origin: currentOrigin, city: currentCity, country: currentCountry });
                         renderDeals();
+                    } else if (grid) {
+                        grid.innerHTML = '<div class="text-center py-16 text-slate-400"><p class="font-medium">No routes are available for this origin yet.</p></div>';
                     }
                 } catch { }
             }

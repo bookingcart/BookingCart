@@ -1,37 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
 
 /**
  * BookingCartNavbar
- * Pill-shaped, green-gradient navigation bar.
+ * Primary site navigation.
  * Props:
  *   activeNav  – 'flights' | 'stays' | 'bookings' | 'events'  (highlights the active pill)
  *   rightSlot  – optional JSX rendered on the far right (e.g. Print button)
  */
 export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) {
-  const [theme, setTheme] = useState('light');
-
-  useEffect(() => {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark') {
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
-    } else {
-      setTheme('light');
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
     { key: 'flights',  href: '/',          icon: 'ph-airplane-tilt',   label: 'Flights'  },
@@ -40,33 +18,26 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-
-        {/* ── outer pill track ── */}
-        <div className="flex items-center gap-3">
-
-          {/* ── LEFT: logo capsule ── */}
+    <header className="bookingcart-navbar sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors duration-200">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex h-16 items-center justify-between gap-4">
           <a
             href="/"
-            className="shrink-0 flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 shadow-sm hover:shadow-md transition-all group"
+            className="bookingcart-logo flex shrink-0 items-center gap-2.5 rounded-xl px-1 py-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
+            aria-label="BookingCart home"
           >
-            {/* swoosh icon */}
-            <span className="w-7 h-7 rounded-full bg-green-600 flex items-center justify-center shadow-sm shadow-green-300 dark:shadow-none group-hover:scale-105 transition-transform">
-              <i className="ph ph-airplane-tilt text-white text-sm" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-600 text-white shadow-sm shadow-green-200 dark:shadow-none">
+              <i className="ph ph-airplane-tilt text-lg" />
             </span>
-
-            {/* wordmark */}
-            <span className="text-sm font-black tracking-tight leading-none select-none">
-              <span className="text-slate-900 dark:text-white transition-colors">BOOKING</span>
-              <span className="text-green-600">CART</span>
+            <span className="bookingcart-logo-text inline-flex text-base font-black tracking-tight leading-none select-none">
+              <span className="text-slate-950 dark:text-white transition-colors">Booking</span>
+              <span className="text-green-600">Cart</span>
             </span>
           </a>
 
-          {/* ── MIDDLE: green pill nav ── */}
           <nav
-            className="flex-1 flex items-center bg-green-600 rounded-full px-2 py-1.5 gap-1 shadow-lg shadow-green-200/60"
-            style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' }}
+            className="bookingcart-nav hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
+            aria-label="Primary"
           >
             {navItems.map(({ key, href, icon, label }) => {
               const isActive = activeNav === key;
@@ -74,63 +45,93 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <a
                   key={key}
                   href={href}
+                  aria-label={label}
                   className={`
-                    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 select-none
+                    flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all duration-200 select-none
                     ${isActive
-                      ? 'bg-white/20 text-white shadow-inner backdrop-blur-sm'
-                      : 'text-green-100 hover:text-white hover:bg-white/15'}
+                      ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-300'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'}
                   `}
                 >
                   <i className={`ph ${icon} text-base`} />
-                  <span className="hidden sm:inline">{label}</span>
+                  <span>{label}</span>
                 </a>
               );
             })}
           </nav>
 
-          {/* ── RIGHT: utilities ── */}
-          <div className="shrink-0 flex items-center gap-2">
-
-            {/* Dark Mode Toggle 
-            <button
-              onClick={toggleTheme}
-              className="flex items-center justify-center w-8 h-8 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Toggle Dark Mode"
-            >
-              {theme === 'light' ? (
-                <i className="ph ph-moon text-lg" />
-              ) : (
-                <i className="ph ph-sun text-lg" />
-              )}
-            </button>
-            */}
-
-            {/* Currency selector */}
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
+          <div className="bookingcart-header-tools hidden shrink-0 items-center gap-2 md:flex">
+            <div className="bookingcart-currency flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">
               <i className="ph ph-globe text-green-600 text-base" />
-              <span className="hidden sm:inline">USD</span>
+              <span>USD</span>
             </div>
 
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-5 bg-slate-200 dark:bg-slate-700 transition-colors" />
+            <div className="h-5 w-px bg-slate-200 transition-colors dark:bg-slate-800" />
 
-            {/* Customer support */}
             <a
               href="/support"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white"
             >
               <i className="ph ph-headset text-green-600 text-base" />
-              <span className="hidden md:inline">Support</span>
+              <span>Support</span>
             </a>
 
-            {/* Optional slot (e.g. Print button) */}
             {rightSlot}
-
-            {/* Auth Cluster (Google Sign-In or Profile Dropdown) */}
             <HeaderAuthCluster />
-
           </div>
+
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900 md:hidden"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            <i className={`ph ${mobileOpen ? 'ph-x' : 'ph-list'} text-xl`} />
+          </button>
         </div>
+
+        {mobileOpen && (
+          <div className="bookingcart-mobile-menu border-t border-slate-100 py-3 dark:border-slate-800 md:hidden">
+            <nav className="grid gap-1" aria-label="Mobile primary">
+              {navItems.map(({ key, href, icon, label }) => {
+                const isActive = activeNav === key;
+                return (
+                  <a
+                    key={key}
+                    href={href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`
+                      flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors
+                      ${isActive
+                        ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-300'
+                        : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900'}
+                    `}
+                  >
+                    <i className={`ph ${icon} text-lg`} />
+                    {label}
+                  </a>
+                );
+              })}
+              <a
+                href="/support"
+                onClick={() => setMobileOpen(false)}
+                className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                <i className="ph ph-headset text-lg text-green-600" />
+                Support
+              </a>
+              <a
+                href="/auth"
+                onClick={() => setMobileOpen(false)}
+                className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-bold text-white transition-colors hover:bg-green-700"
+              >
+                <i className="ph ph-rocket-launch text-base" />
+                Get Started
+              </a>
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

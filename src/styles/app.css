@@ -6,8 +6,22 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   body {
     @apply bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-200;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
   }
 }
 
@@ -200,6 +214,39 @@ details.filter-chip[open] > summary .filter-chip-caret {
 /* Stays / Events legacy headers: push sign-in + profile to the right */
 .bc-header-auth {
   margin-left: auto;
+}
+
+.bookingcart-navbar,
+.bookingcart-navbar * {
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .bookingcart-navbar .bookingcart-currency,
+  .bookingcart-navbar .bc-header-auth {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .cal-popup {
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    transform: none;
+    padding: 1rem;
+  }
+
+  .dropdown__panel {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: auto;
+    bottom: 1rem;
+    width: auto;
+    max-height: min(80vh, 32rem);
+    overflow-y: auto;
+  }
 }
 
 /* ── Account settings page (legacy markup + account-settings.js) ── */
