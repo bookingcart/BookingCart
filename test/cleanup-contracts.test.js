@@ -9,6 +9,8 @@ const supportHandler = require('../api-routes/support');
 const flightDealsHandler = require('../api-routes/flight-deals');
 const priceAlertHandler = require('../api-routes/price-alert');
 const authHandler = require('../api-routes/auth');
+const userHandler = require('../api-routes/user');
+const { signBookingCartJwt } = require('../lib/google-verify');
 
 function makeRes() {
   return {
@@ -102,6 +104,55 @@ test('flight deals fall back to curated origin-aware routes when Duffel is not c
     assert.strictEqual(res.body.estimated, true);
     assert.ok(res.body.deals.length > 0);
     assert.ok(res.body.deals.every((deal) => deal.from === 'KGL'));
+  });
+});
+
+test('account settings save profile for the authenticated account email', async () => {
+  await withEnv({ NODE_ENV: 'test', DATABASE_URL: undefined, JWT_SECRET: 'test-secret-at-least-32-characters-long' }, async () => {
+    global.__users = {};
+    const token = signBookingCartJwt({ email: 'profile@example.com', name: 'Profile User' });
+    const req = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: {
+        email: 'profile@example.com',
+        state: {
+          profile: {
+            firstName: 'Profile',
+            lastName: '',
+            email: 'profile@example.com',
+            phone: '+250700000000',
+            nationality: 'Rwandan'
+          }
+        }
+      }
+    };
+    const res = makeRes();
+    await userHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.ok, true);
+    assert.strictEqual(global.__users['profile@example.com'].profile.phone, '+250700000000');
+    assert.strictEqual(global.__users['profile@example.com'].profile.email, 'profile@example.com');
+  });
+});
+
+test('account settings reject saves under a different account email', async () => {
+  await withEnv({ NODE_ENV: 'test', DATABASE_URL: undefined, JWT_SECRET: 'test-secret-at-least-32-characters-long' }, async () => {
+    global.__users = {};
+    const token = signBookingCartJwt({ email: 'owner@example.com', name: 'Owner User' });
+    const req = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: {
+        email: 'other@example.com',
+        state: { profile: { firstName: 'Other', email: 'other@example.com' } }
+      }
+    };
+    const res = makeRes();
+    await userHandler(req, res);
+    assert.strictEqual(res.statusCode, 403);
+    assert.strictEqual(res.body.ok, false);
+    assert.strictEqual(global.__users['other@example.com'], undefined);
   });
 });
 
