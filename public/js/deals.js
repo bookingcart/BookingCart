@@ -16,24 +16,23 @@
 
     // ── Curated destination images (reliable, beautiful) ─────────────────────────
     const DEST_IMAGES = {
-        'dubai': 'https://images.pexels.com/photos/325193/pexels-photo-325193.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'london': 'https://images.pexels.com/photos/460672/pexels-photo-460672.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'paris': 'https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'new-york': 'https://images.pexels.com/photos/290386/pexels-photo-290386.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'new york': 'https://images.pexels.com/photos/290386/pexels-photo-290386.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'nairobi': 'https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'johannesburg': 'https://images.pexels.com/photos/259447/pexels-photo-259447.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'cairo': 'https://images.pexels.com/photos/3290075/pexels-photo-3290075.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'istanbul': 'https://images.pexels.com/photos/2064827/pexels-photo-2064827.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'singapore': 'https://images.pexels.com/photos/777059/pexels-photo-777059.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'bangkok': 'https://images.pexels.com/photos/1682748/pexels-photo-1682748.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'amsterdam': 'https://images.pexels.com/photos/2031706/pexels-photo-2031706.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'mumbai': 'https://images.pexels.com/photos/2104152/pexels-photo-2104152.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'miami': 'https://images.pexels.com/photos/421655/pexels-photo-421655.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'los-angeles': 'https://images.pexels.com/photos/2263683/pexels-photo-2263683.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
-        'cancun': 'https://images.pexels.com/photos/1174732/pexels-photo-1174732.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',
+        'new york': 'https://loremflickr.com/600/400/newyork,skyline/all',
+        'london': 'https://loremflickr.com/600/400/london,city/all',
+        'paris': 'https://loremflickr.com/600/400/paris,city/all',
+        'tokyo': 'https://loremflickr.com/600/400/tokyo,city/all',
+        'dubai': 'https://loremflickr.com/600/400/dubai,skyline/all',
+        'singapore': 'https://loremflickr.com/600/400/singapore,city/all',
+        'rome': 'https://loremflickr.com/600/400/rome,city/all',
+        'barcelona': 'https://loremflickr.com/600/400/barcelona,city/all',
+        'amsterdam': 'https://loremflickr.com/600/400/amsterdam,city/all',
+        'sydney': 'https://loremflickr.com/600/400/sydney,city/all',
+        'bangkok': 'https://loremflickr.com/600/400/bangkok,city/all',
+        'istanbul': 'https://loremflickr.com/600/400/istanbul,city/all',
+        'las vegas': 'https://loremflickr.com/600/400/lasvegas,city/all',
+        'miami': 'https://loremflickr.com/600/400/miami,beach/all',
+        'los angeles': 'https://loremflickr.com/600/400/losangeles,city/all'
     };
-    const FALLBACK_IMAGE = 'https://images.pexels.com/photos/358319/pexels-photo-358319.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop';
+    const FALLBACK_IMAGE = 'https://loremflickr.com/600/400/city,landscape/all';
 
     // ── Country flag emojis ──────────────────────────────────────────────────────
     const FLAGS = {
@@ -206,8 +205,6 @@
         const hotBadge = deal.hot
             ? '<span class="absolute top-3 left-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1"><i class="ph-fill ph-fire-simple"></i> Hot Deal</span>'
             : '';
-
-
 
         return `
     <div class="group flex-shrink-0 w-72 bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300">
@@ -641,6 +638,24 @@
         initControls();
         initPopularRoutes();
     }
+
+    // Expose a re-init hook so React can call it when #deals-grid is re-mounted
+    // (e.g. after switching from Stays back to Flights tab)
+    window.__reInitDeals = function () {
+        const grid = document.getElementById('deals-grid');
+        if (!grid) return;
+        // Re-render cached deals if we have them, otherwise fetch fresh
+        if (currentDeals && currentDeals.length > 0) {
+            renderDeals();
+            initControls();
+            initPopularRoutes();
+        } else {
+            initDeals();
+            initControls();
+            initPopularRoutes();
+        }
+    };
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bootDeals);
     } else {

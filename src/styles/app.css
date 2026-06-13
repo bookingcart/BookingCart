@@ -97,7 +97,7 @@ textarea:focus {
 }
 
 .cal-popup {
-  @apply absolute top-full left-1/2 -translate-x-1/2 z-[100] w-[380px] bg-white dark:bg-slate-800 rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)] p-6 mt-2 transition-colors;
+  @apply absolute top-full left-1/2 -translate-x-1/2 z-[100] w-[360px] sm:w-[720px] bg-white dark:bg-slate-800 rounded-[20px] shadow-[0_20px_60px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)] p-6 mt-2 transition-colors;
   animation: calFadeIn 0.2s ease;
 }
 
@@ -176,6 +176,14 @@ textarea:focus {
 
 .cal-cell--selected .cal-price {
   color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.cal-cell--in-range {
+  background: #dcfce7 !important; /* light green */
+  border-radius: 0 !important;
+}
+.dark .cal-cell--in-range {
+  background: #14532d !important; /* dark green */
 }
 
 .cal-cell--disabled {

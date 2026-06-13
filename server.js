@@ -28,6 +28,17 @@ const supportHandler = require('./api-routes/support');
 const duffelClientKeyHandler = require('./api-routes/duffel-client-key');
 const ticketDownloadHandler = require('./api-routes/ticket-download');
 const priceAlertHandler = require('./api-routes/price-alert');
+
+const duffelStaysSearchHandler = require('./api-routes/duffel-stays-search');
+const duffelStaysRatesHandler = require('./api-routes/duffel-stays-rates');
+const duffelStaysQuoteHandler = require('./api-routes/duffel-stays-quote');
+const duffelStaysBookingHandler = require('./api-routes/duffel-stays-booking');
+const duffelStaysPaymentInstructionHandler = require('./api-routes/duffel-stays-payment-instruction');
+const duffelStaysNegotiatedRatesHandler = require('./api-routes/duffel-stays-negotiated-rates');
+const duffelStaysAccommodationHandler = require('./api-routes/duffel-stays-accommodation');
+const duffelStaysBrandsHandler = require('./api-routes/duffel-stays-brands');
+const duffelStaysAccommodationReviewsHandler = require('./api-routes/duffel-stays-accommodation-reviews');
+
 const { startTracker } = require('./lib/price-tracker');
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
@@ -124,6 +135,17 @@ app.all('/api/support', apiLimiter, run(supportHandler));
 app.post('/api/duffel-client-key', searchLimiter, run(duffelClientKeyHandler));
 app.get('/api/ticket-download', apiLimiter, run(ticketDownloadHandler));
 app.post('/api/price-alert', apiLimiter, run(priceAlertHandler));
+
+// Stays routes
+app.post('/api/stays-search', searchLimiter, run(duffelStaysSearchHandler));
+app.get('/api/stays-rates', searchLimiter, run(duffelStaysRatesHandler));
+app.all('/api/stays-quote', searchLimiter, run(duffelStaysQuoteHandler));
+app.all('/api/stays-booking', searchLimiter, run(duffelStaysBookingHandler));
+app.all('/api/stays-payment-instruction', searchLimiter, run(duffelStaysPaymentInstructionHandler));
+app.all('/api/stays-negotiated-rates', searchLimiter, run(duffelStaysNegotiatedRatesHandler));
+app.all('/api/stays-accommodation', searchLimiter, run(duffelStaysAccommodationHandler));
+app.all('/api/stays-brands', searchLimiter, run(duffelStaysBrandsHandler));
+app.all('/api/stays-accommodation-reviews', searchLimiter, run(duffelStaysAccommodationReviewsHandler));
 
 // Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
 app.post('/api/auth/register', authLimiter, (req, res, next) => {

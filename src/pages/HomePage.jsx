@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
@@ -43,8 +44,149 @@ const FAQ_ITEMS = [
   ]
 ];
 
+// Region-aware stays deals — keyed by broad region detected from IP geolocation
+const STAYS_DEALS_BY_REGION = {
+  'east-africa': [
+    { city: 'Nairobi',    img: 'https://loremflickr.com/600/400/nairobi,city/all', duration: '1h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$62' },
+    { city: 'Zanzibar',   img: 'https://loremflickr.com/600/400/zanzibar,beach/all', duration: '2h 05m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$89' },
+    { city: 'Kigali',     img: 'https://loremflickr.com/600/400/kigali,city/all', duration: '1h 10m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$74' },
+    { city: 'Dar es Salaam', img: 'https://loremflickr.com/600/400/daressalaam,city/all', duration: '1h 45m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$95' },
+    { city: 'Mombasa',    img: 'https://loremflickr.com/600/400/mombasa,beach/all', duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$58' },
+  ],
+  'west-africa': [
+    { city: 'Accra',      img: 'https://loremflickr.com/600/400/accra,city/all', duration: '1h 00m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$55' },
+    { city: 'Lagos',      img: 'https://loremflickr.com/600/400/lagos,city/all', duration: '1h 20m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$79' },
+    { city: 'Abuja',      img: 'https://loremflickr.com/600/400/abuja,city/all', duration: '0h 55m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$68' },
+    { city: 'Dubai',      img: 'https://loremflickr.com/600/400/dubai,skyline/all',    duration: '6h 30m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$197' },
+    { city: 'London',     img: 'https://loremflickr.com/600/400/london,city/all',    duration: '6h 45m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$185' },
+  ],
+  'southern-africa': [
+    { city: 'Cape Town',  img: 'https://loremflickr.com/600/400/capetown,city/all',    duration: '2h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$88' },
+    { city: 'Durban',     img: 'https://loremflickr.com/600/400/durban,beach/all',    duration: '1h 05m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$65' },
+    { city: 'Nairobi',    img: 'https://loremflickr.com/600/400/nairobi,city/all',   duration: '3h 40m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$112' },
+    { city: 'Dubai',      img: 'https://loremflickr.com/600/400/dubai,skyline/all',    duration: '7h 20m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$175' },
+    { city: 'Mauritius',  img: 'https://loremflickr.com/600/400/mauritius,beach/all',   duration: '4h 00m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$142' },
+  ],
+  'middle-east': [
+    { city: 'Istanbul',   img: 'https://loremflickr.com/600/400/istanbul,city/all',   duration: '3h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$97' },
+    { city: 'Cairo',      img: 'https://loremflickr.com/600/400/cairo,pyramids/all',   duration: '2h 45m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$79' },
+    { city: 'Muscat',     img: 'https://loremflickr.com/600/400/muscat,city/all',   duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$62' },
+    { city: 'Beirut',     img: 'https://loremflickr.com/600/400/beirut,city/all',   duration: '2h 10m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$84' },
+    { city: 'London',     img: 'https://loremflickr.com/600/400/london,city/all',    duration: '7h 20m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$185' },
+  ],
+  'south-asia': [
+    { city: 'Dubai',      img: 'https://loremflickr.com/600/400/dubai,skyline/all',    duration: '3h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$118' },
+    { city: 'Singapore',  img: 'https://loremflickr.com/600/400/singapore,city/all',    duration: '5h 30m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$142' },
+    { city: 'Bangkok',    img: 'https://loremflickr.com/600/400/bangkok,city/all',   duration: '3h 50m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$99' },
+    { city: 'Colombo',    img: 'https://loremflickr.com/600/400/colombo,city/all',   duration: '1h 45m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$75' },
+    { city: 'Kathmandu',  img: 'https://loremflickr.com/600/400/kathmandu,city/all',  duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$68' },
+  ],
+  'southeast-asia': [
+    { city: 'Bali',       img: 'https://loremflickr.com/600/400/bali,resort/all',   duration: '2h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$88' },
+    { city: 'Bangkok',    img: 'https://loremflickr.com/600/400/bangkok,city/all',   duration: '1h 30m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$72' },
+    { city: 'Tokyo',      img: 'https://loremflickr.com/600/400/tokyo,city/all',   duration: '7h 10m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$162' },
+    { city: 'Hong Kong',  img: 'https://loremflickr.com/600/400/hongkong,skyline/all',  duration: '3h 00m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$104' },
+    { city: 'Sydney',     img: 'https://loremflickr.com/600/400/sydney,city/all',   duration: '8h 00m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$189' },
+  ],
+  'europe': [
+    { city: 'Paris',      img: 'https://loremflickr.com/600/400/paris,city/all',    duration: '1h 30m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$87' },
+    { city: 'Barcelona',  img: 'https://loremflickr.com/600/400/barcelona,city/all',  duration: '2h 10m, non-stop', dates: 'Thu 7/2 → Sun 7/5',   price: '$112' },
+    { city: 'Amsterdam',  img: 'https://loremflickr.com/600/400/amsterdam,city/all', duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$94' },
+    { city: 'Rome',       img: 'https://loremflickr.com/600/400/rome,city/all',  duration: '2h 30m, non-stop', dates: 'Tue 7/14 → Tue 7/21', price: '$109' },
+    { city: 'Prague',     img: 'https://loremflickr.com/600/400/prague,city/all',  duration: '1h 50m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$78' },
+  ],
+  'north-america': [
+    { city: 'Cancun',     img: 'https://loremflickr.com/600/400/cancun,beach/all',  duration: '3h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$142' },
+    { city: 'Miami',      img: 'https://loremflickr.com/600/400/miami,beach/all',    duration: '2h 45m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$128' },
+    { city: 'Las Vegas',  img: 'https://loremflickr.com/600/400/lasvegas,city/all',   duration: '4h 00m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$159' },
+    { city: 'New York',   img: 'https://loremflickr.com/600/400/newyork,skyline/all',   duration: '5h 20m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$173' },
+    { city: 'Toronto',    img: 'https://loremflickr.com/600/400/toronto,city/all',  duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$89' },
+  ],
+  'default': [
+    { city: 'Brussels',   img: 'https://loremflickr.com/600/400/brussels,city/all', duration: '1h 39m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$87' },
+    { city: 'Salzburg',   img: 'https://loremflickr.com/600/400/salzburg,city/all', duration: '1h 40m, non-stop', dates: 'Thu 7/2 → Sun 7/5',   price: '$154' },
+    { city: 'Paris',      img: 'https://loremflickr.com/600/400/paris,city/all',   duration: '1h 30m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$172' },
+    { city: 'Berlin',     img: 'https://loremflickr.com/600/400/berlin,city/all',    duration: '1h 25m, non-stop', dates: 'Tue 7/14 → Tue 7/21',  price: '$172' },
+    { city: 'Amsterdam',  img: 'https://loremflickr.com/600/400/amsterdam,city/all', duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$189' },
+  ],
+};
+
+// Map country code or country name → region key
+function getRegionFromCountry(countryCode, countryName) {
+  const cc = (countryCode || '').toUpperCase();
+  const EastAfrica    = ['UG','KE','TZ','RW','BI','ET','SS','DJ','ER','SO','MZ','MG'];
+  const WestAfrica    = ['NG','GH','SN','CI','CM','ML','GN','TG','BJ','NE','BF','SL','LR','GM','GW','CV','MR'];
+  const SouthAfrica   = ['ZA','ZW','ZM','BW','NA','LS','SZ','AO','MZ'];
+  const MiddleEast    = ['SA','AE','QA','KW','BH','OM','JO','LB','SY','IQ','IR','YE','PS','IL'];
+  const SouthAsia     = ['IN','PK','BD','LK','NP','BT','MV','AF'];
+  const SoutheastAsia = ['TH','SG','MY','ID','PH','VN','MM','KH','LA','BN','TL'];
+  const Europe        = ['GB','FR','DE','IT','ES','NL','BE','CH','AT','SE','NO','DK','FI','PT','PL','CZ','HU','RO','GR','IE','HR','SK','BG','SI','EE','LV','LT','LU','MT','CY','IS','AL','BA','ME','RS','MK','MD','BY','UA','GE','AM','AZ'];
+  const NorthAmerica  = ['US','CA','MX'];
+  if (EastAfrica.includes(cc))    return 'east-africa';
+  if (WestAfrica.includes(cc))    return 'west-africa';
+  if (SouthAfrica.includes(cc))   return 'southern-africa';
+  if (MiddleEast.includes(cc))    return 'middle-east';
+  if (SouthAsia.includes(cc))     return 'south-asia';
+  if (SoutheastAsia.includes(cc)) return 'southeast-asia';
+  if (Europe.includes(cc))        return 'europe';
+  if (NorthAmerica.includes(cc))  return 'north-america';
+  return 'default';
+}
+
 export default function HomePage() {
   const [recentSearches, setRecentSearches] = useState([]);
+  const location = useLocation();
+  const [activeMode, setActiveMode] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('mode') === 'stays' ? 'stays' : 'flights';
+  }); // 'flights' | 'stays'
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('mode') === 'stays') {
+      setActiveMode('stays');
+    } else {
+      setActiveMode('flights');
+    }
+  }, [location.search]);
+
+  // Stays search state
+  const [staysDestination, setStaysDestination] = useState('');
+  const [staysCheckin, setStaysCheckin] = useState('');
+  const [staysCheckout, setStaysCheckout] = useState('');
+  const [staysGuests, setStaysGuests] = useState(1);
+  const [staysRooms, setStaysRooms] = useState(1);
+  const [staysGuestOpen, setStaysGuestOpen] = useState(false);
+  const [staysDeals, setStaysDeals] = useState(STAYS_DEALS_BY_REGION['default']);
+  const [staysDealCity, setStaysDealCity] = useState('');
+
+  // Geo-detect user location and pick region-appropriate stays deals
+  useEffect(() => {
+    let cancelled = false;
+    async function detectAndSetDeals() {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const resp = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!resp.ok) throw new Error('geo failed');
+        const data = await resp.json();
+        if (cancelled) return;
+        const region = getRegionFromCountry(data.country_code, data.country_name);
+        setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
+        setStaysDealCity(data.city || data.country_name || '');
+      } catch {
+        // Keep defaults on failure
+      }
+    }
+    detectAndSetDeals();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    window.__setStaysCheckin = setStaysCheckin;
+    window.__setStaysCheckout = setStaysCheckout;
+  }, []);
 
   useEffect(() => {
     try {
@@ -77,8 +219,19 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => { document.title = 'BookingCart — Fly Anywhere'; }, []);
+  useEffect(() => { document.title = activeMode === 'stays' ? 'BookingCart — Find Your Stay' : 'BookingCart — Fly Anywhere'; }, [activeMode]);
   useLegacyScripts(FLIGHT_SCRIPTS, 'home');
+
+  // Re-initialize deals when switching back to flights (deals.js only boots once on DOMContentLoaded)
+  useEffect(() => {
+    if (activeMode === 'flights') {
+      // Small delay lets React finish rendering the #deals-grid DOM node first
+      const t = setTimeout(() => {
+        if (typeof window.__reInitDeals === 'function') window.__reInitDeals();
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [activeMode]);
 
   return (
     <>
@@ -89,207 +242,407 @@ export default function HomePage() {
           
           <div className="absolute inset-0 z-0 select-none pointer-events-none">
             <div className="absolute inset-0 bg-gradient-to-b from-white/90 dark:from-slate-950/95 via-white/50 dark:via-slate-950/70 to-white/20 dark:to-slate-950/30 z-10 rounded-b-[40px]"></div>
-            {HERO_IMAGES.map((src, index) => (
+            {activeMode === 'stays' ? (
               <img
-                key={src}
-                src={src}
-                className={`absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100' : 'opacity-0'}`}
-                alt="Sky background"
-                onError={(e) => {
-                  if (e.currentTarget.src !== HERO_IMAGES[1]) {
-                    e.currentTarget.src = HERO_IMAGES[1];
-                  }
-                }}
+                src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=2000&q=80"
+                className="absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] opacity-100 transition-opacity duration-1000 ease-in-out"
+                alt="Hotel background"
               />
-            ))}
+            ) : (
+              HERO_IMAGES.map((src, index) => (
+                <img
+                  key={src}
+                  src={src}
+                  className={`absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100' : 'opacity-0'}`}
+                  alt="Sky background"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== HERO_IMAGES[1]) {
+                      e.currentTarget.src = HERO_IMAGES[1];
+                    }
+                  }}
+                />
+              ))
+            )}
           </div>
       
           
           <div className="relative z-10 max-w-4xl w-full mx-auto">
             <h1 className="text-5xl lg:text-7xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight mb-4">
-              Fly Anywhere
+              {activeMode === 'stays' ? 'Find Your Stay' : 'Fly Anywhere'}
             </h1>
             <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 font-medium mb-8">
-              Affordable Flights, Premium Service.
+              {activeMode === 'stays' ? 'Hotels, apartments & more — all in one place.' : 'Affordable Flights, Premium Service.'}
             </p>
-      
-      
-            
-            <div className="mt-6 sm:mt-8 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
-      
-              
-              <div className="inline-flex bg-white dark:bg-slate-800/60 dark:bg-slate-800/80 backdrop-blur rounded-xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-2 tabs"
-                role="tablist">
-                <button type="button"
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 tab sm:text-sm sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2" role="tab"
-                  aria-selected="true" data-trip="round">
-                  <i className="ph ph-arrows-left-right text-base"></i> Round Trip
-                </button>
-                <button type="button"
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 tab sm:text-sm sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2" role="tab"
-                  aria-selected="false" data-trip="oneway">
-                  <i className="ph ph-arrow-right text-base"></i> One-Way Trip
-                </button>
-      
-              </div>
-      
-              
-              <div className="relative z-10 max-w-7xl w-full mx-auto px-0">
-                <div className="bg-white dark:bg-slate-800 rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80 dark:ring-slate-700/80 transition-colors">
-                  <form data-search-form
-                    className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:grid-rows-[auto_auto] gap-0">
-      
-                    
-                    <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2 lg:col-start-1 lg:row-start-1">
-                      <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="search-from">From</label>
-                      <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
-                        <i className="ph ph-airplane-takeoff text-base text-slate-400 shrink-0" aria-hidden="true"></i>
-                        <input id="search-from"
-                          className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
-                          name="from" data-airport-input placeholder="City or code" autoComplete="off" />
-                      </div>
-                      <ul className="suggest__list" role="listbox"></ul>
-                    </div>
-      
-                    
-                    <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2 lg:col-start-2 lg:row-start-1">
-                      <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="search-to">To</label>
-                      <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
-                        <i className="ph ph-airplane-landing text-base text-slate-400 shrink-0" aria-hidden="true"></i>
-                        <input id="search-to"
-                          className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
-                          name="to" data-airport-input placeholder="City or code" autoComplete="off" />
-                      </div>
-                      <ul className="suggest__list" role="listbox"></ul>
-                    </div>
-      
-                    
-                    <div className="min-w-0 w-full px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-stretch gap-2 sm:gap-0 border-b lg:border-b-0 lg:border-t border-slate-100/90 lg:col-span-3 lg:row-start-2">
-                      <div className="flex-1 min-w-0 field flex flex-row items-center gap-2 sm:pr-2">
-                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Out</span>
-                        <button type="button" data-cal-trigger="depart"
-                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
-                          <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
-                          <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="depart">Select</span>
-                        </button>
-                        <input type="hidden" name="depart" />
-                      </div>
-                      <div className="hidden sm:block w-px bg-slate-100 dark:bg-slate-700 self-center" style={{"minHeight":"2rem"}}></div>
-                      <div className="flex-1 min-w-0 field group flex flex-row items-center gap-2 sm:pl-2" data-return-field>
-                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Back</span>
-                        <button type="button" data-cal-trigger="return"
-                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
-                          <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
-                          <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="return">Select</span>
-                        </button>
-                        <input type="hidden" name="return" />
-                      </div>
-                    </div>
-      
-                    
-                    <div className="px-2 sm:px-3 py-1.5 flex flex-row items-center gap-2 lg:gap-2.5 lg:pl-3 lg:pr-1.5 lg:col-start-3 lg:row-start-1">
-                      <div className="dropdown relative flex-1 min-w-0 flex flex-row items-center gap-2" data-dropdown>
-                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Pax</span>
-                        <button className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 control sm:min-w-[6.5rem]" type="button"
-                          data-dropdown-trigger data-passengers-trigger>
-                          <i className="ph ph-users text-base text-slate-400 shrink-0" aria-hidden="true"></i>
-                          <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs sm:text-sm truncate" data-passengers-summary>1 traveler</span>
-                        </button>
-                        <input type="hidden" name="passengers" value="" />
-      
-                        <div className="dropdown__panel" role="dialog">
-                          <div data-passengers className="space-y-4">
-                            <div className="flex justify-between items-center counter">
-                              <div className="counter__meta">
-                                <div className="font-medium text-slate-900 dark:text-slate-200">Adults</div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">Age 12+</div>
-                              </div>
-                              <div className="flex items-center gap-3 counter__controls">
-                                <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
-                                  type="button" data-minus="adults"><i className="ph ph-minus"></i></button>
-                                <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="adults">1</span>
-                                <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
-                                  type="button" data-plus="adults"><i className="ph ph-plus"></i></button>
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center counter">
-                              <div className="counter__meta">
-                                <div className="font-medium text-slate-900 dark:text-slate-200">Children</div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">Age 2–11</div>
-                              </div>
-                              <div className="flex items-center gap-3 counter__controls">
-                                <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
-                                  type="button" data-minus="children"><i className="ph ph-minus"></i></button>
-                                <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="children">0</span>
-                                <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
-                                  type="button" data-plus="children"><i className="ph ph-plus"></i></button>
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center counter">
-                              <div className="counter__meta">
-                                <div className="font-medium text-slate-900 dark:text-slate-200">Infants</div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">Under 2</div>
-                              </div>
-                              <div className="flex items-center gap-3 counter__controls">
-                                <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
-                                  type="button" data-minus="infants"><i className="ph ph-minus"></i></button>
-                                <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="infants">0</span>
-                                <button
-                                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors"
-                                  type="button" data-plus="infants"><i className="ph ph-plus"></i></button>
-                              </div>
-                            </div>
-      
-                            <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-700">
-                              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Cabin</label>
-                              <select
-                                className="w-full bg-slate-50 dark:bg-slate-700 dark:text-slate-200 border-none rounded-lg text-sm font-semibold p-2 focus:ring-2 focus:ring-green-500 control select transition-colors"
-                                name="cabin">
-                                <option>Economy</option>
-                                <option>Premium Economy</option>
-                                <option>Business</option>
-                                <option>First</option>
-                              </select>
-                            </div>
+
+            {/* Flights / Stays mode switcher */}
+            <div className="inline-flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1">
+              <button
+                type="button"
+                id="mode-flights-btn"
+                onClick={() => setActiveMode('flights')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                  activeMode === 'flights'
+                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <i className="ph ph-airplane-tilt text-base"></i> Flights
+              </button>
+              <button
+                type="button"
+                id="mode-stays-btn"
+                onClick={() => setActiveMode('stays')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                  activeMode === 'stays'
+                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <i className="ph ph-bed text-base"></i> Stays
+              </button>
+            </div>
+
+            <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
+
+              {/* ──────────── FLIGHTS PANEL ──────────── */}
+              {activeMode === 'flights' && (
+                <>
+                  <div className="inline-flex bg-white dark:bg-slate-800/60 dark:bg-slate-800/80 backdrop-blur rounded-xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-2 tabs"
+                    role="tablist">
+                    <button type="button"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 tab sm:text-sm sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2" role="tab"
+                      aria-selected="true" data-trip="round">
+                      <i className="ph ph-arrows-left-right text-base"></i> Round Trip
+                    </button>
+                    <button type="button"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 tab sm:text-sm sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2" role="tab"
+                      aria-selected="false" data-trip="oneway">
+                      <i className="ph ph-arrow-right text-base"></i> One-Way Trip
+                    </button>
+                  </div>
+
+                  <div className="relative z-10 max-w-7xl w-full mx-auto px-0">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80 dark:ring-slate-700/80 transition-colors">
+                      <form data-search-form
+                        className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:grid-rows-[auto_auto] gap-0">
+
+                        <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2 lg:col-start-1 lg:row-start-1">
+                          <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="search-from">From</label>
+                          <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
+                            <i className="ph ph-airplane-takeoff text-base text-slate-400 shrink-0" aria-hidden="true"></i>
+                            <input id="search-from"
+                              className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
+                              name="from" data-airport-input placeholder="City or code" autoComplete="off" />
+                          </div>
+                          <ul className="suggest__list" role="listbox"></ul>
+                        </div>
+
+                        <div className="min-w-0 sm:min-w-[11rem] lg:min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2 lg:col-start-2 lg:row-start-1">
+                          <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="search-to">To</label>
+                          <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
+                            <i className="ph ph-airplane-landing text-base text-slate-400 shrink-0" aria-hidden="true"></i>
+                            <input id="search-to"
+                              className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
+                              name="to" data-airport-input placeholder="City or code" autoComplete="off" />
+                          </div>
+                          <ul className="suggest__list" role="listbox"></ul>
+                        </div>
+
+                        <div className="min-w-0 w-full px-2 sm:px-3 py-1.5 flex flex-col sm:flex-row sm:items-stretch gap-2 sm:gap-0 border-b lg:border-b-0 lg:border-t border-slate-100/90 lg:col-span-3 lg:row-start-2">
+                          <div className="flex-1 min-w-0 field flex flex-row items-center gap-2 sm:pr-2">
+                            <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Out</span>
+                            <button type="button" data-cal-trigger="depart"
+                              className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
+                              <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
+                              <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="depart">Select</span>
+                            </button>
+                            <input type="hidden" name="depart" />
+                          </div>
+                          <div className="hidden sm:block w-px bg-slate-100 dark:bg-slate-700 self-center" style={{minHeight:'2rem'}}></div>
+                          <div className="flex-1 min-w-0 field group flex flex-row items-center gap-2 sm:pl-2" data-return-field>
+                            <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Back</span>
+                            <button type="button" data-cal-trigger="return"
+                              className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
+                              <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
+                              <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="return">Select</span>
+                            </button>
+                            <input type="hidden" name="return" />
                           </div>
                         </div>
+
+                        <div className="px-2 sm:px-3 py-1.5 flex flex-row items-center gap-2 lg:gap-2.5 lg:pl-3 lg:pr-1.5 lg:col-start-3 lg:row-start-1">
+                          <div className="dropdown relative flex-1 min-w-0 flex flex-row items-center gap-2" data-dropdown>
+                            <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Pax</span>
+                            <button className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 control sm:min-w-[6.5rem]" type="button"
+                              data-dropdown-trigger data-passengers-trigger>
+                              <i className="ph ph-users text-base text-slate-400 shrink-0" aria-hidden="true"></i>
+                              <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs sm:text-sm truncate" data-passengers-summary>1 traveler</span>
+                            </button>
+                            <input type="hidden" name="passengers" value="" />
+
+                            <div className="dropdown__panel" role="dialog">
+                              <div data-passengers className="space-y-4">
+                                <div className="flex justify-between items-center counter">
+                                  <div className="counter__meta">
+                                    <div className="font-medium text-slate-900 dark:text-slate-200">Adults</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Age 12+</div>
+                                  </div>
+                                  <div className="flex items-center gap-3 counter__controls">
+                                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors" type="button" data-minus="adults"><i className="ph ph-minus"></i></button>
+                                    <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="adults">1</span>
+                                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors" type="button" data-plus="adults"><i className="ph ph-plus"></i></button>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center counter">
+                                  <div className="counter__meta">
+                                    <div className="font-medium text-slate-900 dark:text-slate-200">Children</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Age 2–11</div>
+                                  </div>
+                                  <div className="flex items-center gap-3 counter__controls">
+                                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors" type="button" data-minus="children"><i className="ph ph-minus"></i></button>
+                                    <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="children">0</span>
+                                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors" type="button" data-plus="children"><i className="ph ph-plus"></i></button>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center counter">
+                                  <div className="counter__meta">
+                                    <div className="font-medium text-slate-900 dark:text-slate-200">Infants</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Under 2</div>
+                                  </div>
+                                  <div className="flex items-center gap-3 counter__controls">
+                                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors" type="button" data-minus="infants"><i className="ph ph-minus"></i></button>
+                                    <span className="font-medium w-4 text-center kpi dark:text-slate-200" data-count="infants">0</span>
+                                    <button className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700 hover:border-green-500 hover:text-green-600 transition-colors" type="button" data-plus="infants"><i className="ph ph-plus"></i></button>
+                                  </div>
+                                </div>
+
+                                <div className="pt-3 mt-1 border-t border-slate-100 dark:border-slate-700">
+                                  <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Cabin</label>
+                                  <select className="w-full bg-slate-50 dark:bg-slate-700 dark:text-slate-200 border-none rounded-lg text-sm font-semibold p-2 focus:ring-2 focus:ring-green-500 control select transition-colors" name="cabin">
+                                    <option>Economy</option>
+                                    <option>Premium Economy</option>
+                                    <option>Business</option>
+                                    <option>First</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9 sm:h-10 px-4 sm:px-5 rounded-lg sm:rounded-xl shadow-md shadow-green-600/25 transition-all flex items-center justify-center gap-1.5 btn btn-primary shrink-0 text-xs sm:text-sm"
+                            type="submit">
+                            <i className="ph ph-magnifying-glass text-base sm:text-lg"></i>
+                            Search
+                          </button>
+                        </div>
+
+                        <div data-multicity style={{display:'none'}} className="p-2 border-t border-slate-100 dark:border-slate-700 lg:col-span-3">
+                          <div className="text-sm text-slate-500 dark:text-slate-400">Multi-city search is not available yet.</div>
+                        </div>
+                      </form>
+
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ──────────── STAYS PANEL ──────────── */}
+              {activeMode === 'stays' && (
+                <div className="relative z-10 max-w-7xl w-full mx-auto px-0 mt-2">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80 dark:ring-slate-700/80 transition-colors">
+                    <form
+                      id="stays-search-form"
+                      className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-0"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const dest = staysDestination.trim();
+                        
+                        if (!dest || !staysCheckin || !staysCheckout) {
+                          alert('Please fill out destination, check-in, and check-out dates.');
+                          return;
+                        }
+                        const params = new URLSearchParams({
+                          destination: dest,
+                          checkin: staysCheckin,
+                          checkout: staysCheckout,
+                          guests: staysGuests.toString(),
+                          rooms: staysRooms.toString()
+                        });
+                        const url = `/stays/results?${params.toString()}`;
+                        if (typeof window.__bcNavigate === "function") window.__bcNavigate(url);
+                        else window.location.href = url;
+                      }}
+                    >
+                      {/* Destination */}
+                      <div className="min-w-0 px-2 sm:px-3 py-1.5 border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
+                        <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="stays-destination">Where</label>
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
+                          <i className="ph ph-map-pin text-base text-slate-400 shrink-0" aria-hidden="true"></i>
+                          <input
+                            id="stays-destination"
+                            className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
+                            placeholder="City, hotel, or area"
+                            value={staysDestination}
+                            onChange={e => setStaysDestination(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </div>
                       </div>
-      
-                      <button
-                        className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9 sm:h-10 px-4 sm:px-5 rounded-lg sm:rounded-xl shadow-md shadow-green-600/25 transition-all flex items-center justify-center gap-1.5 btn btn-primary shrink-0 text-xs sm:text-sm"
-                        type="submit">
-                        <i className="ph ph-magnifying-glass text-base sm:text-lg"></i>
-                        Search
-                      </button>
-                    </div>
-      
-                      <div data-multicity style={{"display":"none"}} className="p-2 border-t border-slate-100 dark:border-slate-700 lg:col-span-3">
-                        <div className="text-sm text-slate-500 dark:text-slate-400">Multi-city search is not available yet.</div>
+
+                      {/* Check-in */}
+                      <div className="min-w-0 px-2 sm:px-3 py-1.5 field border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
+                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">In</span>
+                        <button type="button" data-cal-trigger="stays-checkin"
+                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
+                          <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
+                          <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="stays-checkin">
+                            {staysCheckin ? new Date(staysCheckin + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : 'Select'}
+                          </span>
+                        </button>
+                        <input type="hidden" name="stays-checkin" value={staysCheckin} />
                       </div>
-      
-                  </form>
-      
-                  
-                  <div id="cal-popup" className="cal-popup" style={{"display":"none"}}>
-                    <div className="cal-header">
-                      <button type="button" className="cal-nav" data-cal-prev><i className="ph-bold ph-caret-left"></i></button>
-                      <span className="cal-title" data-cal-title></span>
-                      <button type="button" className="cal-nav" data-cal-next><i className="ph-bold ph-caret-right"></i></button>
-                    </div>
-                    <div className="cal-weekdays">
-                      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-                    </div>
-                    <div className="cal-grid" data-cal-grid></div>
+
+                      {/* Check-out */}
+                      <div className="min-w-0 px-2 sm:px-3 py-1.5 field border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
+                        <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Out</span>
+                        <button type="button" data-cal-trigger="stays-checkout"
+                          className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 transition-all cursor-pointer text-left">
+                          <i className="ph ph-calendar-blank text-base text-slate-400 dark:text-slate-400 shrink-0" aria-hidden="true"></i>
+                          <span className="text-slate-900 dark:text-slate-200 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-x-auto no-scrollbar" data-cal-label="stays-checkout">
+                            {staysCheckout ? new Date(staysCheckout + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : 'Select'}
+                          </span>
+                        </button>
+                        <input type="hidden" name="stays-checkout" value={staysCheckout} />
+                      </div>
+
+                      {/* Guests & Rooms + Search */}
+                      <div className="px-2 sm:px-3 py-1.5 flex flex-row items-center gap-2 lg:gap-2.5 lg:pl-3 lg:pr-1.5">
+                        <div className="relative flex-1 min-w-0 flex flex-row items-center gap-2">
+                          <span className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none">Guests</span>
+                          <button
+                            id="stays-guests-trigger"
+                            type="button"
+                            className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2 h-9 sm:h-10 sm:min-w-[7rem]"
+                            onClick={() => setStaysGuestOpen(v => !v)}
+                          >
+                            <i className="ph ph-users text-base text-slate-400 shrink-0" aria-hidden="true"></i>
+                            <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs sm:text-sm truncate">
+                              {staysGuests} guest{staysGuests !== 1 ? 's' : ''}, {staysRooms} room{staysRooms !== 1 ? 's' : ''}
+                            </span>
+                          </button>
+
+                          {/* Guests/Rooms dropdown */}
+                          {staysGuestOpen && (
+                            <div
+                              className="absolute top-full right-0 mt-2 z-50 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 w-64 space-y-4"
+                              role="dialog"
+                              aria-label="Guests and rooms"
+                            >
+                              {/* Guests counter */}
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <div className="font-medium text-slate-900 dark:text-slate-200">Guests</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">Adults &amp; children</div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    id="stays-guests-minus"
+                                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:border-green-500 hover:text-green-600 transition-colors"
+                                    onClick={() => setStaysGuests(g => Math.max(1, g - 1))}
+                                  ><i className="ph ph-minus"></i></button>
+                                  <span className="font-semibold w-5 text-center text-slate-900 dark:text-slate-200">{staysGuests}</span>
+                                  <button
+                                    type="button"
+                                    id="stays-guests-plus"
+                                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:border-green-500 hover:text-green-600 transition-colors"
+                                    onClick={() => setStaysGuests(g => Math.min(30, g + 1))}
+                                  ><i className="ph ph-plus"></i></button>
+                                </div>
+                              </div>
+
+                              {/* Rooms counter */}
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <div className="font-medium text-slate-900 dark:text-slate-200">Rooms</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400">Number of rooms</div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    id="stays-rooms-minus"
+                                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:border-green-500 hover:text-green-600 transition-colors"
+                                    onClick={() => setStaysRooms(r => Math.max(1, r - 1))}
+                                  ><i className="ph ph-minus"></i></button>
+                                  <span className="font-semibold w-5 text-center text-slate-900 dark:text-slate-200">{staysRooms}</span>
+                                  <button
+                                    type="button"
+                                    id="stays-rooms-plus"
+                                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:border-green-500 hover:text-green-600 transition-colors"
+                                    onClick={() => setStaysRooms(r => Math.min(30, r + 1))}
+                                  ><i className="ph ph-plus"></i></button>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                id="stays-guests-done"
+                                className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl transition-colors text-sm"
+                                onClick={() => setStaysGuestOpen(false)}
+                              >Done</button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Search button */}
+                        <button
+                          id="stays-search-btn"
+                          className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9 sm:h-10 px-4 sm:px-5 rounded-lg sm:rounded-xl shadow-md shadow-green-600/25 transition-all flex items-center justify-center gap-1.5 shrink-0 text-xs sm:text-sm"
+                          type="submit"
+                        >
+                          <i className="ph ph-magnifying-glass text-base sm:text-lg"></i>
+                          Search
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
-              </div>
-      
+              )}
             </div>
+
+            {/* Calendar Popup (unconditionally rendered) */}
+            <div id="cal-popup" className="cal-popup" style={{display:'none'}}>
+              <div className="flex flex-col sm:flex-row gap-8">
+                <div className="cal-month flex-1">
+                  <div className="cal-header">
+                    <button type="button" className="cal-nav" data-cal-prev><i className="ph-bold ph-caret-left"></i></button>
+                    <span className="cal-title" data-cal-title-1></span>
+                    <div className="w-9 h-9 sm:hidden">
+                      <button type="button" className="cal-nav" data-cal-next><i className="ph-bold ph-caret-right"></i></button>
+                    </div>
+                    <div className="w-9 h-9 hidden sm:block"></div>
+                  </div>
+                  <div className="cal-weekdays">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                  </div>
+                  <div className="cal-grid" data-cal-grid-1></div>
+                </div>
+                
+                <div className="cal-month flex-1 hidden sm:block">
+                  <div className="cal-header">
+                    <div className="w-9 h-9 hidden sm:block"></div>
+                    <span className="cal-title" data-cal-title-2></span>
+                    <button type="button" className="cal-nav" data-cal-next><i className="ph-bold ph-caret-right"></i></button>
+                  </div>
+                  <div className="cal-weekdays">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                  </div>
+                  <div className="cal-grid" data-cal-grid-2></div>
+                </div>
+              </div>
+            </div>
+            
           </div>
         </section>
 
@@ -460,125 +813,195 @@ export default function HomePage() {
         </section>
       
         
-        <section id="deals-section" className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
-      
-          
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
-            <div>
-              <div
-                className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-bold text-xs px-3 py-1.5 rounded-full mb-3">
-                <i className="ph ph-fire text-base"></i> Personalized for You
+        {activeMode === 'flights' ? (
+          <section id="deals-section" className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-bold text-xs px-3 py-1.5 rounded-full mb-3">
+                  <i className="ph ph-fire text-base"></i> Personalized for You
+                </div>
+                <h2 id="deals-title" className="text-3xl font-extrabold text-slate-900 dark:text-white">Top Flight Deals</h2>
+                <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Real-time prices · Updated every 2 hours</p>
               </div>
-              <h2 id="deals-title" className="text-3xl font-extrabold text-slate-900 dark:text-white">Top Flight Deals</h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Real-time prices · Updated every 2 hours</p>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm transition-colors">
+                  <i className="ph ph-map-pin text-green-600 dark:text-green-400"></i>
+                  <input id="deals-origin-input" type="text" maxLength="3" placeholder="IATA e.g. LHR"
+                    className="w-20 bg-transparent font-semibold text-slate-700 dark:text-slate-200 uppercase" />
+                </div>
+                <button id="deals-origin-btn"
+                  className="bg-slate-900 text-white font-bold text-sm px-4 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
+                  Change
+                </button>
+              </div>
             </div>
-      
-            
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm transition-colors">
-                <i className="ph ph-map-pin text-green-600 dark:text-green-400"></i>
-                <input id="deals-origin-input" type="text" maxLength="3" placeholder="IATA e.g. LHR"
-                  className="w-20 bg-transparent font-semibold text-slate-700 dark:text-slate-200 uppercase" />
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-6 transition-colors">
+              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Sort:</span>
+                  <button data-sort="price" className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-green-600 text-white transition-all">💰 Lowest Price</button>
+                  <button data-sort="popular" className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all">⭐ Popular</button>
+                  <button data-sort="trending" className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all">🔥 Trending</button>
+                </div>
+                <div className="hidden lg:block w-px h-8 bg-slate-200 dark:bg-slate-600 mx-2"></div>
+                <div className="flex items-center gap-4 flex-wrap text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase">Budget:</span>
+                    <input id="deals-min-price" type="range" min="0" max="2000" step="50" defaultValue="0" className="w-20 accent-green-600" />
+                    <input id="deals-max-price" type="range" min="200" max="5000" step="50" defaultValue="5000" className="w-20 accent-green-600" />
+                    <span id="deals-price-label" className="text-xs font-semibold text-slate-600 dark:text-slate-300">$0 – $5000+</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase">Month:</span>
+                    <select id="deals-month" className="bg-slate-50 dark:bg-slate-700 dark:text-slate-200 border-none rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <option value="">Any</option>
+                      <option value="03">Mar</option>
+                      <option value="04">Apr</option>
+                      <option value="05">May</option>
+                      <option value="06">Jun</option>
+                      <option value="07">Jul</option>
+                      <option value="08">Aug</option>
+                      <option value="09">Sep</option>
+                      <option value="10">Oct</option>
+                      <option value="11">Nov</option>
+                      <option value="12">Dec</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input id="deals-direct-only" type="checkbox" className="accent-green-600 w-4 h-4" />
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Direct only</span>
+                  </label>
+                </div>
               </div>
-              <button id="deals-origin-btn"
-                className="bg-slate-900 text-white font-bold text-sm px-4 py-2.5 rounded-xl hover:bg-slate-700 transition-all">
-                Change
+            </div>
+
+            <div className="relative">
+              <button id="deals-prev" className="absolute -left-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:shadow-xl transition-all hidden sm:flex" aria-label="Scroll left">
+                <i className="ph ph-caret-left text-sm font-bold"></i>
+              </button>
+              <div id="deals-grid" className="flex flex-row gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2"></div>
+              <button id="deals-next" className="absolute -right-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:shadow-xl transition-all hidden sm:flex" aria-label="Scroll right">
+                <i className="ph ph-caret-right text-sm font-bold"></i>
               </button>
             </div>
-          </div>
-      
-          
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-6 transition-colors">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-      
-              
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Sort:</span>
-                <button data-sort="price"
-                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-green-600 text-white transition-all">💰 Lowest
-                  Price</button>
-                <button data-sort="popular"
-                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all">⭐
-                  Popular</button>
-                <button data-sort="trending"
-                  className="data-sort px-4 py-2 rounded-xl text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all">🔥
-                  Trending</button>
+
+            <div className="text-center mt-10">
+              <a href="/results" className="inline-flex items-center gap-2 border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white font-bold px-8 py-3 rounded-2xl transition-all text-sm">
+                <i className="ph ph-magnifying-glass"></i> Search More Flights
+              </a>
+            </div>
+          </section>
+        ) : (
+          <section className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
+
+            {/* Travel Deals section — shown first */}
+            <div className="mb-12">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Travel deals under $197</h2>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-0.5">
+                    {staysDealCity ? `Top picks near ${staysDealCity}` : 'Explore destinations near you'}
+                  </p>
+                </div>
+                <a href="/results" className="text-sm font-bold text-slate-700 dark:text-slate-300 hover:underline flex items-center gap-1">
+                  Explore more <i className="ph ph-caret-right text-xs"></i>
+                </a>
               </div>
-      
-              <div className="hidden lg:block w-px h-8 bg-slate-200 dark:bg-slate-600 mx-2"></div>
-      
-              
-              <div className="flex items-center gap-4 flex-wrap text-sm">
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Budget:</span>
-                  <input id="deals-min-price" type="range" min="0" max="2000" step="50" value="0"
-                    className="w-20 accent-green-600" />
-                  <input id="deals-max-price" type="range" min="200" max="5000" step="50" value="5000"
-                    className="w-20 accent-green-600" />
-                  <span id="deals-price-label" className="text-xs font-semibold text-slate-600 dark:text-slate-300">$0 – $5000+</span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Month:</span>
-                  <select id="deals-month"
-                    className="bg-slate-50 dark:bg-slate-700 dark:text-slate-200 border-none rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <option value="">Any</option>
-                    <option value="03">Mar</option>
-                    <option value="04">Apr</option>
-                    <option value="05">May</option>
-                    <option value="06">Jun</option>
-                    <option value="07">Jul</option>
-                    <option value="08">Aug</option>
-                    <option value="09">Sep</option>
-                    <option value="10">Oct</option>
-                    <option value="11">Nov</option>
-                    <option value="12">Dec</option>
-                  </select>
-                </div>
-                
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input id="deals-direct-only" type="checkbox" className="accent-green-600 w-4 h-4" />
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Direct only</span>
-                </label>
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x">
+                {staysDeals.map((deal) => (
+                  <div key={deal.city} className="flex-shrink-0 w-[220px] bg-white dark:bg-slate-800 rounded-[20px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.10)] border border-slate-100 dark:border-slate-700 cursor-pointer transition-all duration-300 group snap-start">
+                    <div className="h-36 overflow-hidden">
+                      <img src={deal.img} alt={deal.city} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{deal.city}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{deal.duration}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3">{deal.dates}</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-white">from {deal.price}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-      
-          
-          <div className="relative">
-            {/* Left arrow */}
-            <button
-              id="deals-prev"
-              className="absolute -left-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white hover:shadow-xl transition-all hidden sm:flex"
-              aria-label="Scroll left"
-            >
-              <i className="ph ph-caret-left text-sm font-bold"></i>
-            </button>
 
-            <div
-              id="deals-grid"
-              className="flex flex-row gap-4 overflow-x-auto no-scrollbar scroll-smooth pb-2"
-            ></div>
+            {/* Trending destinations */}
+            <div className="mb-6">
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">Trending destinations</h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Travelers searching for United Kingdom also booked these</p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-12">
+              <a href="/stays/results?destination=Manchester" className="col-span-2 md:col-span-3 h-64 md:h-80 rounded-2xl overflow-hidden relative group cursor-pointer block">
+                <img src="https://loremflickr.com/800/600/manchester,landmark/all" alt="Manchester" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                <div className="absolute top-4 left-6 right-6">
+                  <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">Manchester 🇬🇧</h3>
+                </div>
+              </a>
+              <a href="/stays/results?destination=Birmingham" className="col-span-2 md:col-span-3 h-64 md:h-80 rounded-2xl overflow-hidden relative group cursor-pointer block">
+                <img src="https://loremflickr.com/800/600/birmingham,landmark/all" alt="Birmingham" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                <div className="absolute top-4 left-6 right-6">
+                  <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">Birmingham 🇬🇧</h3>
+                </div>
+              </a>
+              <a href="/stays/results?destination=Leeds" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
+                <img src="https://loremflickr.com/800/600/leeds,city/all" alt="Leeds" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                <div className="absolute top-4 left-5 right-5">
+                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Leeds 🇬🇧</h3>
+                </div>
+              </a>
+              <a href="/stays/results?destination=Liverpool" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
+                <img src="https://loremflickr.com/800/600/liverpool,city/all" alt="Liverpool" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                <div className="absolute top-4 left-5 right-5">
+                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Liverpool 🇬🇧</h3>
+                </div>
+              </a>
+              <a href="/stays/results?destination=Dublin" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
+                <img src="https://loremflickr.com/800/600/dublin,landmark/all" alt="Dublin" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                <div className="absolute top-4 left-5 right-5">
+                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Dublin 🇮🇪</h3>
+                </div>
+              </a>
+            </div>
 
-            {/* Right arrow */}
-            <button
-              id="deals-next"
-              className="absolute -right-4 top-[45%] -translate-y-1/2 z-10 w-9 h-9 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white hover:shadow-xl transition-all hidden sm:flex"
-              aria-label="Scroll right"
-            >
-              <i className="ph ph-caret-right text-sm font-bold"></i>
-            </button>
-          </div>
-      
-          
-          <div className="text-center mt-10">
-            <a href="/results"
-              className="inline-flex items-center gap-2 border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white font-bold px-8 py-3 rounded-2xl transition-all text-sm">
-              <i className="ph ph-magnifying-glass"></i> Search More Flights
-            </a>
-          </div>
-        </section>
+            {/* Browse by property type */}
+            <div className="mb-6">
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Browse by property type in Manchester</h2>
+            </div>
+            
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x">
+              <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
+                <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
+                  <img src="https://loremflickr.com/800/600/hotel,lobby/all" alt="Hotels" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Hotels</h3>
+              </div>
+              <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
+                <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
+                  <img src="https://loremflickr.com/800/600/apartment,livingroom/all" alt="Apartments" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Apartments</h3>
+              </div>
+              <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
+                <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
+                  <img src="https://loremflickr.com/800/600/villa,pool/all" alt="Villas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Villas</h3>
+              </div>
+              <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
+                <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
+                  <img src="https://loremflickr.com/800/600/resort,beach/all" alt="Resorts" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Resorts</h3>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* For travel pros section */}
         <section className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">

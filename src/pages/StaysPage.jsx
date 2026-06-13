@@ -1,7 +1,13 @@
 import { useEffect } from 'react';
-import { StaysUnavailable } from '../components/StaysUnavailable.jsx';
+import { useNavigate } from 'react-router-dom';
 
 export default function StaysPage() {
-  useEffect(() => { document.title = 'Stays | BookingCart'; }, []);
-  return <StaysUnavailable title="Stays are not connected yet" />;
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Redirect to home page with Stays mode active. We don't need a whole duplicate standalone page.
+    navigate('/?mode=stays', { replace: true });
+  }, [navigate]);
+
+  return null;
 }

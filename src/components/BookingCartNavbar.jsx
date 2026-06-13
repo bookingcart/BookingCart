@@ -13,6 +13,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
   const navItems = [
     { key: 'flights',  href: '/',          icon: 'ph-airplane-tilt',   label: 'Flights'  },
+    { key: 'stays',    href: '/stays',     icon: 'ph-bed',             label: 'Stays'    },
     { key: 'explore',  href: '/explore',   icon: 'ph-compass',         label: 'Explore'  },
     { key: 'tracker',  href: '/tracker',   icon: 'ph-broadcast',       label: 'Tracker'  },
   ];

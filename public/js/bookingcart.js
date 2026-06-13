@@ -471,12 +471,14 @@
     const popup = document.getElementById("cal-popup");
     if (!popup) return;
 
-    const titleEl = popup.querySelector("[data-cal-title]");
-    const gridEl = popup.querySelector("[data-cal-grid]");
+    const titleEl1 = popup.querySelector("[data-cal-title-1]");
+    const gridEl1 = popup.querySelector("[data-cal-grid-1]");
+    const titleEl2 = popup.querySelector("[data-cal-title-2]");
+    const gridEl2 = popup.querySelector("[data-cal-grid-2]");
     const prevBtn = popup.querySelector("[data-cal-prev]");
-    const nextBtn = popup.querySelector("[data-cal-next]");
+    const nextBtns = popup.querySelectorAll("[data-cal-next]");
 
-    let activeField = null; // "depart" or "return"
+    let activeField = null; // "depart" or "return" or "stays-checkin"
     let viewYear, viewMonth; // current calendar view
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -492,20 +494,43 @@
 
     function pad(n) { return String(n).padStart(2, "0"); }
 
-    function renderMonth() {
+    function renderMonths() {
+      // Month 1
+      if (titleEl1 && gridEl1) {
+        renderSingleMonth(viewYear, viewMonth, titleEl1, gridEl1);
+      }
+      // Month 2
+      if (titleEl2 && gridEl2) {
+        let nextMonth = viewMonth + 1;
+        let nextYear = viewYear;
+        if (nextMonth > 11) {
+          nextMonth = 0;
+          nextYear++;
+        }
+        renderSingleMonth(nextYear, nextMonth, titleEl2, gridEl2);
+      }
+    }
+
+    function renderSingleMonth(y, m, titleEl, gridEl) {
       if (!titleEl || !gridEl) return;
-      titleEl.textContent = MONTHS[viewMonth] + " " + viewYear;
+      titleEl.textContent = MONTHS[m] + " " + y;
       gridEl.innerHTML = "";
 
-      const firstDay = new Date(viewYear, viewMonth, 1);
-      let startDow = firstDay.getDay(); // 0=Sun
-      startDow = startDow === 0 ? 6 : startDow - 1; // Convert to Mon=0
-      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      const firstDay = new Date(y, m, 1);
+      let startDow = firstDay.getDay(); // 0=Sun (matching Kayak)
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
 
-      // Get currently selected value for this field
-      const form = document.querySelector("form[data-search-form]");
-      const hiddenInput = form ? form.querySelector("input[name='" + activeField + "']") : null;
-      const selectedVal = hiddenInput ? hiddenInput.value : "";
+      // Get currently selected values for range highlighting
+      const trigger = document.querySelector("[data-cal-trigger='" + activeField + "']");
+      const form = trigger ? trigger.closest("form") : document.querySelector("form[data-search-form]");
+      
+      const staysCheckin = form ? form.querySelector("input[name='stays-checkin']") : null;
+      const staysCheckout = form ? form.querySelector("input[name='stays-checkout']") : null;
+      const flightsDepart = form ? form.querySelector("input[name='depart']") : null;
+      const flightsReturn = form ? form.querySelector("input[name='return']") : null;
+
+      const startVal = (staysCheckin && staysCheckin.value) || (flightsDepart && flightsDepart.value) || "";
+      const endVal = (staysCheckout && staysCheckout.value) || (flightsReturn && flightsReturn.value) || "";
 
       let weekIndex = 0;
 
@@ -520,11 +545,22 @@
         const colIndex = (startDow + d - 1) % 7;
         if (colIndex === 0 && d > 1) weekIndex++;
 
-        const dateObj = new Date(viewYear, viewMonth, d);
-        const dateStr = viewYear + "-" + pad(viewMonth + 1) + "-" + pad(d);
+        const dateObj = new Date(y, m, d);
+        const dateStr = y + "-" + pad(m + 1) + "-" + pad(d);
         const isPast = dateObj < today;
         const isToday = dateObj.getTime() === today.getTime();
-        const isSelected = dateStr === selectedVal;
+        
+        let isSelected = false;
+        let isInRange = false;
+        
+        if (startVal && endVal) {
+          if (dateStr === startVal || dateStr === endVal) isSelected = true;
+          else if (dateStr > startVal && dateStr < endVal) isInRange = true;
+        } else if (startVal && dateStr === startVal) {
+          isSelected = true;
+        } else if (endVal && dateStr === endVal) {
+          isSelected = true;
+        }
 
         const cell = document.createElement("div");
         let cls = "cal-cell";
@@ -532,6 +568,7 @@
         if (isPast) cls += " cal-cell--disabled";
         if (isToday) cls += " cal-cell--today";
         if (isSelected) cls += " cal-cell--selected";
+        if (isInRange) cls += " cal-cell--in-range";
         cell.className = cls;
 
         // Day number
@@ -562,18 +599,38 @@
     }
 
     function selectDate(dateStr) {
-      const form = document.querySelector("form[data-search-form]");
+      const trigger = document.querySelector("[data-cal-trigger='" + activeField + "']");
+      const form = trigger ? trigger.closest("form") : document.querySelector("form[data-search-form]");
       if (!form) return;
 
       // Set hidden input
       const hiddenInput = form.querySelector("input[name='" + activeField + "']");
-      if (hiddenInput) hiddenInput.value = dateStr;
+      if (hiddenInput) {
+        hiddenInput.value = dateStr;
+        // Dispatch event so React detects change if bound
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
 
       // Update label
       const label = document.querySelector("[data-cal-label='" + activeField + "']");
       if (label) label.textContent = formatLabel(dateStr);
 
-      closeCalendar();
+      // Sync to React state if available
+      if (activeField === "stays-checkin" && typeof window.__setStaysCheckin === "function") {
+        window.__setStaysCheckin(dateStr);
+      }
+      if (activeField === "stays-checkout" && typeof window.__setStaysCheckout === "function") {
+        window.__setStaysCheckout(dateStr);
+      }
+
+      // Auto-advance or close
+      if (activeField === "stays-checkin") {
+        openCalendar("stays-checkout");
+      } else if (activeField === "depart") {
+        openCalendar("return");
+      } else {
+        closeCalendar();
+      }
     }
 
     function openCalendar(field) {
@@ -588,7 +645,8 @@
       parent.appendChild(popup);
 
       // Set view month based on existing value or today
-      const form = document.querySelector("form[data-search-form]");
+      const formTrigger = document.querySelector("[data-cal-trigger='" + field + "']");
+      const form = formTrigger ? formTrigger.closest("form") : document.querySelector("form[data-search-form]");
       const hiddenInput = form ? form.querySelector("input[name='" + field + "']") : null;
       const val = hiddenInput ? hiddenInput.value : "";
       if (val) {
@@ -600,7 +658,7 @@
         viewMonth = today.getMonth();
       }
 
-      renderMonth();
+      renderMonths();
     }
 
     function closeCalendar() {
@@ -608,9 +666,10 @@
       activeField = null;
     }
 
-    // Wire triggers
-    document.querySelectorAll("[data-cal-trigger]").forEach(btn => {
-      btn.addEventListener("click", (e) => {
+    // Wire triggers using event delegation
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-cal-trigger]");
+      if (btn) {
         e.stopPropagation();
         const field = btn.getAttribute("data-cal-trigger");
         if (activeField === field) {
@@ -618,7 +677,7 @@
         } else {
           openCalendar(field);
         }
-      });
+      }
     });
 
     // Nav buttons
@@ -626,14 +685,14 @@
       e.stopPropagation();
       viewMonth--;
       if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-      renderMonth();
+      renderMonths();
     });
-    if (nextBtn) nextBtn.addEventListener("click", (e) => {
+    if (nextBtns) nextBtns.forEach(btn => btn.addEventListener("click", (e) => {
       e.stopPropagation();
       viewMonth++;
       if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-      renderMonth();
-    });
+      renderMonths();
+    }));
 
     // Close on outside click
     document.addEventListener("click", (e) => {
