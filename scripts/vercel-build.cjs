@@ -20,20 +20,12 @@ function run(command, args) {
   }
 }
 
-const vercelEnv = String(process.env.VERCEL_ENV || "").toLowerCase();
-const forceMigrations = process.env.RUN_DB_MIGRATIONS === "1";
-const shouldMigrate = forceMigrations || vercelEnv === "production";
-
-if (shouldMigrate) {
-  if (!process.env.DATABASE_URL) {
-    console.error("[vercel-build] DATABASE_URL is required before running migrations.");
-    process.exit(1);
-  }
-
-  console.log("[vercel-build] Running database migrations before build...");
-  run("npm", ["run", "db:migrate"]);
-} else {
-  console.log(`[vercel-build] Skipping migrations for VERCEL_ENV=${vercelEnv || "unset"}.`);
+if (!process.env.DATABASE_URL) {
+  console.error("[vercel-build] DATABASE_URL is required before running migrations.");
+  process.exit(1);
 }
+
+console.log("[vercel-build] Running database migrations before build...");
+run("npm", ["run", "db:migrate"]);
 
 run("npm", ["run", "build"]);
