@@ -5,22 +5,55 @@ const { applyCors } = require('../lib/cors');
 const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
 const DUFFEL_BASE_URL = 'https://api.duffel.com';
 
+// Hardcoded fallback coordinates for common cities to prevent Vercel IP blocking by Nominatim
+const CITY_COORDINATES = {
+  'london': { latitude: 51.5074, longitude: -0.1278 },
+  'kampala': { latitude: 0.3177, longitude: 32.5814 },
+  'new york': { latitude: 40.7128, longitude: -74.0060 },
+  'paris': { latitude: 48.8566, longitude: 2.3522 },
+  'tokyo': { latitude: 35.6762, longitude: 139.6503 },
+  'dubai': { latitude: 25.2048, longitude: 55.2708 },
+  'singapore': { latitude: 1.3521, longitude: 103.8198 },
+  'sydney': { latitude: -33.8688, longitude: 151.2093 },
+  'rome': { latitude: 41.9028, longitude: 12.4964 },
+  'manchester': { latitude: 53.4808, longitude: -2.2426 },
+  'los angeles': { latitude: 34.0522, longitude: -118.2437 },
+  'chicago': { latitude: 41.8781, longitude: -87.6298 },
+  'toronto': { latitude: 43.6510, longitude: -79.3470 },
+  'berlin': { latitude: 52.5200, longitude: 13.4050 },
+  'madrid': { latitude: 40.4168, longitude: -3.7038 }
+};
+
 // Geocode a city/place name to lat/lng using Nominatim (OpenStreetMap, free, no key needed)
 async function geocodeDestination(query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  
+  // 1. Check our fast, reliable fallback dictionary first
+  if (CITY_COORDINATES[normalizedQuery]) {
+    return CITY_COORDINATES[normalizedQuery];
+  }
+
+  // 2. Fallback to Nominatim API
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'BookingCart/1.0 (bookingcart.business@gmail.com)' }
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[Stays] Nominatim API error: ${res.status} ${res.statusText}`);
+      // Default to London if Nominatim blocks us on Vercel and it's an unknown city
+      return CITY_COORDINATES['london'];
+    }
     const data = await res.json();
     if (data && data[0]) {
       return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
     }
   } catch (err) {
-    console.error('Geocoding error:', err);
+    console.error('[Stays] Geocoding error:', err);
   }
-  return null;
+  
+  // Default fallback if all else fails
+  return CITY_COORDINATES['london'];
 }
 
 module.exports = async (req, res) => {
