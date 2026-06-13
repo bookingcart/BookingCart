@@ -1,3 +1,14 @@
+CREATE TABLE IF NOT EXISTS "ba_user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "ba_user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "ba_account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -11,7 +22,8 @@ CREATE TABLE IF NOT EXISTS "ba_account" (
 	"scope" text,
 	"password" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "ba_account_user_id_ba_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."ba_user"("id") ON DELETE cascade ON UPDATE no action
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "ba_session" (
@@ -23,18 +35,8 @@ CREATE TABLE IF NOT EXISTS "ba_session" (
 	"ip_address" text,
 	"user_agent" text,
 	"user_id" text NOT NULL,
-	CONSTRAINT "ba_session_token_unique" UNIQUE("token")
-);
---> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "ba_user" (
-	"id" text PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"email" text NOT NULL,
-	"email_verified" boolean DEFAULT false NOT NULL,
-	"image" text,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "ba_user_email_unique" UNIQUE("email")
+	CONSTRAINT "ba_session_token_unique" UNIQUE("token"),
+	CONSTRAINT "ba_session_user_id_ba_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."ba_user"("id") ON DELETE cascade ON UPDATE no action
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "ba_verification" (
@@ -134,16 +136,6 @@ ALTER TABLE "bc_bookings"
 	ADD COLUMN IF NOT EXISTS "duffel_booking_reference" text DEFAULT '',
 	ADD COLUMN IF NOT EXISTS "duffel_order_status" text DEFAULT '',
 	ADD COLUMN IF NOT EXISTS "duffel_order_request" jsonb;--> statement-breakpoint
-DO $$ BEGIN
-	ALTER TABLE "ba_account" ADD CONSTRAINT "ba_account_user_id_ba_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."ba_user"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
-	WHEN duplicate_object THEN null;
-END $$;--> statement-breakpoint
-DO $$ BEGIN
-	ALTER TABLE "ba_session" ADD CONSTRAINT "ba_session_user_id_ba_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."ba_user"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
-	WHEN duplicate_object THEN null;
-END $$;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_ba_account_user_id" ON "ba_account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_ba_session_user_id" ON "ba_session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_ba_verification_identifier" ON "ba_verification" USING btree ("identifier");--> statement-breakpoint
