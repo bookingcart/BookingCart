@@ -26,6 +26,6 @@ if (!process.env.DATABASE_URL) {
 }
 
 console.log("[vercel-build] Running database migrations before build...");
-run("npm", ["run", "db:migrate"]);
+run("npm", ["run", "db:migrate:deploy"]);
 
 run("npm", ["run", "build"]);

@@ -13,6 +13,7 @@
     "test": "node --test test/*.test.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:deploy": "node scripts/run-migrations.cjs",
     "db:studio": "drizzle-kit studio"
   },
   "keywords": [
