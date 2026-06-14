@@ -24,6 +24,7 @@ const duffelOrderChangesHandler = require('./api-routes/duffel-order-changes');
 const duffelOrderServicesHandler = require('./api-routes/duffel-order-services');
 const flightDealsHandler = require('./api-routes/flight-deals');
 const authHandler = require('./api-routes/auth');
+const betterAuthHandler = require('./api-routes/better-auth');
 const supportHandler = require('./api-routes/support');
 const duffelClientKeyHandler = require('./api-routes/duffel-client-key');
 const ticketDownloadHandler = require('./api-routes/ticket-download');
@@ -84,6 +85,19 @@ app.use(
 if (!API_ONLY && SERVE_STATIC && fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
 }
+
+const betterAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
+  message: { ok: false, error: 'Too many attempts. Please try again in 15 minutes.' }
+});
+
+app.all('/api/better-auth/*', betterAuthLimiter, (req, res, next) =>
+  Promise.resolve(betterAuthHandler(req, res)).catch(next)
+);
 
 app.use(express.json({ limit: '512kb' }));
 

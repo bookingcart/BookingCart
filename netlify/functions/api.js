@@ -198,6 +198,46 @@ async function invokeExpressHandler(handler, event, params = {}) {
   };
 }
 
+async function handleBetterAuthEvent(event, route) {
+  const { handleBetterAuthFetchRequest } = await import("../../lib/better-auth.mjs");
+  const origin = getOrigin(event.headers || {}) || String(process.env.BETTER_AUTH_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const query = event.rawQuery ? `?${event.rawQuery}` : "";
+  const url = `${origin.replace(/\/+$/, "")}/api/${route}${query}`;
+  const method = String(event.httpMethod || "GET").toUpperCase();
+  const headers = new Headers(event.headers || {});
+  const body = method === "GET" || method === "HEAD"
+    ? undefined
+    : event.isBase64Encoded
+      ? Buffer.from(event.body || "", "base64")
+      : event.body || "";
+
+  const response = await handleBetterAuthFetchRequest(new Request(url, { method, headers, body }));
+  const responseHeaders = {};
+  const multiValueHeaders = {};
+  const setCookies = typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : [];
+
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") return;
+    responseHeaders[key] = value;
+  });
+
+  if (setCookies.length > 0) {
+    multiValueHeaders["Set-Cookie"] = setCookies;
+  } else {
+    const cookie = response.headers.get("set-cookie");
+    if (cookie) responseHeaders["set-cookie"] = cookie;
+  }
+
+  return {
+    statusCode: response.status,
+    headers: responseHeaders,
+    multiValueHeaders,
+    body: await response.text(),
+  };
+}
+
 function requireTravelBuddy(event) {
   if (!TRAVELBUDDY_RAPIDAPI_SECRET) {
     return { ok: false, status: 500, error: "Travel Buddy API is not configured (missing TRAVELBUDDY_RAPIDAPI_SECRET)" };
@@ -798,6 +838,10 @@ exports.handler = async (event) => {
 
     if (route === "price-alert" && event.httpMethod === "POST") {
       return await invokeExpressHandler(priceAlertHandler, event);
+    }
+
+    if (route === "better-auth" || route.startsWith("better-auth/")) {
+      return await handleBetterAuthEvent(event, route);
     }
 
     if (route.startsWith("auth/") && event.httpMethod === "POST") {

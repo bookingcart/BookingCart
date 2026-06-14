@@ -8,8 +8,13 @@
     "dev": "concurrently -n api,vite -c blue,green \"API_ONLY=1 PORT=3001 node server.js\" \"vite\"",
     "dev:server": "API_ONLY=1 nodemon server.js",
     "build": "vite build",
+    "build:vercel": "node scripts/vercel-build.cjs",
     "preview": "vite preview",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:deploy": "node scripts/run-migrations.cjs",
+    "db:studio": "drizzle-kit studio"
   },
   "keywords": [
     "flight",
@@ -20,10 +25,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.18",
     "@duffel/components": "^3.16.0",
     "bcrypt": "^6.0.0",
+    "better-auth": "^1.6.18",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.18.2",
     "express-rate-limit": "^7.5.1",
     "google-auth-library": "^10.6.2",
@@ -47,6 +55,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",
+    "drizzle-kit": "^0.31.10",
     "nodemon": "^3.0.1",
     "postcss": "^8.5.6",
     "puppeteer": "^24.43.0",
@@ -54,6 +63,6 @@
     "vite": "^8.0.8"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   }
 }
