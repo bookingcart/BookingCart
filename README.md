@@ -1,53 +1,133 @@
 # BookingCart
 
-Vite/React front end with serverless APIs on **Netlify** (`/api/*` → `netlify/functions/api.js`) and a local **Express** server (`server.js`) for development parity.
+BookingCart is a Vite/React application with serverless-compatible API routes and a local Express server for development parity. The database layer has been migrated to **Postgres on Nile** with schema changes managed by **Drizzle migrations**.
 
-## Quick start (local)
+For the full local handoff, see [Running Locally](docs/RUNNING_LOCALLY.md).
 
-1. Copy [.env.example](.env.example) to `.env` and set at least `GOOGLE_CLIENT_ID`, `JWT_SECRET`, `DATABASE_URL`, `VITE_ADMIN_EMAILS`, `DUFFEL_API_KEY`, `ALLOWED_ORIGINS`, and `STRIPE_SECRET_KEY` where needed.
-2. `npm ci`
-3. `npm run db:migrate` when using a real database.
-4. `npm run dev` or `npm start`
-5. Open `http://localhost:3000`
+## What changed in the migration
 
-## Production (Netlify)
+- Runtime code no longer creates or alters database tables.
+- Schema is defined in [db/schema.js](db/schema.js).
+- SQL migrations live in [db/migrations](db/migrations).
+- Vercel builds run migrations before building the app.
+- The migration journal is stored in `public.__drizzle_migrations__`.
+- API routes connect to Nile through `DATABASE_URL`.
 
-- Set environment variables in the Netlify UI (same keys as `.env.example`).
-- Use **Node 20** (see [netlify.toml](netlify.toml)).
-- `ALLOWED_ORIGINS` should list your live site URL(s) for browser CORS.
-- Production expects **`DATABASE_URL`** for bookings, users, support, cache, Duffel idempotency state, and Better Auth tables.
-- Run **`npm run db:migrate`** before promoting code that depends on new schema changes.
-- Production checkout requires **`STRIPE_SECRET_KEY`**.
+## Quick Start
 
-## Database migrations
+1. Install Node 20.
+2. Copy [.env.example](.env.example) to `.env`.
+3. Fill in the required environment variables, especially `DATABASE_URL`, `JWT_SECRET`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `DUFFEL_API_KEY`.
+4. Install dependencies:
 
-Database schema is managed with **Drizzle Kit**:
+   ```bash
+   npm ci
+   ```
 
-| Command | Description |
-| ------- | ----------- |
-| `npm run db:generate` | Generate SQL migrations from [db/schema.js](db/schema.js) |
-| `npm run db:migrate` | Apply pending migrations to `DATABASE_URL` |
-| `npm run db:studio` | Open Drizzle Studio |
+5. Run migrations:
 
-Runtime code must not create or alter tables. Add schema changes to [db/schema.js](db/schema.js), generate a migration, review the SQL in [db/migrations](db/migrations), and then apply it with `npm run db:migrate`.
+   ```bash
+   npm run db:migrate:deploy
+   ```
 
-## Authentication
+6. Start local development:
 
-- Existing `/api/auth/*` routes remain available while the frontend is migrated.
-- Better Auth is mounted at `/api/better-auth/*` with email/password and Google provider support.
-- Configure `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` for Better Auth.
+   ```bash
+   npm run dev
+   ```
 
-## Security notes
+7. Open `http://localhost:5173`.
 
-- User profile and booking lookup require a **Google ID token** (`Authorization: Bearer …`) matching the requested email.
-- **ADMIN_PIN** has no default; set a strong value for admin routes.
-- `GOOGLE_CLIENT_ID` is exposed to the browser via `/api/config` (normal for OAuth client IDs).
+The local API server runs on `http://localhost:3001` when using `npm run dev`.
+
+## Environment
+
+Required for normal local development:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Nile/Postgres connection string |
+| `JWT_SECRET` | Legacy JWT auth secret for current `/api/auth/*` routes |
+| `BETTER_AUTH_SECRET` | Better Auth signing/encryption secret |
+| `BETTER_AUTH_URL` | Base URL for Better Auth. Use `http://localhost:3001` with `npm run dev`; use `http://localhost:3000` with `npm start`. |
+| `GOOGLE_CLIENT_ID` | Browser Google Sign-In OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret for Better Auth |
+| `ADMIN_PIN` | Admin action PIN |
+| `VITE_ADMIN_EMAILS` | Comma-separated admin emails |
+| `DUFFEL_API_KEY` | Duffel API access |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allowlist |
+| `STRIPE_SECRET_KEY` | Stripe checkout secret key |
+
+Generate secrets with:
+
+```bash
+openssl rand -base64 32
+```
 
 ## Scripts
 
-| Command   | Description              |
-| --------- | ------------------------ |
-| `npm start` | Run Express server   |
-| `npm test`  | Run unit tests         |
-| `npm run db:generate` | Generate Drizzle migrations |
-| `npm run db:migrate`  | Apply Drizzle migrations |
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Run local Express API on `3001` and Vite on `5173` |
+| `npm start` | Serve the built app through Express |
+| `npm run build` | Build the frontend with Vite |
+| `npm run build:vercel` | Run deploy migrations, then build |
+| `npm test` | Run unit tests |
+| `npm run db:generate` | Generate Drizzle SQL migrations from `db/schema.js` |
+| `npm run db:migrate` | Run Drizzle Kit migrations directly |
+| `npm run db:migrate:deploy` | Run the verbose deploy migration runner |
+| `npm run db:studio` | Open Drizzle Studio |
+
+## Database Migrations
+
+Use this workflow for schema changes:
+
+1. Edit [db/schema.js](db/schema.js).
+2. Generate migration SQL:
+
+   ```bash
+   npm run db:generate
+   ```
+
+3. Review generated SQL in [db/migrations](db/migrations).
+4. Run it locally or against the target DB:
+
+   ```bash
+   npm run db:migrate:deploy
+   ```
+
+The deploy runner is intentionally verbose. It prints the migration journal status and each SQL statement before execution so Vercel failures expose the real database error.
+
+## Vercel Deployment
+
+[vercel.json](vercel.json) uses:
+
+```json
+{
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist"
+}
+```
+
+`npm run build:vercel` always:
+
+1. Requires `DATABASE_URL`.
+2. Runs `npm run db:migrate:deploy`.
+3. Runs `npm run build`.
+
+Set `DATABASE_URL` in every Vercel environment that builds this branch, including Preview, because migrations are forced during build.
+
+## Authentication
+
+- Existing `/api/auth/*` routes remain available during the Better Auth migration.
+- Better Auth is mounted at `/api/better-auth/*`.
+- Configure `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`.
+
+## Security Notes
+
+- Never commit `.env`.
+- Use a strong `ADMIN_PIN` in shared environments.
+- `GOOGLE_CLIENT_ID` is safe to expose to the browser through `/api/config`.
+- `STRIPE_SECRET_KEY` must be a Stripe secret key, not a restricted key.
+- Production-like runs should always use an explicit `ALLOWED_ORIGINS` allowlist.
