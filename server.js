@@ -75,7 +75,18 @@ if (!API_ONLY && SERVE_STATIC && fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
 }
 
-app.all('/api/better-auth/*', betterAuthHandler);
+const betterAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
+  message: { ok: false, error: 'Too many attempts. Please try again in 15 minutes.' }
+});
+
+app.all('/api/better-auth/*', betterAuthLimiter, (req, res, next) =>
+  Promise.resolve(betterAuthHandler(req, res)).catch(next)
+);
 
 app.use(express.json({ limit: '512kb' }));
 
