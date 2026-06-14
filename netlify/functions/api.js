@@ -840,7 +840,7 @@ exports.handler = async (event) => {
       return await invokeExpressHandler(priceAlertHandler, event);
     }
 
-    if (route.startsWith("better-auth/") && (event.httpMethod === "GET" || event.httpMethod === "POST")) {
+    if (route === "better-auth" || route.startsWith("better-auth/")) {
       return await handleBetterAuthEvent(event, route);
     }
 
