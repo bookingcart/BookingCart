@@ -47,67 +47,67 @@ const FAQ_ITEMS = [
 // Region-aware stays deals — keyed by broad region detected from IP geolocation
 const STAYS_DEALS_BY_REGION = {
   'east-africa': [
-    { city: 'Nairobi',    img: 'https://loremflickr.com/600/400/nairobi,city/all', duration: '1h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$62' },
-    { city: 'Zanzibar',   img: 'https://loremflickr.com/600/400/zanzibar,beach/all', duration: '2h 05m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$89' },
-    { city: 'Kigali',     img: 'https://loremflickr.com/600/400/kigali,city/all', duration: '1h 10m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$74' },
-    { city: 'Dar es Salaam', img: 'https://loremflickr.com/600/400/daressalaam,city/all', duration: '1h 45m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$95' },
-    { city: 'Mombasa',    img: 'https://loremflickr.com/600/400/mombasa,beach/all', duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$58' },
+    { city: 'Nairobi',    img: 'https://images.pexels.com/photos/325193/pexels-photo-325193.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$62' },
+    { city: 'Zanzibar',   img: 'https://images.pexels.com/photos/460672/pexels-photo-460672.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '2h 05m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$89' },
+    { city: 'Kigali',     img: 'https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 10m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$74' },
+    { city: 'Dar es Salaam', img: 'https://images.pexels.com/photos/290386/pexels-photo-290386.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 45m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$95' },
+    { city: 'Mombasa',    img: 'https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$58' },
   ],
   'west-africa': [
-    { city: 'Accra',      img: 'https://loremflickr.com/600/400/accra,city/all', duration: '1h 00m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$55' },
-    { city: 'Lagos',      img: 'https://loremflickr.com/600/400/lagos,city/all', duration: '1h 20m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$79' },
-    { city: 'Abuja',      img: 'https://loremflickr.com/600/400/abuja,city/all', duration: '0h 55m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$68' },
-    { city: 'Dubai',      img: 'https://loremflickr.com/600/400/dubai,skyline/all',    duration: '6h 30m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$197' },
-    { city: 'London',     img: 'https://loremflickr.com/600/400/london,city/all',    duration: '6h 45m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$185' },
+    { city: 'Accra',      img: 'https://images.pexels.com/photos/259447/pexels-photo-259447.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 00m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$55' },
+    { city: 'Lagos',      img: 'https://images.pexels.com/photos/3290075/pexels-photo-3290075.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 20m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$79' },
+    { city: 'Abuja',      img: 'https://images.pexels.com/photos/2064827/pexels-photo-2064827.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '0h 55m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$68' },
+    { city: 'Dubai',      img: 'https://images.pexels.com/photos/777059/pexels-photo-777059.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '6h 30m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$197' },
+    { city: 'London',     img: 'https://images.pexels.com/photos/1682748/pexels-photo-1682748.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '6h 45m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$185' },
   ],
   'southern-africa': [
-    { city: 'Cape Town',  img: 'https://loremflickr.com/600/400/capetown,city/all',    duration: '2h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$88' },
-    { city: 'Durban',     img: 'https://loremflickr.com/600/400/durban,beach/all',    duration: '1h 05m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$65' },
-    { city: 'Nairobi',    img: 'https://loremflickr.com/600/400/nairobi,city/all',   duration: '3h 40m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$112' },
-    { city: 'Dubai',      img: 'https://loremflickr.com/600/400/dubai,skyline/all',    duration: '7h 20m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$175' },
-    { city: 'Mauritius',  img: 'https://loremflickr.com/600/400/mauritius,beach/all',   duration: '4h 00m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$142' },
+    { city: 'Cape Town',  img: 'https://images.pexels.com/photos/2031706/pexels-photo-2031706.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '2h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$88' },
+    { city: 'Durban',     img: 'https://images.pexels.com/photos/2104152/pexels-photo-2104152.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '1h 05m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$65' },
+    { city: 'Nairobi',    img: 'https://images.pexels.com/photos/421655/pexels-photo-421655.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '3h 40m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$112' },
+    { city: 'Dubai',      img: 'https://images.pexels.com/photos/2263683/pexels-photo-2263683.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '7h 20m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$175' },
+    { city: 'Mauritius',  img: 'https://images.pexels.com/photos/1174732/pexels-photo-1174732.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '4h 00m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$142' },
   ],
   'middle-east': [
-    { city: 'Istanbul',   img: 'https://loremflickr.com/600/400/istanbul,city/all',   duration: '3h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$97' },
-    { city: 'Cairo',      img: 'https://loremflickr.com/600/400/cairo,pyramids/all',   duration: '2h 45m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$79' },
-    { city: 'Muscat',     img: 'https://loremflickr.com/600/400/muscat,city/all',   duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$62' },
-    { city: 'Beirut',     img: 'https://loremflickr.com/600/400/beirut,city/all',   duration: '2h 10m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$84' },
-    { city: 'London',     img: 'https://loremflickr.com/600/400/london,city/all',    duration: '7h 20m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$185' },
+    { city: 'Istanbul',   img: 'https://images.pexels.com/photos/378570/pexels-photo-378570.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '3h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$97' },
+    { city: 'Cairo',      img: 'https://images.pexels.com/photos/161853/prague-church-city-sky-161853.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '2h 45m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$79' },
+    { city: 'Muscat',     img: 'https://images.pexels.com/photos/1796715/pexels-photo-1796715.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$62' },
+    { city: 'Beirut',     img: 'https://images.pexels.com/photos/315191/pexels-photo-315191.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '2h 10m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$84' },
+    { city: 'London',     img: 'https://images.pexels.com/photos/2387873/pexels-photo-2387873.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '7h 20m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$185' },
   ],
   'south-asia': [
-    { city: 'Dubai',      img: 'https://loremflickr.com/600/400/dubai,skyline/all',    duration: '3h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$118' },
-    { city: 'Singapore',  img: 'https://loremflickr.com/600/400/singapore,city/all',    duration: '5h 30m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$142' },
-    { city: 'Bangkok',    img: 'https://loremflickr.com/600/400/bangkok,city/all',   duration: '3h 50m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$99' },
-    { city: 'Colombo',    img: 'https://loremflickr.com/600/400/colombo,city/all',   duration: '1h 45m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$75' },
-    { city: 'Kathmandu',  img: 'https://loremflickr.com/600/400/kathmandu,city/all',  duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$68' },
+    { city: 'Dubai',      img: 'https://images.pexels.com/photos/1130628/pexels-photo-1130628.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '3h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$118' },
+    { city: 'Singapore',  img: 'https://images.pexels.com/photos/1486222/pexels-photo-1486222.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '5h 30m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$142' },
+    { city: 'Bangkok',    img: 'https://images.pexels.com/photos/325193/pexels-photo-325193.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '3h 50m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$99' },
+    { city: 'Colombo',    img: 'https://images.pexels.com/photos/460672/pexels-photo-460672.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '1h 45m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$75' },
+    { city: 'Kathmandu',  img: 'https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$68' },
   ],
   'southeast-asia': [
-    { city: 'Bali',       img: 'https://loremflickr.com/600/400/bali,resort/all',   duration: '2h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$88' },
-    { city: 'Bangkok',    img: 'https://loremflickr.com/600/400/bangkok,city/all',   duration: '1h 30m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$72' },
-    { city: 'Tokyo',      img: 'https://loremflickr.com/600/400/tokyo,city/all',   duration: '7h 10m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$162' },
-    { city: 'Hong Kong',  img: 'https://loremflickr.com/600/400/hongkong,skyline/all',  duration: '3h 00m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$104' },
-    { city: 'Sydney',     img: 'https://loremflickr.com/600/400/sydney,city/all',   duration: '8h 00m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$189' },
+    { city: 'Bali',       img: 'https://images.pexels.com/photos/189296/pexels-photo-189296.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '2h 20m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$88' },
+    { city: 'Bangkok',    img: 'https://images.pexels.com/photos/290386/pexels-photo-290386.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '1h 30m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$72' },
+    { city: 'Tokyo',      img: 'https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '7h 10m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$162' },
+    { city: 'Hong Kong',  img: 'https://images.pexels.com/photos/259447/pexels-photo-259447.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '3h 00m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$104' },
+    { city: 'Sydney',     img: 'https://images.pexels.com/photos/3290075/pexels-photo-3290075.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '8h 00m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$189' },
   ],
   'europe': [
-    { city: 'Paris',      img: 'https://loremflickr.com/600/400/paris,city/all',    duration: '1h 30m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$87' },
-    { city: 'Barcelona',  img: 'https://loremflickr.com/600/400/barcelona,city/all',  duration: '2h 10m, non-stop', dates: 'Thu 7/2 → Sun 7/5',   price: '$112' },
-    { city: 'Amsterdam',  img: 'https://loremflickr.com/600/400/amsterdam,city/all', duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$94' },
-    { city: 'Rome',       img: 'https://loremflickr.com/600/400/rome,city/all',  duration: '2h 30m, non-stop', dates: 'Tue 7/14 → Tue 7/21', price: '$109' },
-    { city: 'Prague',     img: 'https://loremflickr.com/600/400/prague,city/all',  duration: '1h 50m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$78' },
+    { city: 'Paris',      img: 'https://images.pexels.com/photos/2064827/pexels-photo-2064827.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '1h 30m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$87' },
+    { city: 'Barcelona',  img: 'https://images.pexels.com/photos/777059/pexels-photo-777059.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '2h 10m, non-stop', dates: 'Thu 7/2 → Sun 7/5',   price: '$112' },
+    { city: 'Amsterdam',  img: 'https://images.pexels.com/photos/1682748/pexels-photo-1682748.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$94' },
+    { city: 'Rome',       img: 'https://images.pexels.com/photos/2031706/pexels-photo-2031706.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '2h 30m, non-stop', dates: 'Tue 7/14 → Tue 7/21', price: '$109' },
+    { city: 'Prague',     img: 'https://images.pexels.com/photos/2104152/pexels-photo-2104152.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '1h 50m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$78' },
   ],
   'north-america': [
-    { city: 'Cancun',     img: 'https://loremflickr.com/600/400/cancun,beach/all',  duration: '3h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$142' },
-    { city: 'Miami',      img: 'https://loremflickr.com/600/400/miami,beach/all',    duration: '2h 45m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$128' },
-    { city: 'Las Vegas',  img: 'https://loremflickr.com/600/400/lasvegas,city/all',   duration: '4h 00m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$159' },
-    { city: 'New York',   img: 'https://loremflickr.com/600/400/newyork,skyline/all',   duration: '5h 20m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$173' },
-    { city: 'Toronto',    img: 'https://loremflickr.com/600/400/toronto,city/all',  duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$89' },
+    { city: 'Cancun',     img: 'https://images.pexels.com/photos/421655/pexels-photo-421655.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '3h 10m, non-stop', dates: 'Mon 7/7 → Fri 7/11',  price: '$142' },
+    { city: 'Miami',      img: 'https://images.pexels.com/photos/2263683/pexels-photo-2263683.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '2h 45m, non-stop', dates: 'Thu 7/10 → Mon 7/14', price: '$128' },
+    { city: 'Las Vegas',  img: 'https://images.pexels.com/photos/1174732/pexels-photo-1174732.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '4h 00m, non-stop', dates: 'Fri 7/11 → Sun 7/13',  price: '$159' },
+    { city: 'New York',   img: 'https://images.pexels.com/photos/378570/pexels-photo-378570.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '5h 20m, non-stop', dates: 'Sat 7/12 → Wed 7/16', price: '$173' },
+    { city: 'Toronto',    img: 'https://images.pexels.com/photos/161853/prague-church-city-sky-161853.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',  duration: '1h 30m, non-stop', dates: 'Sun 7/13 → Thu 7/17',  price: '$89' },
   ],
   'default': [
-    { city: 'Brussels',   img: 'https://loremflickr.com/600/400/brussels,city/all', duration: '1h 39m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$87' },
-    { city: 'Salzburg',   img: 'https://loremflickr.com/600/400/salzburg,city/all', duration: '1h 40m, non-stop', dates: 'Thu 7/2 → Sun 7/5',   price: '$154' },
-    { city: 'Paris',      img: 'https://loremflickr.com/600/400/paris,city/all',   duration: '1h 30m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$172' },
-    { city: 'Berlin',     img: 'https://loremflickr.com/600/400/berlin,city/all',    duration: '1h 25m, non-stop', dates: 'Tue 7/14 → Tue 7/21',  price: '$172' },
-    { city: 'Amsterdam',  img: 'https://loremflickr.com/600/400/amsterdam,city/all', duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$189' },
+    { city: 'Brussels',   img: 'https://images.pexels.com/photos/1796715/pexels-photo-1796715.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 39m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$87' },
+    { city: 'Salzburg',   img: 'https://images.pexels.com/photos/315191/pexels-photo-315191.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 40m, non-stop', dates: 'Thu 7/2 → Sun 7/5',   price: '$154' },
+    { city: 'Paris',      img: 'https://images.pexels.com/photos/2387873/pexels-photo-2387873.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',   duration: '1h 30m, non-stop', dates: 'Thu 7/2 → Mon 7/6',   price: '$172' },
+    { city: 'Berlin',     img: 'https://images.pexels.com/photos/1130628/pexels-photo-1130628.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop',    duration: '1h 25m, non-stop', dates: 'Tue 7/14 → Tue 7/21',  price: '$172' },
+    { city: 'Amsterdam',  img: 'https://images.pexels.com/photos/1486222/pexels-photo-1486222.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop', duration: '1h 15m, non-stop', dates: 'Fri 7/11 → Mon 7/14', price: '$189' },
   ],
 };
 
@@ -933,35 +933,35 @@ export default function HomePage() {
             
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-12">
               <a href="/stays/results?destination=Manchester" className="col-span-2 md:col-span-3 h-64 md:h-80 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://loremflickr.com/800/600/manchester,landmark/all" alt="Manchester" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src="https://images.pexels.com/photos/325193/pexels-photo-325193.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Manchester" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
                 <div className="absolute top-4 left-6 right-6">
                   <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">Manchester 🇬🇧</h3>
                 </div>
               </a>
               <a href="/stays/results?destination=Birmingham" className="col-span-2 md:col-span-3 h-64 md:h-80 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://loremflickr.com/800/600/birmingham,landmark/all" alt="Birmingham" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src="https://images.pexels.com/photos/460672/pexels-photo-460672.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Birmingham" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
                 <div className="absolute top-4 left-6 right-6">
                   <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">Birmingham 🇬🇧</h3>
                 </div>
               </a>
               <a href="/stays/results?destination=Leeds" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://loremflickr.com/800/600/leeds,city/all" alt="Leeds" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src="https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Leeds" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
                 <div className="absolute top-4 left-5 right-5">
                   <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Leeds 🇬🇧</h3>
                 </div>
               </a>
               <a href="/stays/results?destination=Liverpool" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://loremflickr.com/800/600/liverpool,city/all" alt="Liverpool" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src="https://images.pexels.com/photos/290386/pexels-photo-290386.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Liverpool" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
                 <div className="absolute top-4 left-5 right-5">
                   <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Liverpool 🇬🇧</h3>
                 </div>
               </a>
               <a href="/stays/results?destination=Dublin" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://loremflickr.com/800/600/dublin,landmark/all" alt="Dublin" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src="https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Dublin" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
                 <div className="absolute top-4 left-5 right-5">
                   <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Dublin 🇮🇪</h3>
@@ -977,25 +977,25 @@ export default function HomePage() {
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-6 px-6 lg:mx-0 lg:px-0 snap-x">
               <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
                 <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
-                  <img src="https://loremflickr.com/800/600/hotel,lobby/all" alt="Hotels" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src="https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Hotels" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Hotels</h3>
               </div>
               <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
                 <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
-                  <img src="https://loremflickr.com/800/600/apartment,livingroom/all" alt="Apartments" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src="https://images.pexels.com/photos/439227/pexels-photo-439227.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Apartments" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Apartments</h3>
               </div>
               <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
                 <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
-                  <img src="https://loremflickr.com/800/600/villa,pool/all" alt="Villas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src="https://images.pexels.com/photos/261394/pexels-photo-261394.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Villas" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Villas</h3>
               </div>
               <div className="flex-shrink-0 w-64 md:w-[280px] group cursor-pointer snap-start">
                 <div className="h-48 md:h-52 rounded-2xl overflow-hidden mb-3">
-                  <img src="https://loremflickr.com/800/600/resort,beach/all" alt="Resorts" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src="https://images.pexels.com/photos/189296/pexels-photo-189296.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop" alt="Resorts" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Resorts</h3>
               </div>

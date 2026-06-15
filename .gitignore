@@ -38,3 +38,4 @@ coverage/
 
 # Local Vercel folder
 .vercel/
+.vercel
