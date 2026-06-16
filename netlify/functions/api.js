@@ -1,7 +1,13 @@
 const fetch = require("node-fetch");
 const Stripe = require("stripe");
 const crypto = require("crypto");
-const { assertAllowedOrigin, getCorsHeaders } = require("../../lib/cors");
+const {
+  assertAllowedOrigin,
+  getAuthOrigin,
+  getAuthOriginConfigError,
+  getCorsHeaders,
+  getRequestOriginFromHeaders,
+} = require("../../lib/cors");
 const flightDealsHandler = require("../../api-routes/flight-deals");
 const bookingsHandler = require("../../api-routes/bookings");
 const userHandler = require("../../api-routes/user");
@@ -75,11 +81,7 @@ function json(statusCode, body, extraHeaders = {}) {
 }
 
 function getOrigin(headers) {
-  const h = headers || {};
-  const proto = (h["x-forwarded-proto"] || "https").split(",")[0].trim();
-  const host = (h["x-forwarded-host"] || h.host || "").split(",")[0].trim();
-  if (!host) return "";
-  return `${proto}://${host}`;
+  return getRequestOriginFromHeaders(headers);
 }
 
 function resolveCheckoutOrigin(event) {
@@ -200,7 +202,11 @@ async function invokeExpressHandler(handler, event, params = {}) {
 
 async function handleBetterAuthEvent(event, route) {
   const { handleBetterAuthFetchRequest } = await import("../../lib/better-auth.mjs");
-  const origin = getOrigin(event.headers || {}) || String(process.env.BETTER_AUTH_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const configError = getAuthOriginConfigError();
+  if (configError && process.env.NODE_ENV === "production") {
+    return json(503, { ok: false, error: configError });
+  }
+  const origin = getOrigin(event.headers || {}) || getAuthOrigin() || "http://localhost:3000";
   const query = event.rawQuery ? `?${event.rawQuery}` : "";
   const url = `${origin.replace(/\/+$/, "")}/api/${route}${query}`;
   const method = String(event.httpMethod || "GET").toUpperCase();
@@ -832,6 +838,13 @@ exports.handler = async (event) => {
       return await invokeExpressHandler(supportHandler, event);
     }
 
+    if (route === "support/stream" && event.httpMethod === "GET") {
+      return json(501, {
+        ok: false,
+        error: "Support live updates are not available on this deployment target",
+      });
+    }
+
     if (route === "ticket-download" && event.httpMethod === "GET") {
       return await invokeExpressHandler(ticketDownloadHandler, event);
     }
@@ -842,6 +855,10 @@ exports.handler = async (event) => {
 
     if (route === "better-auth" || route.startsWith("better-auth/")) {
       return await handleBetterAuthEvent(event, route);
+    }
+
+    if (route === "auth/session" && (event.httpMethod === "GET" || event.httpMethod === "POST")) {
+      return await invokeExpressHandler(authHandler, event, { action: "session" });
     }
 
     if (route.startsWith("auth/") && event.httpMethod === "POST") {

@@ -78,18 +78,78 @@ test('booking lookup returns a saved booking by reference', async () => {
   });
 });
 
-test('support API rejects anonymous persistence', async () => {
+test('support API persists guest threads and lets the guest reload by thread id', async () => {
   await withEnv({ NODE_ENV: 'test', DATABASE_URL: undefined }, async () => {
     global.__support = [];
-    const req = {
+
+    let req = {
       method: 'POST',
       headers: {},
-      body: { threadId: 'thread-test', email: 'guest@anonymous', message: 'hello' }
+      body: { threadId: 'thread-test', guest: true, message: 'hello' }
     };
-    const res = makeRes();
+    let res = makeRes();
     await supportHandler(req, res);
-    assert.strictEqual(res.statusCode, 401);
-    assert.strictEqual(global.__support.length, 0);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(global.__support.length, 1);
+    assert.strictEqual(global.__support[0].email, '');
+
+    req = {
+      method: 'GET',
+      headers: {},
+      query: { threadId: 'thread-test', guest: '1' }
+    };
+    res = makeRes();
+    await supportHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.ok, true);
+    assert.strictEqual(res.body.threads.length, 1);
+    assert.strictEqual(res.body.threads[0].messages[0].text, 'hello');
+  });
+});
+
+test('support API roundtrips authenticated user and admin replies', async () => {
+  await withEnv({
+    NODE_ENV: 'test',
+    DATABASE_URL: undefined,
+    JWT_SECRET: 'test-secret-at-least-32-characters-long',
+    VITE_ADMIN_EMAILS: 'admin@example.com'
+  }, async () => {
+    global.__support = [];
+    const userToken = signBookingCartJwt({ email: 'user@example.com', name: 'User' });
+    const adminToken = signBookingCartJwt({ email: 'admin@example.com', name: 'Admin' });
+
+    let req = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${userToken}` },
+      body: { threadId: 'thread-auth', email: 'user@example.com', message: 'hello support' }
+    };
+    let res = makeRes();
+    await supportHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.ok, true);
+
+    req = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${adminToken}` },
+      body: { threadId: 'thread-auth', message: 'admin reply' }
+    };
+    res = makeRes();
+    await supportHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.ok, true);
+
+    req = {
+      method: 'GET',
+      headers: { authorization: `Bearer ${userToken}` },
+      query: { email: 'user@example.com' }
+    };
+    res = makeRes();
+    await supportHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.deepStrictEqual(
+      res.body.threads[0].messages.map((message) => `${message.from}:${message.text}`),
+      ['user:hello support', 'admin:admin reply']
+    );
   });
 });
 
@@ -153,6 +213,48 @@ test('account settings reject saves under a different account email', async () =
     assert.strictEqual(res.statusCode, 403);
     assert.strictEqual(res.body.ok, false);
     assert.strictEqual(global.__users['other@example.com'], undefined);
+  });
+});
+
+test('expired auth token is rejected as an expired session', async () => {
+  await withEnv({ NODE_ENV: 'test', DATABASE_URL: undefined, JWT_SECRET: 'test-secret-at-least-32-characters-long', GOOGLE_CLIENT_ID: undefined }, async () => {
+    global.__users = {};
+    const token = signBookingCartJwt(
+      { email: 'expired@example.com', name: 'Expired User' },
+      { expiresIn: '-1s' }
+    );
+    const req = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: {
+        email: 'expired@example.com',
+        state: { profile: { firstName: 'Expired', email: 'expired@example.com' } }
+      }
+    };
+    const res = makeRes();
+    await userHandler(req, res);
+    assert.strictEqual(res.statusCode, 401);
+    assert.strictEqual(res.body.ok, false);
+    assert.match(res.body.error, /session expired/i);
+    assert.strictEqual(global.__users['expired@example.com'], undefined);
+  });
+});
+
+test('auth session endpoint validates the active bearer token', async () => {
+  await withEnv({ NODE_ENV: 'test', DATABASE_URL: undefined, JWT_SECRET: 'test-secret-at-least-32-characters-long' }, async () => {
+    const token = signBookingCartJwt({ email: 'session@example.com', name: 'Session User' });
+    const req = {
+      method: 'GET',
+      params: { action: 'session' },
+      headers: { authorization: `Bearer ${token}` },
+      socket: { remoteAddress: 'session-test' },
+      body: {}
+    };
+    const res = makeRes();
+    await authHandler(req, res);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.ok, true);
+    assert.strictEqual(res.body.user.email, 'session@example.com');
   });
 });
 

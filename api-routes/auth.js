@@ -10,7 +10,14 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const { query, isDbConfigured, initDb } = require('../lib/db');
-const { applyCors, assertAllowedOrigin, parseAllowedOrigins } = require('../lib/cors');
+const {
+  applyCors,
+  assertAllowedOrigin,
+  getAppOrigin,
+  getAppOriginConfigError,
+  getRequestOriginFromHeaders,
+  parseAllowedOrigins,
+} = require('../lib/cors');
 const { getJwtSecret, signBookingCartJwt, verifyRequestBearer } = require('../lib/google-verify');
 
 const SALT_ROUNDS = 12;
@@ -43,8 +50,13 @@ function isStrongPassword(p) {
 }
 
 function getPublicAppUrl(req) {
-  const configured = String(process.env.APP_URL || '').trim();
-  if (configured) return configured.replace(/\/+$/, '');
+  const configError = getAppOriginConfigError();
+  if (configError) {
+    throw new Error(configError);
+  }
+
+  const configured = getAppOrigin();
+  if (configured) return configured;
 
   const origin = String(req.headers?.origin || '').trim();
   if (origin) {
@@ -58,9 +70,7 @@ function getPublicAppUrl(req) {
     throw new Error('APP_URL or ALLOWED_ORIGINS is required in production');
   }
 
-  const proto = String(req.headers?.['x-forwarded-proto'] || 'http').split(',')[0].trim();
-  const host = String(req.headers?.['x-forwarded-host'] || req.headers?.host || 'localhost:5173').trim();
-  return `${proto}://${host}`.replace(/\/+$/, '');
+  return getRequestOriginFromHeaders(req.headers, 'localhost:3000') || 'http://localhost:3000';
 }
 
 /** Sign a JWT for a user document */
@@ -84,6 +94,7 @@ function getMemStore() {
  *   POST /api/auth/logout
  *   POST /api/auth/forgot-password
  *   POST /api/auth/reset-password
+ *   GET  /api/auth/session
  *   POST /api/auth/change-password
  */
 module.exports = async (req, res) => {
@@ -91,10 +102,54 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
   // Determine action from sub-path (e.g. /api/auth/register → "register")
   const action = String(req.params?.action || req.query?.action || '').toLowerCase();
+
+  if (action === 'session') {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      return res.status(405).json({ ok: false, error: 'Method not allowed' });
+    }
+
+    const auth = await verifyRequestBearer(req);
+    if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.error });
+
+    let user = {
+      email: auth.email,
+      name: String(auth.payload?.name || auth.payload?.given_name || '').trim(),
+      picture: String(auth.payload?.picture || '').trim(),
+    };
+
+    try {
+      if (isDbConfigured()) {
+        await initDb();
+        const result = await query('SELECT email, name, profile FROM bc_users WHERE email = $1', [auth.email]);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          const profile = row.profile && typeof row.profile === 'object' ? row.profile : {};
+          user = {
+            email: row.email,
+            name: row.name || profile.name || user.name || row.email,
+            picture: profile.avatar || profile.picture || user.picture || '',
+          };
+        }
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(503).json({ ok: false, error: 'Database is not configured (DATABASE_URL)' });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      user,
+      session: {
+        expiresAt: auth.payload?.exp ? new Date(Number(auth.payload.exp) * 1000).toISOString() : null,
+      },
+    });
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
   // IP-based rate limiting (10 requests per minute per IP per action)
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';

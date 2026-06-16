@@ -17,7 +17,7 @@ For the full local handoff, see [Running Locally](docs/RUNNING_LOCALLY.md).
 
 1. Install Node 20.
 2. Copy [.env.example](.env.example) to `.env`.
-3. Fill in the required environment variables, especially `DATABASE_URL`, `JWT_SECRET`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `DUFFEL_API_KEY`.
+3. Fill in the required environment variables, especially `APP_URL`, `DATABASE_URL`, `JWT_SECRET`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `DUFFEL_API_KEY`.
 4. Install dependencies:
 
    ```bash
@@ -36,7 +36,7 @@ For the full local handoff, see [Running Locally](docs/RUNNING_LOCALLY.md).
    npm run dev
    ```
 
-7. Open `http://localhost:5173`.
+7. Open `http://localhost:3000`.
 
 The local API server runs on `http://localhost:3001` when using `npm run dev`.
 
@@ -46,10 +46,11 @@ Required for normal local development:
 
 | Variable | Purpose |
 | --- | --- |
+| `APP_URL` | Canonical public site origin. Use the real deployed site in production. |
 | `DATABASE_URL` | Nile/Postgres connection string |
 | `JWT_SECRET` | Legacy JWT auth secret for current `/api/auth/*` routes |
 | `BETTER_AUTH_SECRET` | Better Auth signing/encryption secret |
-| `BETTER_AUTH_URL` | Base URL for Better Auth. Use `http://localhost:3001` with `npm run dev`; use `http://localhost:3000` with `npm start`. |
+| `BETTER_AUTH_URL` | Auth handler origin only when it differs from `APP_URL`. Use `http://localhost:3001` with `npm run dev`; set it equal to `APP_URL` for a single-process run. |
 | `GOOGLE_CLIENT_ID` | Browser Google Sign-In OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret for Better Auth |
 | `ADMIN_PIN` | Admin action PIN |
@@ -68,7 +69,7 @@ openssl rand -base64 32
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Run local Express API on `3001` and Vite on `5173` |
+| `npm run dev` | Run local Express API on `3001` and Vite on `3000` |
 | `npm start` | Serve the built app through Express |
 | `npm run build` | Build the frontend with Vite |
 | `npm run build:vercel` | Run deploy migrations, then build |
@@ -122,7 +123,7 @@ Set `DATABASE_URL` in every Vercel environment that builds this branch, includin
 
 - Existing `/api/auth/*` routes remain available during the Better Auth migration.
 - Better Auth is mounted at `/api/better-auth/*`.
-- Configure `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`.
+- Configure `APP_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`.
 
 ## Security Notes
 

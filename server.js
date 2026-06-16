@@ -135,6 +135,10 @@ app.get('/api/config', apiLimiter, (req, res) => {
 
 app.all('/api/bookings', apiLimiter, run(bookingsHandler));
 app.all('/api/user', apiLimiter, run(userHandler));
+app.get('/api/support/stream', (req, res, next) => {
+  req.params = { action: 'stream' };
+  return Promise.resolve(supportHandler(req, res)).catch(next);
+});
 app.post('/api/duffel-search', searchLimiter, run(duffelSearchHandler));
 app.get('/api/duffel-airports', searchLimiter, run(duffelAirportsHandler));
 app.all('/api/duffel-orders', searchLimiter, run(duffelOrdersHandler));
@@ -180,6 +184,10 @@ app.post('/api/auth/forgot-password', authLimiter, (req, res, next) => {
 });
 app.post('/api/auth/reset-password', authLimiter, (req, res, next) => {
   req.params = { action: 'reset-password' };
+  return Promise.resolve(authHandler(req, res)).catch(next);
+});
+app.get('/api/auth/session', apiLimiter, (req, res, next) => {
+  req.params = { action: 'session' };
   return Promise.resolve(authHandler(req, res)).catch(next);
 });
 app.post('/api/auth/change-password', authLimiter, (req, res, next) => {

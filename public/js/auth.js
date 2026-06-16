@@ -19,10 +19,60 @@
 
   function getGoogleIdToken() {
     try {
-      return localStorage.getItem(STORAGE_TOKEN) || localStorage.getItem('bookingcart_jwt_token') || '';
+      var token = localStorage.getItem(STORAGE_TOKEN) || localStorage.getItem('bookingcart_jwt_token') || '';
+      if (token && isExpiredToken(token)) {
+        clearStoredAuth();
+        return '';
+      }
+      return token;
     } catch (e) {
       return '';
     }
+  }
+
+  function decodeJwtPayload(token) {
+    try {
+      var payload = String(token || '').split('.')[1];
+      if (!payload) return null;
+      var base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      var jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isExpiredToken(token) {
+    var payload = decodeJwtPayload(token);
+    if (!payload || !payload.exp) return false;
+    return Number(payload.exp) * 1000 <= Date.now() + 30000;
+  }
+
+  function clearStoredAuth() {
+    try {
+      localStorage.removeItem(STORAGE_USER);
+      localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem('bookingcart_jwt_token');
+      localStorage.removeItem('bc_user');
+      localStorage.removeItem('bookingcart_session_only');
+    } catch (e) {}
+  }
+
+  function handleAuthFailure(status, error) {
+    var message = String(error || '');
+    if (Number(status) !== 401 && !/session expired|invalid authentication|missing or invalid authorization|missing id token/i.test(message)) {
+      return false;
+    }
+    clearStoredAuth();
+    applyAuthUI();
+    return true;
   }
 
   function authHeaders() {
@@ -90,7 +140,9 @@
         }
       } catch (e) {}
     },
-    clearPostAuthRedirect
+    clearPostAuthRedirect,
+    clearStoredAuth,
+    handleAuthFailure
   };
 
   window.handleGoogleSignIn = async function (response) {
@@ -109,6 +161,7 @@
 
       const payload = JSON.parse(jsonPayload);
 
+      localStorage.removeItem('bookingcart_jwt_token');
       localStorage.setItem(STORAGE_USER, JSON.stringify(payload));
       localStorage.setItem(STORAGE_TOKEN, response.credential);
 
@@ -144,6 +197,7 @@
   };
 
   function applyAuthUI() {
+    const token = getGoogleIdToken();
     const userStr = localStorage.getItem(STORAGE_USER);
     let user = null;
     if (userStr) {
@@ -155,7 +209,7 @@
     }
 
     const displayName = user && (user.name || user.email || '').trim();
-    const signedIn = !!(user && displayName);
+    const signedIn = !!(token && user && displayName);
 
     if (!signedIn) {
       // If not signed in, just ensure bootGoogle is called to render the button

@@ -64,6 +64,7 @@ export default function App() {
           <Route path="/booking-details/:ref" element={<BookingDetailsPage />} />
           <Route path="/support" element={<CustomerSupportPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/sign-in" element={<AuthPage />} />
           <Route path="/login" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
           <Route path="/tracker" element={<FlightTrackerPage />} />
