@@ -148,7 +148,7 @@ function EmptyPanel({ icon, title, body, action }) {
 
 export default function AccountSettingsPage() {
   const { section: sectionParam } = useParams();
-  const { user, authHeaders, isAuthenticated, refresh } = useAuth();
+  const { user, authHeaders, isAuthenticated, refresh, handleAuthFailure } = useAuth();
   const activeSection = !sectionParam || sectionParam === 'profile'
     ? 'profile'
     : ACCOUNT_SECTIONS.includes(sectionParam)
@@ -164,6 +164,7 @@ export default function AccountSettingsPage() {
   const hasJwtToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('bookingcart_jwt_token');
   const canChangePassword = hasJwtToken && !hasGoogleToken;
   const accountEmail = String(user?.email || '').trim().toLowerCase();
+  const signInHref = `/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
 
   useEffect(() => {
     if (activeSection) document.title = `${SECTION_TITLE[activeSection]} · Account | BookingCart`;
@@ -187,6 +188,10 @@ export default function AccountSettingsPage() {
           headers: authHeaders(),
         });
         const data = await resp.json().catch(() => ({}));
+        if (!resp.ok && handleAuthFailure(resp.status, data.error)) {
+          if (!cancelled) setStatus('Your session expired. Please sign in again.');
+          return;
+        }
         if (!cancelled) setState(normalizeState(resp.ok && data.ok ? data.state : null, user));
       } catch {
         if (!cancelled) {
@@ -199,7 +204,7 @@ export default function AccountSettingsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [authHeaders, isAuthenticated, user]);
+  }, [authHeaders, handleAuthFailure, isAuthenticated, user]);
 
   const profile = state.profile;
   const navCls = ({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`;
@@ -226,6 +231,9 @@ export default function AccountSettingsPage() {
         body: JSON.stringify({ email: accountEmail, state: stateToSave }),
       });
       const data = await resp.json().catch(() => ({}));
+      if (!resp.ok && handleAuthFailure(resp.status, data.error)) {
+        throw new Error('Your session expired. Please sign in again.');
+      }
       if (!resp.ok || !data.ok) throw new Error(data.error || 'Save failed');
       try {
         const storedUser = JSON.parse(localStorage.getItem('bookingcart_user') || '{}');
@@ -297,6 +305,9 @@ export default function AccountSettingsPage() {
         body: JSON.stringify({ currentPassword: password.current, newPassword: password.next }),
       });
       const data = await resp.json().catch(() => ({}));
+      if (!resp.ok && handleAuthFailure(resp.status, data.error)) {
+        throw new Error('Your session expired. Please sign in again.');
+      }
       if (!resp.ok || !data.ok) throw new Error(data.error || 'Could not change password');
       setPassword({ current: '', next: '', confirm: '' });
       setStatus('Password changed successfully.');
@@ -345,7 +356,7 @@ export default function AccountSettingsPage() {
             icon="ph-user-circle"
             title="Sign in to manage your account"
             body="Profile, support, bookings, preferences, and rewards are saved only for signed-in users."
-            action={<a href="/auth" className="btn-primary inline-flex mt-5">Sign in</a>}
+            action={<a href={signInHref} className="btn-primary inline-flex mt-5">Sign in</a>}
           />
         </main>
         <FlightFooter />

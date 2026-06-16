@@ -32,6 +32,7 @@ Fill in at least:
 ```bash
 NODE_ENV=development
 PORT=3000
+APP_URL=http://localhost:3000
 DATABASE_URL=postgres://...
 JWT_SECRET=...
 BETTER_AUTH_SECRET=...
@@ -41,7 +42,7 @@ GOOGLE_CLIENT_SECRET=...
 ADMIN_PIN=...
 VITE_ADMIN_EMAILS=you@example.com
 DUFFEL_API_KEY=...
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 STRIPE_SECRET_KEY=...
 ```
 
@@ -87,16 +88,16 @@ npm run dev
 
 This starts:
 
-- Vite frontend: `http://localhost:5173`
+- Vite frontend: `http://localhost:3000`
 - Express API server: `http://localhost:3001`
 
 Open:
 
 ```text
-http://localhost:5173
+http://localhost:3000
 ```
 
-Use `BETTER_AUTH_URL=http://localhost:3001` for this flow because Better Auth is served by the local API process.
+Use `APP_URL=http://localhost:3000` and `BETTER_AUTH_URL=http://localhost:3001` for this flow because the browser lives on Vite while Better Auth is served by the local API process.
 
 ## 5. Build Locally
 
@@ -114,7 +115,7 @@ npm run build:vercel
 
 `build:vercel` requires `DATABASE_URL`, runs migrations first, then runs the Vite build.
 
-If you run the built app locally with `npm start`, set `BETTER_AUTH_URL=http://localhost:3000` because Express serves the built frontend and API from the same process.
+If you run the built app locally with `npm start`, set `BETTER_AUTH_URL=http://localhost:3000` so it matches `APP_URL` because Express serves the built frontend and API from the same process.
 
 ## 6. Run Tests
 

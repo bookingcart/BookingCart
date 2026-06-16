@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { FlightFooter } from '../components/FlightFooter.jsx';
+import { connectSupportStream, loadSupportThreads, postSupportMessage } from '../lib/supportClient.js';
 
 /* ── data ── */
 const TABS = [
@@ -87,44 +88,39 @@ function detectIntent(msg) {
   return null;
 }
 
-/* ── Chat Widget ── */
-async function loadThreads(email) {
-  if (!email) return { ok: true, threads: [] };
+const GUEST_THREAD_STORAGE_KEY = 'bookingcart_support_guest_thread_id';
+
+function createThreadId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `thread_${crypto.randomUUID()}`;
+  }
+  return `thread_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function getGuestThreadId() {
   try {
-    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    const resp = await fetch(`/api/support?email=${encodeURIComponent(email)}`, {
-      headers: t ? { 'Authorization': `Bearer ${t}` } : {}
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) return { ok: false, status: resp.status, error: data.error || `HTTP ${resp.status}`, threads: [] };
-    return { ok: true, threads: data.ok ? data.threads : [] };
-  } catch (err) {
-    return { ok: false, status: 0, error: err.message || 'Network error', threads: [] };
+    const existing = localStorage.getItem(GUEST_THREAD_STORAGE_KEY);
+    if (existing) return existing;
+    const nextId = createThreadId();
+    localStorage.setItem(GUEST_THREAD_STORAGE_KEY, nextId);
+    return nextId;
+  } catch {
+    return createThreadId();
   }
 }
 
-async function appendMessage(threadId, email, topic, text) {
-  try {
-    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    const resp = await fetch('/api/support', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(t ? { 'Authorization': `Bearer ${t}` } : {})
-      },
-      body: JSON.stringify({ threadId, email: email || 'guest@anonymous', topic, message: text })
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) return { ok: false, status: resp.status, error: data.error || `HTTP ${resp.status}` };
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, status: 0, error: err.message || 'Network error' };
-  }
+function toChatMessages(thread) {
+  return (thread?.messages || []).map((message) => ({
+    from: message.from === 'admin' ? 'bot' : 'user',
+    text: message.text,
+    ts: message.ts || 0,
+  }));
 }
 
 function ChatWidget({ open, onClose, initialMessage }) {
   const { user } = useAuth();
-  const currentEmail = user?.email || 'Guest';
+  const currentEmail = String(user?.email || '').trim().toLowerCase();
+  const isGuest = !currentEmail;
 
   const [messages, setMessages] = useState([
     { from: 'bot', text: "Hi! I'm your BookingCart support assistant. How can I help you today?", ts: Date.now() },
@@ -134,19 +130,42 @@ function ChatWidget({ open, onClose, initialMessage }) {
   const [authError, setAuthError] = useState(false);
   const [localOnly, setLocalOnly] = useState(false);
   const [sendError, setSendError] = useState(null);
+  const [transportMode, setTransportMode] = useState('connecting');
   const bottomRef = useRef(null);
   const sentRef = useRef(false);
-  const threadIdRef = useRef(`thread_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const threadIdRef = useRef('');
   const latestTsRef = useRef(0);
+
+  function applyThread(thread) {
+    if (!thread) return;
+    const newMessages = (thread.messages || [])
+      .filter((message) => message.from === 'admin' && (message.ts || 0) > latestTsRef.current)
+      .map((message) => ({ from: 'bot', text: message.text, ts: message.ts || 0 }));
+
+    if (newMessages.length > 0) {
+      setMessages((prev) => [...prev, ...newMessages]);
+      latestTsRef.current = Math.max(...newMessages.map((message) => message.ts || 0), latestTsRef.current);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
     setAuthError(false);
-    setLocalOnly(currentEmail === 'Guest');
+    setLocalOnly(isGuest);
     setSendError(null);
+    setTransportMode('connecting');
+
     async function initThreads() {
-      if (currentEmail === 'Guest') return;
-      const result = await loadThreads(currentEmail);
+      if (isGuest) {
+        threadIdRef.current = getGuestThreadId();
+      }
+
+      const result = await loadSupportThreads(
+        isGuest
+          ? { guest: true, threadId: threadIdRef.current }
+          : { email: currentEmail }
+      );
+
       if (!result.ok) {
         if (result.status === 401 || result.status === 403 ||
             /invalid|expired|session|auth/i.test(result.error || '')) {
@@ -154,37 +173,72 @@ function ChatWidget({ open, onClose, initialMessage }) {
         }
         return;
       }
+
       if (result.threads.length > 0) {
         const latest = result.threads[0];
         threadIdRef.current = latest.id;
-        const hist = latest.messages.map(m => ({ from: m.from === 'user' ? 'user' : 'bot', text: m.text, ts: m.ts || 0 }));
+        const hist = toChatMessages(latest);
         if (hist.length > 0) {
           setMessages(hist);
           latestTsRef.current = Math.max(...hist.map(m => m.ts || 0), 0);
+          return;
         }
       }
-    }
-    initThreads();
-  }, [open, currentEmail]);
 
-  // Poll for new admin replies every 15 s while the chat is open
+      setMessages([
+        { from: 'bot', text: "Hi! I'm your BookingCart support assistant. How can I help you today?", ts: Date.now() },
+      ]);
+      latestTsRef.current = 0;
+    }
+
+    initThreads();
+  }, [open, currentEmail, isGuest]);
+
   useEffect(() => {
-    if (!open || currentEmail === 'Guest') return;
-    const poll = setInterval(async () => {
-      const result = await loadThreads(currentEmail);
+    if (!open) return;
+
+    let pollId = null;
+    if (isGuest && !threadIdRef.current) {
+      threadIdRef.current = getGuestThreadId();
+    }
+    if (!isGuest && !threadIdRef.current) {
+      threadIdRef.current = createThreadId();
+    }
+    const target = isGuest
+      ? { guest: true, threadId: threadIdRef.current }
+      : { email: currentEmail };
+
+    const poll = async () => {
+      const result = await loadSupportThreads(target);
       if (!result.ok || result.threads.length === 0) return;
-      const thread = result.threads.find(t => t.id === threadIdRef.current) || result.threads[0];
-      if (!thread) return;
-      const newMsgs = thread.messages
-        .filter(m => m.from === 'admin' && (m.ts || 0) > latestTsRef.current)
-        .map(m => ({ from: 'bot', text: m.text, ts: m.ts || 0 }));
-      if (newMsgs.length > 0) {
-        setMessages(prev => [...prev, ...newMsgs]);
-        latestTsRef.current = Math.max(...newMsgs.map(m => m.ts || 0), latestTsRef.current);
+      const thread = result.threads.find((entry) => entry.id === threadIdRef.current) || result.threads[0];
+      if (thread) applyThread(thread);
+    };
+
+    const stopStream = connectSupportStream({
+      ...target,
+      onReady() {
+        setTransportMode('live');
+      },
+      onThread(thread) {
+        applyThread(thread);
+      },
+      onError(error) {
+        if (/session|auth|401|403/i.test(String(error?.message || ''))) {
+          setAuthError(true);
+        }
+        if (!pollId) {
+          setTransportMode('polling');
+          pollId = window.setInterval(poll, 4000);
+        }
       }
-    }, 15000);
-    return () => clearInterval(poll);
-  }, [open, currentEmail]);
+    });
+
+    return () => {
+      stopStream();
+      if (pollId) window.clearInterval(pollId);
+    };
+  }, [open, currentEmail, isGuest]);
 
   useEffect(() => {
     if (open && initialMessage && !sentRef.current) {
@@ -198,19 +252,24 @@ function ChatWidget({ open, onClose, initialMessage }) {
   }, [messages, typing]);
 
   async function persistMessage(msg) {
-    if (currentEmail === 'Guest') {
-      setLocalOnly(true);
-      return;
-    }
-    const email = currentEmail === 'Guest' ? 'guest@anonymous' : currentEmail;
-    const result = await appendMessage(threadIdRef.current, email, msg.slice(0, 60), msg);
+    const result = await postSupportMessage({
+      threadId: threadIdRef.current,
+      email: currentEmail,
+      topic: msg.slice(0, 60),
+      message: msg,
+      guest: isGuest,
+    });
+
     if (!result.ok) {
       if (result.status === 401 || result.status === 403) {
         setAuthError(true);
       } else {
         setSendError('Message not saved — check your connection and try again.');
       }
+      return;
     }
+
+    if (result.thread?.id) threadIdRef.current = result.thread.id;
   }
 
   function sendMessage(text) {
@@ -248,7 +307,7 @@ function ChatWidget({ open, onClose, initialMessage }) {
             <p className="text-white font-semibold text-sm">BookingCart Support</p>
             <p className="text-white/70 text-xs flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-300 rounded-full inline-block" />
-              Online · Avg reply ~30s
+              {transportMode === 'live' ? 'Live updates on' : transportMode === 'polling' ? 'Auto-refresh active' : 'Connecting…'}
             </p>
           </div>
         </div>
@@ -262,13 +321,13 @@ function ChatWidget({ open, onClose, initialMessage }) {
       {authError && (
         <div className="mx-3 mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-center gap-2">
           <i className="ph ph-warning text-amber-500 text-base shrink-0" />
-          <span>Session expired. Please <a href="/sign-in" className="underline font-semibold">sign in again</a> to save messages.</span>
+          <span>Session expired. Please <a href="/auth" className="underline font-semibold">sign in again</a> to save messages.</span>
         </div>
       )}
       {localOnly && (
         <div className="mx-3 mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-center gap-2">
           <i className="ph ph-warning text-amber-500 text-base shrink-0" />
-          <span>Sign in to save support messages and continue the chat after refresh.</span>
+          <span>Guest messages are delivered to support and saved in this browser. Sign in to keep the conversation tied to your account.</span>
         </div>
       )}
       {sendError && (
@@ -402,7 +461,7 @@ export default function CustomerSupportPage() {
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-2">Customer Support</h1>
             <p className="text-teal-100 flex items-center gap-2 text-base font-medium">
               <i className="ph ph-check-circle text-green-300 text-xl" />
-              Support in approx. 30s
+              New replies appear automatically
             </p>
           </div>
           {/* agent illustration */}
@@ -526,7 +585,7 @@ export default function CustomerSupportPage() {
           {/* ── Easy help banner ── */}
           <div className="mt-4 bg-gradient-to-r from-teal-600 to-green-600 rounded-2xl p-6 text-white">
             <h3 className="font-extrabold text-lg mb-1">It's easy to get help on BookingCart</h3>
-            <p className="text-teal-100 text-sm mb-4">Browse answers, chat live, or call us anytime — we've got you covered.</p>
+            <p className="text-teal-100 text-sm mb-4">Browse answers, message support, or call us anytime — we've got you covered.</p>
             <button onClick={() => openChat('')}
               className="bg-white dark:bg-slate-800 text-teal-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-teal-50 transition-colors shadow-sm">
               Start a chat now

@@ -2,39 +2,19 @@ import { useEffect, useState, useRef } from 'react';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { connectSupportStream, loadSupportThreads, patchSupportThread, postSupportMessage } from '../lib/supportClient.js';
 
 /* ─── Support Inbox ─────────────────────────────────────────────── */
-const STORAGE_KEY = 'bc_support_messages';
-
 async function fetchSupportMessages() {
-  try {
-    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    const resp = await fetch('/api/support', { headers: t ? { 'Authorization': `Bearer ${t}` } : {} });
-    const data = await resp.json();
-    return data.ok ? data.threads : [];
-  } catch { return []; }
+  return loadSupportThreads();
 }
 
 async function updateThread(id, updates) {
-  try {
-    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    await fetch('/api/support', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...(t ? { 'Authorization': `Bearer ${t}` } : {}) },
-      body: JSON.stringify({ id, ...updates })
-    });
-  } catch {}
+  return patchSupportThread(id, updates);
 }
 
 async function replyToThread(threadId, text) {
-  try {
-    const t = localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token') || '';
-    await fetch('/api/support', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(t ? { 'Authorization': `Bearer ${t}` } : {}) },
-      body: JSON.stringify({ threadId, message: text })
-    });
-  } catch {}
+  return postSupportMessage({ threadId, message: text });
 }
 
 function playNotificationSound() {
@@ -66,21 +46,44 @@ function SupportInbox() {
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState('');
   const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
+  const [transportMode, setTransportMode] = useState('connecting');
   const bottomRef = useRef(null);
   const prevUnreadRef = useRef(0);
   const firstLoadRef = useRef(true);
 
+  function mergeThread(nextThread) {
+    if (!nextThread?.id) return;
+    setThreads((prev) => {
+      const existingIndex = prev.findIndex((thread) => thread.id === nextThread.id);
+      if (existingIndex === -1) {
+        return [nextThread, ...prev].sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+      }
+      const updated = [...prev];
+      updated[existingIndex] = nextThread;
+      updated.sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+      return updated;
+    });
+    setSelected((prev) => (prev?.id === nextThread.id ? nextThread : prev));
+  }
+
   async function loadData() {
     const fresh = await fetchSupportMessages();
-    setThreads(fresh);
-    
+    if (!fresh.ok) {
+      setError(fresh.error || 'Could not load support inbox');
+      return;
+    }
+
+    setError('');
+    setThreads(fresh.threads);
+
     setSelected(prev => {
       if (!prev) return prev;
-      const up = fresh.find(t => t.id === prev.id);
+      const up = fresh.threads.find(t => t.id === prev.id);
       return up || prev;
     });
 
-    const unreadCount = fresh.filter(t => !t.adminRead).length;
+    const unreadCount = fresh.threads.filter(t => !t.adminRead).length;
     if (!firstLoadRef.current && unreadCount > prevUnreadRef.current) {
       playNotificationSound();
     }
@@ -90,8 +93,28 @@ function SupportInbox() {
 
   useEffect(() => {
     loadData();
-    const id = setInterval(loadData, 5000);
-    return () => clearInterval(id);
+    let pollId = null;
+    const stopStream = connectSupportStream({
+      onReady() {
+        setTransportMode('live');
+        setError('');
+      },
+      onThread(thread) {
+        mergeThread(thread);
+      },
+      onError(err) {
+        setTransportMode('polling');
+        setError(String(err?.message || '').includes('Admin access is not configured')
+          ? 'Support inbox is not available until admin emails are configured.'
+          : 'Live updates are unavailable. Falling back to auto-refresh.');
+        if (!pollId) pollId = setInterval(loadData, 4000);
+      }
+    });
+
+    return () => {
+      stopStream();
+      if (pollId) clearInterval(pollId);
+    };
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [selected, threads]);
@@ -106,7 +129,8 @@ function SupportInbox() {
   async function markRead(id) {
     const updated = threads.map(t => t.id === id ? { ...t, adminRead: true } : t);
     setThreads(updated);
-    await updateThread(id, { adminRead: true });
+    const result = await updateThread(id, { adminRead: true });
+    if (!result?.ok) setError(result?.error || 'Could not update thread state');
   }
 
   async function sendReply(threadId) {
@@ -118,21 +142,24 @@ function SupportInbox() {
       messages: [...t.messages, { from: 'admin', text: txt, ts: Date.now() }]
     } : t);
     setThreads(updated);
-    await replyToThread(threadId, txt);
+    const result = await replyToThread(threadId, txt);
+    if (!result?.ok) setError(result?.error || 'Could not send reply');
   }
 
   async function closeThread(threadId) {
     const updated = threads.map(t => t.id === threadId ? { ...t, status: 'closed' } : t);
     setThreads(updated);
     if (selected?.id === threadId) setSelected(updated.find(t => t.id === threadId));
-    await updateThread(threadId, { status: 'closed' });
+    const result = await updateThread(threadId, { status: 'closed' });
+    if (!result?.ok) setError(result?.error || 'Could not close thread');
   }
 
   async function reopenThread(threadId) {
     const updated = threads.map(t => t.id === threadId ? { ...t, status: 'open' } : t);
     setThreads(updated);
     if (selected?.id === threadId) setSelected(updated.find(t => t.id === threadId));
-    await updateThread(threadId, { status: 'open' });
+    const result = await updateThread(threadId, { status: 'open' });
+    if (!result?.ok) setError(result?.error || 'Could not reopen thread');
   }
 
   function selectThread(t) {
@@ -151,6 +178,9 @@ function SupportInbox() {
           {unread > 0 && (
             <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unread}</span>
           )}
+          <span className="text-xs text-slate-400">
+            {transportMode === 'live' ? 'Live updates' : transportMode === 'polling' ? 'Auto-refresh' : 'Connecting'}
+          </span>
         </div>
         <div className="flex gap-1">
           {['all', 'unread', 'open', 'closed'].map(f => (
@@ -163,10 +193,16 @@ function SupportInbox() {
         </div>
       </div>
 
+      {error && (
+        <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          {error}
+        </div>
+      )}
+
       <div className="flex" style={{ minHeight: 440 }}>
         {/* thread list */}
         <div className="w-72 shrink-0 border-r border-slate-100 overflow-y-auto">
-          {filtered.length === 0 && (
+          {!error && filtered.length === 0 && (
             <div className="py-16 text-center text-slate-400">
               <i className="ph ph-chat-slash text-4xl mb-2 block" />
               <p className="text-sm font-medium">No messages yet</p>
