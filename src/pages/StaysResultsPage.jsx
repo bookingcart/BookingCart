@@ -127,6 +127,11 @@ export default function StaysResultsPage() {
   const guests = searchParams.get('guests') || '1';
   const rooms = searchParams.get('rooms') || '1';
 
+  // Calculate number of nights
+  const checkinDateObj = new Date(checkin);
+  const checkoutDateObj = new Date(checkout);
+  const nights = Math.max(1, Math.ceil((checkoutDateObj - checkinDateObj) / (1000 * 60 * 60 * 24))) || 1;
+
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
   const [mapCenter, setMapCenter] = useState([53.478, -2.242]);
@@ -162,12 +167,16 @@ export default function StaysResultsPage() {
             const photoUrl = (acc.photos && acc.photos[0]?.url) 
               ? acc.photos[0].url 
               : `https://loremflickr.com/800/500/hotel,luxury?random=${i + 1}`;
+            const totalPrice = r.cheapest_rate ? Number(r.cheapest_rate) : 0;
+            const pricePerNight = totalPrice ? Math.round(totalPrice / Math.max(1, nights)) : 0;
             return {
               id: acc.id || r.id || `r${i}`,
               duffelResultId: r.id,
               name: acc.name || 'Hotel',
               brand: acc.chain?.name || '',
-              price: r.cheapest_rate ? Number(r.cheapest_rate).toFixed(0) : '—',
+              totalPrice: totalPrice,
+              pricePerNight: pricePerNight,
+              price: totalPrice ? totalPrice.toFixed(0) : '—',
               currency: r.currency || 'USD',
               rating: acc.review_score ? Number(acc.review_score) : Number(acc.rating || 8.0),
               reviews: acc.review_count || Math.floor(Math.random() * 5000 + 500),
@@ -193,7 +202,13 @@ export default function StaysResultsPage() {
           }
         } else {
           // Fall back to dummy data so the page doesn't look empty
-          setResults(DUMMY_HOTELS);
+          const dummyMapped = DUMMY_HOTELS.map(h => ({
+            ...h,
+            pricePerNight: h.price,
+            totalPrice: h.price * nights,
+            price: (h.price * nights).toFixed(0),
+          }));
+          setResults(dummyMapped);
           // If we have center coordinates but no results, still center the map there!
           if (data && data.centerCoordinates) {
             setMapCenter([data.centerCoordinates.latitude, data.centerCoordinates.longitude]);
@@ -204,7 +219,13 @@ export default function StaysResultsPage() {
         }
       } catch (err) {
         console.error('Stays search failed:', err);
-        setResults(DUMMY_HOTELS);
+        const dummyMapped = DUMMY_HOTELS.map(h => ({
+          ...h,
+          pricePerNight: h.price,
+          totalPrice: h.price * nights,
+          price: (h.price * nights).toFixed(0),
+        }));
+        setResults(dummyMapped);
         setSearchError('Could not connect to search. Showing sample results.');
       } finally {
         setLoading(false);
@@ -445,8 +466,9 @@ export default function StaysResultsPage() {
                   <div className="flex flex-col gap-1">
                     <div className="text-[10px] font-black italic text-slate-400">BookingCart Deals</div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mb-2">${hotel.price}</p>
+                  <div className="text-right flex flex-col items-end">
+                    <p className="text-2xl font-black text-slate-900 dark:text-white leading-none mb-1">${hotel.totalPrice || hotel.price}</p>
+                    <p className="text-xs font-medium text-slate-500 mb-3">total for {nights} night{nights > 1 ? 's' : ''}</p>
                     <button className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors w-full sm:w-auto shadow-sm">
                       View Deal
                     </button>

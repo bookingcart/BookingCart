@@ -16,23 +16,28 @@
 
     // ── Curated destination images (reliable, beautiful) ─────────────────────────
     const DEST_IMAGES = {
-        'new york': 'https://loremflickr.com/600/400/newyork,skyline/all',
-        'london': 'https://loremflickr.com/600/400/london,city/all',
-        'paris': 'https://loremflickr.com/600/400/paris,city/all',
-        'tokyo': 'https://loremflickr.com/600/400/tokyo,city/all',
-        'dubai': 'https://loremflickr.com/600/400/dubai,skyline/all',
-        'singapore': 'https://loremflickr.com/600/400/singapore,city/all',
-        'rome': 'https://loremflickr.com/600/400/rome,city/all',
-        'barcelona': 'https://loremflickr.com/600/400/barcelona,city/all',
-        'amsterdam': 'https://loremflickr.com/600/400/amsterdam,city/all',
-        'sydney': 'https://loremflickr.com/600/400/sydney,city/all',
-        'bangkok': 'https://loremflickr.com/600/400/bangkok,city/all',
-        'istanbul': 'https://loremflickr.com/600/400/istanbul,city/all',
-        'las vegas': 'https://loremflickr.com/600/400/lasvegas,city/all',
-        'miami': 'https://loremflickr.com/600/400/miami,beach/all',
-        'los angeles': 'https://loremflickr.com/600/400/losangeles,city/all'
+        'new york': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg',
+        'london': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg',
+        'paris': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg/960px-La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg',
+        'tokyo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Skyscrapers_of_Shinjuku_2009_January.jpg/960px-Skyscrapers_of_Shinjuku_2009_January.jpg',
+        'dubai': 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg',
+        'singapore': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Flag_of_Singapore.svg/960px-Flag_of_Singapore.svg.png',
+        'rome': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Trevi_Fountain%2C_Rome%2C_Italy_2_-_May_2007.jpg/960px-Trevi_Fountain%2C_Rome%2C_Italy_2_-_May_2007.jpg',
+        'barcelona': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Aerial_view_of_Barcelona%2C_Spain_%2851227309370%29_edited.jpg/960px-Aerial_view_of_Barcelona%2C_Spain_%2851227309370%29_edited.jpg',
+        'amsterdam': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Imagen_de_los_canales_conc%C3%A9ntricos_en_%C3%81msterdam.png/960px-Imagen_de_los_canales_conc%C3%A9ntricos_en_%C3%81msterdam.png',
+        'sydney': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Sydney_Opera_House_and_Harbour_Bridge_Dusk_%282%29_2019-06-21.jpg/960px-Sydney_Opera_House_and_Harbour_Bridge_Dusk_%282%29_2019-06-21.jpg',
+        'bangkok': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/4Y1A1159_Bangkok_%2833536795515%29.jpg/960px-4Y1A1159_Bangkok_%2833536795515%29.jpg',
+        'istanbul': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Historical_peninsula_and_modern_skyline_of_Istanbul.jpg/960px-Historical_peninsula_and_modern_skyline_of_Istanbul.jpg',
+        'nairobi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg',
+        'johannesburg': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Johannesburg_skyline_2017.jpg/960px-Johannesburg_skyline_2017.jpg',
+        'cairo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Cairo_Opera_House%2C_Al_Hurriyah_Park_and_the_Nile_river_%2814797782354%29.jpg/960px-Cairo_Opera_House%2C_Al_Hurriyah_Park_and_the_Nile_river_%2814797782354%29.jpg',
+        'mumbai': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Mumbai_Bandra-Worli_Sea_Link.jpg/960px-Mumbai_Bandra-Worli_Sea_Link.jpg',
+        'cancun': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Cancun_Strand_Luftbild_%2822143397586%29.jpg/960px-Cancun_Strand_Luftbild_%2822143397586%29.jpg',
+        'las vegas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Las_Vegas_from_above_%2840064746644%29.jpg/960px-Las_Vegas_from_above_%2840064746644%29.jpg',
+        'miami': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Villa_Vizcaya_20110228.jpg/960px-Villa_Vizcaya_20110228.jpg',
+        'los angeles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Hollywood_Sign_%28Zuschnitt%29.jpg/960px-Hollywood_Sign_%28Zuschnitt%29.jpg'
     };
-    const FALLBACK_IMAGE = 'https://loremflickr.com/600/400/city,landscape/all';
+    const FALLBACK_IMAGE = 'https://images.pexels.com/photos/358319/pexels-photo-358319.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop';
 
     // ── Country flag emojis ──────────────────────────────────────────────────────
     const FLAGS = {
@@ -201,7 +206,7 @@
         const stopsColor = deal.stops === 0 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
         const dateStr = deal.date ? new Date(deal.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
         const flag = FLAGS[deal.country] || '🌍';
-        const imgUrl = getImage(deal.image || deal.city);
+        const imgUrl = deal.imageUrl || getImage(deal.image || deal.city);
         const hotBadge = deal.hot
             ? '<span class="absolute top-3 left-3 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1"><i class="ph-fill ph-fire-simple"></i> Hot Deal</span>'
             : '';
