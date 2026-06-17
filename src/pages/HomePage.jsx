@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
@@ -159,6 +159,42 @@ export default function HomePage() {
   const [staysGuestOpen, setStaysGuestOpen] = useState(false);
   const [staysDeals, setStaysDeals] = useState(STAYS_DEALS_BY_REGION['default']);
   const [staysDealCity, setStaysDealCity] = useState('');
+
+  // Stays Autocomplete state
+  const [staysSuggestions, setStaysSuggestions] = useState([]);
+  const [isStaysSuggestOpen, setIsStaysSuggestOpen] = useState(false);
+  const suggestRef = useRef(null);
+
+  useEffect(() => {
+    if (staysDestination.trim().length < 2) {
+      setStaysSuggestions([]);
+      setIsStaysSuggestOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/stays-locations?q=${encodeURIComponent(staysDestination)}`);
+        const data = await res.json();
+        setStaysSuggestions(data || []);
+        setIsStaysSuggestOpen(data && data.length > 0);
+      } catch (err) {
+        console.error('Failed to fetch stays locations', err);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [staysDestination]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (suggestRef.current && !suggestRef.current.contains(e.target)) {
+        setIsStaysSuggestOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Geo-detect user location and pick region-appropriate stays deals
   useEffect(() => {
@@ -475,7 +511,7 @@ export default function HomePage() {
                       }}
                     >
                       {/* Destination */}
-                      <div className="min-w-0 px-2 sm:px-3 py-1.5 border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
+                      <div ref={suggestRef} className="min-w-0 px-2 sm:px-3 py-1.5 relative suggest border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
                         <label className="w-9 sm:w-10 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="stays-destination">Where</label>
                         <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
                           <i className="ph ph-map-pin text-base text-slate-400 shrink-0" aria-hidden="true"></i>
@@ -484,10 +520,40 @@ export default function HomePage() {
                             className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
                             placeholder="City, hotel, or area"
                             value={staysDestination}
-                            onChange={e => setStaysDestination(e.target.value)}
+                            onChange={e => {
+                              setStaysDestination(e.target.value);
+                              setIsStaysSuggestOpen(true);
+                            }}
+                            onFocus={() => {
+                              if (staysSuggestions.length > 0) setIsStaysSuggestOpen(true);
+                            }}
                             autoComplete="off"
                           />
                         </div>
+                        <ul className="suggest__list" role="listbox" data-open={isStaysSuggestOpen ? "true" : "false"}>
+                          {staysSuggestions.map((item, i) => (
+                            <li
+                              key={i}
+                              className="suggest__item"
+                              role="option"
+                              tabIndex="0"
+                              onClick={() => {
+                                setStaysDestination(item.name);
+                                setIsStaysSuggestOpen(false);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  setStaysDestination(item.name);
+                                  setIsStaysSuggestOpen(false);
+                                }
+                              }}
+                            >
+                              <span>{item.name} <span className="small">{item.fullName.split(',').slice(1).join(',')}</span></span>
+                              <span className="suggest__code"><i className="ph ph-buildings"></i></span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
 
                       {/* Check-in */}
