@@ -39,6 +39,10 @@ const duffelStaysNegotiatedRatesHandler = require('./api-routes/duffel-stays-neg
 const duffelStaysAccommodationHandler = require('./api-routes/duffel-stays-accommodation');
 const duffelStaysBrandsHandler = require('./api-routes/duffel-stays-brands');
 const duffelStaysAccommodationReviewsHandler = require('./api-routes/duffel-stays-accommodation-reviews');
+const staysLocationsHandler = require('./api-routes/stays-locations');
+
+const getyourguideSearchHandler = require('./api-routes/getyourguide-search');
+const getyourguideTourHandler = require('./api-routes/getyourguide-tour');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -164,6 +168,11 @@ app.all('/api/stays-negotiated-rates', searchLimiter, run(duffelStaysNegotiatedR
 app.all('/api/stays-accommodation', searchLimiter, run(duffelStaysAccommodationHandler));
 app.all('/api/stays-brands', searchLimiter, run(duffelStaysBrandsHandler));
 app.all('/api/stays-accommodation-reviews', searchLimiter, run(duffelStaysAccommodationReviewsHandler));
+app.get('/api/stays-locations', searchLimiter, run(staysLocationsHandler));
+
+// GetYourGuide routes
+app.get('/api/gyg-search', searchLimiter, run(getyourguideSearchHandler));
+app.get('/api/gyg-tour/:id', searchLimiter, run(getyourguideTourHandler));
 
 // Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
 app.post('/api/auth/register', authLimiter, (req, res, next) => {

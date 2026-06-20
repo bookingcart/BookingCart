@@ -138,13 +138,20 @@ export default function HomePage() {
   const location = useLocation();
   const [activeMode, setActiveMode] = useState(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('mode') === 'stays' ? 'stays' : 'flights';
-  }); // 'flights' | 'stays'
+    if (params.get('mode') === 'stays') return 'stays';
+    if (params.get('mode') === 'attractions') return 'attractions';
+    return 'flights';
+  }); // 'flights' | 'stays' | 'attractions'
+
+  // Attractions state
+  const [attractionsQuery, setAttractionsQuery] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('mode') === 'stays') {
       setActiveMode('stays');
+    } else if (params.get('mode') === 'attractions') {
+      setActiveMode('attractions');
     } else {
       setActiveMode('flights');
     }
@@ -255,7 +262,11 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => { document.title = activeMode === 'stays' ? 'BookingCart — Find Your Stay' : 'BookingCart — Fly Anywhere'; }, [activeMode]);
+  useEffect(() => {
+    if (activeMode === 'stays') document.title = 'BookingCart — Find Your Stay';
+    else if (activeMode === 'attractions') document.title = 'BookingCart — Discover Attractions';
+    else document.title = 'BookingCart — Fly Anywhere';
+  }, [activeMode]);
   useLegacyScripts(FLIGHT_SCRIPTS, 'home');
 
   // Re-initialize deals when switching back to flights (deals.js only boots once on DOMContentLoaded)
@@ -284,6 +295,12 @@ export default function HomePage() {
                 className="absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] opacity-100 transition-opacity duration-1000 ease-in-out"
                 alt="Hotel background"
               />
+            ) : activeMode === 'attractions' ? (
+              <img
+                src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=2000&q=80"
+                className="absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] opacity-100 transition-opacity duration-1000 ease-in-out"
+                alt="Attractions background"
+              />
             ) : (
               HERO_IMAGES.map((src, index) => (
                 <img
@@ -304,13 +321,13 @@ export default function HomePage() {
           
           <div className="relative z-10 max-w-4xl w-full mx-auto">
             <h1 className="text-5xl lg:text-7xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight mb-4">
-              {activeMode === 'stays' ? 'Find Your Stay' : 'Fly Anywhere'}
+              {activeMode === 'stays' ? 'Find Your Stay' : activeMode === 'attractions' ? 'Discover Attractions' : 'Fly Anywhere'}
             </h1>
             <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 font-medium mb-8">
-              {activeMode === 'stays' ? 'Hotels, apartments & more — all in one place.' : 'Affordable Flights, Premium Service.'}
+              {activeMode === 'stays' ? 'Hotels, apartments & more — all in one place.' : activeMode === 'attractions' ? 'Tours, experiences & things to do worldwide.' : 'Affordable Flights, Premium Service.'}
             </p>
 
-            {/* Flights / Stays mode switcher */}
+            {/* Flights / Stays / Attractions mode switcher */}
             <div className="inline-flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1">
               <button
                 type="button"
@@ -335,6 +352,18 @@ export default function HomePage() {
                 }`}
               >
                 <i className="ph ph-bed text-base"></i> Stays
+              </button>
+              <button
+                type="button"
+                id="mode-attractions-btn"
+                onClick={() => setActiveMode('attractions')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                  activeMode === 'attractions'
+                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <i className="ph ph-ticket text-base"></i> Attractions
               </button>
             </div>
 
@@ -672,6 +701,72 @@ export default function HomePage() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {/* ──────────── ATTRACTIONS PANEL ──────────── */}
+              {activeMode === 'attractions' && (
+                <div className="relative z-10 max-w-7xl w-full mx-auto px-0 mt-2">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80 dark:ring-slate-700/80 transition-colors">
+                    <form
+                      id="attractions-search-form"
+                      className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-0"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const q = attractionsQuery.trim();
+                        const url = q ? `/attractions/results?q=${encodeURIComponent(q)}` : '/attractions/results';
+                        if (typeof window.__bcNavigate === 'function') window.__bcNavigate(url);
+                        else window.location.href = url;
+                      }}
+                    >
+                      {/* Destination */}
+                      <div className="min-w-0 px-2 sm:px-3 py-1.5 border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
+                        <label className="w-16 sm:w-20 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="attractions-dest">Where to</label>
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
+                          <i className="ph ph-ticket text-base text-slate-400 shrink-0" aria-hidden="true"></i>
+                          <input
+                            id="attractions-dest"
+                            className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
+                            placeholder="City, landmark, or destination"
+                            value={attractionsQuery}
+                            onChange={e => setAttractionsQuery(e.target.value)}
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Search button */}
+                      <div className="px-2 sm:px-3 py-1.5 flex flex-row items-center gap-2 lg:gap-2.5 lg:pl-3 lg:pr-1.5">
+                        <button
+                          id="attractions-search-btn"
+                          className="bg-green-600 hover:bg-green-700 text-white font-semibold h-9 sm:h-10 px-4 sm:px-5 rounded-lg sm:rounded-xl shadow-md shadow-green-600/25 transition-all flex items-center justify-center gap-1.5 shrink-0 text-xs sm:text-sm"
+                          type="submit"
+                        >
+                          <i className="ph ph-magnifying-glass text-base sm:text-lg"></i>
+                          Explore
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Quick-pick popular destinations */}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {['Paris', 'Tokyo', 'New York', 'Dubai', 'Nairobi', 'London', 'Bangkok', 'Cape Town'].map(city => (
+                      <button
+                        key={city}
+                        type="button"
+                        onClick={() => {
+                          const url = `/attractions/results?q=${encodeURIComponent(city)}`;
+                          if (typeof window.__bcNavigate === 'function') window.__bcNavigate(url);
+                          else window.location.href = url;
+                        }}
+                        className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-white/80 dark:border-slate-700 shadow-sm hover:bg-white dark:hover:bg-slate-700 transition-all"
+                      >
+                        <i className="ph ph-map-pin text-green-500 text-sm"></i>
+                        {city}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

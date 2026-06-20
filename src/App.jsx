@@ -30,6 +30,7 @@ const CustomerSupportPage = lazy(() => import('./pages/CustomerSupportPage.jsx')
 const AuthPage = lazy(() => import('./pages/AuthPage.jsx'));
 const FlightTrackerPage = lazy(() => import('./pages/FlightTrackerPage.jsx'));
 const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'));
+const AttractionsResultsPage = lazy(() => import('./pages/AttractionsResultsPage.jsx'));
 
 export default function App() {
   return (
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="/tracker" element={<FlightTrackerPage />} />
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/explore/:routeId" element={<ExplorePage />} />
+          <Route path="/attractions/results" element={<AttractionsResultsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
         </Routes>
