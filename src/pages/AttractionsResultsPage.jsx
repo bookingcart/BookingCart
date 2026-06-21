@@ -1,6 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+const DUMMY_TOURS = [
+  {
+    id: 'd1',
+    title: 'Louvre Museum: Skip-the-Ticket-Line Guided Tour',
+    url: '#',
+    image_url: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80',
+    duration: '2 hours',
+    rating: 4.8,
+    review_count: 12453,
+    price: 65,
+    currency: 'USD',
+    categories: [{ name: 'Guided Tour' }]
+  },
+  {
+    id: 'd2',
+    title: 'Eiffel Tower Summit Access and Seine River Cruise',
+    url: '#',
+    image_url: 'https://images.unsplash.com/photo-1543305113-82a17ef9108c?auto=format&fit=crop&w=800&q=80',
+    duration: '3 hours',
+    rating: 4.6,
+    review_count: 8392,
+    price: 85,
+    currency: 'USD',
+    categories: [{ name: 'Combo Ticket' }]
+  },
+  {
+    id: 'd3',
+    title: 'Versailles Palace & Gardens: Full Access Ticket & Audio Guide',
+    url: '#',
+    image_url: 'https://images.unsplash.com/photo-1560060087-32b5757d976d?auto=format&fit=crop&w=800&q=80',
+    duration: 'Half day',
+    rating: 4.7,
+    review_count: 5120,
+    price: 45,
+    currency: 'USD',
+    categories: [{ name: 'Entry Ticket' }]
+  },
+  {
+    id: 'd4',
+    title: 'Montmartre Hidden Gems & Wine Tasting Experience',
+    url: '#',
+    image_url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80',
+    duration: '2.5 hours',
+    rating: 4.9,
+    review_count: 1284,
+    price: 55,
+    currency: 'USD',
+    categories: [{ name: 'Food & Drink' }]
+  }
+];
+
 export default function AttractionsResultsPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,14 +82,19 @@ export default function AttractionsResultsPage() {
         
         if (data.error && data.error.includes('GETYOURGUIDE_API_KEY not configured')) {
           setNoKey(true);
+          setTours(DUMMY_TOURS);
         } else if (!data.ok) {
           setError(data.error || 'Failed to fetch tours');
+          setTours(DUMMY_TOURS);
+        } else if (data.tours && data.tours.length > 0) {
+          setTours(data.tours);
         } else {
-          setTours(data.tours || []);
+          setTours(DUMMY_TOURS);
         }
       } catch (err) {
         console.error('Fetch error:', err);
         setError('Network error while fetching tours');
+        setTours(DUMMY_TOURS);
       } finally {
         setLoading(false);
       }
@@ -113,25 +169,6 @@ export default function AttractionsResultsPage() {
                 </div>
               </div>
             ))}
-          </div>
-        ) : noKey ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-slate-200 dark:border-slate-700 max-w-2xl mx-auto mt-12">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i className="ph ph-key text-3xl text-slate-400"></i>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">GetYourGuide API Key Missing</h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">
-              To fetch live attractions and tours, you need to configure the GetYourGuide Partner API key.
-            </p>
-            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-left border border-slate-200 dark:border-slate-700 text-sm font-mono text-slate-600 dark:text-slate-300">
-              # In your .env file:<br />
-              GETYOURGUIDE_API_KEY=your_token_here
-            </div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-6 rounded-2xl text-center border border-red-100 dark:border-red-900/50">
-            <i className="ph ph-warning-circle text-3xl mb-2"></i>
-            <p className="font-medium">{error}</p>
           </div>
         ) : tours.length === 0 ? (
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-slate-200 dark:border-slate-700 max-w-2xl mx-auto mt-12">

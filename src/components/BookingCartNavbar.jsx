@@ -11,12 +11,7 @@ import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
 export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navItems = [
-    { key: 'flights',  href: '/',          icon: 'ph-airplane-tilt',   label: 'Flights'  },
-    { key: 'stays',    href: '/stays',     icon: 'ph-bed',             label: 'Stays'    },
-    { key: 'explore',  href: '/explore',   icon: 'ph-compass',         label: 'Explore'  },
-    { key: 'tracker',  href: '/tracker',   icon: 'ph-broadcast',       label: 'Tracker'  },
-  ];
+  const navItems = [];
 
   return (
     <header className="bookingcart-navbar sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors duration-200">
