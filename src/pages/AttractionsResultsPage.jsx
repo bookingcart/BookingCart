@@ -27,7 +27,7 @@ function AttractionCard({ item, saved, onSave, onAdd, onHover }) {
       <h2 className="mt-1 text-lg font-extrabold leading-snug text-slate-900 dark:text-white">{item.name}</h2>
       <p className="mt-2 line-clamp-2 min-h-10 text-sm text-slate-500 dark:text-slate-400">{item.summary || item.address || 'Open the field guide for location and source details.'}</p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link to={`/attractions/${item.source}/${encodeURIComponent(item.sourceId)}`} state={{ attraction: item }} onClick={() => trackAttractionEvent('detail_viewed', item)} className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-900">View details</Link>
+        <Link to={`/attractions/${item.source}/${encodeURIComponent(item.sourceId)}`} state={{ attraction: item }} className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-900">View details</Link>
         <button type="button" onClick={() => onSave(item)} aria-pressed={saved} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-600"><i className={`ph ${saved ? 'ph-fill ph-heart text-rose-500' : 'ph-heart'}`} aria-hidden="true" /> {saved ? 'Saved' : 'Save'}</button>
         <button type="button" onClick={() => onAdd(item)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-600">Add to trip</button>
       </div>
