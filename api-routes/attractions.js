@@ -87,9 +87,10 @@ module.exports = async function attractionsHandler(req, res) {
       if (auth.ok) email = auth.email;
       const forwarded = String(req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
       const sessionHash = crypto.createHash('sha256').update(`${process.env.JWT_SECRET || 'local'}:${cleanText(body.sessionId, 120)}:${forwarded}`).digest('hex');
-      try {
         await initDb();
-        await query(`INSERT INTO bc_attraction_events (session_hash, user_email, event_type, attraction_id, source, destination, context) VALUES ($1,$2,$3,$4,$5,$6,$7)`, [sessionHash, email || null, body.eventType, cleanText(body.attractionId, 220) || null, cleanText(body.source, 40) || null, cleanText(body.destination, 160) || null, body.context && typeof body.context === 'object' ? body.context : {}]);
+        const context = body.context && typeof body.context === 'object' ? body.context : {};
+        const safeContext = JSON.stringify(context).length <= 4000 ? context : {};
+        await query(`INSERT INTO bc_attraction_events (session_hash, user_email, event_type, attraction_id, source, destination, context) VALUES ($1,$2,$3,$4,$5,$6,$7)`, [sessionHash, email || null, body.eventType, cleanText(body.attractionId, 220) || null, cleanText(body.source, 40) || null, cleanText(body.destination, 160) || null, safeContext]);
         return res.json({ ok: true, persisted: true });
       } catch (error) {
         if (error.code === '42P01') return res.json({ ok: true, persisted: false, migrationPending: true });
