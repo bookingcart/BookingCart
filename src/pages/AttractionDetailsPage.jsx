@@ -9,7 +9,30 @@ export default function AttractionDetailsPage() {
   const { source, id } = useParams(); const location = useLocation();
   const [item, setItem] = useState(location.state?.attraction || null); const [status, setStatus] = useState(item ? 'ready' : 'loading');
   const [saved, setSaved] = useState(() => readAttractionState().saved.some((entry) => entry.id === `${source}:${id}`)); const [notice, setNotice] = useState('');
-  useEffect(() => { const controller = new AbortController(); fetch(`/api/attractions/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { signal: controller.signal }).then(async (r) => ({ r, data: await r.json() })).then(({ r, data }) => { if (!r.ok) throw new Error(data.error); setItem(data.attraction); setStatus('ready'); trackAttractionEvent('detail_viewed', data.attraction); }).catch((error) => { if (error.name !== 'AbortError' && !item) { setStatus('error'); setNotice(error.message); } }); return () => controller.abort(); }, [source, id]);
+  useEffect(() => {
+    const seeded = location.state?.attraction || null;
+    setItem(seeded);
+    setStatus(seeded ? 'ready' : 'loading');
+    setNotice('');
+
+    const controller = new AbortController();
+    fetch(`/api/attractions/${encodeURIComponent(source)}/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(async (r) => ({ r, data: await r.json() }))
+      .then(({ r, data }) => {
+        if (!r.ok) throw new Error(data.error);
+        setItem(data.attraction);
+        setStatus('ready');
+        trackAttractionEvent('detail_viewed', data.attraction);
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          setStatus('error');
+          setNotice(error.message);
+        }
+      });
+
+    return () => controller.abort();
+  }, [source, id]);
   if (status === 'loading') return <main className="min-h-screen bg-slate-50 pt-32 text-center dark:bg-slate-950">Loading field guide…</main>;
   if (status === 'error' || !item) return <main className="min-h-screen bg-slate-50 px-4 pt-32 text-center dark:bg-slate-950"><h1 className="text-2xl font-black">Attraction unavailable</h1><p className="mt-2 text-slate-500">{notice || 'The source did not return this place.'}</p><Link className="mt-6 inline-block rounded-xl bg-slate-900 px-5 py-3 font-bold text-white" to="/attractions/results">Search attractions</Link></main>;
   const offer = item.offers?.[0];
