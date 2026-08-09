@@ -84,23 +84,36 @@ export default function StaysCheckoutPage() {
     ]
   };
 
-  // Load selected hotel from sessionStorage (set by StaysResultsPage on click)
+  // Load selected hotel & rate from sessionStorage
   const selectedHotel = (() => {
     try { return JSON.parse(sessionStorage.getItem('stays_selected_hotel') || 'null'); } catch { return null; }
   })();
 
-  // Build a display quote from sessionStorage hotel data so the sidebar always shows correct hotel
+  const selectedRate = (() => {
+    try { return JSON.parse(sessionStorage.getItem('stays_selected_rate') || 'null'); } catch { return null; }
+  })();
+
+  // Build a display quote from sessionStorage hotel + rate data so the sidebar always shows correct hotel
   const buildQuoteFromHotel = (hotel) => {
     if (!hotel) return null;
     const acc = hotel.fullAccommodation || {};
+    // Pull tax/fee/conditions/cancellation from the stored rate (set by StaysDetailsPage)
+    const rate = selectedRate || {};
+    const taxAmount = rate.tax_amount ?? null;
+    const feeAmount = rate.fee_amount ?? null;
+    const dueAtAccommodation = rate.due_at_accommodation_amount ?? null;
+    const dueAtCurrency = rate.due_at_accommodation_currency || hotel.currency || 'USD';
+    const conditions = rate.conditions || rate.conditions_text || '';
+    const cancellationTimeline = rate.cancellation_timeline || null;
     return {
       id: quoteId,
       total_amount: hotel.price ? String(Number(hotel.price)) : '0',
-      tax_amount: null,
-      fee_amount: null,
+      tax_amount: taxAmount,
+      fee_amount: feeAmount,
       currency: hotel.currency || 'USD',
       check_in_date: hotel.checkin,
       check_out_date: hotel.checkout,
+      cancellation_timeline: cancellationTimeline,
       accommodation: {
         name: hotel.name,
         rating: hotel.rating,
@@ -111,7 +124,7 @@ export default function StaysCheckoutPage() {
         key_collection: acc.key_collection,
         check_in_information: acc.check_in_information,
       },
-      rooms: [{ name: acc.rooms?.[0]?.name || 'Standard Room', rates: [{ due_at_accommodation_amount: '0.00', due_at_accommodation_currency: hotel.currency || 'USD', conditions: '' }] }],
+      rooms: [{ name: acc.rooms?.[0]?.name || 'Standard Room', rates: [{ due_at_accommodation_amount: dueAtAccommodation, due_at_accommodation_currency: dueAtCurrency, conditions }] }],
       guests: [{ type: 'adult' }],
     };
   };
@@ -134,7 +147,30 @@ export default function StaysCheckoutPage() {
         .then(r => r.json())
         .then(data => {
           if (data.ok && data.quote) {
-            setQuote(data.quote);
+            // Merge real quote with rate data: real quote takes precedence, but fill in
+            // missing tax/fee/conditions/cancellation from the stored rate when the API
+            // doesn't break them out separately.
+            const rate = selectedRate || {};
+            const mergedQuote = {
+              ...data.quote,
+              // Fill nullish tax/fee from rate object
+              tax_amount: data.quote.tax_amount ?? rate.tax_amount ?? null,
+              fee_amount: data.quote.fee_amount ?? rate.fee_amount ?? null,
+              cancellation_timeline: data.quote.cancellation_timeline ?? rate.cancellation_timeline ?? null,
+              rooms: data.quote.rooms?.length
+                ? data.quote.rooms.map((room, ri) => ({
+                    ...room,
+                    rates: room.rates?.length
+                      ? room.rates.map((rr, rri) => ({
+                          ...rr,
+                          conditions: rr.conditions || (ri === 0 && rri === 0 ? rate.conditions : '') || '',
+                          due_at_accommodation_amount: rr.due_at_accommodation_amount ?? (ri === 0 && rri === 0 ? rate.due_at_accommodation_amount : null) ?? null,
+                        }))
+                      : [{ conditions: rate.conditions || '', due_at_accommodation_amount: rate.due_at_accommodation_amount ?? null, due_at_accommodation_currency: rate.due_at_accommodation_currency || data.quote.currency }]
+                  }))
+                : [{ name: 'Standard Room', rates: [{ conditions: rate.conditions || '', due_at_accommodation_amount: rate.due_at_accommodation_amount ?? null, due_at_accommodation_currency: rate.due_at_accommodation_currency || data.quote.currency }] }],
+            };
+            setQuote(mergedQuote);
             if (data.quote.payment_instruction_allowed) {
               setPaymentInstructionAllowed(true);
             }
@@ -175,6 +211,10 @@ export default function StaysCheckoutPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Determine if this is a pay-at-property rate (no upfront card payment needed)
+  const dueAtAccAmount = quote?.rooms?.[0]?.rates?.[0]?.due_at_accommodation_amount;
+  const isPayAtProperty = dueAtAccAmount != null && Number(dueAtAccAmount) > 0;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!firstName || !lastName || !email || !phone) {
@@ -191,11 +231,23 @@ export default function StaysCheckoutPage() {
       };
       sessionStorage.setItem('stays_booking_data', JSON.stringify(bookingData));
 
-      if (!paymentInstructionAllowed) {
+      // Save the current quote display data so the confirmation page can show
+      // full price breakdown, cancellation timeline, and rate conditions.
+      if (quote) {
+        sessionStorage.setItem('stays_checkout_quote', JSON.stringify(quote));
+      }
+
+      // Skip card tokenisation when:
+      //   a) this is a B2B payment_instruction (lodged card) flow, OR
+      //   b) this is a pay-at-property rate (guest pays on arrival), OR
+      //   c) clientKey hasn't loaded yet (avoids blocking the flow)
+      const needsCardPayment = !paymentInstructionAllowed && !isPayAtProperty && clientKey;
+
+      if (needsCardPayment) {
         setProcessingMessage('Tokenizing card...');
         const card = await createCardForTemporaryUse();
         if (!card || card.error) {
-           throw new Error(card?.error?.message || 'Invalid card details.');
+          throw new Error(card?.error?.message || 'Invalid card details.');
         }
 
         setProcessingMessage('Authenticating card with the property...');
@@ -219,6 +271,8 @@ export default function StaysCheckoutPage() {
           three_d_secure_session_id: session.id
         };
       } else {
+        // Pay-at-property / payment_instruction / no clientKey yet —
+        // the API or property will handle payment; proceed directly.
         setProcessingMessage('Confirming your stay...');
       }
 
@@ -234,7 +288,13 @@ export default function StaysCheckoutPage() {
         throw new Error(bookingJson.error || 'Failed to complete booking');
       }
 
-      sessionStorage.setItem('stays_booking_result', JSON.stringify(bookingJson.booking));
+      // Merge quote display data into the booking result for the confirmation page
+      const enrichedBooking = {
+        ...bookingJson.booking,
+        // Attach quote-level display fields if missing from booking response
+        _checkoutQuote: quote || null,
+      };
+      sessionStorage.setItem('stays_booking_result', JSON.stringify(enrichedBooking));
 
       // If payment instruction is allowed + user provided a card, trigger it
       if (paymentInstructionAllowed && lodgedCardId.trim() && bookingJson.booking?.id) {
@@ -350,25 +410,75 @@ export default function StaysCheckoutPage() {
                   </div>
 
                   <div className="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-2">
-                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Price information</h4>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Price breakdown</h4>
                     <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                      <span>Taxes</span><span>{quote.currency} {Number(quote.tax_amount || 0).toFixed(2)}</span>
+                      <span>Taxes</span>
+                      <span>
+                        {quote.tax_amount != null && Number(quote.tax_amount) > 0
+                          ? `${quote.currency} ${Number(quote.tax_amount).toFixed(2)}`
+                          : <span className="italic">Included in total</span>}
+                      </span>
                     </div>
                     <div className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                      <span>Fees</span><span>{quote.currency} {Number(quote.fee_amount || 0).toFixed(2)}</span>
+                      <span>Fees</span>
+                      <span>
+                        {quote.fee_amount != null && Number(quote.fee_amount) > 0
+                          ? `${quote.currency} ${Number(quote.fee_amount).toFixed(2)}`
+                          : <span className="italic">Included in total</span>}
+                      </span>
                     </div>
                     <div className="flex justify-between text-xs font-bold text-slate-900 dark:text-white mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                       <span>Due at accommodation</span>
-                      <span>{quote.rooms?.[0]?.rates?.[0]?.due_at_accommodation_currency || quote.currency} {Number(quote.rooms?.[0]?.rates?.[0]?.due_at_accommodation_amount || 0).toFixed(2)}</span>
+                      <span>
+                        {quote.rooms?.[0]?.rates?.[0]?.due_at_accommodation_amount != null && Number(quote.rooms[0].rates[0].due_at_accommodation_amount) > 0
+                          ? `${quote.rooms[0].rates[0].due_at_accommodation_currency || quote.currency} ${Number(quote.rooms[0].rates[0].due_at_accommodation_amount).toFixed(2)}`
+                          : <span className="font-normal italic text-slate-500">Nothing due at property</span>}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
-                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1">Hotel policy and rate condition</h4>
-                    <div className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
-                      {quote.rooms?.[0]?.rates?.[0]?.conditions || 'No cancellation conditions specified. Please contact support.'}
+                  {/* Cancellation timeline */}
+                  {quote.cancellation_timeline?.cancel_by ? (
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Cancellation</h4>
+                      <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 font-semibold mb-1">
+                        <i className="ph-fill ph-check-circle" />
+                        Free cancellation until {new Date(quote.cancellation_timeline.cancel_by).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </div>
+                      {(quote.cancellation_timeline.penalties || quote.cancellation_timeline.periods)?.map((p, i) => (
+                        <div key={i} className="text-xs text-slate-500 mt-1 ml-4">
+                          After {new Date(p.start_date || p.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}:{' '}
+                          {p.percentage != null ? `${p.percentage}% penalty` : p.amount != null ? `${quote.currency} ${Number(p.amount).toFixed(2)} penalty` : 'Penalty applies'}
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  ) : quote.rooms?.[0]?.rates?.[0]?.conditions?.toLowerCase().includes('refund') ? (
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1">Cancellation</h4>
+                      <div className="text-xs text-green-700 dark:text-green-400 font-semibold">
+                        <i className="ph-fill ph-check-circle mr-1" />
+                        Refundable — see rate conditions below for details
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1">Cancellation</h4>
+                      <div className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                        <i className="ph ph-warning-circle mr-1" />
+                        Non-refundable – no cancellation after booking
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Full rate conditions — always visible, no expand/collapse */}
+                  {quote.rooms?.[0]?.rates?.[0]?.conditions && (
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Rate conditions</h4>
+                      <div className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-slate-900 rounded p-3">
+                        {quote.rooms[0].rates[0].conditions}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -693,10 +803,10 @@ export default function StaysCheckoutPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || (!paymentInstructionAllowed && !cardValid)}
+                    disabled={loading || (!paymentInstructionAllowed && clientKey !== null && !cardValid)}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold px-8 py-3 rounded transition-colors text-sm"
                   >
-                    {loading ? 'Processing...' : 'Next: Final details'}
+                    {loading ? 'Processing...' : 'Complete Booking'}
                     {!loading && <i className="ph ph-arrow-right" />}
                   </button>
                 </div>

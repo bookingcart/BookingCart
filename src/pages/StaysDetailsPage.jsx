@@ -84,6 +84,9 @@ export default function StaysDetailsPage() {
   const [activeSection, setActiveSection] = useState('overview');
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [reviewPage, setReviewPage] = useState(null);
+  // Rate conditions and cancellation timeline from the rates API
+  const [rateConditions, setRateConditions] = useState('');
+  const [ratesCancellationTimeline, setRatesCancellationTimeline] = useState(null);
 
   const DUMMY_ACCOMMODATIONS = {
     h1: { name: 'Kimpton Clocktower Hotel', description: 'An iconic 5-star hotel in the heart of Manchester, blending historic architecture with modern luxury. Enjoy stunning city views, a world-class spa, and award-winning dining.', address: { line_one: 'Oxford Street', city: 'Manchester', country_code: 'GB' }, star_rating: 5, rating: 8.8, review_count: 5032, photos: [{ url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80' }], amenities: [{name:'Free WiFi'},{name:'Pool'},{name:'Spa'},{name:'Restaurant'},{name:'Bar'},{name:'Gym'},{name:'Parking'},{name:'Breakfast'}], check_in_information: { check_in_after_time: '3:00 PM', check_out_before_time: '11:00 AM' }, cheapest_rate_total_amount: '154', cheapest_rate_currency: '$', location: { latitude: 53.4745, longitude: -2.2415 } },
@@ -132,6 +135,28 @@ export default function StaysDetailsPage() {
         else setError('Network error loading accommodation.');
       })
       .finally(() => setLoading(false));
+
+    // Also fetch rates so we can display real rate conditions + cancellation timeline
+    const searchResultId = searchParams.get('search_result_id');
+    if (searchResultId) {
+      fetch(`/api/stays-rates?search_result_id=${encodeURIComponent(searchResultId)}`)
+        .then(r => r.json())
+        .then(data => {
+          const allRates = data.rates || [];
+          if (!allRates.length) return;
+          // Prefer a refundable rate with cancellation_timeline
+          const refundableRate = allRates.find(r =>
+            r.cancellation_timeline?.cancel_by ||
+            r.refundable === true ||
+            (r.conditions && r.conditions.toLowerCase().includes('refund'))
+          );
+          const bestRate = refundableRate || allRates[0];
+          if (bestRate.conditions) setRateConditions(bestRate.conditions);
+          if (bestRate.cancellation_timeline) setRatesCancellationTimeline(bestRate.cancellation_timeline);
+        })
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accommodationId]);
 
   // Fetch reviews
@@ -179,22 +204,33 @@ export default function StaysDetailsPage() {
       // 1. Get rates for search result
       const ratesRes = await fetch(`/api/stays-rates?search_result_id=${encodeURIComponent(searchResultId)}`);
       const ratesData = await ratesRes.json();
-      const rateId = ratesData.rates?.[0]?.id; // Pick cheapest rate
-      
-      if (!rateId) throw new Error("No rates found");
+      const allRates = ratesData.rates || [];
+
+      if (!allRates.length) throw new Error('No rates found');
+
+      // Prefer a refundable rate (has cancellation_timeline with a cancel_by date)
+      const refundableRate = allRates.find(r =>
+        r.cancellation_timeline?.cancel_by ||
+        r.refundable === true ||
+        (r.conditions && r.conditions.toLowerCase().includes('refund'))
+      );
+      const selectedRate = refundableRate || allRates[0];
+
+      // Store selected rate data so checkout page can show tax/fee/conditions/cancellation
+      sessionStorage.setItem('stays_selected_rate', JSON.stringify(selectedRate));
 
       // 2. Create quote
       const quoteRes = await fetch('/api/stays-quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rate_id: rateId })
+        body: JSON.stringify({ rate_id: selectedRate.id })
       });
       const quoteData = await quoteRes.json();
       
       if (quoteData.ok && quoteData.quote?.id) {
         navigate(`/stays/checkout?quote_id=${quoteData.quote.id}&accommodation_id=${accommodationId}`);
       } else {
-        throw new Error("Failed to create quote");
+        throw new Error('Failed to create quote');
       }
     } catch (err) {
       console.error('Booking quote error:', err);
@@ -510,31 +546,85 @@ export default function StaysDetailsPage() {
             )}
 
             {/* Policies Section */}
-            {hotel.check_in_information && (
-              <>
-                <div className="border-t border-slate-200 dark:border-slate-700 my-8" />
-                <section className="mb-12">
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Policies</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <>
+              <div className="border-t border-slate-200 dark:border-slate-700 my-8" />
+              <section className="mb-12">
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Policies</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2">Check-in / Check-out</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Check in after {hotel.check_in_information?.check_in_after_time || '3:00 PM'},
+                      check out before {hotel.check_in_information?.check_out_before_time || '12:00 PM'}
+                    </p>
+                  </div>
+                  {hotel.cancellation_timeline?.cancel_by && (
                     <div>
-                      <h3 className="font-bold text-slate-900 dark:text-white mb-2">Check-in / Check-out</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Check in after {hotel.check_in_information.check_in_after_time || '3:00 PM'},
-                        check out before {hotel.check_in_information.check_out_before_time || '12:00 PM'}
+                      <h3 className="font-bold text-slate-900 dark:text-white mb-2">Free Cancellation</h3>
+                      <p className="text-sm text-green-700 dark:text-green-400 font-semibold">
+                        <i className="ph-fill ph-check-circle mr-1" />
+                        Free cancellation until {new Date(hotel.cancellation_timeline.cancel_by).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     </div>
-                    {hotel.cancellation_timeline && (
-                      <div>
-                        <h3 className="font-bold text-slate-900 dark:text-white mb-2">Cancellation</h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          {hotel.cancellation_timeline.cancel_by ? `Free cancellation until ${new Date(hotel.cancellation_timeline.cancel_by).toLocaleDateString()}` : 'Cancellation policies vary by rate.'}
-                        </p>
-                      </div>
-                    )}
+                  )}
+                </div>
+
+                {/* Hotel description / general policy */}
+                {hotel.description && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2">About this property</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap">{hotel.description}</p>
                   </div>
-                </section>
-              </>
-            )}
+                )}
+
+                {/* Rate conditions – pulled from the API (always visible, no expand/collapse) */}
+                {(rateConditions || hotel.rate_conditions) && (
+                  <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 mb-6">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-3">Rate Conditions</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">{rateConditions || hotel.rate_conditions}</p>
+                  </div>
+                )}
+
+                {/* Cancellation timeline from rates */}
+                {ratesCancellationTimeline?.cancel_by && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800 mb-6">
+                    <h3 className="font-bold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
+                      <i className="ph-fill ph-check-circle" />
+                      Free Cancellation
+                    </h3>
+                    <p className="text-sm text-green-700 dark:text-green-400 font-semibold">
+                      Free cancellation until {new Date(ratesCancellationTimeline.cancel_by).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                    {((ratesCancellationTimeline.penalties || ratesCancellationTimeline.periods) || []).map((p, i) => (
+                      <div key={i} className="text-xs text-slate-600 dark:text-slate-400 mt-2 ml-3">
+                        <i className="ph ph-caret-right mr-1" />
+                        After {new Date(p.start_date || p.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}:{' '}
+                        {p.percentage != null ? `${p.percentage}% penalty` : p.amount != null ? `${p.amount} penalty` : 'Penalty applies'}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+
+            {/* Business Details */}
+            <>
+              <div className="border-t border-slate-200 dark:border-slate-700 my-8" />
+              <section className="mb-12">
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-4">Business Details</h2>
+                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                  <p className="font-bold text-base text-slate-900 dark:text-white">BookingCart Inc.</p>
+                  <p className="flex items-center gap-2"><i className="ph ph-map-pin text-green-600" /> 123 Travel Street, Silicon Valley, CA 94000, USA</p>
+                  <p className="flex items-center gap-2"><i className="ph ph-envelope text-green-600" /> bookingcart.business@gmail.com</p>
+                  <p className="flex items-center gap-2"><i className="ph ph-phone text-green-600" /> +1 (800) 555-0199</p>
+                  <p className="text-xs text-slate-500 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
+                    By completing a booking, you agree to our{' '}
+                    <a href="/terms" className="text-green-600 hover:underline">Terms &amp; Conditions</a>{' '}and{' '}
+                    <a href="/privacy" className="text-green-600 hover:underline">Privacy Policy</a>.
+                  </p>
+                </div>
+              </section>
+            </>
           </>
         )}
       </main>
