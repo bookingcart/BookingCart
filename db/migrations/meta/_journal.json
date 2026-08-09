@@ -8,6 +8,13 @@
       "when": 1781341128584,
       "tag": "0000_high_mandarin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786291200000,
+      "tag": "0001_global_attractions",
+      "breakpoints": true
     }
   ]
 }

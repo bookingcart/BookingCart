@@ -133,6 +133,11 @@ function getRegionFromCountry(countryCode, countryName) {
   return 'default';
 }
 
+function AttractionsHomeContent() {
+  const categories = [['ph-bank','Museums & culture','Collections, galleries, and cultural spaces'],['ph-mountains','Nature & parks','Gardens, viewpoints, and protected landscapes'],['ph-castle-turret','Landmarks','Historic sites and architectural icons'],['ph-confetti','Family & fun','Zoos, theme parks, and hands-on experiences']];
+  return <div className="bg-slate-50 py-16 dark:bg-slate-950"><section className="mx-auto max-w-7xl px-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-emerald-700">Explore with context</p><h2 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">A global field guide, not a fake ticket counter</h2><p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">Discover verified places worldwide. When a trusted partner has a bookable offer, we label it clearly and hand you over securely.</p></div><a href="/attractions/trip" className="rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">Open your trip plan</a></div><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{categories.map(([icon,title,text]) => <div key={title} className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900"><i className={`ph ${icon} text-3xl text-emerald-600`} aria-hidden="true" /><h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p></div>)}</div><div className="mt-12 grid gap-5 lg:grid-cols-3"><div className="rounded-3xl bg-emerald-900 p-7 text-white"><p className="text-xs font-bold uppercase tracking-wide text-emerald-200">01 · Discover</p><h3 className="mt-2 text-2xl font-black">Search any destination</h3><p className="mt-2 text-emerald-100">Global points of interest come from Geoapify, OpenStreetMap, and Wikimedia.</p></div><div className="rounded-3xl bg-slate-900 p-7 text-white"><p className="text-xs font-bold uppercase tracking-wide text-slate-300">02 · Plan</p><h3 className="mt-2 text-2xl font-black">Save and order your day</h3><p className="mt-2 text-slate-300">Build an itinerary with visit times and notes. A plan never pretends to be a reservation.</p></div><div className="rounded-3xl border border-slate-200 bg-white p-7 dark:border-slate-700 dark:bg-slate-900"><p className="text-xs font-bold uppercase tracking-wide text-emerald-700">03 · Book when available</p><h3 className="mt-2 text-2xl font-black dark:text-white">Follow a verified offer</h3><p className="mt-2 text-slate-500">Bookable experiences name the provider and open its secure checkout.</p></div></div></section></div>;
+}
+
 export default function HomePage() {
   const [recentSearches, setRecentSearches] = useState([]);
   const location = useLocation();
@@ -145,6 +150,16 @@ export default function HomePage() {
 
   // Attractions state
   const [attractionsQuery, setAttractionsQuery] = useState('');
+  const [attractionsSuggestions, setAttractionsSuggestions] = useState([]);
+  const [selectedAttractionsDestination, setSelectedAttractionsDestination] = useState(null);
+
+  useEffect(() => {
+    const value = attractionsQuery.trim();
+    if (value.length < 2 || value === selectedAttractionsDestination?.name) { setAttractionsSuggestions([]); return undefined; }
+    const controller = new AbortController();
+    const timer = setTimeout(() => fetch(`/api/attractions/destinations?q=${encodeURIComponent(value)}`, { signal: controller.signal }).then((response) => response.json()).then((data) => setAttractionsSuggestions(data.results || [])).catch(() => {}), 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [attractionsQuery, selectedAttractionsDestination?.name]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -715,7 +730,11 @@ export default function HomePage() {
                       onSubmit={(e) => {
                         e.preventDefault();
                         const q = attractionsQuery.trim();
-                        const url = q ? `/attractions/results?q=${encodeURIComponent(q)}` : '/attractions/results';
+                        const destination = selectedAttractionsDestination;
+                        const params = new URLSearchParams();
+                        if (q) params.set('q', q);
+                        if (destination) { params.set('destination', destination.label); params.set('lat', destination.lat); params.set('lon', destination.lon); }
+                        const url = params.toString() ? `/attractions/results?${params}` : '/attractions/results';
                         if (typeof window.__bcNavigate === 'function') window.__bcNavigate(url);
                         else window.location.href = url;
                       }}
@@ -723,16 +742,19 @@ export default function HomePage() {
                       {/* Destination */}
                       <div className="min-w-0 px-2 sm:px-3 py-1.5 border-b lg:border-b-0 lg:border-r border-slate-100/90 dark:border-slate-700/90 flex flex-row items-center gap-2">
                         <label className="w-16 sm:w-20 shrink-0 text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide leading-none" htmlFor="attractions-dest">Where to</label>
-                        <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
+                        <div className="relative flex-1 min-w-0 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-2 h-9 sm:h-10">
                           <i className="ph ph-ticket text-base text-slate-400 shrink-0" aria-hidden="true"></i>
                           <input
                             id="attractions-dest"
                             className="w-full min-w-0 bg-transparent border-none p-0 text-slate-900 dark:text-white font-semibold placeholder:text-slate-400 text-sm leading-none"
                             placeholder="City, landmark, or destination"
                             value={attractionsQuery}
-                            onChange={e => setAttractionsQuery(e.target.value)}
+                            onChange={e => { setAttractionsQuery(e.target.value); setSelectedAttractionsDestination(null); }}
                             autoComplete="off"
+                            aria-autocomplete="list"
+                            aria-expanded={attractionsSuggestions.length > 0}
                           />
+                          {attractionsSuggestions.length > 0 && <ul className="absolute left-0 right-0 top-full z-[1500] mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white text-left shadow-xl dark:border-slate-600 dark:bg-slate-800">{attractionsSuggestions.map((suggestion) => <li key={suggestion.id}><button type="button" onClick={() => { setAttractionsQuery(suggestion.name); setSelectedAttractionsDestination(suggestion); setAttractionsSuggestions([]); }} className="w-full px-4 py-3 hover:bg-emerald-50 dark:hover:bg-slate-700"><strong className="block text-sm">{suggestion.name}, {suggestion.country}</strong><span className="block truncate text-xs text-slate-400">{suggestion.label}</span></button></li>)}</ul>}
                         </div>
                       </div>
 
@@ -808,6 +830,7 @@ export default function HomePage() {
         </section>
 
 
+        {activeMode === 'attractions' ? <AttractionsHomeContent /> : <>
         {/* Recent Searches Section */}
         {recentSearches.length > 0 && (
           <section className="max-w-7xl mx-auto px-6 pt-12 pb-4 dark:bg-slate-950 transition-colors">
@@ -1362,6 +1385,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+        </>}
       <FlightFooter />
       
     </>

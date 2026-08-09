@@ -41,6 +41,17 @@ function playNotificationSound() {
   } catch(e) {}
 }
 
+function AttractionsAnalytics() {
+  const { getToken } = useAuth();
+  const [data, setData] = useState(null); const [error, setError] = useState('');
+  useEffect(() => { const token = getToken(); fetch('/api/attractions/analytics', { headers: token ? { Authorization: `Bearer ${token}` } : {} }).then(async (response) => ({ response, body: await response.json() })).then(({ response, body }) => { if (!response.ok) throw new Error(body.error); setData(body); }).catch((err) => setError(err.message)); }, [getToken]);
+  if (error) return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">{error}</div>;
+  if (!data) return <div className="rounded-2xl border border-slate-200 bg-white p-8">Loading Attractions analytics…</div>;
+  const totalResults = Number(data.totals.results_loaded || 0) + Number(data.totals.results_partial || 0); const clicks = Number(data.totals.outbound_booking_click || 0); const views = Number(data.totals.detail_viewed || 0);
+  const metrics = [['Searches', data.totals.search_submitted || 0],['Zero results', data.totals.zero_results || 0],['Partial results', data.totals.results_partial || 0],['Detail views', views],['Saved', data.totals.saved || 0],['Booking clicks', clicks],['Click-through', views ? `${Math.round(clicks / views * 100)}%` : '0%']];
+  return <section><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{metrics.map(([label,value]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p><p className="mt-1 text-3xl font-black">{value}</p></div>)}</div><div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800"><h2 className="text-lg font-black">Most engaged attractions</h2>{data.topAttractions.length ? <ol className="mt-4 divide-y divide-slate-100 dark:divide-slate-700">{data.topAttractions.map((item) => <li key={`${item.source}:${item.attraction_id}`} className="flex justify-between py-3 text-sm"><span className="truncate">{item.attraction_id || 'Unknown attraction'} <small className="text-slate-400">{item.source}</small></span><strong>{item.count}</strong></li>)}</ol> : <p className="mt-3 text-slate-500">No attraction engagement recorded yet.</p>}</div><p className="mt-3 text-xs text-slate-400">Results sessions: {totalResults}. Booking clicks are outbound handoffs, not completed purchases.</p></section>;
+}
+
 function SupportInbox() {
   const [threads, setThreads] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -658,9 +669,14 @@ export default function AdminPage() {
                     ${adminTab === 'users' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-users" /> Users
                 </button>
+                <button onClick={() => setAdminTab('attractions')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${adminTab === 'attractions' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-binoculars" /> Attractions
+                </button>
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
+              {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">

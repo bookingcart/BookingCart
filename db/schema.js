@@ -137,6 +137,26 @@ const bcPriceAlerts = pgTable(
   ]
 );
 
+const bcAttractionEvents = pgTable(
+  "bc_attraction_events",
+  {
+    id: serial("id").primaryKey(),
+    sessionHash: text("session_hash").notNull(),
+    userEmail: text("user_email"),
+    eventType: text("event_type").notNull(),
+    attractionId: text("attraction_id"),
+    source: text("source"),
+    destination: text("destination"),
+    context: jsonb("context").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_attraction_events_created").on(table.createdAt.desc()),
+    index("idx_attraction_events_type").on(table.eventType),
+    index("idx_attraction_events_attraction").on(table.attractionId),
+  ]
+);
+
 const baUser = pgTable("ba_user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -201,6 +221,7 @@ module.exports = {
   baUser,
   baVerification,
   bcAdminAudit,
+  bcAttractionEvents,
   bcBookings,
   bcPriceAlerts,
   bcSearchCache,
