@@ -43,6 +43,7 @@ const staysLocationsHandler = require('./api-routes/stays-locations');
 
 const getyourguideSearchHandler = require('./api-routes/getyourguide-search');
 const getyourguideTourHandler = require('./api-routes/getyourguide-tour');
+const attractionsHandler = require('./api-routes/attractions');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -173,6 +174,11 @@ app.get('/api/stays-locations', searchLimiter, run(staysLocationsHandler));
 // GetYourGuide routes
 app.get('/api/gyg-search', searchLimiter, run(getyourguideSearchHandler));
 app.get('/api/gyg-tour/:id', searchLimiter, run(getyourguideTourHandler));
+app.get('/api/attractions/destinations', searchLimiter, (req, res) => { req.params = { action: 'destinations' }; return attractionsHandler(req, res); });
+app.get('/api/attractions/search', searchLimiter, (req, res) => { req.params = { action: 'search' }; return attractionsHandler(req, res); });
+app.get('/api/attractions/analytics', apiLimiter, (req, res) => { req.params = { action: 'analytics' }; return attractionsHandler(req, res); });
+app.get('/api/attractions/:source/:id', searchLimiter, (req, res) => { req.params.action = 'detail'; return attractionsHandler(req, res); });
+app.post('/api/attractions/events', apiLimiter, (req, res) => { req.params = { action: 'events' }; return attractionsHandler(req, res); });
 
 // Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
 app.post('/api/auth/register', authLimiter, (req, res, next) => {

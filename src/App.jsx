@@ -1,8 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout.jsx';
 import PageLoading from './components/PageLoading.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { useAuth } from './context/AuthContext.jsx';
+import { syncAttractionState } from './lib/attractionsClient.js';
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const ResultsPage = lazy(() => import('./pages/ResultsPage.jsx'));
@@ -31,10 +33,19 @@ const AuthPage = lazy(() => import('./pages/AuthPage.jsx'));
 const FlightTrackerPage = lazy(() => import('./pages/FlightTrackerPage.jsx'));
 const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'));
 const AttractionsResultsPage = lazy(() => import('./pages/AttractionsResultsPage.jsx'));
+const AttractionDetailsPage = lazy(() => import('./pages/AttractionDetailsPage.jsx'));
+const AttractionsTripPage = lazy(() => import('./pages/AttractionsTripPage.jsx'));
+
+function AttractionStateSync() {
+  const { user, getToken } = useAuth();
+  useEffect(() => { if (user?.email) syncAttractionState(user, getToken); }, [user?.email, getToken]);
+  return null;
+}
 
 export default function App() {
   return (
     <ErrorBoundary>
+      <AttractionStateSync />
       <Suspense fallback={<PageLoading />}>
         <Routes>
         <Route element={<AppLayout />}>
@@ -72,6 +83,8 @@ export default function App() {
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/explore/:routeId" element={<ExplorePage />} />
           <Route path="/attractions/results" element={<AttractionsResultsPage />} />
+          <Route path="/attractions/trip" element={<AttractionsTripPage />} />
+          <Route path="/attractions/:source/:id" element={<AttractionDetailsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
         </Routes>
