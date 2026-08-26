@@ -341,7 +341,7 @@ export default function HomePage() {
               >
                 <i className="ph ph-airplane-tilt text-base"></i> Flights
               </button>
-              <button
+              {/* <button
                 type="button"
                 id="mode-stays-btn"
                 onClick={() => setActiveMode('stays')}
@@ -352,8 +352,8 @@ export default function HomePage() {
                 }`}
               >
                 <i className="ph ph-bed text-base"></i> Stays
-              </button>
-              <button
+              </button> */}
+              {/* <button
                 type="button"
                 id="mode-attractions-btn"
                 onClick={() => setActiveMode('attractions')}
@@ -364,7 +364,7 @@ export default function HomePage() {
                 }`}
               >
                 <i className="ph ph-ticket text-base"></i> Attractions
-              </button>
+              </button> */}
             </div>
 
             <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
