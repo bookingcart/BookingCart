@@ -107,29 +107,26 @@ export function AuthProvider({ children }) {
     return true;
   }, [refresh]);
 
-  /** Login: stores user and token, updates UI */
-  const login = useCallback(async ({ email, token, user: userData, rememberMe = false }) => {
+  /** Login: stores user and token, updates UI. Always persists across sessions. */
+  const login = useCallback(async ({ email, token, user: userData, rememberMe = true }) => {
     try {
       localStorage.removeItem(STORAGE_GOOGLE_TOKEN);
       localStorage.setItem(STORAGE_USER, JSON.stringify(userData || { email }));
       if (token) {
         localStorage.setItem(STORAGE_JWT_TOKEN, token);
       }
-      // Set expiry if not remembering
-      if (!rememberMe) {
-        localStorage.setItem(STORAGE_SESSION_ONLY, 'true');
-      } else {
-        localStorage.removeItem(STORAGE_SESSION_ONLY);
-      }
+      // Always persist login — remove any old session-only flag
+      localStorage.removeItem(STORAGE_SESSION_ONLY);
     } catch {}
     refresh();
     if (typeof window.applyAuthUI === 'function') window.applyAuthUI();
     return userData;
   }, [refresh]);
 
+
   /** Register: stores user and token, updates UI */
   const register = useCallback(async ({ email, token, user: userData }) => {
-    return login({ email, token, user: userData, rememberMe: false });
+    return login({ email, token, user: userData, rememberMe: true });
   }, [login]);
 
   /** Sign out: clears all tokens and user data, updates UI */
