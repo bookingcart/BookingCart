@@ -908,7 +908,6 @@ function GuidesPanel({ getToken }) {
           )}
         </div>
       ) : (
-      {/* Guides Table */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
