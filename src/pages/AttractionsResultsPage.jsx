@@ -7,6 +7,13 @@ const DUMMY_TOURS = [
     title: 'Louvre Museum: Skip-the-Ticket-Line Guided Tour',
     url: '#',
     image_url: 'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=500&q=80'
+    ],
+    location: 'Paris, France',
+    description: 'Discover the Louvre masterpieces with priority entry and an expert local guide.',
+    activities: ['Guided museum tour', 'Skip-the-line entry', 'Art history'],
     duration: '2 hours',
     rating: 4.8,
     review_count: 12453,
@@ -18,7 +25,11 @@ const DUMMY_TOURS = [
     id: 'd2',
     title: 'Eiffel Tower Summit Access and Seine River Cruise',
     url: '#',
-    image_url: 'https://images.unsplash.com/photo-1543305113-82a17ef9108c?auto=format&fit=crop&w=800&q=80',
+    image_url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80'],
+    location: 'Paris, France',
+    description: 'See Paris from the Eiffel Tower summit, then enjoy the city from the Seine.',
+    activities: ['Summit access', 'River cruise', 'City views'],
     duration: '3 hours',
     rating: 4.6,
     review_count: 8392,
@@ -30,7 +41,11 @@ const DUMMY_TOURS = [
     id: 'd3',
     title: 'Versailles Palace & Gardens: Full Access Ticket & Audio Guide',
     url: '#',
-    image_url: 'https://images.unsplash.com/photo-1560060087-32b5757d976d?auto=format&fit=crop&w=800&q=80',
+    image_url: 'https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=800&q=80'],
+    location: 'Versailles, France',
+    description: 'Explore the royal apartments, Hall of Mirrors, and celebrated palace gardens.',
+    activities: ['Palace entry', 'Audio guide', 'Garden visit'],
     duration: 'Half day',
     rating: 4.7,
     review_count: 5120,
@@ -43,6 +58,10 @@ const DUMMY_TOURS = [
     title: 'Montmartre Hidden Gems & Wine Tasting Experience',
     url: '#',
     image_url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80',
+    images: ['https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80'],
+    location: 'Montmartre, Paris',
+    description: 'Walk through Montmartre lanes and taste regional wines with a neighborhood host.',
+    activities: ['Walking tour', 'Wine tasting', 'Local culture'],
     duration: '2.5 hours',
     rating: 4.9,
     review_count: 1284,
@@ -197,7 +216,7 @@ export default function AttractionsResultsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {tours.map(tour => (
                 <a 
                   key={tour.id} 
@@ -206,10 +225,10 @@ export default function AttractionsResultsPage() {
                   rel="noreferrer"
                   className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-slate-200 dark:border-slate-700 transition-all group flex flex-col"
                 >
-                  <div className="relative h-48 overflow-hidden bg-slate-100">
-                    {tour.image_url ? (
+                  <div className="relative h-52 overflow-hidden bg-slate-100">
+                    {(tour.images?.[0] || tour.image_url) ? (
                       <img 
-                        src={tour.image_url} 
+                        src={tour.images?.[0] || tour.image_url}
                         alt={tour.title} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
@@ -224,16 +243,38 @@ export default function AttractionsResultsPage() {
                         <i className="ph ph-clock"></i> {tour.duration}
                       </div>
                     )}
+                    {tour.images?.length > 1 && (
+                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                        <i className="ph ph-images"></i> {tour.images.length} images
+                      </div>
+                    )}
                   </div>
                   
                   <div className="p-4 flex flex-col flex-1">
-                    <div className="text-xs font-bold text-green-600 mb-1 flex gap-1 items-center uppercase tracking-wide">
+                    <div className="text-xs font-bold text-green-600 mb-2 flex gap-1 items-center uppercase tracking-wide">
                       {tour.categories && tour.categories[0] ? tour.categories[0].name : 'Experience'}
                     </div>
                     
-                    <h3 className="font-bold text-slate-900 dark:text-white leading-snug mb-2 flex-1 group-hover:text-green-600 transition-colors line-clamp-3">
+                    <h3 className="font-bold text-slate-900 dark:text-white leading-snug mb-2 group-hover:text-green-600 transition-colors line-clamp-2">
                       {tour.title}
                     </h3>
+
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 flex items-start gap-1.5">
+                      <i className="ph-fill ph-map-pin text-green-600 mt-0.5"></i>
+                      <span>{tour.location || query || 'Location available after booking'}</span>
+                    </p>
+
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2 mb-3">
+                      {tour.description || 'Explore this attraction and discover memorable things to do during your visit.'}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 mb-4" aria-label="Activities">
+                      {(Array.isArray(tour.activities) && tour.activities.length ? tour.activities : ['Sightseeing']).slice(0, 3).map((activity) => (
+                        <span key={typeof activity === 'string' ? activity : activity.name} className="rounded-full bg-green-50 dark:bg-green-900/20 px-2.5 py-1 text-xs font-semibold text-green-700 dark:text-green-300">
+                          {typeof activity === 'string' ? activity : activity.name}
+                        </span>
+                      ))}
+                    </div>
                     
                     <div className="flex items-center gap-1.5 mb-4">
                       {renderStars(tour.rating)}

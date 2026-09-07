@@ -43,18 +43,38 @@ module.exports = async function getyourguideSearchHandler(req, res) {
     const data = await response.json();
     
     // Normalize the response to a standard format for the frontend
-    const tours = (data.data && data.data.tours) ? data.data.tours.map(tour => ({
-      id: tour.id,
-      title: tour.title,
-      url: tour.url,
-      price: tour.price ? tour.price.amount : null,
-      currency: tour.price ? tour.price.currency : null,
-      rating: tour.rating,
-      review_count: tour.reviewCount || tour.reviews_count || 0,
-      duration: tour.duration,
-      image_url: tour.image_url || tour.pictures?.[0]?.url || tour.media?.[0]?.url || '',
-      categories: tour.categories || []
-    })) : [];
+    const tours = (data.data && data.data.tours) ? data.data.tours.map(tour => {
+      const images = [
+        tour.image_url,
+        ...(tour.pictures || []).map((picture) => picture.url || picture.source_url),
+        ...(tour.media || []).map((item) => item.url || item.source_url)
+      ].filter(Boolean);
+      const location = tour.location || tour.destination || tour.locations?.[0] || {};
+      const activities = Array.isArray(tour.activities)
+        ? tour.activities
+        : Array.isArray(tour.highlights)
+          ? tour.highlights
+          : (tour.categories || []).map((category) => category.name).filter(Boolean);
+
+      return {
+        id: tour.id,
+        title: tour.title || tour.name || 'Untitled attraction',
+        url: tour.url,
+        price: tour.price ? tour.price.amount : null,
+        currency: tour.price ? tour.price.currency : currency,
+        rating: tour.rating,
+        review_count: tour.reviewCount || tour.reviews_count || 0,
+        duration: tour.duration,
+        image_url: images[0] || '',
+        images: [...new Set(images)],
+        categories: tour.categories || [],
+        activities,
+        description: tour.description || tour.abstract || tour.short_description || '',
+        location: typeof location === 'string'
+          ? location
+          : location.name || location.city || location.address || ''
+      };
+    }) : [];
 
     return res.json({
       ok: true,
