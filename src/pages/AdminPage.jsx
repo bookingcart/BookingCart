@@ -553,7 +553,7 @@ function UsersPanel() {
   );
 }
 
-function GuidesPanel() {
+function GuidesPanel({ getToken }) {
   const [guides, setGuides] = useState([]);
   const [pendingProfiles, setPendingProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -561,6 +561,11 @@ function GuidesPanel() {
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'reviews'
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(getToken ? { 'Authorization': `Bearer ${getToken()}` } : {})
+  });
 
   const loadGuides = async () => {
     setLoading(true);
@@ -579,13 +584,24 @@ function GuidesPanel() {
 
   const loadPending = async () => {
     try {
-      const res = await fetch('/api/guide-profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin-list' })
-      });
-      const data = await res.json();
-      if (data.ok) setPendingProfiles(data.profiles || []);
+      const headers = authHeaders();
+      // Fetch both pending (submitted) and draft (in-progress) profiles
+      const [resPending, resDraft] = await Promise.all([
+        fetch('/api/guide-profiles', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ action: 'admin-list', statusFilter: 'pending' })
+        }),
+        fetch('/api/guide-profiles', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ action: 'admin-list', statusFilter: 'draft' })
+        })
+      ]);
+      const [dataPending, dataDraft] = await Promise.all([resPending.json(), resDraft.json()]);
+      const pending = dataPending.ok ? (dataPending.profiles || []) : [];
+      const drafts = dataDraft.ok ? (dataDraft.profiles || []) : [];
+      setPendingProfiles([...pending, ...drafts]);
     } catch (err) {
       console.error('Failed to load pending profiles:', err);
     }
@@ -601,7 +617,7 @@ function GuidesPanel() {
     try {
       const res = await fetch('/api/guide-reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ action: 'admin-list' })
       });
       const data = await res.json();
@@ -617,7 +633,7 @@ function GuidesPanel() {
     try {
       const res = await fetch('/api/guide-reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ action: 'moderate', reviewId, status })
       });
       const data = await res.json();
@@ -643,7 +659,7 @@ function GuidesPanel() {
     try {
       const res = await fetch('/api/guides', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ action: 'status', guideId, status: newStatus })
       });
       const data = await res.json();
@@ -680,7 +696,7 @@ function GuidesPanel() {
     try {
       const res = await fetch('/api/guide-profiles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ action: 'admin-review', profileId, status, note })
       });
       const data = await res.json();
@@ -763,45 +779,82 @@ function GuidesPanel() {
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                   <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Applicant</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
                   <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Completeness</th>
-                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Submitted</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Registered</th>
                   <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {pendingProfiles.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="py-8 text-center text-slate-400">No profiles pending review.</td>
+                    <td colSpan="5" className="py-12 text-center text-slate-400">
+                      <i className="ph ph-user-plus text-3xl block mb-2" />
+                      No guide registrations found.
+                    </td>
                   </tr>
                 ) : (
                   pendingProfiles.map(p => {
                     const personal = p.step_personal || {};
+                    const categories = p.step_categories || {};
+                    const catList = Array.isArray(categories.selected) ? categories.selected : [];
+                    const statusColors = {
+                      pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+                      draft: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+                      approved: 'bg-green-100 text-green-700',
+                      rejected: 'bg-red-100 text-red-600',
+                      revision: 'bg-purple-100 text-purple-700',
+                    };
                     return (
-                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={personal.photo || 'https://via.placeholder.com/40'} alt="" className="w-10 h-10 rounded-full object-cover" />
+                            {personal.photo ? (
+                              <img src={personal.photo} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                                {(personal.fullName || p.email || '?')[0].toUpperCase()}
+                              </div>
+                            )}
                             <div>
-                              <p className="font-bold text-slate-900 dark:text-slate-100">{personal.fullName || p.email}</p>
+                              <p className="font-bold text-slate-900 dark:text-slate-100">{personal.fullName || '(No name yet)'}</p>
                               <p className="text-xs text-slate-500">{p.email}</p>
+                              {catList.length > 0 && (
+                                <p className="text-xs text-slate-400 mt-0.5">{catList.slice(0, 2).join(', ')}{catList.length > 2 ? ` +${catList.length - 2}` : ''}</p>
+                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${statusColors[p.status] || statusColors.draft}`}>
+                            {p.status === 'pending' ? '⏳ Awaiting Review' : p.status === 'draft' ? '✏️ In Progress' : p.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-amber-500" style={{ width: `${p.completeness || 0}%` }} />
+                            <div className="w-20 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${(p.completeness || 0) >= 80 ? 'bg-emerald-500' : (p.completeness || 0) >= 50 ? 'bg-amber-500' : 'bg-rose-400'}`}
+                                style={{ width: `${p.completeness || 0}%` }}
+                              />
                             </div>
                             <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{p.completeness || 0}%</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-xs text-slate-500">
-                          {new Date(p.updated_at || Date.now()).toLocaleDateString()}
+                          {new Date(p.created_at || p.updated_at || Date.now()).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
-                          <button onClick={() => handleProfileReview(p.id, 'rejected')} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold">Reject</button>
-                          <button onClick={() => handleProfileReview(p.id, 'revision')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">Revision</button>
-                          <button onClick={() => handleProfileReview(p.id, 'approved')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">Approve</button>
+                          {p.status === 'pending' && (
+                            <>
+                              <button onClick={() => handleProfileReview(p.id, 'rejected')} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-colors">Reject</button>
+                              <button onClick={() => handleProfileReview(p.id, 'revision')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold transition-colors">Revision</button>
+                              <button onClick={() => handleProfileReview(p.id, 'approved')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors">✓ Approve</button>
+                            </>
+                          )}
+                          {p.status === 'draft' && (
+                            <span className="text-xs text-slate-400 italic">Awaiting submission</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -961,7 +1014,7 @@ export default function AdminPage() {
   useLegacyScripts(SCRIPTS, 'admin');
   const [adminTab, setAdminTab] = useState('bookings');
   
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
   const isAdmin = user && adminEmails.includes(user.email.toLowerCase());
 
@@ -1069,7 +1122,7 @@ export default function AdminPage() {
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
-              {adminTab === 'guides' && <GuidesPanel />}
+              {adminTab === 'guides' && <GuidesPanel getToken={getToken} />}
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">
