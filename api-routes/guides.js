@@ -417,23 +417,6 @@ module.exports = async (req, res) => {
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
         `);
-        const countRes = await query('SELECT COUNT(*) FROM bc_guides');
-        if (parseInt(countRes.rows[0].count) === 0) {
-          for (const g of SEED_GUIDES) {
-            await query(`
-              INSERT INTO bc_guides (slug, name, photo, country, city, years_exp, verified, rating, review_count,
-                categories, skills, languages, areas, certifications, gallery, reviews, pricing, trust_indicators,
-                demand_level, status, availability, created_at, updated_at)
-              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW())
-              ON CONFLICT (slug) DO NOTHING`,
-              [g.slug, g.name, g.photo, g.country, g.city, g.yearsExp, g.verified, g.rating, g.reviewCount,
-               JSON.stringify(g.categories), JSON.stringify(g.skills), JSON.stringify(g.languages),
-               JSON.stringify(g.areas), JSON.stringify(g.certifications), JSON.stringify(g.gallery),
-               JSON.stringify(g.reviews), JSON.stringify(g.pricing), JSON.stringify(g.trustIndicators),
-               g.demandLevel, g.status, JSON.stringify(g.availability)]
-            );
-          }
-        }
         dbReady = true;
       }
     } catch (err) {
@@ -441,9 +424,8 @@ module.exports = async (req, res) => {
       if (!global.__guides) global.__guides = [];
     }
 
-    // Seed in-memory store if empty
-    if (!dbReady && (!global.__guides || global.__guides.length === 0)) {
-      global.__guides = SEED_GUIDES.map((g, i) => ({ ...g, id: i + 1, createdAt: new Date().toISOString() }));
+    if (!dbReady && !global.__guides) {
+      global.__guides = [];
     }
 
     // ── GET /api/guides or /api/guides/:id ──────────────────────────────────
@@ -527,6 +509,23 @@ module.exports = async (req, res) => {
       return res.json({ ok: true, seeded: SEED_GUIDES.length });
     }
 
+    if (action === 'clear-demo' || action === 'clear-all') {
+      const demoSlugs = SEED_GUIDES.map(g => g.slug);
+      if (dbReady) {
+        if (action === 'clear-all') {
+          await query('TRUNCATE bc_guides');
+        } else {
+          await query('DELETE FROM bc_guides WHERE slug = ANY($1)', [demoSlugs]);
+        }
+      }
+      if (action === 'clear-all') {
+        global.__guides = [];
+      } else {
+        global.__guides = (global.__guides || []).filter(g => !demoSlugs.includes(g.slug));
+      }
+      return res.json({ ok: true, cleared: true });
+    }
+
     // ── Admin-only mutations ──────────────────────────────────────────────
     const gate = await requireAdminEmail(req);
     if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
@@ -540,6 +539,18 @@ module.exports = async (req, res) => {
         if (idx > -1) global.__guides[idx].status = status;
       }
       return res.json({ ok: true });
+    }
+
+    if (action === 'toggle-verified') {
+      if (!id) return res.status(400).json({ ok: false, error: 'Missing id' });
+      const isVerified = req.body.verified !== undefined ? Boolean(req.body.verified) : true;
+      if (dbReady) {
+        await query('UPDATE bc_guides SET verified = $1, updated_at = NOW() WHERE id = $2', [isVerified, id]);
+      } else {
+        const idx = (global.__guides || []).findIndex(g => String(g.id) === String(id));
+        if (idx > -1) global.__guides[idx].verified = isVerified;
+      }
+      return res.json({ ok: true, verified: isVerified });
     }
 
     if (action === 'update' && guide) {

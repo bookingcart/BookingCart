@@ -188,9 +188,15 @@ export default function TourGuideProfilePage() {
             <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating).toFixed(1)}</span>
             <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount} reviews</span>
           </div>
-          <span className="flex items-center gap-1.5">
-            <i className="ph-fill ph-seal-check text-green-500 text-base" /> Superguide
-          </span>
+          {guide.verified ? (
+            <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Verified Badge Awarded by Admin">
+              <i className="ph-fill ph-seal-check text-emerald-500 text-base" /> Verified by Admin
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-slate-500 text-xs">
+              <i className="ph ph-shield-check text-base" /> Standard Guide
+            </span>
+          )}
           <span className="flex items-center gap-1.5 underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">
             <i className="ph ph-map-pin text-base" /> {guide.city}, {guide.country}
           </span>
@@ -230,8 +236,9 @@ export default function TourGuideProfilePage() {
           {/* Overview / Host Info */}
           <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-8">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                 Guided by {guide.name.split(' ')[0]}
+                {guide.verified && <i className="ph-fill ph-seal-check text-emerald-500 text-xl" title="Verified by Admin" />}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 font-medium">
                 {guide.yearsExp} years experience · {guide.categories?.join(', ')}
@@ -242,8 +249,20 @@ export default function TourGuideProfilePage() {
 
           {/* Highlights */}
           <div className="border-b border-slate-200 dark:border-slate-800 pb-8 space-y-5">
+            {guide.verified && (
+              <div className="flex gap-4">
+                <i className="ph-fill ph-seal-check text-2xl text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Verified by Admin
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full">Awarded</span>
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">Identity, professional credentials, licenses, and tour experience officially verified by BookingCart administrators.</p>
+                </div>
+              </div>
+            )}
             <div className="flex gap-4">
-              <i className="ph ph-medal text-2xl text-slate-900 dark:text-white" />
+              <i className="ph ph-medal text-2xl text-slate-900 dark:text-white shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white">Top-rated guide</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">Highly rated for knowledge and storytelling.</p>

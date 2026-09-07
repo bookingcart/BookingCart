@@ -51,8 +51,8 @@ export default function GuideCard({ guide, matchScore, matchReasons }) {
         {/* Top Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2 items-start">
           {guide.verified && (
-            <span className="inline-flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-full shadow-sm backdrop-blur-md">
-              <i className="ph-fill ph-seal-check text-green-500 text-sm" /> Verified
+            <span className="inline-flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1.5 rounded-full shadow-md backdrop-blur-md border border-emerald-500/30" title="Verified Badge Awarded by Admin">
+              <i className="ph-fill ph-seal-check text-emerald-500 text-sm" /> Verified by Admin
             </span>
           )}
         </div>

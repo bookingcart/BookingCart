@@ -672,6 +672,23 @@ function GuidesPanel({ getToken }) {
     }
   };
 
+  const handleToggleVerified = async (guideId, currentVerified) => {
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'toggle-verified', id: guideId, verified: !currentVerified })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Verification badge ${!currentVerified ? 'awarded to' : 'revoked from'} guide #${guideId}`);
+        setGuides(prev => prev.map(g => (String(g.id) === String(guideId) ? { ...g, verified: !currentVerified } : g)));
+      }
+    } catch (err) {
+      console.error('Failed to toggle verification badge:', err);
+    }
+  };
+
   const handleSeed = async () => {
     setLoading(true);
     try {
@@ -687,6 +704,27 @@ function GuidesPanel({ getToken }) {
       }
     } catch (err) {
       console.error('Failed to seed guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearDemo = async () => {
+    if (!window.confirm('Are you sure you want to remove all demo guides?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear-demo' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg('Demo guides cleared successfully!');
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to clear demo guides:', err);
     } finally {
       setLoading(false);
     }
@@ -736,13 +774,22 @@ function GuidesPanel({ getToken }) {
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Demo Data</div>
             <div className="text-xs text-slate-500">Seed sample guides</div>
           </div>
-          <button
-            onClick={handleSeed}
-            disabled={loading}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
-          >
-            Seed Guides
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleClearDemo}
+              disabled={loading}
+              className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 font-bold text-xs rounded-xl transition-colors"
+            >
+              Clear Demo
+            </button>
+            <button
+              onClick={handleSeed}
+              disabled={loading}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
+            >
+              Seed Guides
+            </button>
+          </div>
         </div>
       </div>
 
@@ -942,9 +989,15 @@ function GuidesPanel({ getToken }) {
                           className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                         />
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
                             {g.name}
-                            {g.verified && <i className="ph-fill ph-seal-check text-emerald-500 text-sm"></i>}
+                            {g.verified ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" title="Verified Badge Awarded by Admin">
+                                <i className="ph-fill ph-seal-check text-emerald-500 text-xs"></i> Verified by Admin
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic">Unverified</span>
+                            )}
                           </div>
                           <div className="text-xs text-slate-500">{g.yearsExp || 5}+ years experience</div>
                         </div>
@@ -972,6 +1025,23 @@ function GuidesPanel({ getToken }) {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
+                      {g.verified ? (
+                        <button
+                          onClick={() => handleToggleVerified(g.id, true)}
+                          className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                          title="Revoke Verification Badge awarded by Admin"
+                        >
+                          <i className="ph-fill ph-seal-check text-emerald-500"></i> Revoke Badge
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleVerified(g.id, false)}
+                          className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                          title="Award Verification Badge to Guide"
+                        >
+                          <i className="ph-bold ph-seal-check text-emerald-600"></i> Award Badge
+                        </button>
+                      )}
                       {g.status === 'active' ? (
                         <button
                           onClick={() => handleStatusChange(g.id, 'suspended')}
