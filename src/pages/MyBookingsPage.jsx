@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
 import { FlightFooter } from '../components/FlightFooter.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS_BADGE = {
   confirmed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-600',
   pending: 'bg-amber-100 text-amber-700',
+  pending_traveler_confirmation: 'bg-blue-100 text-blue-700',
+  completed: 'bg-purple-100 text-purple-700'
 };
 
 function StaysBookingCard({ booking, onCancel }) {
@@ -82,13 +85,113 @@ function StaysBookingCard({ booking, onCancel }) {
   );
 }
 
+function GuideBookingCard({ booking, onCancel, onConfirm }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const statusKey = (booking.status || 'pending').toLowerCase();
+  
+  const isCompleted = statusKey === 'completed'; 
+  const isPendingTraveler = statusKey === 'pending_traveler_confirmation';
+  const isCancelable = statusKey === 'pending' || statusKey === 'confirmed';
+
+  const handleCancel = async () => {
+    if (!window.confirm('Are you sure you want to cancel this booking? Cancellation policies will apply.')) return;
+    setLoading(true);
+    await onCancel(booking.ref);
+    setLoading(false);
+  };
+
+  const handleConfirm = async () => {
+    if (!window.confirm('Did the tour happen successfully? Your payment will be released to the guide.')) return;
+    setLoading(true);
+    await onConfirm(booking.ref);
+    setLoading(false);
+  };
+  
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+          <i className="ph ph-compass text-amber-600 text-xl" />
+        </div>
+        <div>
+          <div className="font-bold text-slate-900 dark:text-slate-100 text-base">Tour Guide Booking</div>
+          <div className="text-xs text-slate-500 mt-0.5">Ref: {booking.ref}</div>
+          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+              <i className="ph ph-calendar-blank" />
+              {booking.startDate} → {booking.endDate}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+              <i className="ph ph-users" />
+              {booking.guests} Guest{booking.guests !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex flex-col items-end shrink-0 gap-3 mt-4 md:mt-0">
+        <div className="text-right">
+          <div className="font-black text-slate-900 dark:text-white text-lg">${booking.total}</div>
+          <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${STATUS_BADGE[statusKey] || STATUS_BADGE.pending}`}>
+            {statusKey.replace(/_/g, ' ')}
+          </span>
+        </div>
+        {isCancelable && (
+          <button 
+            onClick={handleCancel}
+            disabled={loading}
+            className="text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50 flex items-center gap-1"
+          >
+            <i className="ph ph-x-circle" /> {loading ? 'Cancelling...' : 'Cancel booking'}
+          </button>
+        )}
+        {isPendingTraveler && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-bold text-blue-600">Did your tour take place?</p>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleConfirm}
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Yes
+              </button>
+              <button 
+                className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                onClick={() => alert('Please contact support@bookingcart.com to report an issue.')}
+              >
+                Report Issue
+              </button>
+            </div>
+          </div>
+        )}
+        {isCompleted && (
+          <button 
+            onClick={() => navigate(`/tour-guides/review/${booking.ref}`)}
+            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+          >
+            Leave Review
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MyBookingsPage() {
+  const { user, getToken } = useAuth();
   const [activeTab, setActiveTab] = useState('flights');
   const [flightEmail, setFlightEmail] = useState('');
   const [staysBookings, setStaysBookings] = useState([]);
   const [staysLoading, setStaysLoading] = useState(false);
   const [staysError, setStaysError] = useState('');
   const [staysFetched, setStaysFetched] = useState(false);
+
+  const [guidesBookings, setGuidesBookings] = useState([]);
+  const [guidesLoading, setGuidesLoading] = useState(false);
+  const [guidesError, setGuidesError] = useState('');
+  const [guidesFetched, setGuidesFetched] = useState(false);
 
   useEffect(() => {
     document.title = 'My Bookings | BookingCart';
@@ -114,8 +217,74 @@ export default function MyBookingsPage() {
     }
   }, [activeTab, staysFetched]);
 
+  // Load guide bookings
+  useEffect(() => {
+    if (activeTab === 'guides' && !guidesFetched) {
+      if (!user) {
+        setGuidesError('Please sign in to view your tour guide bookings.');
+        return;
+      }
+      setGuidesLoading(true);
+      setGuidesError('');
+      fetch('/api/guide-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify({ action: 'lookup', email: user.email })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            setGuidesBookings(data.bookings || []);
+          } else {
+            setGuidesError(data.error || 'Failed to load guide bookings.');
+          }
+          setGuidesFetched(true);
+        })
+        .catch(() => setGuidesError('Network error loading bookings.'))
+        .finally(() => setGuidesLoading(false));
+    }
+  }, [activeTab, guidesFetched, user, getToken]);
+
   const handleCancelStay = (id) => {
     setStaysBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
+  };
+
+  const handleGuideCancel = async (ref) => {
+    try {
+      const res = await fetch('/api/guide-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', ref })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`Booking cancelled. You received a ${data.refundPercent}% refund.`);
+        setGuidesBookings(prev => prev.map(b => b.ref === ref ? { ...b, status: 'cancelled' } : b));
+      } else {
+        alert(data.error || 'Failed to cancel');
+      }
+    } catch {
+      alert('Network error');
+    }
+  };
+
+  const handleGuideConfirm = async (ref) => {
+    try {
+      const res = await fetch('/api/guide-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'traveler-confirm', ref })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`Tour confirmed! The payment has been released to your guide.`);
+        setGuidesBookings(prev => prev.map(b => b.ref === ref ? { ...b, status: 'completed' } : b));
+      } else {
+        alert(data.error || 'Failed to confirm');
+      }
+    } catch {
+      alert('Network error');
+    }
   };
 
   return (
@@ -150,6 +319,12 @@ export default function MyBookingsPage() {
               >
                 <i className="ph ph-buildings text-lg" /> Hotel Stays
               </button>
+              <button
+                onClick={() => setActiveTab('guides')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'guides' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+              >
+                <i className="ph ph-compass text-lg" /> Tour Guides
+              </button>
               <div className="border-t border-slate-100 dark:border-slate-700 my-2 mx-3" />
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Account</div>
               <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
@@ -179,6 +354,12 @@ export default function MyBookingsPage() {
                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stays' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
               >
                 <i className="ph ph-buildings mr-1" /> Hotels
+              </button>
+              <button
+                onClick={() => setActiveTab('guides')}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'guides' ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+              >
+                <i className="ph ph-compass mr-1" /> Guides
               </button>
             </div>
           </div>
@@ -259,6 +440,49 @@ export default function MyBookingsPage() {
                 <div className="space-y-4">
                   {staysBookings.map(booking => (
                     <StaysBookingCard key={booking.id} booking={booking} onCancel={handleCancelStay} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── GUIDES TAB ─── */}
+          {activeTab === 'guides' && (
+            <div>
+              {guidesLoading && (
+                <div className="flex items-center justify-center py-20 text-slate-400">
+                  <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mr-3" />
+                  Loading guide bookings…
+                </div>
+              )}
+
+              {!guidesLoading && guidesError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
+                  <i className="ph ph-warning text-3xl text-red-400 mb-2 block" />
+                  <p className="text-red-600 font-medium">{guidesError}</p>
+                  <button onClick={() => { if(user) setGuidesFetched(false); else navigate('/auth'); }} className="mt-3 text-sm font-bold text-amber-600 hover:underline">
+                    {user ? 'Retry' : 'Sign In'}
+                  </button>
+                </div>
+              )}
+
+              {!guidesLoading && !guidesError && guidesBookings.length === 0 && (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                    <i className="ph ph-compass text-3xl text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300 mb-1">No tour guide bookings found</h3>
+                  <p className="text-sm text-slate-400 mb-6">Your local experiences will appear here.</p>
+                  <a href="/tour-guides" className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-sm shadow-amber-500/20">
+                    <i className="ph ph-magnifying-glass" /> Find a Guide
+                  </a>
+                </div>
+              )}
+
+              {!guidesLoading && guidesBookings.length > 0 && (
+                <div className="space-y-4">
+                  {guidesBookings.map(booking => (
+                    <GuideBookingCard key={booking.ref} booking={booking} onCancel={handleGuideCancel} onConfirm={handleGuideConfirm} />
                   ))}
                 </div>
               )}

@@ -327,7 +327,7 @@ export default function HomePage() {
               {activeMode === 'stays' ? 'Hotels, apartments & more — all in one place.' : activeMode === 'attractions' ? 'Tours, experiences & things to do worldwide.' : 'Affordable Flights, Premium Service.'}
             </p>
 
-            {/* Flights / Stays / Attractions mode switcher */}
+            {/* Flights / Tour Guides / Stays mode switcher */}
             <div className="inline-flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1">
               <button
                 type="button"
@@ -341,30 +341,20 @@ export default function HomePage() {
               >
                 <i className="ph ph-airplane-tilt text-base"></i> Flights
               </button>
-              {/* <button
-                type="button"
+              <a
+                href="/tour-guides"
+                id="mode-guides-btn"
+                className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
+              >
+                <i className="ph ph-compass text-base text-green-600"></i> Tour Guides
+              </a>
+              <a
+                href="/stays"
                 id="mode-stays-btn"
-                onClick={() => setActiveMode('stays')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                  activeMode === 'stays'
-                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                }`}
+                className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
               >
-                <i className="ph ph-bed text-base"></i> Stays
-              </button> */}
-              {/* <button
-                type="button"
-                id="mode-attractions-btn"
-                onClick={() => setActiveMode('attractions')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                  activeMode === 'attractions'
-                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                }`}
-              >
-                <i className="ph ph-ticket text-base"></i> Attractions
-              </button> */}
+                <i className="ph ph-bed text-base text-blue-600"></i> Stays
+              </a>
             </div>
 
             <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">

@@ -31,6 +31,13 @@ const AuthPage = lazy(() => import('./pages/AuthPage.jsx'));
 const FlightTrackerPage = lazy(() => import('./pages/FlightTrackerPage.jsx'));
 const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'));
 const AttractionsResultsPage = lazy(() => import('./pages/AttractionsResultsPage.jsx'));
+const TourGuidesPage = lazy(() => import('./pages/TourGuidesPage.jsx'));
+const TourGuideProfilePage = lazy(() => import('./pages/TourGuideProfilePage.jsx'));
+const TourGuideCheckoutPage = lazy(() => import('./pages/TourGuideCheckoutPage.jsx'));
+const TourGuideConfirmationPage = lazy(() => import('./pages/TourGuideConfirmationPage.jsx'));
+const GuideOnboardingPage = lazy(() => import('./pages/GuideOnboardingPage.jsx'));
+const GuideReviewFormPage = lazy(() => import('./pages/GuideReviewFormPage.jsx'));
+const GuideDashboardPage = lazy(() => import('./pages/GuideDashboardPage.jsx'));
 
 export default function App() {
   return (
@@ -55,6 +62,14 @@ export default function App() {
           <Route path="/stays/checkout" element={<StaysCheckoutPage />} />
           <Route path="/stays/confirmation" element={<StaysConfirmationPage />} />
           <Route path="/events" element={<EventsPage />} />
+          <Route path="/tour-guides" element={<TourGuidesPage />} />
+          <Route path="/tour-guides/checkout" element={<TourGuideCheckoutPage />} />
+          <Route path="/tour-guides/confirmation" element={<TourGuideConfirmationPage />} />
+          <Route path="/tour-guides/review/:bookingRef" element={<GuideReviewFormPage />} />
+          <Route path="/tour-guides/:guideId" element={<TourGuideProfilePage />} />
+          <Route path="/become-a-guide" element={<GuideOnboardingPage />} />
+          <Route path="/become-a-guide/:step" element={<GuideOnboardingPage />} />
+          <Route path="/guide-dashboard" element={<GuideDashboardPage />} />
           <Route path="/visa" element={<Navigate to="/visa/new" replace />} />
           <Route path="/visa/new" element={<VisaNewPage />} />
           <Route path="/visa/dashboard" element={<VisaDashboardPage />} />

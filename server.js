@@ -43,6 +43,11 @@ const staysLocationsHandler = require('./api-routes/stays-locations');
 
 const getyourguideSearchHandler = require('./api-routes/getyourguide-search');
 const getyourguideTourHandler = require('./api-routes/getyourguide-tour');
+const guidesHandler = require('./api-routes/guides');
+const guideBookingsHandler = require('./api-routes/guide-bookings');
+const guideProfilesHandler = require('./api-routes/guide-profiles');
+const guideReviewsHandler = require('./api-routes/guide-reviews');
+const guideWalletsHandler = require('./api-routes/guide-wallets');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -173,6 +178,17 @@ app.get('/api/stays-locations', searchLimiter, run(staysLocationsHandler));
 // GetYourGuide routes
 app.get('/api/gyg-search', searchLimiter, run(getyourguideSearchHandler));
 app.get('/api/gyg-tour/:id', searchLimiter, run(getyourguideTourHandler));
+
+// Tour Guide routes
+app.all('/api/guides', apiLimiter, run(guidesHandler));
+app.get('/api/guides/:id', apiLimiter, run((req, res) => {
+  req.query = { ...req.query, id: req.params.id };
+  return guidesHandler(req, res);
+}));
+app.all('/api/guide-bookings', apiLimiter, run(guideBookingsHandler));
+app.all('/api/guide-profiles', apiLimiter, run(guideProfilesHandler));
+app.all('/api/guide-reviews', apiLimiter, run(guideReviewsHandler));
+app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
 
 // Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
 app.post('/api/auth/register', authLimiter, (req, res, next) => {

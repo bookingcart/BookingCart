@@ -195,6 +195,64 @@ const baVerification = pgTable(
   (table) => [index("idx_ba_verification_identifier").on(table.identifier)]
 );
 
+const bcGuides = pgTable(
+  "bc_guides",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    photo: text("photo").default(""),
+    country: text("country").default(""),
+    city: text("city").default(""),
+    yearsExp: integer("years_exp").default(0),
+    verified: boolean("verified").default(false),
+    rating: numeric("rating", { precision: 3, scale: 2 }).default("0"),
+    reviewCount: integer("review_count").default(0),
+    categories: jsonb("categories").default([]).notNull(),
+    skills: jsonb("skills").default([]).notNull(),
+    languages: jsonb("languages").default([]).notNull(),
+    areas: jsonb("areas").default({}).notNull(),
+    certifications: jsonb("certifications").default([]).notNull(),
+    gallery: jsonb("gallery").default([]).notNull(),
+    reviews: jsonb("reviews").default([]).notNull(),
+    pricing: jsonb("pricing").default({}).notNull(),
+    trustIndicators: jsonb("trust_indicators").default({}).notNull(),
+    demandLevel: text("demand_level").default("moderate"),
+    status: text("status").default("active"),
+    availability: jsonb("availability").default({}).notNull(),
+    ...nullableTimestamps,
+  },
+  (table) => [
+    index("idx_guides_slug").on(table.slug),
+    index("idx_guides_status").on(table.status),
+    index("idx_guides_country").on(table.country),
+  ]
+);
+
+const bcGuideBookings = pgTable(
+  "bc_guide_bookings",
+  {
+    id: serial("id").primaryKey(),
+    ref: text("ref").notNull().unique(),
+    guideId: text("guide_id").notNull(),
+    contactEmail: text("contact_email").default(""),
+    status: text("status").default("pending"),
+    startDate: text("start_date").default(""),
+    endDate: text("end_date").default(""),
+    guests: integer("guests").default(1),
+    total: numeric("total", { precision: 12, scale: 2 }).default("0"),
+    contact: jsonb("contact").default({}).notNull(),
+    payment: jsonb("payment"),
+    ...nullableTimestamps,
+  },
+  (table) => [
+    index("idx_guide_bookings_ref").on(table.ref),
+    index("idx_guide_bookings_guide_id").on(table.guideId),
+    index("idx_guide_bookings_email").on(table.contactEmail),
+    index("idx_guide_bookings_created").on(table.createdAt.desc()),
+  ]
+);
+
 module.exports = {
   baAccount,
   baSession,
@@ -202,6 +260,8 @@ module.exports = {
   baVerification,
   bcAdminAudit,
   bcBookings,
+  bcGuideBookings,
+  bcGuides,
   bcPriceAlerts,
   bcSearchCache,
   bcSupport,

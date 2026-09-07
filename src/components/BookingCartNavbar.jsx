@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /**
  * BookingCartNavbar
@@ -10,6 +11,8 @@ import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
  */
 export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
+  const isGuide = user?.role === 'guide' || user?.role === 'guide_applicant';
 
   const navItems = [];
 
@@ -72,6 +75,16 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               <span>Support</span>
             </a>
 
+            {!isGuide && activeNav === 'guides' && (
+              <a
+                href="/become-a-guide"
+                className="flex h-10 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-sm font-bold text-white transition-colors shadow-sm shadow-amber-500/25"
+              >
+                <i className="ph ph-compass text-base" />
+                <span>Become a Guide</span>
+              </a>
+            )}
+
             {rightSlot}
             <HeaderAuthCluster />
           </div>
@@ -125,6 +138,16 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <i className="ph ph-rocket-launch text-base" />
                 Get Started
               </a>
+              {!isGuide && activeNav === 'guides' && (
+                <a
+                  href="/become-a-guide"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white transition-colors hover:bg-amber-600 shadow-sm shadow-amber-500/25"
+                >
+                  <i className="ph ph-compass text-base" />
+                  Become a Guide
+                </a>
+              )}
             </nav>
           </div>
         )}

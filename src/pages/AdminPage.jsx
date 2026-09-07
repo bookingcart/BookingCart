@@ -553,6 +553,409 @@ function UsersPanel() {
   );
 }
 
+function GuidesPanel() {
+  const [guides, setGuides] = useState([]);
+  const [pendingProfiles, setPendingProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'reviews'
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  const loadGuides = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides');
+      const data = await res.json();
+      if (data.success && data.guides) {
+        setGuides(data.guides);
+      }
+    } catch (err) {
+      console.error('Failed to load guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPending = async () => {
+    try {
+      const res = await fetch('/api/guide-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin-list' })
+      });
+      const data = await res.json();
+      if (data.ok) setPendingProfiles(data.profiles || []);
+    } catch (err) {
+      console.error('Failed to load pending profiles:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadGuides();
+    loadPending();
+  }, []);
+
+  const loadReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await fetch('/api/guide-reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin-list' })
+      });
+      const data = await res.json();
+      if (data.ok) setReviews(data.reviews || []);
+    } catch (err) {
+      console.error('Failed to load reviews:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleModerateReview = async (reviewId, status) => {
+    try {
+      const res = await fetch('/api/guide-reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'moderate', reviewId, status })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Review ${status}`);
+        if (status === 'deleted') {
+          setReviews(prev => prev.filter(r => r.id !== reviewId));
+        } else {
+          setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, status } : r));
+        }
+      }
+    } catch (err) {
+      console.error('Moderation error:', err);
+    }
+  };
+
+  // Load reviews when tab becomes active
+  useEffect(() => {
+    if (activeTab === 'reviews') loadReviews();
+  }, [activeTab]);
+
+  const handleStatusChange = async (guideId, newStatus) => {
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status', guideId, status: newStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(`Updated status for guide #${guideId} to ${newStatus}`);
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to update guide status:', err);
+    }
+  };
+
+  const handleSeed = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'seed' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg('Demo guides seeded successfully!');
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to seed guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileReview = async (profileId, status, note = '') => {
+    try {
+      const res = await fetch('/api/guide-profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin-review', profileId, status, note })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Profile marked as ${status}`);
+        loadPending();
+        if (status === 'approved') loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to review profile:', err);
+    }
+  };
+
+  const activeCount = guides.filter(g => g.status === 'active').length;
+
+  return (
+    <div className="space-y-6">
+      {actionMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm flex justify-between items-center">
+          <span>{actionMsg}</span>
+          <button onClick={() => setActionMsg('')} className="text-emerald-400 hover:text-white">&times;</button>
+        </div>
+      )}
+
+      {/* Stats Header */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Guides</div>
+          <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">{guides.length}</div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-emerald-200 dark:border-emerald-800 p-5">
+          <div className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">Active Guides</div>
+          <div className="text-2xl font-extrabold text-emerald-600">{activeCount}</div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Demo Data</div>
+            <div className="text-xs text-slate-500">Seed sample guides</div>
+          </div>
+          <button
+            onClick={handleSeed}
+            disabled={loading}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
+          >
+            Seed Guides
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-px">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'all' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+        >
+          Active Guides
+        </button>
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'pending' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+        >
+          Pending Review
+          {pendingProfiles.length > 0 && (
+            <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 px-1.5 py-0.5 rounded text-xs font-black">
+              {pendingProfiles.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'reviews' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+        >
+          Review Moderation
+        </button>
+      </div>
+
+      {activeTab === 'pending' ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Applicant</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Completeness</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Submitted</th>
+                  <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {pendingProfiles.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="py-8 text-center text-slate-400">No profiles pending review.</td>
+                  </tr>
+                ) : (
+                  pendingProfiles.map(p => {
+                    const personal = p.step_personal || {};
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <img src={personal.photo || 'https://via.placeholder.com/40'} alt="" className="w-10 h-10 rounded-full object-cover" />
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-slate-100">{personal.fullName || p.email}</p>
+                              <p className="text-xs text-slate-500">{p.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-500" style={{ width: `${p.completeness || 0}%` }} />
+                            </div>
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{p.completeness || 0}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-slate-500">
+                          {new Date(p.updated_at || Date.now()).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button onClick={() => handleProfileReview(p.id, 'rejected')} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold">Reject</button>
+                          <button onClick={() => handleProfileReview(p.id, 'revision')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">Revision</button>
+                          <button onClick={() => handleProfileReview(p.id, 'approved')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">Approve</button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeTab === 'reviews' ? (
+        /* Review Moderation Tab */
+        <div className="space-y-4">
+          {reviewsLoading ? (
+            <div className="text-center py-10 text-slate-400">Loading reviews…</div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400">
+              <i className="ph ph-chat-circle text-3xl mb-2 block" />
+              No reviews to moderate.
+            </div>
+          ) : (
+            reviews.map(r => (
+              <div key={r.id} className={`bg-white dark:bg-slate-800 rounded-2xl border p-5 shadow-sm ${
+                r.status === 'hidden' ? 'border-slate-300 dark:border-slate-600 opacity-60' : 'border-slate-200 dark:border-slate-700'
+              }`}>
+                <div className="flex justify-between items-start flex-wrap gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-bold text-slate-900 dark:text-white">{r.authorName}</p>
+                      <span className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded capitalize">{r.status}</span>
+                      <span className="text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">✓ Verified Booking</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-2">Guide: {r.guideId} · {new Date(r.createdAt).toLocaleDateString()}</p>
+                    <div className="flex gap-0.5 mb-2">
+                      {Array.from({length: 5}).map((_,i) => <i key={i} className={`ph${r.rating > i ? '-fill' : ''} ph-star text-amber-400`} />)}
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-3">{r.text}</p>
+                    {r.tags?.length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {r.tags.map(t => <span key={t} className="text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded">{t}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center shrink-0">
+                    <button onClick={() => handleModerateReview(r.id, 'approved')} disabled={r.status === 'approved'} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white rounded-lg text-xs font-bold">Approve</button>
+                    <button onClick={() => handleModerateReview(r.id, 'hidden')} disabled={r.status === 'hidden'} className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-40 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold">Hide</button>
+                    <button onClick={() => { if(window.confirm('Permanently delete this review?')) handleModerateReview(r.id, 'deleted'); }} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:hover:bg-rose-900/30 dark:text-rose-400 rounded-lg text-xs font-bold">Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+      {/* Guides Table */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Guide</th>
+                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Location</th>
+                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Rating</th>
+                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
+                <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-slate-400">Loading tour guides...</td>
+                </tr>
+              ) : guides.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-slate-400">
+                    No tour guides found. Click <strong>Seed Guides</strong> to populate sample profiles.
+                  </td>
+                </tr>
+              ) : (
+                guides.map((g) => (
+                  <tr key={g.id || g.slug} className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={g.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'}
+                          alt={g.name}
+                          className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                            {g.name}
+                            {g.verified && <i className="ph-fill ph-seal-check text-emerald-500 text-sm"></i>}
+                          </div>
+                          <div className="text-xs text-slate-500">{g.yearsExp || 5}+ years experience</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      {g.city}{g.city && g.country ? ', ' : ''}{g.country}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                        <i className="ph-fill ph-star text-amber-400"></i>
+                        <span>{g.rating || '4.9'}</span>
+                        <span className="text-xs text-slate-400 font-normal">({g.reviewCount || 0})</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          g.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
+                        }`}
+                      >
+                        {g.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      {g.status === 'active' ? (
+                        <button
+                          onClick={() => handleStatusChange(g.id, 'suspended')}
+                          className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Suspend
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStatusChange(g.id, 'active')}
+                          className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      <a
+                        href={`/tour-guides/${g.id || g.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors inline-block"
+                      >
+                        View Profile
+                      </a>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   useEffect(() => { document.title = 'BookingCart — Admin'; }, []);
   useLegacyScripts(SCRIPTS, 'admin');
@@ -658,9 +1061,15 @@ export default function AdminPage() {
                     ${adminTab === 'users' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-users" /> Users
                 </button>
+                <button onClick={() => setAdminTab('guides')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'guides' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-compass" /> Tour Guides
+                </button>
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
+              {adminTab === 'guides' && <GuidesPanel />}
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">

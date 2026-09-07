@@ -23,6 +23,7 @@ export default function AppLayout() {
   /* Derive which nav item to highlight */
   let activeNav = 'flights';
   if (pathname.startsWith('/stays')) activeNav = 'stays';
+  else if (pathname.startsWith('/tour-guides')) activeNav = 'guides';
   else if (
     pathname.startsWith('/my-bookings') ||
     pathname.startsWith('/booking-details')
