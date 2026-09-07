@@ -572,7 +572,7 @@ function GuidesPanel({ getToken }) {
     try {
       const res = await fetch('/api/guides');
       const data = await res.json();
-      if (data.success && data.guides) {
+      if (data.ok && data.guides) {
         setGuides(data.guides);
       }
     } catch (err) {
@@ -660,10 +660,10 @@ function GuidesPanel({ getToken }) {
       const res = await fetch('/api/guides', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ action: 'status', guideId, status: newStatus })
+        body: JSON.stringify({ action: 'status', id: guideId, status: newStatus })
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.ok) {
         setActionMsg(`Updated status for guide #${guideId} to ${newStatus}`);
         loadGuides();
       }
@@ -681,8 +681,8 @@ function GuidesPanel({ getToken }) {
         body: JSON.stringify({ action: 'seed' })
       });
       const data = await res.json();
-      if (data.success) {
-        setActionMsg('Demo guides seeded successfully!');
+      if (data.ok || data.seeded) {
+        setActionMsg(`Demo guides seeded successfully! (${data.seeded || 0} guides)`);
         loadGuides();
       }
     } catch (err) {
