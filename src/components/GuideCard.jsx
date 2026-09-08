@@ -39,7 +39,7 @@ export default function GuideCard({ guide, matchScore, matchReasons }) {
       {/* ── Photo Section ── */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
         <img
-          src={guide.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
+          src={guide.photo || (Array.isArray(guide.gallery) && (guide.gallery[0]?.url || guide.gallery[0])) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
           alt={guide.name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"

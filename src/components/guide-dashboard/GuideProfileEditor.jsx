@@ -167,7 +167,7 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
 
             <div className="flex items-center gap-6 pb-4 border-b border-slate-100 dark:border-slate-800">
               <img
-                src={personal.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
+                src={personal.photo || (Array.isArray(gallery) && (gallery[0]?.url || gallery[0])) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                 alt="Profile"
                 className="w-20 h-20 rounded-full object-cover border-2 border-emerald-500 shadow-md shrink-0"
               />

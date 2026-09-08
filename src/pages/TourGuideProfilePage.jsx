@@ -162,8 +162,8 @@ export default function TourGuideProfilePage() {
 
   // Gallery processing
   const photos = guide.gallery || [];
-  const mainPhoto = photos[0] || guide.photo || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
-  const smallPhotos = photos.slice(1, 5);
+  const mainPhoto = guide.photo || photos[0] || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
+  const smallPhotos = photos.filter(p => (p.url || p) !== mainPhoto).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 pt-6 pb-20 px-4 sm:px-6">
@@ -244,7 +244,7 @@ export default function TourGuideProfilePage() {
                 {guide.yearsExp} years experience · {guide.categories?.join(', ')}
               </p>
             </div>
-            <img src={guide.photo} alt={guide.name} className="w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg" />
+            <img src={guide.photo || mainPhoto} alt={guide.name} className="w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg" />
           </div>
 
           {/* Highlights */}

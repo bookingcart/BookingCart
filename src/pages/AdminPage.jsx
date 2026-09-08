@@ -1079,7 +1079,7 @@ function GuidesPanel({ getToken }) {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={g.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'}
+                          src={g.photo || (Array.isArray(g.gallery) && (g.gallery[0]?.url || g.gallery[0])) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'}
                           alt={g.name}
                           className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                         />

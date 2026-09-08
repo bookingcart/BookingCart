@@ -13,7 +13,7 @@ import NotificationBell from './NotificationBell.jsx';
 export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
-  const isGuide = user?.role === 'guide' || user?.role === 'guide_applicant';
+  const isGuide = user?.role === 'guide' || user?.role === 'guide_applicant' || !!user?.isGuide;
 
   const navItems = [];
 

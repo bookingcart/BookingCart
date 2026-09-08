@@ -648,7 +648,7 @@ export default function GuideDashboardPage() {
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 shadow-sm space-y-6">
               <div className="flex items-center gap-4">
                 <img
-                  src={profile?.step_personal?.photo || profile?.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
+                  src={profile?.step_personal?.photo || profile?.photo || (Array.isArray(profile?.step_gallery) && (profile.step_gallery[0]?.url || profile.step_gallery[0])) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
                   alt="Guide Profile"
                   className="w-20 h-20 rounded-full object-cover border-2 border-emerald-500 shadow-md"
                 />

@@ -109,7 +109,8 @@ app.all('/api/better-auth/*', betterAuthLimiter, (req, res, next) =>
   Promise.resolve(betterAuthHandler(req, res)).catch(next)
 );
 
-app.use(express.json({ limit: '512kb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

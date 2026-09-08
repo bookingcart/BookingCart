@@ -118,26 +118,82 @@ module.exports = async (req, res) => {
       email: auth.email,
       name: String(auth.payload?.name || auth.payload?.given_name || '').trim(),
       picture: String(auth.payload?.picture || '').trim(),
+      role: 'traveler',
+      isGuide: false,
     };
 
+    let dbReady = false;
     try {
       if (isDbConfigured()) {
         await initDb();
-        const result = await query('SELECT email, name, profile FROM bc_users WHERE email = $1', [auth.email]);
+        dbReady = true;
+
+        const result = await query('SELECT id, email, name, role, profile FROM bc_users WHERE email = $1', [auth.email]);
         if (result.rows.length > 0) {
           const row = result.rows[0];
           const profile = row.profile && typeof row.profile === 'object' ? row.profile : {};
-          user = {
-            email: row.email,
-            name: row.name || profile.name || user.name || row.email,
-            picture: profile.avatar || profile.picture || user.picture || '',
-          };
+          user.id = row.id;
+          user.email = row.email;
+          user.name = row.name || profile.name || user.name || row.email;
+          user.picture = profile.avatar || profile.picture || user.picture || '';
+          user.role = row.role || 'traveler';
         }
       }
     } catch (err) {
       if (process.env.NODE_ENV === 'production') {
         return res.status(503).json({ ok: false, error: 'Database is not configured (DATABASE_URL)' });
       }
+    }
+
+    // Look up guide records to unify account role across Google / Email sign ins
+    // Matching is done strictly by email to avoid false positives from name/slug guessing
+    try {
+      if (dbReady) {
+        const gp = await query('SELECT id, status FROM bc_guide_profiles WHERE email = $1 ORDER BY created_at DESC LIMIT 1', [auth.email]);
+        if (gp.rows.length > 0) {
+          user.isGuide = true;
+          user.guideProfileId = gp.rows[0].id;
+          if (user.role === 'traveler') user.role = 'guide_applicant';
+        }
+        // Match bc_guides strictly by email column to prevent phantom duplicate account creation
+        const g = await query('SELECT id, verified FROM bc_guides WHERE email = $1 LIMIT 1', [auth.email]);
+        if (g.rows.length > 0) {
+          user.isGuide = true;
+          user.guideId = g.rows[0].id;
+          user.role = 'guide';
+        }
+      } else {
+        const memUsers = global.__bc_auth_users;
+        if (memUsers && memUsers.has(auth.email)) {
+          const u = memUsers.get(auth.email);
+          if (u.role) user.role = u.role;
+        }
+        const memProfiles = global.__bc_guide_profiles;
+        if (memProfiles) {
+          for (const [, p] of memProfiles) {
+            if (p.email === auth.email) {
+              user.isGuide = true;
+              user.guideProfileId = p.id;
+              if (user.role === 'traveler') user.role = 'guide_applicant';
+              break;
+            }
+          }
+        }
+        if (global.__guides) {
+          const g = global.__guides.find(x => x.email === auth.email);
+          if (g) {
+            user.isGuide = true;
+            user.guideId = g.id;
+            user.role = 'guide';
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Guide role resolution warning:', err.message);
+    }
+
+    if (user.role === 'guide' || user.role === 'guide_applicant') {
+      user.isGuide = true;
     }
 
     return res.json({
@@ -201,10 +257,17 @@ module.exports = async (req, res) => {
     const now = new Date();
 
     if (dbReady) {
-      // Check for duplicate
+      // Check for duplicate email
       const existing = await query('SELECT id FROM bc_users WHERE email = $1', [email]);
       if (existing.rows.length > 0) {
         return res.status(409).json({ ok: false, error: 'An account with this email already exists.' });
+      }
+      // Check for duplicate display name (case-insensitive)
+      if (name) {
+        const existingName = await query('SELECT id FROM bc_users WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))', [name]);
+        if (existingName.rows.length > 0) {
+          return res.status(409).json({ ok: false, error: 'An account with this name already exists. Please use a different name.' });
+        }
       }
       const result = await query(
         `INSERT INTO bc_users (email, name, password_hash, auth_method, profile, state, created_at, updated_at)
@@ -227,6 +290,14 @@ module.exports = async (req, res) => {
       const store = getMemStore();
       if (store.has(email)) {
         return res.status(409).json({ ok: false, error: 'An account with this email already exists.' });
+      }
+      // Check duplicate name in-memory
+      if (name) {
+        for (const [, u] of store) {
+          if (String(u.name || '').toLowerCase().trim() === name.toLowerCase().trim()) {
+            return res.status(409).json({ ok: false, error: 'An account with this name already exists. Please use a different name.' });
+          }
+        }
       }
       const id = `mem_${Date.now()}`;
       store.set(email, { id, email, name, passwordHash: hash, createdAt: now });

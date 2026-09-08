@@ -125,8 +125,8 @@ function profileToGuide(profile) {
 
   return {
     slug,
-    name: personal.fullName || profile.email,
-    photo: personal.photo || '',
+    name: personal.fullName || personal.name || profile.email,
+    photo: personal.photo || profile.photo || (Array.isArray(gallery) && (typeof gallery[0] === 'string' ? gallery[0] : gallery[0]?.url)) || '',
     country: areas.country || '',
     city: personal.city || '',
     bio: personal.bio || '',
@@ -144,7 +144,7 @@ function profileToGuide(profile) {
       attractions: Array.isArray(areas.attractions) ? areas.attractions : [],
     },
     certifications: certs.map(c => `${c.name || ''} – ${c.org || ''}`).filter(Boolean),
-    gallery: Array.isArray(gallery) ? gallery.filter(u => u && u.url).map(u => u.url) : [],
+    gallery: Array.isArray(gallery) ? gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [],
     reviews: [],
     pricing: {
       perDay: parseFloat(pricing.perDay || 0),
@@ -362,6 +362,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Name, email, and password are required.' });
     }
     const emailLower = email.toLowerCase().trim();
+    const nameTrimmed = String(fullName).trim();
 
     const count = await getRegistrationCount(dbReady);
     const freeLimit = 200;
@@ -373,51 +374,65 @@ module.exports = async (req, res) => {
     let userId = null;
 
     if (dbReady) {
-      // Check for existing user
+      // ── Duplicate email check: if they already have ANY guide profile, tell them to log in ──
+      const existingGuideProfile = await query(
+        `SELECT id FROM bc_guide_profiles WHERE email = $1 LIMIT 1`, [emailLower]
+      );
+      if (existingGuideProfile.rows.length > 0) {
+        return res.status(409).json({
+          ok: false,
+          error: 'A guide account with this email already exists. Please log in instead.'
+        });
+      }
+
+      // ── Duplicate name check: no two guides may share the same display name ──
+      const duplicateName = await query(
+        `SELECT id FROM bc_guide_profiles
+         WHERE LOWER(TRIM((step_personal->>'fullName'))) = LOWER(TRIM($1))
+         LIMIT 1`,
+        [nameTrimmed]
+      );
+      if (duplicateName.rows.length > 0) {
+        return res.status(409).json({
+          ok: false,
+          error: 'A guide with this name already exists. Please use a different name (e.g. add a middle name or initial).'
+        });
+      }
+
+      // Check for existing user account (they may have signed up as a traveler first)
       const existing = await query('SELECT id FROM bc_users WHERE email = $1', [emailLower]);
       if (existing.rows.length > 0) {
         userId = existing.rows[0].id;
-        await query(`UPDATE bc_users SET role = 'guide_applicant', phone = $1, updated_at = NOW() WHERE id = $2`, [phone || '', userId]);
+        await query(`UPDATE bc_users SET name = $1, role = 'guide_applicant', phone = $2, updated_at = NOW() WHERE id = $3`, [nameTrimmed, phone || '', userId]);
       } else {
         const r = await query(
           `INSERT INTO bc_users (email, name, phone, password_hash, auth_method, role, profile, state, created_at, updated_at)
            VALUES ($1,$2,$3,$4,'email','guide_applicant',$5,$6,NOW(),NOW()) RETURNING id`,
-          [emailLower, fullName, phone || '', hash,
-           JSON.stringify({ email: emailLower, name: fullName }),
-           JSON.stringify({ name: fullName, email: emailLower, signedUpAt: new Date().toISOString() })]
+          [emailLower, nameTrimmed, phone || '', hash,
+           JSON.stringify({ email: emailLower, name: nameTrimmed }),
+           JSON.stringify({ name: nameTrimmed, email: emailLower, signedUpAt: new Date().toISOString() })]
         );
         userId = r.rows[0].id;
       }
 
-      // Check for existing draft
-      const existingDraft = await query(
-        `SELECT id FROM bc_guide_profiles WHERE email = $1 AND status = 'draft' LIMIT 1`, [emailLower]
-      );
+      // Insert brand-new draft profile (duplicate check above ensures this is fresh)
       let profileId;
-      if (existingDraft.rows.length > 0) {
-        profileId = existingDraft.rows[0].id;
-        await query(
-          `UPDATE bc_guide_profiles SET registration_fee_paid = $1, registration_fee_type = $2, updated_at = NOW() WHERE id = $3`,
-          [regFeePaid, regFeeType, profileId]
-        );
-      } else {
-        const pr = await query(
-          `INSERT INTO bc_guide_profiles (user_id, email, step_personal, current_step, status, registration_fee_paid, registration_fee_type, created_at, updated_at)
-           VALUES ($1, $2, $3, 1, 'draft', $4, $5, NOW(), NOW()) RETURNING id`,
-          [userId, emailLower, JSON.stringify({ fullName, phone, email: emailLower }), regFeePaid, regFeeType]
-        );
-        profileId = pr.rows[0].id;
-      }
+      const pr = await query(
+        `INSERT INTO bc_guide_profiles (user_id, email, step_personal, current_step, status, registration_fee_paid, registration_fee_type, created_at, updated_at)
+         VALUES ($1, $2, $3, 1, 'draft', $4, $5, NOW(), NOW()) RETURNING id`,
+        [userId, emailLower, JSON.stringify({ fullName: nameTrimmed, phone, email: emailLower }), regFeePaid, regFeeType]
+      );
+      profileId = pr.rows[0].id;
 
       const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: fullName, role: 'guide_applicant' },
+        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'guide_applicant' },
         { expiresIn: '30d' }
       );
       return res.status(201).json({
         ok: true,
         token,
         profileId,
-        user: { email: emailLower, name: fullName },
+        user: { email: emailLower, name: nameTrimmed },
         registrationFeePaid: regFeePaid,
         registrationFeeType: regFeeType,
         guideCount: count,
@@ -427,21 +442,45 @@ module.exports = async (req, res) => {
     } else {
       // In-memory fallback
       const memUsers = getMemUsers();
+      const store = getMemProfiles();
+
+      // ── Duplicate email check (in-memory) ──
+      for (const [, p] of store) {
+        if (p.email === emailLower) {
+          return res.status(409).json({
+            ok: false,
+            error: 'A guide account with this email already exists. Please log in instead.'
+          });
+        }
+      }
+
+      // ── Duplicate name check (in-memory) ──
+      for (const [, p] of store) {
+        const existingName = String((p.step_personal && p.step_personal.fullName) || '').toLowerCase().trim();
+        if (existingName && existingName === nameTrimmed.toLowerCase()) {
+          return res.status(409).json({
+            ok: false,
+            error: 'A guide with this name already exists. Please use a different name (e.g. add a middle name or initial).'
+          });
+        }
+      }
+
       let memUser = memUsers.get(emailLower);
       if (memUser) {
         userId = memUser.id;
+        memUser.role = 'guide_applicant';
+        memUser.name = nameTrimmed;
       } else {
         userId = nextMemId('u');
-        memUser = { id: userId, email: emailLower, name: fullName, phone: phone || '', passwordHash: hash, role: 'guide_applicant' };
+        memUser = { id: userId, email: emailLower, name: nameTrimmed, phone: phone || '', passwordHash: hash, role: 'guide_applicant' };
         memUsers.set(emailLower, memUser);
       }
       const profileId = nextMemId('gp');
-      const store = getMemProfiles();
       store.set(profileId, {
         id: profileId, user_id: userId, email: emailLower, status: 'draft', current_step: 1,
         registration_fee_paid: regFeePaid, registration_fee_type: regFeeType,
         verification_fee_paid: false, verification_status: 'unrequested',
-        step_personal: { fullName, phone, email: emailLower },
+        step_personal: { fullName: nameTrimmed, phone, email: emailLower },
         step_categories: {}, step_areas: {}, step_languages: {}, step_skills: {},
         step_certifications: [], step_experience: {}, step_pricing: {}, step_gallery: [],
         step_availability: {}, step_booking_settings: {}, completeness: 0,
@@ -481,10 +520,10 @@ module.exports = async (req, res) => {
       const colData = JSON.stringify(Array.isArray(data) ? data : data);
       let targetId = profileId;
       if (!targetId) {
-        const r = await query(`SELECT id FROM bc_guide_profiles WHERE email = $1 AND status = 'draft' ORDER BY created_at DESC LIMIT 1`, [auth.email]);
+        const r = await query(`SELECT id FROM bc_guide_profiles WHERE email = $1 ORDER BY created_at DESC LIMIT 1`, [auth.email]);
         targetId = r.rows.length ? r.rows[0].id : null;
       }
-      if (!targetId) return res.status(404).json({ ok: false, error: 'Draft profile not found. Please restart registration.' });
+      if (!targetId) return res.status(404).json({ ok: false, error: 'Profile not found. Please restart registration.' });
 
       await query(
         `UPDATE bc_guide_profiles SET ${stepKey} = $1, current_step = $2, updated_at = NOW() WHERE id = $3`,
@@ -499,10 +538,10 @@ module.exports = async (req, res) => {
         profile = store.get(profileId);
       } else {
         for (const [, p] of store) {
-          if (p.email === auth.email && p.status === 'draft') { profile = p; break; }
+          if (p.email === auth.email) { profile = p; break; }
         }
       }
-      if (!profile) return res.status(404).json({ ok: false, error: 'Draft profile not found.' });
+      if (!profile) return res.status(404).json({ ok: false, error: 'Profile not found.' });
       profile[stepKey] = data;
       profile.current_step = currentStep || profile.current_step;
       profile.updated_at = new Date().toISOString();
@@ -518,7 +557,25 @@ module.exports = async (req, res) => {
       fullProfile.completeness = completeness;
     }
 
-    return res.json({ ok: true, completeness });
+    // Also update photo & name in bc_guides if already published
+    if (fullProfile) {
+      const personal = fullProfile.step_personal || {};
+      const newPhoto = personal.photo || fullProfile.photo || '';
+      const newName = personal.fullName || personal.name || fullProfile.email;
+      if (newPhoto) {
+        if (dbReady) {
+          await query(`UPDATE bc_guides SET photo = $1, name = $2, updated_at = NOW() WHERE slug LIKE $3 OR name = $4`, [newPhoto, newName, `guide-%`, newName]).catch(() => {});
+        } else if (global.__guides) {
+          const gIdx = global.__guides.findIndex(g => g.email === fullProfile.email || g.name === newName);
+          if (gIdx >= 0) {
+            global.__guides[gIdx].photo = newPhoto;
+            global.__guides[gIdx].name = newName;
+          }
+        }
+      }
+    }
+
+    return res.json({ ok: true, completeness, profile: fullProfile });
   }
 
   // ── SUBMIT — transition draft to pending ──────────────────────────────────

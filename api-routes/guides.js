@@ -382,6 +382,22 @@ function rowToGuide(row) {
   };
 }
 
+/**
+ * Deduplicates a list of guides by name (case-insensitive, trimmed).
+ * When duplicates exist, the first encountered entry is kept.
+ * This hides existing DB duplicates on every list response until the
+ * admin runs the 'dedupe' action to permanently remove them.
+ */
+function dedupeByName(guides) {
+  const seen = new Set();
+  return guides.filter(g => {
+    const key = String(g.name || '').toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // ─── Main handler ────────────────────────────────────────────────────────────
 module.exports = async (req, res) => {
   applyCors(req, res);
@@ -426,6 +442,9 @@ module.exports = async (req, res) => {
           ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
           ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT true;
           ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'approved';
+        `).catch(() => {});
+        await query(`
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
         `).catch(() => {});
         dbReady = true;
       }
@@ -499,7 +518,7 @@ module.exports = async (req, res) => {
           .slice(off, off + lim);
       }
 
-      return res.json({ ok: true, guides, total: guides.length });
+      return res.json({ ok: true, guides: dedupeByName(guides), total: dedupeByName(guides).length });
     }
 
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
@@ -555,18 +574,20 @@ module.exports = async (req, res) => {
         for (const p of profilesRes.rows) {
           const personal = p.step_personal || {};
           const areas = p.step_areas || {};
-          const name = personal.fullName || p.email;
+          const name = personal.fullName || personal.name || p.email;
           const slug = `guide-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+          const galleryArr = Array.isArray(p.step_gallery) ? p.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [];
+          const photo = personal.photo || p.photo || galleryArr[0] || '';
           await query(`
-            INSERT INTO bc_guides (slug, name, photo, country, city, years_exp, verified, rating, review_count,
+            INSERT INTO bc_guides (slug, name, email, photo, country, city, years_exp, verified, rating, review_count,
               categories, skills, languages, areas, certifications, gallery, reviews, pricing, trust_indicators,
               demand_level, status, availability, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW())
-            ON CONFLICT (slug) DO UPDATE SET name=EXCLUDED.name, status=EXCLUDED.status, updated_at=NOW()`,
-            [slug, name, personal.photo || '', areas.country || 'Uganda', personal.city || '', 5, true, 4.9, 0,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
+            ON CONFLICT (slug) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, photo=EXCLUDED.photo, status='active', updated_at=NOW()`,
+            [slug, name, p.email || '', photo, areas.country || 'Uganda', personal.city || '', 5, true, 4.9, 0,
              JSON.stringify(p.step_categories?.selected || []), JSON.stringify(p.step_skills?.selected || []),
              JSON.stringify(p.step_languages?.list || []), JSON.stringify(areas), JSON.stringify(p.step_certifications || []),
-             JSON.stringify(p.step_gallery || []), JSON.stringify([]), JSON.stringify(p.step_pricing || {}),
+             JSON.stringify(galleryArr), JSON.stringify([]), JSON.stringify(p.step_pricing || {}),
              JSON.stringify({}), 'moderate', p.status === 'approved' ? 'active' : 'pending', JSON.stringify(p.step_availability || {})]
           );
           syncedCount++;
@@ -578,15 +599,17 @@ module.exports = async (req, res) => {
           for (const [, p] of memStore) {
             const personal = p.step_personal || {};
             const areas = p.step_areas || {};
-            const name = personal.fullName || p.email;
+            const name = personal.fullName || personal.name || p.email;
             const slug = `guide-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
             const idx = global.__guides.findIndex(g => g.slug === slug || g.email === p.email);
+            const galleryArr = Array.isArray(p.step_gallery) ? p.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [];
+            const photo = personal.photo || p.photo || galleryArr[0] || (global.__guides[idx] && global.__guides[idx].photo) || '';
             const realGuide = {
               id: idx >= 0 ? global.__guides[idx].id : Date.now() + Math.floor(Math.random() * 1000),
               slug,
               name,
               email: p.email,
-              photo: personal.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80',
+              photo,
               country: areas.country || 'Uganda',
               city: personal.city || 'Kampala',
               yearsExp: parseInt(p.step_experience?.yearsExp || 5),
@@ -598,7 +621,7 @@ module.exports = async (req, res) => {
               languages: Array.isArray(p.step_languages?.list) ? p.step_languages.list : [{ lang: 'English', proficiency: 'Native' }],
               areas: areas,
               certifications: p.step_certifications || [],
-              gallery: p.step_gallery || [],
+              gallery: galleryArr,
               reviews: [],
               pricing: p.step_pricing || { perDay: 150 },
               trustIndicators: {},
@@ -615,6 +638,44 @@ module.exports = async (req, res) => {
       return res.json({ ok: true, syncedCount });
     }
 
+    // ── Deduplicate existing guide rows by name ─────────────────────────────
+    if (action === 'dedupe') {
+      const gate = await requireAdminEmail(req);
+      if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
+
+      let removed = 0;
+      if (dbReady) {
+        // For each duplicated name, keep the row with the MAX id and delete the rest
+        const dupes = await query(`
+          SELECT LOWER(TRIM(name)) as lname, COUNT(*) as cnt, MAX(id) as keep_id
+          FROM bc_guides
+          GROUP BY LOWER(TRIM(name))
+          HAVING COUNT(*) > 1
+        `);
+        for (const row of dupes.rows) {
+          const del = await query(
+            `DELETE FROM bc_guides WHERE LOWER(TRIM(name)) = $1 AND id != $2`,
+            [row.lname, row.keep_id]
+          );
+          removed += del.rowCount || 0;
+        }
+      } else {
+        // In-memory: deduplicate global.__guides by name
+        const seen = new Map();
+        const deduped = [];
+        for (const g of (global.__guides || [])) {
+          const key = String(g.name || '').toLowerCase().trim();
+          if (!seen.has(key)) {
+            seen.set(key, true);
+            deduped.push(g);
+          } else {
+            removed++;
+          }
+        }
+        global.__guides = deduped;
+      }
+      return res.json({ ok: true, removed });
+    }
     // ── Admin-only mutations ──────────────────────────────────────────────
     const gate = await requireAdminEmail(req);
     if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });

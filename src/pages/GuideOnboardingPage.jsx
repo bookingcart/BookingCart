@@ -98,7 +98,7 @@ function PhotoUploader({ value, onChange, label = 'Profile Photo' }) {
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('Photo must be less than 2MB'); return; }
+    if (file.size > 20 * 1024 * 1024) { alert('Photo must be less than 20MB'); return; }
     const reader = new FileReader();
     reader.onloadend = () => onChange(reader.result);
     reader.readAsDataURL(file);
@@ -120,7 +120,7 @@ function PhotoUploader({ value, onChange, label = 'Profile Photo' }) {
           <div className="text-center px-4">
             <i className="ph ph-camera-plus text-4xl text-slate-300 dark:text-slate-600 mb-2 block" />
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Click to upload {label}</p>
-            <p className="text-xs text-slate-400 mt-1">JPG or PNG, max 2MB</p>
+            <p className="text-xs text-slate-400 mt-1">JPG or PNG, max 20MB</p>
           </div>
         )}
       </div>
