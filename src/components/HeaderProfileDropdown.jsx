@@ -17,7 +17,7 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
 
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
   const isAdmin = user && adminEmails.includes(user.email?.toLowerCase());
-  const isGuide = user && (user.isGuide || user.role === 'guide' || user.role === 'guide_applicant');
+  const isGuide = !!user && (user.isGuide || user.role === 'guide' || user.role === 'guide_applicant' || !!user.guideId || !!user.guideProfileId);
 
   useEffect(() => {
     function onDocClick(e) {
@@ -66,26 +66,29 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
       <div
         data-profile-menu
         role="menu"
-        className={`absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-slate-100 dark:ring-slate-700 py-2 z-50 transition-colors duration-200${open ? '' : ' hidden'}`}
+        className={`absolute right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-slate-100 dark:ring-slate-700 py-2 z-50 transition-colors duration-200${open ? '' : ' hidden'}`}
       >
+        {isGuide && (
+          <a
+            href="/guide-dashboard"
+            role="menuitem"
+            className="flex items-center justify-between px-5 py-3 text-sm font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border-b border-emerald-100 dark:border-emerald-800/40 transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <span className="flex items-center gap-2.5">
+              <i className="ph ph-squares-four text-xl text-emerald-600"></i> Guide Dashboard
+            </span>
+            <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-emerald-200 text-emerald-900 dark:bg-emerald-800 dark:text-emerald-100 rounded">Guide</span>
+          </a>
+        )}
         <a
           href="/account-settings"
           role="menuitem"
           className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
           onClick={() => setOpen(false)}
         >
-          <i className="ph ph-user-circle text-xl text-slate-400"></i> My Account
+          <i className="ph ph-user-circle text-xl text-slate-400"></i> Member Account
         </a>
-        {isGuide && (
-          <a
-            href="/guide-dashboard"
-            role="menuitem"
-            className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-            onClick={() => setOpen(false)}
-          >
-            <i className="ph ph-squares-four text-xl text-emerald-600"></i> Guide Dashboard
-          </a>
-        )}
         {isAdmin && (
           <a
             href="/admin"
