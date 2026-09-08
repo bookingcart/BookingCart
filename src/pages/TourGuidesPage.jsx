@@ -86,12 +86,7 @@ export default function TourGuidesPage() {
       try {
         let res = await fetch('/api/guides');
         let data = await res.json();
-        if (data.ok && data.guides?.length > 0) {
-          setGuides(data.guides);
-        } else {
-          await fetch('/api/guides', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'seed' }) });
-          res = await fetch('/api/guides');
-          data = await res.json();
+        if (data.ok) {
           setGuides(data.guides || []);
         }
       } catch (err) {
