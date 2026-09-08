@@ -48,6 +48,7 @@ const guideBookingsHandler = require('./api-routes/guide-bookings');
 const guideProfilesHandler = require('./api-routes/guide-profiles');
 const guideReviewsHandler = require('./api-routes/guide-reviews');
 const guideWalletsHandler = require('./api-routes/guide-wallets');
+const notificationsHandler = require('./api-routes/notifications');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -189,6 +190,17 @@ app.all('/api/guide-bookings', apiLimiter, run(guideBookingsHandler));
 app.all('/api/guide-profiles', apiLimiter, run(guideProfilesHandler));
 app.all('/api/guide-reviews', apiLimiter, run(guideReviewsHandler));
 app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
+
+// Notification routes — SSE stream + REST
+app.get('/api/notifications/stream', (req, res, next) =>
+  Promise.resolve(notificationsHandler(req, res)).catch(next)
+);
+app.all('/api/notifications', apiLimiter, (req, res, next) =>
+  Promise.resolve(notificationsHandler(req, res)).catch(next)
+);
+app.all('/api/notifications/*', apiLimiter, (req, res, next) =>
+  Promise.resolve(notificationsHandler(req, res)).catch(next)
+);
 
 // Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
 app.post('/api/auth/register', authLimiter, (req, res, next) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Fragment } from 'react';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -562,6 +562,10 @@ function GuidesPanel({ getToken }) {
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  // Country filter and sorting
+  const [countryFilter, setCountryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('country'); // 'country' | 'name' | 'rating'
+
   const authHeaders = () => ({
     'Content-Type': 'application/json',
     ...(getToken ? { 'Authorization': `Bearer ${getToken()}` } : {})
@@ -730,6 +734,26 @@ function GuidesPanel({ getToken }) {
     }
   };
 
+  const handleSyncRealGuides = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'sync-real-guides' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Restored and synced ${data.syncedCount || 0} real registered guide accounts!`);
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to sync real guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleProfileReview = async (profileId, status, note = '') => {
     try {
       const res = await fetch('/api/guide-profiles', {
@@ -749,6 +773,21 @@ function GuidesPanel({ getToken }) {
   };
 
   const activeCount = guides.filter(g => g.status === 'active').length;
+
+  const countriesList = Array.from(new Set(guides.map(g => g.country).filter(Boolean))).sort();
+
+  const processedGuides = [...guides]
+    .filter(g => countryFilter === 'all' || (g.country || '').toLowerCase() === countryFilter.toLowerCase())
+    .sort((a, b) => {
+      if (sortBy === 'country') {
+        const cComp = (a.country || 'Unknown').localeCompare(b.country || 'Unknown');
+        if (cComp !== 0) return cComp;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'rating') return parseFloat(b.rating || 0) - parseFloat(a.rating || 0);
+      return 0;
+    });
 
   return (
     <div className="space-y-6">
@@ -771,23 +810,24 @@ function GuidesPanel({ getToken }) {
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 flex items-center justify-between">
           <div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Demo Data</div>
-            <div className="text-xs text-slate-500">Seed sample guides</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Guide Database</div>
+            <div className="text-xs text-slate-500">Manage real & demo accounts</div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncRealGuides}
+              disabled={loading}
+              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-bold text-xs rounded-xl transition-colors"
+              title="Restore & sync all registered guide profiles"
+            >
+              Restore Real Guides
+            </button>
             <button
               onClick={handleClearDemo}
               disabled={loading}
               className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 font-bold text-xs rounded-xl transition-colors"
             >
               Clear Demo
-            </button>
-            <button
-              onClick={handleSeed}
-              disabled={loading}
-              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
-            >
-              Seed Guides
             </button>
           </div>
         </div>
@@ -955,32 +995,87 @@ function GuidesPanel({ getToken }) {
           )}
         </div>
       ) : (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Guide</th>
-                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Location</th>
-                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Rating</th>
-                <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
-                <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="py-8 text-center text-slate-400">Loading tour guides...</td>
+        <div className="space-y-4">
+        {/* Country Filter & Sort Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Country:</span>
+            <select
+              value={countryFilter}
+              onChange={e => setCountryFilter(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <option value="all">🌍 All Countries ({guides.length})</option>
+              {countriesList.map(c => (
+                <option key={c} value={c}>📍 {c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sort Guides:</span>
+            <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+              <button
+                onClick={() => setSortBy('country')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${sortBy === 'country' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+              >
+                🌍 By Country
+              </button>
+              <button
+                onClick={() => setSortBy('name')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${sortBy === 'name' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+              >
+                👤 By Name
+              </button>
+              <button
+                onClick={() => setSortBy('rating')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${sortBy === 'rating' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+              >
+                ⭐ By Rating
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Guide</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Country / Location</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Rating</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
+                  <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
                 </tr>
-              ) : guides.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="py-8 text-center text-slate-400">
-                    No tour guides found. Click <strong>Seed Guides</strong> to populate sample profiles.
-                  </td>
-                </tr>
-              ) : (
-                guides.map((g) => (
-                  <tr key={g.id || g.slug} className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-400">Loading tour guides...</td>
+                  </tr>
+                ) : processedGuides.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-400">
+                      No guides found for selected country filter. Click <strong>Restore Real Guides</strong> or <strong>Seed Guides</strong>.
+                    </td>
+                  </tr>
+                ) : (
+                  processedGuides.map((g, idx) => {
+                    const showCountryHeader = sortBy === 'country' && (idx === 0 || (processedGuides[idx - 1].country || 'Other') !== (g.country || 'Other'));
+                    return (
+                      <Fragment key={g.id || g.slug}>
+                        {showCountryHeader && (
+                          <tr className="bg-emerald-50/80 dark:bg-emerald-950/40 border-y border-emerald-200 dark:border-emerald-800">
+                            <td colSpan="5" className="px-6 py-2.5 font-black text-xs text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                              <span>📍 {g.country || 'Other Locations'}</span>
+                              <span className="bg-emerald-200/80 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                                {processedGuides.filter(x => (x.country || 'Other') === (g.country || 'Other')).length} Guides
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <img
@@ -992,8 +1087,8 @@ function GuidesPanel({ getToken }) {
                           <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
                             {g.name}
                             {g.verified ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" title="Verified Badge Awarded by Admin">
-                                <i className="ph-fill ph-seal-check text-emerald-500 text-xs"></i> Verified by Admin
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" title="Verified Guide">
+                                <i className="ph-fill ph-seal-check text-emerald-500 text-xs"></i> Verified
                               </span>
                             ) : (
                               <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic">Unverified</span>
@@ -1067,13 +1162,16 @@ function GuidesPanel({ getToken }) {
                       </a>
                     </td>
                   </tr>
-                ))
-              )}
+                </Fragment>
+              );
+            })
+          )}
             </tbody>
           </table>
         </div>
       </div>
-      )}
+    </div>
+  )}
     </div>
   );
 }

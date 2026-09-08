@@ -5,6 +5,7 @@ const { applyCors } = require('../lib/cors');
 const { requireAdminEmail } = require('../lib/admin');
 const { verifyRequestBearer } = require('../lib/google-verify');
 const crypto = require('crypto');
+const notificationHub = require('../lib/notification-hub');
 
 function rowToGuideBooking(row) {
   return {
@@ -132,6 +133,17 @@ module.exports = async (req, res) => {
         }
       }
       return res.json({ ok: true, id: ref });
+
+      // Fire-and-forget: notify the guide of new booking request
+      notificationHub.dispatch({
+        recipientId: guideId,
+        recipientRole: 'guide',
+        type: 'BOOKING_REQUESTED',
+        title: 'New Booking Request',
+        message: `${contactEmail || 'A traveler'} requested a tour on ${startDate}.`,
+        actionUrl: '/guide/dashboard?tab=bookings',
+        metadata: { bookingRef: ref, date: startDate, totalAmount: total, travelersCount: guests }
+      }).catch(() => {});
     }
 
     // ── List all (admin only) ───────────────────────────────────────────────
@@ -211,6 +223,16 @@ module.exports = async (req, res) => {
           }
         }
       }
+      // Dispatch status-change notification
+      notificationHub.dispatch({
+        recipientId: String(id),
+        recipientRole: 'guide',
+        type: status === 'confirmed' ? 'BOOKING_ACCEPTED' : (status === 'cancelled' ? 'BOOKING_CANCELLED' : 'BOOKING_UPDATED'),
+        title: status === 'confirmed' ? 'Booking Confirmed' : (status === 'cancelled' ? 'Booking Cancelled by Admin' : `Booking Status: ${status}`),
+        message: `Your booking #${id} status has been updated to ${status}.`,
+        actionUrl: '/guide/dashboard?tab=bookings',
+        metadata: { bookingRef: id, status }
+      }).catch(() => {});
       return res.json({ ok: true });
     }
 
@@ -267,6 +289,16 @@ module.exports = async (req, res) => {
         const idx = (global.__guideBookings || []).findIndex(bk => bk.ref === ref);
         if (idx > -1) global.__guideBookings[idx].status = 'pending_traveler_confirmation';
       }
+      // Notify guide that traveler confirmed completion
+      notificationHub.dispatch({
+        recipientId: String(ref),
+        recipientRole: 'guide',
+        type: 'TOUR_COMPLETED',
+        title: 'Tour Completed — Escrow Pending Release',
+        message: `Tour #${ref} marked complete. Awaiting traveler confirmation.`,
+        actionUrl: '/guide/dashboard?tab=bookings',
+        metadata: { bookingRef: ref }
+      }).catch(() => {});
       return res.json({ ok: true });
     }
 
@@ -292,6 +324,16 @@ module.exports = async (req, res) => {
           }
         }
       }
+      // Notify guide of escrow release
+      notificationHub.dispatch({
+        recipientId: String(ref),
+        recipientRole: 'guide',
+        type: 'PAYOUT_PROCESSED',
+        title: 'Escrow Released — Funds Incoming!',
+        message: `Traveler confirmed tour #${ref}. Your earnings are being released.`,
+        actionUrl: '/guide/dashboard?tab=earnings',
+        metadata: { bookingRef: ref }
+      }).catch(() => {});
       return res.json({ ok: true });
     }
 
@@ -301,3 +343,4 @@ module.exports = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 };
+

@@ -526,6 +526,73 @@ module.exports = async (req, res) => {
       return res.json({ ok: true, cleared: true });
     }
 
+    if (action === 'sync-real-guides') {
+      let syncedCount = 0;
+      if (dbReady) {
+        const profilesRes = await query(`SELECT * FROM bc_guide_profiles`);
+        for (const p of profilesRes.rows) {
+          const personal = p.step_personal || {};
+          const areas = p.step_areas || {};
+          const name = personal.fullName || p.email;
+          const slug = `guide-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+          await query(`
+            INSERT INTO bc_guides (slug, name, photo, country, city, years_exp, verified, rating, review_count,
+              categories, skills, languages, areas, certifications, gallery, reviews, pricing, trust_indicators,
+              demand_level, status, availability, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW())
+            ON CONFLICT (slug) DO UPDATE SET name=EXCLUDED.name, status=EXCLUDED.status, updated_at=NOW()`,
+            [slug, name, personal.photo || '', areas.country || 'Uganda', personal.city || '', 5, true, 4.9, 0,
+             JSON.stringify(p.step_categories?.selected || []), JSON.stringify(p.step_skills?.selected || []),
+             JSON.stringify(p.step_languages?.list || []), JSON.stringify(areas), JSON.stringify(p.step_certifications || []),
+             JSON.stringify(p.step_gallery || []), JSON.stringify([]), JSON.stringify(p.step_pricing || {}),
+             JSON.stringify({}), 'moderate', p.status === 'approved' ? 'active' : 'pending', JSON.stringify(p.step_availability || {})]
+          );
+          syncedCount++;
+        }
+      } else {
+        const memStore = global.__bc_guide_profiles;
+        if (memStore) {
+          if (!global.__guides) global.__guides = [];
+          for (const [, p] of memStore) {
+            const personal = p.step_personal || {};
+            const areas = p.step_areas || {};
+            const name = personal.fullName || p.email;
+            const slug = `guide-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+            const idx = global.__guides.findIndex(g => g.slug === slug || g.email === p.email);
+            const realGuide = {
+              id: idx >= 0 ? global.__guides[idx].id : Date.now() + Math.floor(Math.random() * 1000),
+              slug,
+              name,
+              email: p.email,
+              photo: personal.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80',
+              country: areas.country || 'Uganda',
+              city: personal.city || 'Kampala',
+              yearsExp: parseInt(p.step_experience?.yearsExp || 5),
+              verified: true,
+              rating: 4.9,
+              reviewCount: 0,
+              categories: Array.isArray(p.step_categories?.selected) ? p.step_categories.selected : ['Safari Guide'],
+              skills: Array.isArray(p.step_skills?.selected) ? p.step_skills.selected : ['Wildlife Tracking'],
+              languages: Array.isArray(p.step_languages?.list) ? p.step_languages.list : [{ lang: 'English', proficiency: 'Native' }],
+              areas: areas,
+              certifications: p.step_certifications || [],
+              gallery: p.step_gallery || [],
+              reviews: [],
+              pricing: p.step_pricing || { perDay: 150 },
+              trustIndicators: {},
+              demandLevel: 'moderate',
+              status: p.status === 'approved' ? 'active' : 'pending',
+              availability: {}
+            };
+            if (idx >= 0) global.__guides[idx] = realGuide;
+            else global.__guides.push(realGuide);
+            syncedCount++;
+          }
+        }
+      }
+      return res.json({ ok: true, syncedCount });
+    }
+
     // ── Admin-only mutations ──────────────────────────────────────────────
     const gate = await requireAdminEmail(req);
     if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });

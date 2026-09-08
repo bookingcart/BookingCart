@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 /**
  * BookingCartNavbar
@@ -86,6 +87,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             )}
 
             {rightSlot}
+            {user && (isGuide || user?.role === 'admin') && <NotificationBell />}
             <HeaderAuthCluster />
           </div>
 

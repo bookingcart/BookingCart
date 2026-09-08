@@ -38,6 +38,8 @@ const TourGuideConfirmationPage = lazy(() => import('./pages/TourGuideConfirmati
 const GuideOnboardingPage = lazy(() => import('./pages/GuideOnboardingPage.jsx'));
 const GuideReviewFormPage = lazy(() => import('./pages/GuideReviewFormPage.jsx'));
 const GuideDashboardPage = lazy(() => import('./pages/GuideDashboardPage.jsx'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
+
 
 export default function App() {
   return (
@@ -70,6 +72,7 @@ export default function App() {
           <Route path="/become-a-guide" element={<GuideOnboardingPage />} />
           <Route path="/become-a-guide/:step" element={<GuideOnboardingPage />} />
           <Route path="/guide-dashboard" element={<GuideDashboardPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/visa" element={<Navigate to="/visa/new" replace />} />
           <Route path="/visa/new" element={<VisaNewPage />} />
           <Route path="/visa/dashboard" element={<VisaDashboardPage />} />

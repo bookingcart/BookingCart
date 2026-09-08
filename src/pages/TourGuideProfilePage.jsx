@@ -189,8 +189,8 @@ export default function TourGuideProfilePage() {
             <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount} reviews</span>
           </div>
           {guide.verified ? (
-            <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Verified Badge Awarded by Admin">
-              <i className="ph-fill ph-seal-check text-emerald-500 text-base" /> Verified by Admin
+            <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Verified Guide">
+              <i className="ph-fill ph-seal-check text-emerald-500 text-base" /> Verified
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-slate-500 text-xs">
@@ -472,11 +472,12 @@ export default function TourGuideProfilePage() {
             {/* Mini Calendar injection */}
             <div className="mb-4">
               <GuideAvailabilityCalendar 
-                availabilityMap={guide.availability || {}} 
+                availability={guide.availability?.blockedDates 
+                  ? Object.fromEntries((guide.availability.blockedDates || []).map(d => [d, 'blocked'])) 
+                  : {}} 
                 selectedStart={selectedStart} 
                 selectedEnd={selectedEnd} 
-                onSelectDate={handleDateSelect} 
-                pickingEnd={pickingEnd} 
+                onDateSelect={handleDateSelect} 
               />
             </div>
 

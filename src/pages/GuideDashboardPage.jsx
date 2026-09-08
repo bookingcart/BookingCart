@@ -38,9 +38,11 @@ const MENU_ITEMS = [
   { id: 'reviews', label: 'Reviews', icon: 'ph-star' },
   { id: 'earnings', label: 'Earnings', icon: 'ph-wallet' },
   { id: 'messages', label: 'Messages', icon: 'ph-chat-circle-dots' },
+  { id: 'notifications', label: 'Notifications', icon: 'ph-bell', href: '/notifications' },
   { id: 'activity', label: 'Activity & Approvals', icon: 'ph-clock-counter-clockwise' },
   { id: 'settings', label: 'Settings', icon: 'ph-gear' },
 ];
+
 
 export default function GuideDashboardPage() {
   const { user } = useAuth();
@@ -319,6 +321,18 @@ export default function GuideDashboardPage() {
           <nav className="space-y-1">
             {MENU_ITEMS.map((item) => {
               const active = activeTab === item.id;
+              if (item.href) {
+                return (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    className="w-full px-4 py-3 rounded-2xl font-bold text-xs flex items-center gap-3 transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <i className={`ph ${item.icon} text-lg`} />
+                    <span>{item.label}</span>
+                  </a>
+                );
+              }
               return (
                 <button
                   key={item.id}
@@ -337,6 +351,7 @@ export default function GuideDashboardPage() {
                 </button>
               );
             })}
+
           </nav>
         </div>
 
