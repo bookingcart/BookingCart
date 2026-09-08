@@ -45,7 +45,7 @@ const MENU_ITEMS = [
 
 
 export default function GuideDashboardPage() {
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -91,8 +91,9 @@ export default function GuideDashboardPage() {
     async function loadAll() {
       try {
         // Load Guide Profile
+        const token = getToken();
         const resP = await fetch('/api/guide-profiles', {
-          headers: user?.token ? { 'Authorization': `Bearer ${user.token}` } : {}
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         const dataP = await resP.json();
         if (dataP.ok && dataP.profile) setProfile(dataP.profile);
@@ -206,11 +207,12 @@ export default function GuideDashboardPage() {
   const handleSaveProfileSection = async (sectionName, payload) => {
     // Save to API
     try {
+      const token = getToken();
       const res = await fetch('/api/guide-profiles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(user?.token ? { 'Authorization': `Bearer ${user.token}` } : {})
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ action: 'save', step: sectionName.toLowerCase().split(' ')[0], data: payload })
       });

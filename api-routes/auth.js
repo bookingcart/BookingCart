@@ -149,14 +149,35 @@ module.exports = async (req, res) => {
     // Matching is done strictly by email to avoid false positives from name/slug guessing
     try {
       if (dbReady) {
-        const gp = await query('SELECT id, status FROM bc_guide_profiles WHERE email = $1 ORDER BY created_at DESC LIMIT 1', [auth.email]);
+        const gp = await query('SELECT id, status, step_personal FROM bc_guide_profiles WHERE email = $1 ORDER BY created_at DESC LIMIT 1', [auth.email]);
         if (gp.rows.length > 0) {
           user.isGuide = true;
           user.guideProfileId = gp.rows[0].id;
           if (user.role === 'traveler') user.role = 'guide_applicant';
         }
-        // Match bc_guides strictly by email column to prevent phantom duplicate account creation
-        const g = await query('SELECT id, verified FROM bc_guides WHERE email = $1 LIMIT 1', [auth.email]);
+        // Match bc_guides strictly by email column first
+        let g = await query('SELECT id, verified FROM bc_guides WHERE email = $1 LIMIT 1', [auth.email]);
+        
+        // If email column match failed but user has a guide profile, fallback to name matching to link existing guide record
+        if (g.rows.length === 0 && gp.rows.length > 0) {
+          const personal = gp.rows[0].step_personal || {};
+          const profileName = personal.fullName || personal.name || '';
+          if (profileName) {
+            const nameMatch = await query(
+              'SELECT id, verified FROM bc_guides WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) LIMIT 1',
+              [profileName]
+            );
+            if (nameMatch.rows.length > 0) {
+              g = nameMatch;
+              // Backfill the email in bc_guides so direct email lookups work next time
+              await query(
+                'UPDATE bc_guides SET email = $1 WHERE id = $2 AND (email IS NULL OR email = \'\')',
+                [auth.email, nameMatch.rows[0].id]
+              ).catch(() => {});
+            }
+          }
+        }
+
         if (g.rows.length > 0) {
           user.isGuide = true;
           user.guideId = g.rows[0].id;
@@ -168,6 +189,7 @@ module.exports = async (req, res) => {
           const u = memUsers.get(auth.email);
           if (u.role) user.role = u.role;
         }
+        let profileName = '';
         const memProfiles = global.__bc_guide_profiles;
         if (memProfiles) {
           for (const [, p] of memProfiles) {
@@ -175,12 +197,17 @@ module.exports = async (req, res) => {
               user.isGuide = true;
               user.guideProfileId = p.id;
               if (user.role === 'traveler') user.role = 'guide_applicant';
+              profileName = (p.step_personal && (p.step_personal.fullName || p.step_personal.name)) || '';
               break;
             }
           }
         }
         if (global.__guides) {
-          const g = global.__guides.find(x => x.email === auth.email);
+          let g = global.__guides.find(x => x.email === auth.email);
+          if (!g && profileName) {
+            g = global.__guides.find(x => String(x.name || '').toLowerCase().trim() === profileName.toLowerCase().trim());
+            if (g) g.email = auth.email;
+          }
           if (g) {
             user.isGuide = true;
             user.guideId = g.id;

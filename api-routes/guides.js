@@ -445,6 +445,14 @@ module.exports = async (req, res) => {
         `).catch(() => {});
         await query(`
           ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
+          UPDATE bc_guides g
+          SET email = gp.email
+          FROM bc_guide_profiles gp
+          WHERE (g.email IS NULL OR g.email = '')
+            AND (
+              LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'fullName')))
+              OR LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'name')))
+            );
         `).catch(() => {});
         dbReady = true;
       }

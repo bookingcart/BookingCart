@@ -125,6 +125,7 @@ function profileToGuide(profile) {
 
   return {
     slug,
+    email: profile.email || '',
     name: personal.fullName || personal.name || profile.email,
     photo: personal.photo || profile.photo || (Array.isArray(gallery) && (typeof gallery[0] === 'string' ? gallery[0] : gallery[0]?.url)) || '',
     country: areas.country || '',
@@ -676,15 +677,15 @@ module.exports = async (req, res) => {
         if (dbReady) {
           await query(`
             INSERT INTO bc_guides (
-              slug, name, photo, country, city, years_exp, verified, rating, review_count,
+              slug, name, email, photo, country, city, years_exp, verified, rating, review_count,
               categories, skills, languages, areas, certifications, gallery, reviews,
               pricing, trust_indicators, demand_level, status, availability,
               created_at, updated_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW())
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
             ON CONFLICT (slug) DO UPDATE SET
-              name=EXCLUDED.name, photo=EXCLUDED.photo, status='active', updated_at=NOW()`,
+              name=EXCLUDED.name, email=EXCLUDED.email, photo=EXCLUDED.photo, status='active', updated_at=NOW()`,
             [
-              guideData.slug, guideData.name, guideData.photo, guideData.country,
+              guideData.slug, guideData.name, guideData.email || fullProfile.email || '', guideData.photo, guideData.country,
               guideData.city, guideData.years_exp, guideData.verified, guideData.rating,
               guideData.review_count, JSON.stringify(guideData.categories),
               JSON.stringify(guideData.skills), JSON.stringify(guideData.languages),
