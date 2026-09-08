@@ -1095,6 +1095,27 @@ function GuidesPanel({ getToken }) {
                             )}
                           </div>
                           <div className="text-xs text-slate-500">{g.yearsExp || 5}+ years experience</div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            {g.registrationFeeType === 'free_early_bird' || idx < 200 ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200">
+                                🎁 Reg: Free (Early 200)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200">
+                                💳 Reg: $10 Paid
+                              </span>
+                            )}
+
+                            {g.verificationFeePaid || g.verificationStatus === 'pending_admin' ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200" title="$50 USD Verification Fee Paid">
+                                💵 Verif: $50 Paid
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                Verif: Not Paid
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>

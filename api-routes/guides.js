@@ -359,6 +359,10 @@ function rowToGuide(row) {
     city: row.city || '',
     yearsExp: row.years_exp || 0,
     verified: !!row.verified,
+    registrationFeePaid: row.registration_fee_paid !== undefined ? !!row.registration_fee_paid : true,
+    registrationFeeType: row.registration_fee_type || 'free_early_bird',
+    verificationFeePaid: row.verification_fee_paid !== undefined ? !!row.verification_fee_paid : true,
+    verificationStatus: row.verification_status || (row.verified ? 'approved' : 'unrequested'),
     rating: row.rating ? parseFloat(row.rating) : 0,
     reviewCount: row.review_count || 0,
     categories: row.categories || [],
@@ -417,19 +421,37 @@ module.exports = async (req, res) => {
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
         `);
+        await query(`
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_paid BOOLEAN DEFAULT true;
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT true;
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'approved';
+        `).catch(() => {});
         dbReady = true;
       }
-    } catch (err) {
-      console.warn('Postgres guides connection failed, using in-memory fallback:', err.message);
-      if (!global.__guides) global.__guides = [];
+    } catch (dbErr) {
+      console.warn('Guides DB unavailable, using memory fallback:', dbErr.message);
     }
-
-    if (!dbReady && !global.__guides) {
-      global.__guides = [];
-    }
-
-    // ── GET /api/guides or /api/guides/:id ──────────────────────────────────
     if (req.method === 'GET') {
+      if (req.query.action === 'fee-status') {
+        let count = 0;
+        if (dbReady) {
+          const r = await query('SELECT COUNT(*) as count FROM bc_guides');
+          count = parseInt(r.rows[0]?.count || 0);
+        } else {
+          count = (global.__guides || []).length;
+        }
+        const freeLimit = 200;
+        return res.json({
+          ok: true,
+          guideCount: count,
+          freeLimit,
+          freeEligible: count < freeLimit,
+          registrationFeeCents: 1000,
+          verificationFeeCents: 5000
+        });
+      }
+
       const guideId = req.query.id || req.query.slug;
 
       if (guideId) {

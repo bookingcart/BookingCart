@@ -138,6 +138,62 @@ export default function GuideDashboardPage() {
     loadAll();
   }, [user, navigate, guideId]);
 
+  const [verifyingFee, setVerifyingFee] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('verification_paid') === '1' && searchParams.get('session_id')) {
+      const sessionId = searchParams.get('session_id');
+      setVerifyingFee(true);
+      fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(async data => {
+          if (data.ok && (data.session?.payment_status === 'paid' || data.session?.status === 'complete')) {
+            await fetch('/api/guide-profiles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'mark-fee-paid',
+                feeType: 'verification',
+                email: user?.email,
+                profileId: profile?.id
+              })
+            });
+            setProfile(prev => ({ ...(prev || {}), verification_fee_paid: true, verification_status: 'pending_admin' }));
+            alert('🎉 $50 USD Verification Badge Payment Received! Your application is now under admin review.');
+          }
+        })
+        .catch(console.error)
+        .finally(() => setVerifyingFee(false));
+    }
+  }, [searchParams, user, profile?.id]);
+
+  async function handlePayVerificationBadge() {
+    try {
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountCents: 5000,
+          currency: 'usd',
+          description: 'BookingCart Tour Guide Verification Badge Application Fee ($50 USD)',
+          customerEmail: user?.email || profile?.email || '',
+          paymentPurpose: 'guide-verification-fee',
+          successPath: '/guide-dashboard?verification_paid=1&tab=my-profile',
+          cancelPath: '/guide-dashboard?tab=my-profile'
+        })
+      });
+      const data = await res.json();
+      if (data.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Failed to initialize verification checkout.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error initiating checkout session.');
+    }
+  }
+
   const handleLogActivity = (action, category = 'Profile') => {
     const newLog = {
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -541,6 +597,51 @@ export default function GuideDashboardPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Verification Badge Status / Purchase Card */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-emerald-950 text-white rounded-3xl p-6 border border-slate-800 shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-2xl shrink-0">
+                    <i className="ph-fill ph-seal-check" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-black">Official Verification Badge</h3>
+                      {profile?.verification_status === 'pending_admin' || profile?.verification_fee_paid ? (
+                        <span className="bg-amber-500/20 text-amber-300 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full border border-amber-400/30">
+                          Pending Admin Review ($50 Paid)
+                        </span>
+                      ) : profile?.verified ? (
+                        <span className="bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full border border-emerald-400/30">
+                          Badge Active
+                        </span>
+                      ) : (
+                        <span className="bg-slate-700 text-slate-300 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full">
+                          $50 USD Fee
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">
+                      {profile?.verified
+                        ? "Your guide profile displays the official verified seal across all search results and guide listings."
+                        : profile?.verification_status === 'pending_admin' || profile?.verification_fee_paid
+                        ? "Your $50 USD payment has been received! BookingCart admins are reviewing your identity and credentials."
+                        : "Get verified by BookingCart! Boost search visibility, earn traveler trust, and increase booking requests."}
+                    </p>
+                  </div>
+                </div>
+
+                {!profile?.verified && profile?.verification_status !== 'pending_admin' && !profile?.verification_fee_paid && (
+                  <button
+                    onClick={handlePayVerificationBadge}
+                    className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 shrink-0"
+                  >
+                    <i className="ph-bold ph-seal-check text-base" /> Get Verified Badge ($50 USD)
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Public Profile View Simulator Card */}

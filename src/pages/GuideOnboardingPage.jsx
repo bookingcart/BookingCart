@@ -175,6 +175,8 @@ export default function GuideOnboardingPage() {
   const [errors, setErrors] = useState({});
   const [completeness, setCompleteness] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [feeStatus, setFeeStatus] = useState({ guideCount: 0, freeEligible: true, freeLimit: 200, registrationFeeCents: 1000 });
+  const [checkingFeePayment, setCheckingFeePayment] = useState(false);
 
   // Auth token for API calls after registration
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('bc_guide_token') || localStorage.getItem('bc_jwt') || '');
@@ -228,7 +230,36 @@ export default function GuideOnboardingPage() {
   });
 
   useEffect(() => { saveDraft(draft); }, [draft]);
-  useEffect(() => { document.title = 'BookingCart — Become a Guide'; }, []);
+  useEffect(() => {
+    document.title = 'BookingCart — Become a Guide';
+    fetch('/api/guides?action=fee-status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) setFeeStatus(data);
+      })
+      .catch(err => console.warn('Failed to load fee status:', err));
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registration_paid') === '1' && params.get('session_id')) {
+      const sessionId = params.get('session_id');
+      setCheckingFeePayment(true);
+      fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(async data => {
+          if (data.ok && (data.session?.payment_status === 'paid' || data.session?.status === 'complete')) {
+            const guideEmail = params.get('email') || '';
+            await fetch('/api/guide-profiles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'mark-fee-paid', feeType: 'registration', email: guideEmail, profileId })
+            });
+            setCurrentStep(2);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setCheckingFeePayment(false));
+    }
+  }, []);
 
   function set(field, value) {
     setDraft(prev => ({ ...prev, [field]: value }));
@@ -376,6 +407,32 @@ export default function GuideOnboardingPage() {
         localStorage.setItem('bc_guide_profile_id', String(data.profileId));
         // Also set main auth token so site recognizes them as logged in
         localStorage.setItem('bc_jwt', data.token);
+
+        // If registration fee is required ($10) and not eligible for free slot (<200)
+        if (!data.registrationFeePaid && !data.freeEligible) {
+          const payRes = await fetch('/api/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amountCents: 1000,
+              currency: 'usd',
+              description: 'BookingCart Tour Guide Account Registration Fee ($10 USD)',
+              customerEmail: draft.email,
+              paymentPurpose: 'guide-registration-fee',
+              successPath: `/guide-onboarding?registration_paid=1&email=${encodeURIComponent(draft.email)}`,
+              cancelPath: '/guide-onboarding?step=1'
+            })
+          });
+          const payData = await payRes.json();
+          if (payData.ok && payData.url) {
+            window.location.href = payData.url;
+            return;
+          } else {
+            setErrors({ email: payData.error || 'Failed to initialize $10 USD registration checkout.' });
+            setSaving(false);
+            return;
+          }
+        }
       } catch (err) {
         setErrors({ email: 'Network error. Please try again.' });
         setSaving(false);
@@ -540,17 +597,46 @@ export default function GuideOnboardingPage() {
             <div>
               <StepHeader step={1} />
 
-              {/* Hero illustration */}
-              <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative">
-                <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5" />
-                <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                  <i className="ph ph-compass text-4xl" />
+              {/* Early Bird Free Registration vs $10 Fee Banner */}
+              {feeStatus.freeEligible ? (
+                <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative shadow-lg shadow-emerald-900/20 border border-emerald-400/30">
+                  <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10" />
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 text-3xl">
+                    🎉
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="bg-emerald-400/30 text-white font-black text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-emerald-300/40">
+                        First 200 Early Access
+                      </span>
+                      <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        Slot #{feeStatus.guideCount + 1} of {feeStatus.freeLimit}
+                      </span>
+                    </div>
+                    <h3 className="font-black text-xl">Account Registration is FREE ($0 USD)</h3>
+                    <p className="text-emerald-100 text-xs sm:text-sm mt-1">
+                      You're among the first 200 guides! Registration fee ($10 USD) is completely waived for your account.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-xl">Join our Guide Network</h3>
-                  <p className="text-white/80 text-sm mt-1">Create your professional guide profile and start receiving bookings from travelers worldwide.</p>
+              ) : (
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative border border-slate-700 shadow-lg">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-amber-400/30 text-3xl">
+                    💳
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-amber-400/30">
+                        Standard Registration
+                      </span>
+                    </div>
+                    <h3 className="font-black text-xl">Guide Registration Fee: $10 USD</h3>
+                    <p className="text-slate-300 text-xs sm:text-sm mt-1">
+                      The first 200 free registration slots have been claimed. Proceed with account details to pay $10 USD via secure Stripe checkout.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <FieldGroup label="Full Name" required error={errors.fullName}>
                 <TextInput id="fullName" value={draft.fullName} onChange={v => set('fullName', v)} placeholder="Sarah Johnson" required />

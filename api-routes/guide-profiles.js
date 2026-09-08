@@ -217,6 +217,32 @@ async function ensureTables() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await query(`
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_paid BOOLEAN DEFAULT false;
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT false;
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unrequested';
+  `).catch(() => {});
+}
+
+async function getRegistrationCount(dbReady) {
+  let count = 0;
+  try {
+    if (dbReady) {
+      const r = await query(`SELECT COUNT(*) as count FROM bc_guide_profiles WHERE status != 'draft'`);
+      count = parseInt(r.rows[0]?.count || 0);
+    } else {
+      const store = getMemProfiles();
+      for (const [, p] of store) {
+        if (p.status !== 'draft') count++;
+      }
+    }
+  } catch {}
+  if (global.__guides) {
+    count = Math.max(count, global.__guides.length);
+  }
+  return count;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -264,6 +290,71 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const { action } = body;
 
+  // ── CHECK-FEE-STATUS — get count of registered guides & fee rules ──────────
+  if (action === 'check-fee-status') {
+    const count = await getRegistrationCount(dbReady);
+    const freeLimit = 200;
+    const isFreeSlot = count < freeLimit;
+    return res.json({
+      ok: true,
+      guideCount: count,
+      freeLimit,
+      freeEligible: isFreeSlot,
+      registrationFeeCents: 1000, // $10 USD
+      verificationFeeCents: 5000  // $50 USD
+    });
+  }
+
+  // ── MARK-FEE-PAID — record payment confirmation for registration or verification ──
+  if (action === 'mark-fee-paid') {
+    const { feeType, profileId, email } = body; // feeType: 'registration' | 'verification'
+    const targetEmail = (email || '').toLowerCase().trim();
+
+    if (dbReady) {
+      if (feeType === 'registration') {
+        await query(
+          `UPDATE bc_guide_profiles SET registration_fee_paid = true, registration_fee_type = 'paid_10usd', updated_at = NOW() WHERE email = $1 OR id = $2`,
+          [targetEmail, parseInt(profileId) || 0]
+        );
+      } else if (feeType === 'verification') {
+        await query(
+          `UPDATE bc_guide_profiles SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE email = $1 OR id = $2`,
+          [targetEmail, parseInt(profileId) || 0]
+        );
+        await query(
+          `UPDATE bc_guides SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE email = $1 OR id = $2`,
+          [targetEmail, parseInt(profileId) || 0]
+        ).catch(() => {});
+      }
+    } else {
+      const store = getMemProfiles();
+      for (const [, p] of store) {
+        if ((targetEmail && p.email === targetEmail) || String(p.id) === String(profileId)) {
+          if (feeType === 'registration') {
+            p.registration_fee_paid = true;
+            p.registration_fee_type = 'paid_10usd';
+          } else if (feeType === 'verification') {
+            p.verification_fee_paid = true;
+            p.verification_status = 'pending_admin';
+          }
+        }
+      }
+      if (global.__guides) {
+        const gIdx = global.__guides.findIndex(g => (targetEmail && g.email === targetEmail) || String(g.id) === String(profileId));
+        if (gIdx >= 0) {
+          if (feeType === 'registration') {
+            global.__guides[gIdx].registrationFeePaid = true;
+            global.__guides[gIdx].registrationFeeType = 'paid_10usd';
+          } else if (feeType === 'verification') {
+            global.__guides[gIdx].verificationFeePaid = true;
+            global.__guides[gIdx].verificationStatus = 'pending_admin';
+          }
+        }
+      }
+    }
+    return res.json({ ok: true, feeType, paid: true });
+  }
+
   // ── REGISTER — create user + draft profile ────────────────────────────────
   if (action === 'register') {
     const { fullName, email, phone, password } = body;
@@ -271,6 +362,12 @@ module.exports = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Name, email, and password are required.' });
     }
     const emailLower = email.toLowerCase().trim();
+
+    const count = await getRegistrationCount(dbReady);
+    const freeLimit = 200;
+    const isFreeSlot = count < freeLimit;
+    const regFeePaid = isFreeSlot;
+    const regFeeType = isFreeSlot ? 'free_early_bird' : 'paid_10usd';
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     let userId = null;
@@ -280,7 +377,6 @@ module.exports = async (req, res) => {
       const existing = await query('SELECT id FROM bc_users WHERE email = $1', [emailLower]);
       if (existing.rows.length > 0) {
         userId = existing.rows[0].id;
-        // Update role to guide_applicant if not already
         await query(`UPDATE bc_users SET role = 'guide_applicant', phone = $1, updated_at = NOW() WHERE id = $2`, [phone || '', userId]);
       } else {
         const r = await query(
@@ -300,11 +396,15 @@ module.exports = async (req, res) => {
       let profileId;
       if (existingDraft.rows.length > 0) {
         profileId = existingDraft.rows[0].id;
+        await query(
+          `UPDATE bc_guide_profiles SET registration_fee_paid = $1, registration_fee_type = $2, updated_at = NOW() WHERE id = $3`,
+          [regFeePaid, regFeeType, profileId]
+        );
       } else {
         const pr = await query(
-          `INSERT INTO bc_guide_profiles (user_id, email, step_personal, current_step, status, created_at, updated_at)
-           VALUES ($1, $2, $3, 1, 'draft', NOW(), NOW()) RETURNING id`,
-          [userId, emailLower, JSON.stringify({ fullName, phone, email: emailLower })]
+          `INSERT INTO bc_guide_profiles (user_id, email, step_personal, current_step, status, registration_fee_paid, registration_fee_type, created_at, updated_at)
+           VALUES ($1, $2, $3, 1, 'draft', $4, $5, NOW(), NOW()) RETURNING id`,
+          [userId, emailLower, JSON.stringify({ fullName, phone, email: emailLower }), regFeePaid, regFeeType]
         );
         profileId = pr.rows[0].id;
       }
@@ -313,7 +413,17 @@ module.exports = async (req, res) => {
         { sub: String(userId), userId, email: emailLower, name: fullName, role: 'guide_applicant' },
         { expiresIn: '30d' }
       );
-      return res.status(201).json({ ok: true, token, profileId, user: { email: emailLower, name: fullName } });
+      return res.status(201).json({
+        ok: true,
+        token,
+        profileId,
+        user: { email: emailLower, name: fullName },
+        registrationFeePaid: regFeePaid,
+        registrationFeeType: regFeeType,
+        guideCount: count,
+        freeLimit,
+        freeEligible: isFreeSlot
+      });
     } else {
       // In-memory fallback
       const memUsers = getMemUsers();
@@ -329,6 +439,8 @@ module.exports = async (req, res) => {
       const store = getMemProfiles();
       store.set(profileId, {
         id: profileId, user_id: userId, email: emailLower, status: 'draft', current_step: 1,
+        registration_fee_paid: regFeePaid, registration_fee_type: regFeeType,
+        verification_fee_paid: false, verification_status: 'unrequested',
         step_personal: { fullName, phone, email: emailLower },
         step_categories: {}, step_areas: {}, step_languages: {}, step_skills: {},
         step_certifications: [], step_experience: {}, step_pricing: {}, step_gallery: [],
@@ -339,7 +451,17 @@ module.exports = async (req, res) => {
         { sub: String(userId), userId, email: emailLower, name: fullName, role: 'guide_applicant' },
         { expiresIn: '30d' }
       );
-      return res.status(201).json({ ok: true, token, profileId, user: { email: emailLower, name: fullName } });
+      return res.status(201).json({
+        ok: true,
+        token,
+        profileId,
+        user: { email: emailLower, name: fullName },
+        registrationFeePaid: regFeePaid,
+        registrationFeeType: regFeeType,
+        guideCount: count,
+        freeLimit,
+        freeEligible: isFreeSlot
+      });
     }
   }
 
