@@ -426,14 +426,14 @@ module.exports = async (req, res) => {
       profileId = pr.rows[0].id;
 
       const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'guide_applicant' },
+        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
         { expiresIn: '30d' }
       );
       return res.status(201).json({
         ok: true,
         token,
         profileId,
-        user: { email: emailLower, name: nameTrimmed },
+        user: { email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
         registrationFeePaid: regFeePaid,
         registrationFeeType: regFeeType,
         guideCount: count,
@@ -488,14 +488,14 @@ module.exports = async (req, res) => {
         created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       });
       const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: fullName, role: 'guide_applicant' },
+        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
         { expiresIn: '30d' }
       );
       return res.status(201).json({
         ok: true,
         token,
         profileId,
-        user: { email: emailLower, name: fullName },
+        user: { email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
         registrationFeePaid: regFeePaid,
         registrationFeeType: regFeeType,
         guideCount: count,
