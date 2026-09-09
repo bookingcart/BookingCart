@@ -359,8 +359,13 @@ function safeParseJson(val, fallback) {
   if (val === null || val === undefined) return fallback;
   if (typeof val === 'object') return val;
   if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return fallback;
+    if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return [trimmed];
+    }
     try {
-      const parsed = JSON.parse(val);
+      const parsed = JSON.parse(trimmed);
       return parsed !== null ? parsed : fallback;
     } catch (_) {
       return fallback;
@@ -384,7 +389,8 @@ function rowToGuide(row) {
   if (!Array.isArray(certifications)) certifications = typeof certifications === 'string' ? [certifications] : [];
   
   let gallery = safeParseJson(row.gallery, []);
-  if (!Array.isArray(gallery)) gallery = typeof gallery === 'string' ? [gallery] : [];
+  if (!Array.isArray(gallery)) gallery = typeof gallery === 'string' && gallery.trim() ? [gallery.trim()] : [];
+  gallery = gallery.map(u => (typeof u === 'string' ? u : u?.url || u?.src || '')).filter(Boolean);
   
   let reviews = safeParseJson(row.reviews, []);
   if (!Array.isArray(reviews)) reviews = [];

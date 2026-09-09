@@ -65,13 +65,12 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
     customPricingNotes: profile?.step_pricing?.customNotes || ''
   });
 
-  const [gallery, setGallery] = useState(
-    Array.isArray(profile?.step_gallery) ? profile.step_gallery : (profile?.gallery || [
-      'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80',
-      'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800&q=80',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80'
-    ])
-  );
+  const rawGallery = Array.isArray(profile?.step_gallery) && profile.step_gallery.length > 0
+    ? profile.step_gallery
+    : (Array.isArray(profile?.gallery) ? profile.gallery : []);
+  const normalizedGallery = rawGallery.map(item => (typeof item === 'string' ? item : item?.url || item?.src || '')).filter(Boolean);
+
+  const [gallery, setGallery] = useState(normalizedGallery);
 
   const [certifications, setCertifications] = useState(
     Array.isArray(profile?.step_certifications) ? profile.step_certifications : [

@@ -206,17 +206,18 @@ export default function TourGuideProfilePage() {
   let rawPhotos = [];
   if (Array.isArray(guide.gallery)) {
     rawPhotos = guide.gallery;
-  } else if (typeof guide.gallery === 'string') {
+  } else if (typeof guide.gallery === 'string' && guide.gallery.trim()) {
+    const str = guide.gallery.trim();
     try {
-      const parsed = JSON.parse(guide.gallery);
+      const parsed = JSON.parse(str);
       if (Array.isArray(parsed)) rawPhotos = parsed;
-      else if (guide.gallery.startsWith('http')) rawPhotos = [guide.gallery];
+      else if (str.startsWith('http') || str.startsWith('data:')) rawPhotos = [str];
     } catch (_) {
-      if (guide.gallery.startsWith('http')) rawPhotos = [guide.gallery];
+      if (str.startsWith('http') || str.startsWith('data:')) rawPhotos = [str];
     }
   }
   const photoUrls = rawPhotos
-    .map(p => (typeof p === 'string' ? p : p?.url))
+    .map(p => (typeof p === 'string' ? p : p?.url || p?.src || ''))
     .filter(Boolean)
     .filter(u => u !== guide.photo);
 
