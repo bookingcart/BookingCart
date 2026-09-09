@@ -105,7 +105,9 @@ function profileToGuide(profile) {
   const availability = profile.step_availability || {};
   const bookingSettings = profile.step_booking_settings || {};
 
-  const slug = `guide-${(personal.fullName || profile.email || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${Date.now()}`;
+  // Use a stable slug based on email so ON CONFLICT (slug) can match existing rows
+  const slugBase = (profile.email || personal.fullName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
+  const slug = `guide-${slugBase}`;
 
   // Build availability map for next 90 days
   const availMap = {};
@@ -308,29 +310,51 @@ module.exports = async (req, res) => {
 
   // ── MARK-FEE-PAID — record payment confirmation for registration or verification ──
   if (action === 'mark-fee-paid') {
-    const { feeType, profileId, email } = body; // feeType: 'registration' | 'verification'
-    const targetEmail = (email || '').toLowerCase().trim();
+    const { feeType, profileId, email, sessionId } = body; // feeType: 'registration' | 'verification'
+
+    // Prefer the authenticated user's email for security — fall back to the body email
+    let authEmail = '';
+    try {
+      const authResult = await verifyRequestBearer(req);
+      if (authResult.ok) authEmail = (authResult.email || '').toLowerCase().trim();
+    } catch (_) {}
+
+    const targetEmail = authEmail || (email || '').toLowerCase().trim();
+    const numericId = parseInt(profileId) || null;
+
+    if (!targetEmail && !numericId) {
+      return res.status(400).json({ ok: false, error: 'Email or profileId required' });
+    }
 
     if (dbReady) {
+      const params = [];
+      const conditions = [];
+      if (targetEmail) { params.push(targetEmail); conditions.push(`email = $${params.length}`); }
+      if (numericId)   { params.push(numericId);   conditions.push(`id = $${params.length}`); }
+      const whereClause = conditions.join(' OR ');
+
       if (feeType === 'registration') {
         await query(
-          `UPDATE bc_guide_profiles SET registration_fee_paid = true, registration_fee_type = 'paid_10usd', updated_at = NOW() WHERE email = $1 OR id = $2`,
-          [targetEmail, parseInt(profileId) || 0]
+          `UPDATE bc_guide_profiles SET registration_fee_paid = true, registration_fee_type = 'paid_10usd', updated_at = NOW() WHERE ${whereClause}`,
+          params
         );
       } else if (feeType === 'verification') {
         await query(
-          `UPDATE bc_guide_profiles SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE email = $1 OR id = $2`,
-          [targetEmail, parseInt(profileId) || 0]
+          `UPDATE bc_guide_profiles SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE ${whereClause}`,
+          params
         );
-        await query(
-          `UPDATE bc_guides SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE email = $1 OR id = $2`,
-          [targetEmail, parseInt(profileId) || 0]
-        ).catch(() => {});
+        // Also mark in bc_guides table so the public listing shows pending_admin
+        if (targetEmail) {
+          await query(
+            `UPDATE bc_guides SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE email = $1`,
+            [targetEmail]
+          ).catch(() => {});
+        }
       }
     } else {
       const store = getMemProfiles();
       for (const [, p] of store) {
-        if ((targetEmail && p.email === targetEmail) || String(p.id) === String(profileId)) {
+        if ((targetEmail && p.email === targetEmail) || (numericId && String(p.id) === String(numericId))) {
           if (feeType === 'registration') {
             p.registration_fee_paid = true;
             p.registration_fee_type = 'paid_10usd';
@@ -341,7 +365,9 @@ module.exports = async (req, res) => {
         }
       }
       if (global.__guides) {
-        const gIdx = global.__guides.findIndex(g => (targetEmail && g.email === targetEmail) || String(g.id) === String(profileId));
+        const gIdx = global.__guides.findIndex(g =>
+          (targetEmail && g.email === targetEmail) || (numericId && String(g.id) === String(numericId))
+        );
         if (gIdx >= 0) {
           if (feeType === 'registration') {
             global.__guides[gIdx].registrationFeePaid = true;
@@ -558,20 +584,29 @@ module.exports = async (req, res) => {
       fullProfile.completeness = completeness;
     }
 
-    // Also update photo & name in bc_guides if already published
+    // Also sync profile data to bc_guides if already published
     if (fullProfile) {
       const personal = fullProfile.step_personal || {};
       const newPhoto = personal.photo || fullProfile.photo || '';
       const newName = personal.fullName || personal.name || fullProfile.email;
-      if (newPhoto) {
-        if (dbReady) {
-          await query(`UPDATE bc_guides SET photo = $1, name = $2, updated_at = NOW() WHERE slug LIKE $3 OR name = $4`, [newPhoto, newName, `guide-%`, newName]).catch(() => {});
-        } else if (global.__guides) {
-          const gIdx = global.__guides.findIndex(g => g.email === fullProfile.email || g.name === newName);
-          if (gIdx >= 0) {
-            global.__guides[gIdx].photo = newPhoto;
-            global.__guides[gIdx].name = newName;
-          }
+      const galleryArr = Array.isArray(fullProfile.step_gallery)
+        ? fullProfile.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean)
+        : [];
+      // Build stable slug for lookup
+      const stableSlugBase = (fullProfile.email || newName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
+      const stableSlug = `guide-${stableSlugBase}`;
+      if (dbReady) {
+        await query(
+          `UPDATE bc_guides SET photo = $1, name = $2, gallery = $3, updated_at = NOW()
+           WHERE email = $4 OR slug = $5`,
+          [newPhoto || null, newName, JSON.stringify(galleryArr), fullProfile.email || '', stableSlug]
+        ).catch(() => {});
+      } else if (global.__guides) {
+        const gIdx = global.__guides.findIndex(g => g.email === fullProfile.email || g.name === newName || g.slug === stableSlug);
+        if (gIdx >= 0) {
+          if (newPhoto) global.__guides[gIdx].photo = newPhoto;
+          global.__guides[gIdx].name = newName;
+          if (galleryArr.length > 0) global.__guides[gIdx].gallery = galleryArr;
         }
       }
     }
@@ -683,7 +718,13 @@ module.exports = async (req, res) => {
               created_at, updated_at
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
             ON CONFLICT (slug) DO UPDATE SET
-              name=EXCLUDED.name, email=EXCLUDED.email, photo=EXCLUDED.photo, status='active', updated_at=NOW()`,
+              name=EXCLUDED.name, email=EXCLUDED.email, photo=EXCLUDED.photo,
+              country=EXCLUDED.country, city=EXCLUDED.city, years_exp=EXCLUDED.years_exp,
+              categories=EXCLUDED.categories, skills=EXCLUDED.skills, languages=EXCLUDED.languages,
+              areas=EXCLUDED.areas, certifications=EXCLUDED.certifications,
+              gallery=EXCLUDED.gallery, pricing=EXCLUDED.pricing,
+              trust_indicators=EXCLUDED.trust_indicators, availability=EXCLUDED.availability,
+              status='active', updated_at=NOW()`,
             [
               guideData.slug, guideData.name, guideData.email || fullProfile.email || '', guideData.photo, guideData.country,
               guideData.city, guideData.years_exp, guideData.verified, guideData.rating,

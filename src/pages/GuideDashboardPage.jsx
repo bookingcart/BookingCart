@@ -142,31 +142,53 @@ export default function GuideDashboardPage() {
   const [verifyingFee, setVerifyingFee] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('verification_paid') === '1' && searchParams.get('session_id')) {
-      const sessionId = searchParams.get('session_id');
-      setVerifyingFee(true);
-      fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
-        .then(r => r.json())
-        .then(async data => {
-          if (data.ok && (data.session?.payment_status === 'paid' || data.session?.status === 'complete')) {
-            await fetch('/api/guide-profiles', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'mark-fee-paid',
-                feeType: 'verification',
-                email: user?.email,
-                profileId: profile?.id
-              })
-            });
+    // Only process the callback once both user AND profile have loaded
+    if (!searchParams.get('verification_paid') || searchParams.get('verification_paid') !== '1') return;
+    const sessionId = searchParams.get('session_id');
+    if (!sessionId) return;
+    // Wait until user and profile are available before calling mark-fee-paid
+    if (!user?.email) return;
+    if (loading) return; // profile is still loading — wait for it
+
+    setVerifyingFee(true);
+    const token = getToken();
+    fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
+      .then(r => r.json())
+      .then(async data => {
+        if (data.ok && (data.session?.payment_status === 'paid' || data.session?.status === 'complete')) {
+          const resp = await fetch('/api/guide-profiles', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              action: 'mark-fee-paid',
+              feeType: 'verification',
+              sessionId,
+              email: user?.email,
+              profileId: profile?.id
+            })
+          });
+          const result = await resp.json();
+          if (result.ok || result.paid) {
             setProfile(prev => ({ ...(prev || {}), verification_fee_paid: true, verification_status: 'pending_admin' }));
-            alert('🎉 $50 USD Verification Badge Payment Received! Your application is now under admin review.');
+            alert('🎉 Verification Badge Payment Received ($50 USD)! Your application is now under admin review.');
+          } else {
+            alert(result.error || 'Payment was received but could not be recorded. Please contact support.');
           }
-        })
-        .catch(console.error)
-        .finally(() => setVerifyingFee(false));
-    }
-  }, [searchParams, user, profile?.id]);
+        } else if (data.ok && data.session) {
+          alert('Payment could not be confirmed. Please contact support if you were charged.');
+        } else {
+          console.warn('Stripe session check failed:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Verification fee callback error:', err);
+        alert('Network error confirming payment. Please contact support.');
+      })
+      .finally(() => setVerifyingFee(false));
+  }, [searchParams, user, loading, profile?.id]);
 
   async function handlePayVerificationBadge() {
     try {
@@ -636,12 +658,24 @@ export default function GuideDashboardPage() {
                 </div>
 
                 {!profile?.verified && profile?.verification_status !== 'pending_admin' && !profile?.verification_fee_paid && (
-                  <button
-                    onClick={handlePayVerificationBadge}
-                    className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 shrink-0"
-                  >
-                    <i className="ph-bold ph-seal-check text-base" /> Get Verified Badge ($50 USD)
-                  </button>
+                  verifyingFee ? (
+                    <div className="flex items-center gap-2 text-amber-300 text-xs font-bold px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      <i className="ph ph-spinner-gap animate-spin text-base" />
+                      Confirming payment…
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handlePayVerificationBadge}
+                      className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <i className="ph-bold ph-seal-check text-base" /> Get Verified Badge ($50 USD)
+                    </button>
+                  )
+                )}
+                {verifyingFee && (profile?.verification_status === 'pending_admin' || profile?.verification_fee_paid) && (
+                  <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
+                    <i className="ph ph-spinner-gap animate-spin text-base" /> Confirming…
+                  </div>
                 )}
               </div>
             </div>

@@ -160,10 +160,11 @@ export default function TourGuideProfilePage() {
     );
   }
 
-  // Gallery processing
-  const photos = guide.gallery || [];
-  const mainPhoto = guide.photo || photos[0] || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
-  const smallPhotos = photos.filter(p => (p.url || p) !== mainPhoto).slice(0, 4);
+  // Gallery processing — normalize entries to plain URL strings
+  const rawPhotos = guide.gallery || [];
+  const photoUrls = rawPhotos.map(p => (typeof p === 'string' ? p : p?.url)).filter(Boolean);
+  const mainPhoto = guide.photo || photoUrls[0] || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
+  const smallPhotos = photoUrls.filter(u => u !== mainPhoto).slice(0, 4);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 pt-6 pb-20 px-4 sm:px-6">
@@ -213,9 +214,9 @@ export default function TourGuideProfilePage() {
           </div>
           {/* Grid Photos (Desktop only) */}
           <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
-            {smallPhotos.map((p, i) => (
+            {smallPhotos.map((url, i) => (
               <div key={i} className="h-full relative group cursor-pointer overflow-hidden">
-                <img src={p.url || p} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <img src={url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
               </div>
             ))}
