@@ -54,28 +54,36 @@ export default function TourGuideProfilePage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const res = await fetch(`/api/guides?slug=${encodeURIComponent(guideId)}`);
         const data = await res.json();
         if (data.ok && data.guide) {
           setGuide(data.guide);
-          document.title = `BookingCart — ${data.guide.name}`;
+          document.title = `BookingCart — ${data.guide.name || 'Guide Profile'}`;
 
-          // Fetch live reviews and stats
-          const rRes = await fetch('/api/guide-reviews', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'guide-dashboard', guideId: data.guide.slug })
-          });
-          const rData = await rRes.json();
-          if (rData.ok) {
-            setReviews(rData.reviews || []);
-            setReviewStats(rData.stats || null);
+          // Fetch live reviews and stats gracefully (do not break profile if reviews fetch fails)
+          try {
+            const rRes = await fetch('/api/guide-reviews', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'guide-dashboard', guideId: data.guide.slug || guideId })
+            });
+            if (rRes.ok) {
+              const rData = await rRes.json();
+              if (rData.ok) {
+                setReviews(rData.reviews || []);
+                setReviewStats(rData.stats || null);
+              }
+            }
+          } catch (rErr) {
+            console.warn('Could not load guide reviews:', rErr);
           }
         } else {
-          setError('Guide not found');
+          setError(data?.error || 'Guide not found');
         }
-      } catch {
+      } catch (err) {
+        console.error('Failed to load guide profile:', err);
         setError('Failed to load guide profile');
       } finally {
         setLoading(false);
@@ -108,8 +116,13 @@ export default function TourGuideProfilePage() {
   }
 
   const nights = calcNights();
-  const pricePerDay = parseFloat(guide?.pricing?.perDay || 0);
-  const perPerson = parseFloat(guide?.pricing?.perPerson || 0);
+  
+  let pricingObj = guide?.pricing || {};
+  if (typeof pricingObj === 'string') {
+    try { pricingObj = JSON.parse(pricingObj); } catch (_) { pricingObj = {}; }
+  }
+  const pricePerDay = parseFloat(pricingObj?.perDay || 0);
+  const perPerson = parseFloat(pricingObj?.perPerson || 0);
   const subtotal = nights * pricePerDay + (perPerson > 0 ? guests * perPerson : 0);
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
@@ -121,26 +134,27 @@ export default function TourGuideProfilePage() {
     }
     setBookingLoading(true);
     try {
-      const ref = `GUIDE-${guide.slug.toUpperCase().slice(0, 8)}-${Date.now()}`;
+      const slugKey = guide?.slug || guideId || 'guide';
+      const ref = `GUIDE-${slugKey.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)}-${Date.now()}`;
       await fetch('/api/guide-bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'save',
-          booking: { ref, guideId: guide.slug, startDate: selectedStart, endDate: selectedEnd, guests, total }
+          booking: { ref, guideId: slugKey, startDate: selectedStart, endDate: selectedEnd, guests, total }
         })
       });
       const params = new URLSearchParams({
-        guideId: guide.slug,
-        guideName: guide.name,
-        guidePhoto: guide.photo,
+        guideId: slugKey,
+        guideName: guide?.name || 'Guide',
+        guidePhoto: guide?.photo || '',
         startDate: selectedStart,
         endDate: selectedEnd,
         guests: guests.toString(),
         nights: nights.toString(),
         pricePerDay: pricePerDay.toString(),
         total: total.toString(),
-        currency: guide.pricing?.currency || 'USD',
+        currency: pricingObj?.currency || 'USD',
         ref
       });
       navigate(`/tour-guides/checkout?${params.toString()}`);
@@ -180,7 +194,18 @@ export default function TourGuideProfilePage() {
   const [lightboxIdx, setLightboxIdx] = useState(null);
 
   // Gallery processing — normalize entries to plain URL strings
-  const rawPhotos = Array.isArray(guide.gallery) ? guide.gallery : [];
+  let rawPhotos = [];
+  if (Array.isArray(guide.gallery)) {
+    rawPhotos = guide.gallery;
+  } else if (typeof guide.gallery === 'string') {
+    try {
+      const parsed = JSON.parse(guide.gallery);
+      if (Array.isArray(parsed)) rawPhotos = parsed;
+      else if (guide.gallery.startsWith('http')) rawPhotos = [guide.gallery];
+    } catch (_) {
+      if (guide.gallery.startsWith('http')) rawPhotos = [guide.gallery];
+    }
+  }
   const photoUrls = rawPhotos.map(p => (typeof p === 'string' ? p : p?.url)).filter(Boolean);
   const allPhotos = [];
   if (guide.photo && !allPhotos.includes(guide.photo)) allPhotos.push(guide.photo);
@@ -194,6 +219,21 @@ export default function TourGuideProfilePage() {
   const mainPhoto = allPhotos[0];
   const sidePhotos = allPhotos.slice(1, 5);
 
+  const guideName = guide.name || 'Guide';
+  const nameFirst = guideName.split(' ')[0] || 'Guide';
+
+  const categoriesList = Array.isArray(guide.categories)
+    ? guide.categories
+    : (typeof guide.categories === 'string' ? guide.categories.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const skillsList = Array.isArray(guide.skills)
+    ? guide.skills
+    : (typeof guide.skills === 'string' ? guide.skills.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const languagesList = Array.isArray(guide.languages)
+    ? guide.languages
+    : (typeof guide.languages === 'string' ? guide.languages.split(',').map(s => s.trim()).filter(Boolean) : []);
+
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 pt-6 pb-20 px-4 sm:px-6">
       
@@ -204,18 +244,18 @@ export default function TourGuideProfilePage() {
           <i className="ph ph-caret-right text-xs" />
           <span>{guide.country}</span>
           <i className="ph ph-caret-right text-xs" />
-          <span className="text-slate-900 dark:text-white">{guide.name}</span>
+          <span className="text-slate-900 dark:text-white">{guideName}</span>
         </div>
       </div>
 
       {/* ── Header ── */}
       <div className="max-w-7xl mx-auto mb-6">
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2">{guide.name}</h1>
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2">{guideName}</h1>
         <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
           <div className="flex items-center gap-1.5">
-            <StarRow rating={guide.rating} size="sm" />
-            <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating).toFixed(1)}</span>
-            <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount} reviews</span>
+            <StarRow rating={guide.rating || 5} size="sm" />
+            <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating || 5).toFixed(1)}</span>
+            <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount || 0} reviews</span>
           </div>
           {guide.verified ? (
             <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Verified Guide">
@@ -227,7 +267,7 @@ export default function TourGuideProfilePage() {
             </span>
           )}
           <span className="flex items-center gap-1.5 underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">
-            <i className="ph ph-map-pin text-base" /> {guide.city}, {guide.country}
+            <i className="ph ph-map-pin text-base" /> {guide.city}{guide.city && guide.country ? ', ' : ''}{guide.country}
           </span>
         </div>
       </div>
@@ -242,7 +282,7 @@ export default function TourGuideProfilePage() {
               onClick={() => setLightboxIdx(0)}
               className="h-full relative group cursor-pointer overflow-hidden"
             >
-              <img src={mainPhoto} alt={guide.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img src={mainPhoto} alt={guideName} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
               <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
                   <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
@@ -294,7 +334,7 @@ export default function TourGuideProfilePage() {
           <div className="md:hidden relative aspect-[4/3] overflow-hidden">
             <img
               src={allPhotos[lightboxIdx || 0] || mainPhoto}
-              alt={guide.name}
+              alt={guideName}
               className="w-full h-full object-cover cursor-pointer"
               onClick={() => setLightboxIdx(lightboxIdx || 0)}
             />
@@ -328,14 +368,14 @@ export default function TourGuideProfilePage() {
           <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-8">
             <div>
               <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
-                Guided by {guide.name.split(' ')[0]}
+                Guided by {nameFirst}
                 {guide.verified && <i className="ph-fill ph-seal-check text-emerald-500 text-xl" title="Verified by Admin" />}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 font-medium">
-                {guide.yearsExp} years experience · {guide.categories?.join(', ')}
+                {guide.yearsExp || 5} years experience {categoriesList.length > 0 ? `· ${categoriesList.join(', ')}` : ''}
               </p>
             </div>
-            <img src={guide.photo || mainPhoto} alt={guide.name} className="w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg" />
+            <img src={guide.photo || mainPhoto} alt={guideName} className="w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg" />
           </div>
 
           {/* Highlights */}
@@ -392,9 +432,9 @@ export default function TourGuideProfilePage() {
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white mb-3 text-sm uppercase tracking-wider">Skills</h3>
                 <ul className="space-y-3">
-                  {(guide.skills || []).map(skill => (
-                    <li key={skill} className="flex items-center gap-3 text-slate-700 dark:text-slate-300 font-semibold">
-                      <i className="ph-fill ph-check-circle text-green-500 text-lg" /> {skill}
+                  {skillsList.map((skill, idx) => (
+                    <li key={typeof skill === 'string' ? skill : idx} className="flex items-center gap-3 text-slate-700 dark:text-slate-300 font-semibold">
+                      <i className="ph-fill ph-check-circle text-green-500 text-lg" /> {typeof skill === 'string' ? skill : (skill?.name || '')}
                     </li>
                   ))}
                 </ul>
@@ -402,12 +442,16 @@ export default function TourGuideProfilePage() {
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white mb-3 text-sm uppercase tracking-wider">Languages</h3>
                 <ul className="space-y-3">
-                  {(guide.languages || []).map(l => (
-                    <li key={l.lang} className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <span className="flex items-center gap-3"><i className="ph ph-translate text-lg text-slate-400" /> {l.lang}</span>
-                      <span className="text-xs font-bold text-slate-400 uppercase">{l.proficiency}</span>
-                    </li>
-                  ))}
+                  {languagesList.map((l, idx) => {
+                    const langName = typeof l === 'string' ? l : (l?.lang || l?.language || '');
+                    const langProf = typeof l === 'object' ? (l?.proficiency || '') : '';
+                    return (
+                      <li key={langName || idx} className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <span className="flex items-center gap-3"><i className="ph ph-translate text-lg text-slate-400" /> {langName}</span>
+                        {langProf && <span className="text-xs font-bold text-slate-400 uppercase">{langProf}</span>}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
@@ -419,7 +463,7 @@ export default function TourGuideProfilePage() {
             <div className="flex items-center gap-3 mb-6">
               <i className="ph-fill ph-star text-2xl text-slate-900 dark:text-white" />
               <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                {Number(reviewStats?.averageRating || guide.rating).toFixed(1)} · {reviewStats?.total ?? guide.reviewCount} reviews
+                {Number(reviewStats?.averageRating || guide.rating || 5).toFixed(1)} · {reviewStats?.total ?? guide.reviewCount ?? 0} reviews
               </h2>
             </div>
 
@@ -435,7 +479,7 @@ export default function TourGuideProfilePage() {
             )}
 
             {/* AI Summary */}
-            {reviewStats && reviewStats.total >= 3 && reviewStats.topTags.length > 0 && (
+            {reviewStats && reviewStats.total >= 3 && Array.isArray(reviewStats.topTags) && reviewStats.topTags.length > 0 && (
               <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 mb-8">
                 <div className="flex items-center gap-2 mb-3">
                   <i className="ph-fill ph-sparkle text-green-600" />
@@ -473,7 +517,7 @@ export default function TourGuideProfilePage() {
                           <h4 className="font-bold text-slate-900 dark:text-white text-sm">{r.authorName || 'Traveler'}</h4>
                           <p className="text-xs text-slate-500">
                             {r.travelerType && <span>{r.travelerType} · </span>}
-                            {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''}
                           </p>
                         </div>
                       </div>
@@ -482,10 +526,10 @@ export default function TourGuideProfilePage() {
                       </span>
                     </div>
 
-                    <StarRow rating={r.rating} />
+                    <StarRow rating={r.rating || 5} />
                     <p className="text-slate-700 dark:text-slate-300 text-sm line-clamp-4">{r.text}</p>
 
-                    {r.tags && r.tags.length > 0 && (
+                    {Array.isArray(r.tags) && r.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         {r.tags.slice(0, 3).map(t => (
                           <span key={t} className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded">{t}</span>

@@ -355,15 +355,60 @@ function buildAvailability({ bookedDates = [], pendingDates = [], blockedDates =
   return result;
 }
 
+function safeParseJson(val, fallback) {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'object') return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return parsed !== null ? parsed : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 // ─── Row mapper ─────────────────────────────────────────────────────────────
 function rowToGuide(row) {
+  let categories = safeParseJson(row.categories, []);
+  if (!Array.isArray(categories)) categories = typeof categories === 'string' ? [categories] : [];
+  
+  let skills = safeParseJson(row.skills, []);
+  if (!Array.isArray(skills)) skills = typeof skills === 'string' ? [skills] : [];
+  
+  let languages = safeParseJson(row.languages, []);
+  if (!Array.isArray(languages)) languages = typeof languages === 'string' ? [languages] : [];
+  
+  let certifications = safeParseJson(row.certifications, []);
+  if (!Array.isArray(certifications)) certifications = typeof certifications === 'string' ? [certifications] : [];
+  
+  let gallery = safeParseJson(row.gallery, []);
+  if (!Array.isArray(gallery)) gallery = typeof gallery === 'string' ? [gallery] : [];
+  
+  let reviews = safeParseJson(row.reviews, []);
+  if (!Array.isArray(reviews)) reviews = [];
+  
+  let pricing = safeParseJson(row.pricing, {});
+  if (typeof pricing !== 'object' || pricing === null) pricing = { perDay: parseFloat(pricing) || 0 };
+  
+  let areas = safeParseJson(row.areas, {});
+  if (typeof areas !== 'object' || areas === null) areas = {};
+  
+  let trustIndicators = safeParseJson(row.trust_indicators, {});
+  if (typeof trustIndicators !== 'object' || trustIndicators === null) trustIndicators = {};
+  
+  let availability = safeParseJson(row.availability, {});
+  if (typeof availability !== 'object' || availability === null) availability = {};
+
   return {
     id: row.id,
     slug: row.slug,
-    name: row.name,
+    name: row.name || 'Guide',
     photo: row.photo || '',
     country: row.country || '',
     city: row.city || '',
+    bio: row.bio || '',
     yearsExp: row.years_exp || 0,
     verified: !!row.verified,
     registrationFeePaid: row.registration_fee_paid !== undefined ? !!row.registration_fee_paid : true,
@@ -372,18 +417,18 @@ function rowToGuide(row) {
     verificationStatus: row.verification_status || (row.verified ? 'approved' : 'unrequested'),
     rating: row.rating ? parseFloat(row.rating) : 0,
     reviewCount: row.review_count || 0,
-    categories: row.categories || [],
-    skills: row.skills || [],
-    languages: row.languages || [],
-    areas: row.areas || {},
-    certifications: row.certifications || [],
-    gallery: row.gallery || [],
-    reviews: row.reviews || [],
-    pricing: row.pricing || {},
-    trustIndicators: row.trust_indicators || {},
+    categories,
+    skills,
+    languages,
+    areas,
+    certifications,
+    gallery,
+    reviews,
+    pricing,
+    trustIndicators,
     demandLevel: row.demand_level || 'moderate',
     status: row.status || 'active',
-    availability: row.availability || {},
+    availability,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
