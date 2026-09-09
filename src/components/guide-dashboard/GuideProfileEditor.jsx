@@ -93,15 +93,20 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
   };
 
   // Gallery Upload Handler (Local Device File Pick)
-  const handleGalleryFilesChange = (e) => {
+  const handleGalleryFilesChange = async (e) => {
     const files = Array.from(e.target.files || []);
-    files.forEach(file => {
+    if (files.length === 0) return;
+
+    const readAsDataURL = (file) => new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        setGallery(prev => [...prev, reader.result]);
-      };
+      reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(file);
     });
+
+    const newUrls = await Promise.all(files.map(readAsDataURL));
+    const updatedGallery = [...gallery, ...newUrls];
+    setGallery(updatedGallery);
+    await saveSection('Gallery Management', updatedGallery);
   };
 
   const saveSection = async (sectionName, payload) => {

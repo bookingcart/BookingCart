@@ -640,6 +640,54 @@ export default function TourGuideProfilePage() {
           {bookingLoading ? '...' : (selectedStart && selectedEnd ? 'Book Now' : 'Check Dates')}
         </button>
       </div>
+
+      {/* ── Lightbox Modal ── */}
+      {lightboxIdx !== null && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-fade-in">
+          {/* Close button */}
+          <button
+            onClick={() => setLightboxIdx(null)}
+            className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold transition-all z-10"
+            aria-label="Close photo modal"
+          >
+            &times;
+          </button>
+
+          {/* Prev button */}
+          {allPhotos.length > 1 && (
+            <button
+              onClick={() => setLightboxIdx((lightboxIdx - 1 + allPhotos.length) % allPhotos.length)}
+              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold transition-all z-10"
+              aria-label="Previous photo"
+            >
+              <i className="ph ph-caret-left" />
+            </button>
+          )}
+
+          {/* Image display */}
+          <div className="max-w-5xl max-h-[85vh] flex flex-col items-center justify-center">
+            <img
+              src={allPhotos[lightboxIdx]}
+              alt={`Photo ${lightboxIdx + 1}`}
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+            />
+            <p className="text-slate-400 text-xs font-bold mt-4">
+              Photo {lightboxIdx + 1} of {allPhotos.length}
+            </p>
+          </div>
+
+          {/* Next button */}
+          {allPhotos.length > 1 && (
+            <button
+              onClick={() => setLightboxIdx((lightboxIdx + 1) % allPhotos.length)}
+              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold transition-all z-10"
+              aria-label="Next photo"
+            >
+              <i className="ph ph-caret-right" />
+            </button>
+          )}
+        </div>
+      )}
       
     </div>
   );
