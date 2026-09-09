@@ -600,7 +600,7 @@ module.exports = async (req, res) => {
                   OR LOWER(TRIM(step_personal->>'name')) = $1
                   OR LOWER(TRIM(step_personal->>'name')) = $4
                ORDER BY created_at DESC LIMIT 1`,
-              [cleanId, cleanSpaces]
+              [cleanId, cleanNoPrefix, cleanWithPrefix, cleanSpaces]
             );
             if (profileRes.rows.length) {
               const p = profileRes.rows[0];

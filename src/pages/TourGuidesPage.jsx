@@ -19,16 +19,16 @@ function scoreGuide(guide, criteria) {
 
   // ── Skills match (15%) ────────────────────────────────────────────────────
   if (criteria.skills?.length) {
-    const guideSkills = (guide.skills || []).map(s => s.toLowerCase());
-    const matched = criteria.skills.filter(s => guideSkills.some(gs => gs.includes(s.toLowerCase())));
+    const guideSkills = (guide.skills || []).map(s => (typeof s === 'string' ? s : (s?.name || '')).toLowerCase());
+    const matched = criteria.skills.filter(s => guideSkills.some(gs => gs.includes((s || '').toLowerCase())));
     score += (matched.length / criteria.skills.length) * 15;
     if (matched.length > 0) reasons.push(`${matched[0]} specialist`);
   } else { score += 15; }
 
   // ── Language match (10%) ──────────────────────────────────────────────────
   if (criteria.languages?.length) {
-    const guideLangs = (guide.languages || []).map(l => l.lang.toLowerCase());
-    const matched = criteria.languages.filter(l => guideLangs.includes(l.toLowerCase()));
+    const guideLangs = (guide.languages || []).map(l => (typeof l === 'string' ? l : (l?.lang || l?.language || '')).toLowerCase());
+    const matched = criteria.languages.filter(l => guideLangs.includes((l || '').toLowerCase()));
     score += (matched.length / criteria.languages.length) * 10;
     if (matched.length > 0) reasons.push(`Speaks ${matched[0]}`);
   } else { score += 10; }
@@ -102,9 +102,9 @@ export default function TourGuidesPage() {
 
   const scoredGuides = guides
     .filter(g => {
-      if (searchLocation && !g.country.toLowerCase().includes(searchLocation.toLowerCase()) && !g.city.toLowerCase().includes(searchLocation.toLowerCase()) && !(g.areas?.attractions || []).some(a => a.toLowerCase().includes(searchLocation.toLowerCase()))) return false;
-      if (searchCategories.length && !searchCategories.some(c => (g.categories || []).includes(c))) return false;
-      if (searchLanguages.length && !searchLanguages.some(l => (g.languages || []).some(gl => gl.lang === l))) return false;
+      if (searchLocation && !(g.country || '').toLowerCase().includes(searchLocation.toLowerCase()) && !(g.city || '').toLowerCase().includes(searchLocation.toLowerCase()) && !(g.areas?.attractions || []).some(a => (a || '').toLowerCase().includes(searchLocation.toLowerCase()))) return false;
+      if (searchCategories.length && !searchCategories.some(c => (g.categories || []).some(gc => (typeof gc === 'string' ? gc : gc?.name || '') === c))) return false;
+      if (searchLanguages.length && !searchLanguages.some(l => (g.languages || []).some(gl => (typeof gl === 'string' ? gl : (gl?.lang || gl?.language || '')) === l))) return false;
       return true;
     })
     .map(g => {

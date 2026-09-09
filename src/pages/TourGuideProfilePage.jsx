@@ -22,6 +22,11 @@ function normalizeAvailability(raw) {
     try { parsed = JSON.parse(raw); } catch (_) { return {}; }
   }
   if (typeof parsed !== 'object' || parsed === null) return {};
+  // If it's a working-hours object (startTime/endTime/workingDays from onboarding), not a date map
+  if (parsed.startTime !== undefined || parsed.endTime !== undefined || parsed.workingDays !== undefined) {
+    return {}; // Calendar will show all days as available
+  }
+  // If it has blockedDates array
   if (Array.isArray(parsed.blockedDates)) {
     const map = {};
     for (const d of parsed.blockedDates) {
@@ -29,7 +34,12 @@ function normalizeAvailability(raw) {
     }
     return map;
   }
-  return parsed;
+  // If it's already a date->status map, filter out non-date keys
+  const dateMap = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(k)) dateMap[k] = v;
+  }
+  return dateMap;
 }
 
 export default function TourGuideProfilePage() {
@@ -50,6 +60,7 @@ export default function TourGuideProfilePage() {
   const [pickingEnd, setPickingEnd] = useState(false);
   const [guests, setGuests] = useState(1);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -190,8 +201,6 @@ export default function TourGuideProfilePage() {
       </div>
     );
   }
-
-  const [lightboxIdx, setLightboxIdx] = useState(null);
 
   // Gallery processing — normalize entries to plain URL strings
   let rawPhotos = [];
