@@ -91,6 +91,24 @@ function nextMemId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function buildAvailabilityMap(availability = {}) {
+  const availMap = {};
+  const today = new Date();
+  const workingDays = (availability.workingDays || ['Mon','Tue','Wed','Thu','Fri']).map(d => String(d).toLowerCase().slice(0, 3));
+  const blockedDates = Array.isArray(availability.blockedDates) ? availability.blockedDates : [];
+  const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const key = d.toISOString().split('T')[0];
+    const dayName = dayNames[d.getDay()];
+    if (blockedDates.includes(key)) availMap[key] = 'blocked';
+    else if (workingDays.includes(dayName)) availMap[key] = 'available';
+    else availMap[key] = 'blocked';
+  }
+  return availMap;
+}
+
 // ─── Build bc_guides row from profile ────────────────────────────────────────
 function profileToGuide(profile) {
   const personal = profile.step_personal || {};
@@ -110,20 +128,7 @@ function profileToGuide(profile) {
   const slug = `guide-${slugBase}`;
 
   // Build availability map for next 90 days
-  const availMap = {};
-  const today = new Date();
-  const workingDays = (availability.workingDays || ['Mon','Tue','Wed','Thu','Fri']).map(d => d.toLowerCase().slice(0, 3));
-  const blockedDates = Array.isArray(availability.blockedDates) ? availability.blockedDates : [];
-  const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
-  for (let i = 0; i < 90; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    const key = d.toISOString().split('T')[0];
-    const dayName = dayNames[d.getDay()];
-    if (blockedDates.includes(key)) availMap[key] = 'blocked';
-    else if (workingDays.includes(dayName)) availMap[key] = 'available';
-    else availMap[key] = 'blocked';
-  }
+  const availMap = buildAvailabilityMap(availability);
 
   return {
     slug,
@@ -587,26 +592,63 @@ module.exports = async (req, res) => {
     // Also sync profile data to bc_guides if already published
     if (fullProfile) {
       const personal = fullProfile.step_personal || {};
+      const stepAvail = fullProfile.step_availability || {};
       const newPhoto = personal.photo || fullProfile.photo || '';
       const newName = personal.fullName || personal.name || fullProfile.email;
       const galleryArr = Array.isArray(fullProfile.step_gallery)
         ? fullProfile.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean)
         : [];
+      const availMap = buildAvailabilityMap(stepAvail);
+
       // Build stable slug for lookup
       const stableSlugBase = (fullProfile.email || newName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
       const stableSlug = `guide-${stableSlugBase}`;
+      const targetEmail = (fullProfile.email || '').toLowerCase().trim();
+      const targetName = (newName || '').toLowerCase().trim();
+
       if (dbReady) {
         await query(
-          `UPDATE bc_guides SET photo = $1, name = $2, gallery = $3, updated_at = NOW()
-           WHERE email = $4 OR slug = $5`,
-          [newPhoto || null, newName, JSON.stringify(galleryArr), fullProfile.email || '', stableSlug]
-        ).catch(() => {});
+          `UPDATE bc_guides SET 
+             photo = COALESCE(NULLIF($1, ''), photo), 
+             name = $2, 
+             email = $3, 
+             gallery = $4, 
+             availability = $5, 
+             working_days = $6, 
+             working_hours = $7, 
+             max_tours_per_day = $8, 
+             updated_at = NOW()
+           WHERE (email IS NOT NULL AND LOWER(TRIM(email)) = $3)
+              OR (name IS NOT NULL AND LOWER(TRIM(name)) = $9)
+              OR slug = $10`,
+          [
+            newPhoto || '',
+            newName,
+            targetEmail,
+            JSON.stringify(galleryArr),
+            JSON.stringify(availMap),
+            JSON.stringify(stepAvail.workingDays || []),
+            JSON.stringify({ start: stepAvail.startTime || '07:00', end: stepAvail.endTime || '19:00' }),
+            parseInt(stepAvail.maxToursPerDay || 1),
+            targetName,
+            stableSlug
+          ]
+        ).catch((err) => console.error('[guide-profiles] Failed to sync to bc_guides DB:', err));
       } else if (global.__guides) {
-        const gIdx = global.__guides.findIndex(g => g.email === fullProfile.email || g.name === newName || g.slug === stableSlug);
+        const gIdx = global.__guides.findIndex(g =>
+          (targetEmail && (g.email || '').toLowerCase().trim() === targetEmail) ||
+          (targetName && (g.name || '').toLowerCase().trim() === targetName) ||
+          g.slug === stableSlug
+        );
         if (gIdx >= 0) {
           if (newPhoto) global.__guides[gIdx].photo = newPhoto;
           global.__guides[gIdx].name = newName;
+          if (targetEmail) global.__guides[gIdx].email = targetEmail;
           if (galleryArr.length > 0) global.__guides[gIdx].gallery = galleryArr;
+          global.__guides[gIdx].availability = availMap;
+          global.__guides[gIdx].working_days = JSON.stringify(stepAvail.workingDays || []);
+          global.__guides[gIdx].working_hours = JSON.stringify({ start: stepAvail.startTime || '07:00', end: stepAvail.endTime || '19:00' });
+          global.__guides[gIdx].max_tours_per_day = parseInt(stepAvail.maxToursPerDay || 1);
         }
       }
     }

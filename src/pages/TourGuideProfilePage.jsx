@@ -15,6 +15,23 @@ function StarRow({ rating, size = 'md' }) {
   );
 }
 
+function normalizeAvailability(raw) {
+  if (!raw) return {};
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (_) { return {}; }
+  }
+  if (typeof parsed !== 'object' || parsed === null) return {};
+  if (Array.isArray(parsed.blockedDates)) {
+    const map = {};
+    for (const d of parsed.blockedDates) {
+      if (typeof d === 'string') map[d] = 'blocked';
+    }
+    return map;
+  }
+  return parsed;
+}
+
 export default function TourGuideProfilePage() {
   const { guideId } = useParams();
   const navigate = useNavigate();
@@ -160,11 +177,22 @@ export default function TourGuideProfilePage() {
     );
   }
 
+  const [lightboxIdx, setLightboxIdx] = useState(null);
+
   // Gallery processing — normalize entries to plain URL strings
-  const rawPhotos = guide.gallery || [];
+  const rawPhotos = Array.isArray(guide.gallery) ? guide.gallery : [];
   const photoUrls = rawPhotos.map(p => (typeof p === 'string' ? p : p?.url)).filter(Boolean);
-  const mainPhoto = guide.photo || photoUrls[0] || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
-  const smallPhotos = photoUrls.filter(u => u !== mainPhoto).slice(0, 4);
+  const allPhotos = [];
+  if (guide.photo && !allPhotos.includes(guide.photo)) allPhotos.push(guide.photo);
+  photoUrls.forEach(u => {
+    if (!allPhotos.includes(u)) allPhotos.push(u);
+  });
+  if (allPhotos.length === 0) {
+    allPhotos.push('https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80');
+  }
+
+  const mainPhoto = allPhotos[0];
+  const sidePhotos = allPhotos.slice(1, 5);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 pt-6 pb-20 px-4 sm:px-6">
@@ -204,27 +232,89 @@ export default function TourGuideProfilePage() {
         </div>
       </div>
 
-      {/* ── Image Gallery (Airbnb Style) ── */}
-      <div className="max-w-7xl mx-auto mb-10 h-[50vh] min-h-[300px] max-h-[500px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 h-full rounded-3xl overflow-hidden">
-          {/* Main Photo */}
-          <div className="h-full relative group cursor-pointer">
-            <img src={mainPhoto} alt={guide.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-          </div>
-          {/* Grid Photos (Desktop only) */}
-          <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
-            {smallPhotos.map((url, i) => (
-              <div key={i} className="h-full relative group cursor-pointer overflow-hidden">
-                <img src={url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+      {/* ── Image Gallery (Airbnb Style with Lightbox) ── */}
+      <div className="max-w-7xl mx-auto mb-10">
+        <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+          {/* Desktop Grid Layout */}
+          <div className="hidden md:grid grid-cols-2 gap-2 h-[450px]">
+            {/* Main Photo */}
+            <div
+              onClick={() => setLightboxIdx(0)}
+              className="h-full relative group cursor-pointer overflow-hidden"
+            >
+              <img src={mainPhoto} alt={guide.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
+                  <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
+                </span>
               </div>
-            ))}
-            {/* Fill empty slots if less than 4 small photos */}
-            {Array.from({ length: Math.max(0, 4 - smallPhotos.length) }).map((_, i) => (
-              <div key={`empty-${i}`} className="bg-slate-100 dark:bg-slate-800 h-full" />
-            ))}
+            </div>
+
+            {/* Side Photos */}
+            {sidePhotos.length === 0 ? (
+              <div className="h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-8 text-slate-400">
+                <div className="text-center">
+                  <i className="ph ph-image text-4xl mb-2 block text-slate-300 dark:text-slate-600" />
+                  <p className="text-xs font-bold uppercase tracking-wider">No additional gallery photos</p>
+                </div>
+              </div>
+            ) : sidePhotos.length === 1 ? (
+              <div
+                onClick={() => setLightboxIdx(1)}
+                className="h-full relative group cursor-pointer overflow-hidden"
+              >
+                <img src={sidePhotos[0]} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
+                    <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full">
+                {sidePhotos.map((url, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setLightboxIdx(idx + 1)}
+                    className="h-full relative group cursor-pointer overflow-hidden"
+                  >
+                    <img src={url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-3 py-1.5 rounded-full font-extrabold text-[11px] shadow-lg backdrop-blur transition-opacity">
+                        View
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Mobile Layout */}
+          <div className="md:hidden relative aspect-[4/3] overflow-hidden">
+            <img
+              src={allPhotos[lightboxIdx || 0] || mainPhoto}
+              alt={guide.name}
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => setLightboxIdx(lightboxIdx || 0)}
+            />
+            {allPhotos.length > 1 && (
+              <div className="absolute bottom-3 right-3 bg-slate-900/80 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur">
+                {(lightboxIdx || 0) + 1} / {allPhotos.length}
+              </div>
+            )}
+          </div>
+
+          {/* Floating "View All Photos" Button */}
+          {allPhotos.length > 1 && (
+            <button
+              onClick={() => setLightboxIdx(0)}
+              className="absolute bottom-4 right-4 bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-lg border border-slate-200/80 dark:border-slate-700 flex items-center gap-2 backdrop-blur transition-all"
+            >
+              <i className="ph ph-grid-four text-base text-emerald-500" />
+              Show all {allPhotos.length} photos
+            </button>
+          )}
         </div>
       </div>
 
@@ -473,9 +563,7 @@ export default function TourGuideProfilePage() {
             {/* Mini Calendar injection */}
             <div className="mb-4">
               <GuideAvailabilityCalendar 
-                availability={guide.availability?.blockedDates 
-                  ? Object.fromEntries((guide.availability.blockedDates || []).map(d => [d, 'blocked'])) 
-                  : {}} 
+                availability={normalizeAvailability(guide?.availability)} 
                 selectedStart={selectedStart} 
                 selectedEnd={selectedEnd} 
                 onDateSelect={handleDateSelect} 
