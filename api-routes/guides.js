@@ -461,6 +461,27 @@ module.exports = async (req, res) => {
               OR LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'name')))
             );
         `).catch(() => {});
+
+        // Auto-seed SEED_GUIDES into bc_guides table if empty
+        const countCheck = await query('SELECT COUNT(*) as cnt FROM bc_guides');
+        const guideCnt = parseInt(countCheck.rows[0]?.cnt || 0);
+        if (guideCnt === 0) {
+          for (const g of SEED_GUIDES) {
+            await query(`
+              INSERT INTO bc_guides (slug, name, photo, country, city, years_exp, verified, rating, review_count,
+                categories, skills, languages, areas, certifications, gallery, reviews, pricing, trust_indicators,
+                demand_level, status, availability, created_at, updated_at)
+              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW())
+              ON CONFLICT (slug) DO NOTHING`,
+              [g.slug, g.name, g.photo, g.country, g.city, g.yearsExp, g.verified, g.rating, g.reviewCount,
+               JSON.stringify(g.categories), JSON.stringify(g.skills), JSON.stringify(g.languages),
+               JSON.stringify(g.areas), JSON.stringify(g.certifications), JSON.stringify(g.gallery),
+               JSON.stringify(g.reviews), JSON.stringify(g.pricing), JSON.stringify(g.trustIndicators),
+               g.demandLevel, g.status, JSON.stringify(g.availability)]
+            ).catch(() => {});
+          }
+        }
+
         dbReady = true;
       }
     } catch (dbErr) {
@@ -486,11 +507,18 @@ module.exports = async (req, res) => {
         });
       }
 
-      const guideId = String(req.query.id || req.query.slug || '').trim();
+      const rawGuideId = String(req.query.id || req.query.slug || '').trim();
+      let guideId = rawGuideId;
+      try { guideId = decodeURIComponent(rawGuideId).trim(); } catch (_) {}
 
       if (guideId) {
         // Single guide fetch with failsafe multi-criteria fallback
         let guide = null;
+
+        const cleanId = guideId.toLowerCase();
+        const cleanNoPrefix = cleanId.replace(/^guide-/, '');
+        const cleanWithPrefix = cleanId.startsWith('guide-') ? cleanId : 'guide-' + cleanId;
+        const cleanSpaces = cleanId.replace(/-/g, ' ');
 
         if (dbReady) {
           const isNumeric = /^\d+$/.test(guideId);
@@ -503,26 +531,31 @@ module.exports = async (req, res) => {
             // Flexible match by slug, email, or name (case-insensitive)
             const result = await query(
               `SELECT * FROM bc_guides 
-               WHERE LOWER(slug) = LOWER($1) 
-                  OR (email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)))
-                  OR LOWER(name) = LOWER($1)
-                  OR LOWER(REPLACE(slug, '-', ' ')) = LOWER(REPLACE($1, '-', ' '))
+               WHERE LOWER(slug) = $1 
+                  OR LOWER(slug) = $2
+                  OR LOWER(slug) = $3
+                  OR (email IS NOT NULL AND LOWER(TRIM(email)) = $1)
+                  OR LOWER(TRIM(name)) = $1
+                  OR LOWER(TRIM(name)) = $4
+                  OR LOWER(REPLACE(slug, '-', ' ')) = $4
                LIMIT 1`,
-              [guideId]
+              [cleanId, cleanNoPrefix, cleanWithPrefix, cleanSpaces]
             );
             if (result.rows.length) guide = rowToGuide(result.rows[0]);
           }
 
-          // Fallback: check bc_guide_profiles if not found in bc_guides
+          // Fallback 1: check bc_guide_profiles if not found in bc_guides
           if (!guide) {
             const profileRes = await query(
               `SELECT * FROM bc_guide_profiles 
                WHERE (id::text = $1)
-                  OR LOWER(TRIM(email)) = LOWER(TRIM($1))
-                  OR LOWER(TRIM(step_personal->>'fullName')) = LOWER(TRIM($1))
-                  OR LOWER(TRIM(step_personal->>'name')) = LOWER(TRIM($1))
+                  OR LOWER(TRIM(email)) = $1
+                  OR LOWER(TRIM(step_personal->>'fullName')) = $1
+                  OR LOWER(TRIM(step_personal->>'fullName')) = $4
+                  OR LOWER(TRIM(step_personal->>'name')) = $1
+                  OR LOWER(TRIM(step_personal->>'name')) = $4
                ORDER BY created_at DESC LIMIT 1`,
-              [guideId]
+              [cleanId, cleanSpaces]
             );
             if (profileRes.rows.length) {
               const p = profileRes.rows[0];
@@ -537,7 +570,7 @@ module.exports = async (req, res) => {
                 country: (p.step_areas || {}).country || '',
                 city: personal.city || '',
                 bio: personal.bio || '',
-                yearsExp: parseInt((p.step_experience || {}).yearsExp || 0),
+                yearsExp: parseInt((p.step_experience || {}).yearsExp || 5),
                 verified: p.status === 'approved',
                 rating: 5.0,
                 reviewCount: 0,
@@ -562,43 +595,55 @@ module.exports = async (req, res) => {
               };
             }
           }
-        } else {
-          // In-memory lookup
-          const searchKey = guideId.toLowerCase();
-          guide = getMemGuides().find(g =>
-            (g.slug && g.slug.toLowerCase() === searchKey) ||
-            String(g.id) === guideId ||
-            (g.email && g.email.toLowerCase() === searchKey) ||
-            (g.name && g.name.toLowerCase() === searchKey)
-          ) || null;
+        }
 
-          if (!guide && global.__bc_guide_profiles) {
-            for (const [, p] of global.__bc_guide_profiles) {
-              const pName = ((p.step_personal && p.step_personal.fullName) || '').toLowerCase();
-              if (String(p.id) === guideId || (p.email && p.email.toLowerCase() === searchKey) || (pName && pName === searchKey)) {
-                const personal = p.step_personal || {};
-                const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
-                guide = {
-                  id: p.id,
-                  slug: `guide-${p.email.split('@')[0]}`,
-                  name: personal.fullName || personal.name || p.email,
-                  photo: personal.photo || '',
-                  country: (p.step_areas || {}).country || '',
-                  city: personal.city || '',
-                  bio: personal.bio || '',
-                  yearsExp: 5,
-                  verified: p.status === 'approved',
-                  rating: 5.0,
-                  reviewCount: 0,
-                  categories: [],
-                  skills: [],
-                  languages: [],
-                  gallery: gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean),
-                  pricing: { perDay: 150 },
-                  status: 'active'
-                };
-                break;
-              }
+        // Fallback 2: Check SEED_GUIDES / getMemGuides() in memory
+        if (!guide) {
+          const memGuides = getMemGuides();
+          guide = memGuides.find(g =>
+            (g.slug && g.slug.toLowerCase() === cleanId) ||
+            (g.slug && g.slug.toLowerCase() === cleanNoPrefix) ||
+            (g.slug && g.slug.toLowerCase() === cleanWithPrefix) ||
+            String(g.id) === guideId ||
+            (g.email && g.email.toLowerCase() === cleanId) ||
+            (g.name && g.name.toLowerCase() === cleanId) ||
+            (g.name && g.name.toLowerCase() === cleanSpaces)
+          ) || null;
+        }
+
+        // Fallback 3: Check global.__bc_guide_profiles in memory
+        if (!guide && global.__bc_guide_profiles) {
+          for (const [, p] of global.__bc_guide_profiles) {
+            const pName = ((p.step_personal && (p.step_personal.fullName || p.step_personal.name)) || '').toLowerCase();
+            const pEmail = (p.email || '').toLowerCase();
+            if (
+              String(p.id) === guideId ||
+              pEmail === cleanId ||
+              pName === cleanId ||
+              pName === cleanSpaces
+            ) {
+              const personal = p.step_personal || {};
+              const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
+              guide = {
+                id: p.id,
+                slug: `guide-${(p.email || 'unknown').split('@')[0]}`,
+                name: personal.fullName || personal.name || p.email,
+                photo: personal.photo || '',
+                country: (p.step_areas || {}).country || '',
+                city: personal.city || '',
+                bio: personal.bio || '',
+                yearsExp: 5,
+                verified: p.status === 'approved',
+                rating: 5.0,
+                reviewCount: 0,
+                categories: [],
+                skills: [],
+                languages: [],
+                gallery: gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean),
+                pricing: { perDay: 150 },
+                status: 'active'
+              };
+              break;
             }
           }
         }
