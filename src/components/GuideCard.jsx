@@ -32,7 +32,7 @@ export default function GuideCard({ guide, matchScore, matchReasons }) {
   return (
     <article
       className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer"
-      onClick={() => navigate(`/tour-guides/${guide.slug}`)}
+      onClick={() => navigate(`/tour-guides/${guide.slug || guide.id || encodeURIComponent(guide.email || guide.name || '')}`)}
       role="button"
       aria-label={`View profile of ${guide.name}`}
     >

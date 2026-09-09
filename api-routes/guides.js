@@ -327,6 +327,13 @@ const SEED_GUIDES = [
   }
 ];
 
+function getMemGuides() {
+  if (!global.__guides || global.__guides.length === 0) {
+    global.__guides = SEED_GUIDES.map((g, i) => ({ ...g, id: i + 1 }));
+  }
+  return global.__guides;
+}
+
 function buildAvailability({ bookedDates = [], pendingDates = [], blockedDates = [] } = {}) {
   // Build a map for 3 months of availability
   const result = {};
@@ -479,20 +486,123 @@ module.exports = async (req, res) => {
         });
       }
 
-      const guideId = req.query.id || req.query.slug;
+      const guideId = String(req.query.id || req.query.slug || '').trim();
 
       if (guideId) {
-        // Single guide fetch
+        // Single guide fetch with failsafe multi-criteria fallback
         let guide = null;
+
         if (dbReady) {
           const isNumeric = /^\d+$/.test(guideId);
-          const col = isNumeric ? 'id = $1' : 'slug = $1';
-          const val = isNumeric ? parseInt(guideId) : guideId;
-          const result = await query(`SELECT * FROM bc_guides WHERE ${col}`, [val]);
-          guide = result.rows.length ? rowToGuide(result.rows[0]) : null;
+          if (isNumeric) {
+            const result = await query(`SELECT * FROM bc_guides WHERE id = $1`, [parseInt(guideId)]);
+            if (result.rows.length) guide = rowToGuide(result.rows[0]);
+          }
+
+          if (!guide) {
+            // Flexible match by slug, email, or name (case-insensitive)
+            const result = await query(
+              `SELECT * FROM bc_guides 
+               WHERE LOWER(slug) = LOWER($1) 
+                  OR (email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1)))
+                  OR LOWER(name) = LOWER($1)
+                  OR LOWER(REPLACE(slug, '-', ' ')) = LOWER(REPLACE($1, '-', ' '))
+               LIMIT 1`,
+              [guideId]
+            );
+            if (result.rows.length) guide = rowToGuide(result.rows[0]);
+          }
+
+          // Fallback: check bc_guide_profiles if not found in bc_guides
+          if (!guide) {
+            const profileRes = await query(
+              `SELECT * FROM bc_guide_profiles 
+               WHERE (id::text = $1)
+                  OR LOWER(TRIM(email)) = LOWER(TRIM($1))
+                  OR LOWER(TRIM(step_personal->>'fullName')) = LOWER(TRIM($1))
+                  OR LOWER(TRIM(step_personal->>'name')) = LOWER(TRIM($1))
+               ORDER BY created_at DESC LIMIT 1`,
+              [guideId]
+            );
+            if (profileRes.rows.length) {
+              const p = profileRes.rows[0];
+              const personal = p.step_personal || {};
+              const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
+              const slugBase = (p.email || personal.fullName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
+              guide = {
+                id: p.id,
+                slug: `guide-${slugBase}`,
+                name: personal.fullName || personal.name || p.email,
+                photo: personal.photo || (Array.isArray(gallery) && (typeof gallery[0] === 'string' ? gallery[0] : gallery[0]?.url)) || '',
+                country: (p.step_areas || {}).country || '',
+                city: personal.city || '',
+                bio: personal.bio || '',
+                yearsExp: parseInt((p.step_experience || {}).yearsExp || 0),
+                verified: p.status === 'approved',
+                rating: 5.0,
+                reviewCount: 0,
+                categories: Array.isArray((p.step_categories || {}).selected) ? p.step_categories.selected : [],
+                skills: Array.isArray((p.step_skills || {}).selected) ? p.step_skills.selected : [],
+                languages: Array.isArray((p.step_languages || {}).list) ? p.step_languages.list : [],
+                areas: p.step_areas || {},
+                certifications: Array.isArray(p.step_certifications) ? p.step_certifications : [],
+                gallery: Array.isArray(gallery) ? gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [],
+                reviews: [],
+                pricing: {
+                  perDay: parseFloat((p.step_pricing || {}).perDay || 0),
+                  perHour: parseFloat((p.step_pricing || {}).perHour || 0),
+                  currency: (p.step_pricing || {}).currency || 'USD'
+                },
+                trustIndicators: {},
+                demandLevel: 'moderate',
+                status: p.status || 'active',
+                availability: p.step_availability || {},
+                createdAt: p.created_at,
+                updatedAt: p.updated_at
+              };
+            }
+          }
         } else {
-          guide = (global.__guides || []).find(g => g.slug === guideId || String(g.id) === String(guideId)) || null;
+          // In-memory lookup
+          const searchKey = guideId.toLowerCase();
+          guide = getMemGuides().find(g =>
+            (g.slug && g.slug.toLowerCase() === searchKey) ||
+            String(g.id) === guideId ||
+            (g.email && g.email.toLowerCase() === searchKey) ||
+            (g.name && g.name.toLowerCase() === searchKey)
+          ) || null;
+
+          if (!guide && global.__bc_guide_profiles) {
+            for (const [, p] of global.__bc_guide_profiles) {
+              const pName = ((p.step_personal && p.step_personal.fullName) || '').toLowerCase();
+              if (String(p.id) === guideId || (p.email && p.email.toLowerCase() === searchKey) || (pName && pName === searchKey)) {
+                const personal = p.step_personal || {};
+                const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
+                guide = {
+                  id: p.id,
+                  slug: `guide-${p.email.split('@')[0]}`,
+                  name: personal.fullName || personal.name || p.email,
+                  photo: personal.photo || '',
+                  country: (p.step_areas || {}).country || '',
+                  city: personal.city || '',
+                  bio: personal.bio || '',
+                  yearsExp: 5,
+                  verified: p.status === 'approved',
+                  rating: 5.0,
+                  reviewCount: 0,
+                  categories: [],
+                  skills: [],
+                  languages: [],
+                  gallery: gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean),
+                  pricing: { perDay: 150 },
+                  status: 'active'
+                };
+                break;
+              }
+            }
+          }
         }
+
         if (!guide) return res.status(404).json({ ok: false, error: 'Guide not found' });
         return res.json({ ok: true, guide });
       }
@@ -514,7 +624,7 @@ module.exports = async (req, res) => {
         const result = await query(`SELECT * FROM bc_guides ${where} ORDER BY rating DESC, review_count DESC LIMIT $${pi} OFFSET $${pi + 1}`, [...params, lim, off]);
         guides = result.rows.map(rowToGuide);
       } else {
-        guides = (global.__guides || [])
+        guides = getMemGuides()
           .filter(g => !statusFilter || g.status === statusFilter || (statusFilter === 'active' && g.status === 'active'))
           .filter(g => !location || g.country.toLowerCase().includes(location.toLowerCase()) || g.city.toLowerCase().includes(location.toLowerCase()))
           .filter(g => !skill || (g.skills || []).some(s => s.toLowerCase().includes(skill.toLowerCase())))
