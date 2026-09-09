@@ -215,9 +215,12 @@ export default function TourGuideProfilePage() {
       if (guide.gallery.startsWith('http')) rawPhotos = [guide.gallery];
     }
   }
-  const photoUrls = rawPhotos.map(p => (typeof p === 'string' ? p : p?.url)).filter(Boolean);
+  const photoUrls = rawPhotos
+    .map(p => (typeof p === 'string' ? p : p?.url))
+    .filter(Boolean)
+    .filter(u => u !== guide.photo);
+
   const allPhotos = [];
-  if (guide.photo && !allPhotos.includes(guide.photo)) allPhotos.push(guide.photo);
   photoUrls.forEach(u => {
     if (!allPhotos.includes(u)) allPhotos.push(u);
   });
