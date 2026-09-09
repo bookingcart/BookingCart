@@ -916,11 +916,12 @@ module.exports = async (req, res) => {
       if (dbReady) {
         await query(`UPDATE bc_guides SET name=$1, photo=$2, country=$3, city=$4, years_exp=$5, verified=$6,
           categories=$7, skills=$8, languages=$9, areas=$10, certifications=$11, pricing=$12,
-          trust_indicators=$13, demand_level=$14, status=$15, availability=$16, updated_at=NOW() WHERE id=$17`,
+          trust_indicators=$13, demand_level=$14, status=$15, availability=$16, gallery=$17, updated_at=NOW() WHERE id=$18`,
           [guide.name, guide.photo, guide.country, guide.city, guide.yearsExp, guide.verified,
            JSON.stringify(guide.categories), JSON.stringify(guide.skills), JSON.stringify(guide.languages),
            JSON.stringify(guide.areas), JSON.stringify(guide.certifications), JSON.stringify(guide.pricing),
-           JSON.stringify(guide.trustIndicators), guide.demandLevel, guide.status, JSON.stringify(guide.availability), id]
+           JSON.stringify(guide.trustIndicators), guide.demandLevel, guide.status, JSON.stringify(guide.availability),
+           JSON.stringify(guide.gallery || []), id]
         );
       } else {
         const idx = (global.__guides || []).findIndex(g => String(g.id) === String(id));

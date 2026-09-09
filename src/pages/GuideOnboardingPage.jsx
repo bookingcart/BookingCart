@@ -1071,46 +1071,48 @@ export default function GuideOnboardingPage() {
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 mb-6">
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-4 flex items-center gap-2">
-                  <i className="ph ph-link text-green-600" /> Add Photo or Video
+                  <i className="ph ph-image text-green-600" /> Upload Featured Images & Photos
                 </h3>
                 <div className="space-y-4 mb-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Photo *</label>
-                    <PhotoUploader value={draft.newGalleryUrl} onChange={v => set('newGalleryUrl', v)} label="Photo" />
+                    <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Featured Image *</label>
+                    <PhotoUploader 
+                      value={draft.newGalleryUrl} 
+                      onChange={v => {
+                        set('newGalleryUrl', v);
+                        if (v && draft.gallery.length < 30) {
+                          set('gallery', [...draft.gallery, { url: v, caption: (draft.newGalleryCaption || '').trim(), type: 'photo' }]);
+                          set('newGalleryUrl', '');
+                          set('newGalleryCaption', '');
+                        }
+                      }} 
+                      label="Featured Image" 
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Caption</label>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">Caption (Optional)</label>
                     <TextInput value={draft.newGalleryCaption} onChange={v => set('newGalleryCaption', v)} placeholder="Gorilla tracking in Bwindi…" />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!draft.newGalleryUrl.trim()) return;
-                    if (draft.gallery.length >= 30) { alert('Maximum 30 photos allowed'); return; }
-                    set('gallery', [...draft.gallery, { url: draft.newGalleryUrl.trim(), caption: draft.newGalleryCaption.trim(), type: 'photo' }]);
-                    set('newGalleryUrl', ''); set('newGalleryCaption', '');
-                  }}
-                  className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-sm"
-                >
-                  Add to Gallery
-                </button>
-                <p className="text-xs text-slate-400 mt-2">Upload a high-quality JPG or PNG. {draft.gallery.length}/30 photos added.</p>
+                <p className="text-xs text-slate-400 mt-2">Upload high-quality JPG or PNG images. {draft.gallery.length}/30 photos added.</p>
               </div>
 
               {draft.gallery.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {draft.gallery.map((item, i) => (
-                    <div key={i} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800">
-                      <img src={item.url} alt={item.caption || ''} className="w-full h-full object-cover" onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=60'; }} />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                        {item.caption && <p className="text-white text-xs font-semibold text-center">{item.caption}</p>}
-                        <button type="button" onClick={() => set('gallery', draft.gallery.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 font-bold text-xs flex items-center gap-1">
-                          <i className="ph ph-trash" /> Remove
-                        </button>
+                  {draft.gallery.map((item, i) => {
+                    const imgSrc = typeof item === 'string' ? item : (item?.url || item?.src || '');
+                    return (
+                      <div key={i} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800">
+                        <img src={imgSrc} alt={item?.caption || ''} className="w-full h-full object-cover" onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=60'; }} />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                          {item?.caption && <p className="text-white text-xs font-semibold text-center">{item.caption}</p>}
+                          <button type="button" onClick={() => set('gallery', draft.gallery.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 font-bold text-xs flex items-center gap-1">
+                            <i className="ph ph-trash" /> Remove
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 text-slate-400">
