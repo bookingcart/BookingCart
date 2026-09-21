@@ -275,6 +275,7 @@ export default function HomePage() {
       // Small delay lets React finish rendering the #deals-grid DOM node first
       const t = setTimeout(() => {
         if (typeof window.__reInitDeals === 'function') window.__reInitDeals();
+        if (typeof window.__reInitBookingCart === 'function') window.__reInitBookingCart();
       }, 50);
       return () => clearTimeout(t);
     }

@@ -2511,6 +2511,14 @@
     }
   }
 
+  window.__reInitBookingCart = function() {
+    initTripTabs();
+    initPassengerControls();
+    initCalendar();
+    initSearchForm();
+    initAirportSuggestAll();
+  };
+
   window.BookingCart = {
     readState,
     writeState,
