@@ -49,6 +49,7 @@ const guideProfilesHandler = require('./api-routes/guide-profiles');
 const guideReviewsHandler = require('./api-routes/guide-reviews');
 const guideWalletsHandler = require('./api-routes/guide-wallets');
 const notificationsHandler = require('./api-routes/notifications');
+const hotelProfilesHandler = require('./api-routes/hotel-profiles');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -191,6 +192,9 @@ app.all('/api/guide-bookings', apiLimiter, run(guideBookingsHandler));
 app.all('/api/guide-profiles', apiLimiter, run(guideProfilesHandler));
 app.all('/api/guide-reviews', apiLimiter, run(guideReviewsHandler));
 app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
+
+// Hotel Owner routes
+app.all('/api/hotel-profiles', apiLimiter, run(hotelProfilesHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>

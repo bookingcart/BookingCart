@@ -14,6 +14,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
   const isGuide = user?.role === 'guide' || user?.role === 'guide_applicant' || !!user?.isGuide;
+  const isHotelOwner = user?.role === 'hotel_owner' || !!user?.isHotelOwner;
 
   const navItems = [];
 
@@ -86,6 +87,26 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               </a>
             )}
 
+            {!isHotelOwner && activeNav === 'stays' && (
+              <a
+                href="/list-your-hotel"
+                className="flex h-10 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-sm font-bold text-white transition-colors shadow-sm shadow-blue-600/25"
+              >
+                <i className="ph ph-buildings text-base" />
+                <span>List Your Property</span>
+              </a>
+            )}
+
+            {isHotelOwner && (
+              <a
+                href="/hotel-dashboard"
+                className="flex h-10 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-sm font-bold text-white transition-colors shadow-sm shadow-blue-600/25"
+              >
+                <i className="ph ph-buildings text-base" />
+                <span>Property Portal</span>
+              </a>
+            )}
+
             {rightSlot}
             {user && (isGuide || user?.role === 'admin') && <NotificationBell />}
             <HeaderAuthCluster />
@@ -148,6 +169,26 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 >
                   <i className="ph ph-compass text-base" />
                   Become a Guide
+                </a>
+              )}
+              {!isHotelOwner && activeNav === 'stays' && (
+                <a
+                  href="/list-your-hotel"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition-colors hover:bg-blue-700 shadow-sm shadow-blue-600/25"
+                >
+                  <i className="ph ph-buildings text-base" />
+                  List Your Property
+                </a>
+              )}
+              {isHotelOwner && (
+                <a
+                  href="/hotel-dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition-colors hover:bg-blue-700 shadow-sm shadow-blue-600/25"
+                >
+                  <i className="ph ph-buildings text-base" />
+                  Property Portal
                 </a>
               )}
             </nav>
