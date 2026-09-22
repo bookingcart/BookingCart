@@ -38,12 +38,23 @@ export default function GuideCard({ guide, matchScore, matchReasons }) {
     >
       {/* ── Photo Section ── */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
-        <img
-          src={guide.photo || (Array.isArray(guide.gallery) && (guide.gallery[0]?.url || guide.gallery[0])) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
-          alt={guide.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          loading="lazy"
-        />
+        {guide.photo || (Array.isArray(guide.gallery) && (guide.gallery[0]?.url || guide.gallery[0])) ? (
+          <img
+            src={guide.photo || (Array.isArray(guide.gallery) && (guide.gallery[0]?.url || guide.gallery[0]))}
+            alt={guide.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-20 h-20 rounded-full bg-white dark:bg-slate-600 shadow-md flex items-center justify-center text-3xl font-black text-slate-400 dark:text-slate-300">
+                {(guide.name || 'G')[0].toUpperCase()}
+              </div>
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">No Photo Yet</span>
+            </div>
+          </div>
+        )}
         
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/10 to-transparent" />
@@ -68,9 +79,9 @@ export default function GuideCard({ guide, matchScore, matchReasons }) {
         <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <StarRating rating={guide.rating || 4.9} />
+              <StarRating rating={guide.rating || 0} />
               <span className="text-white font-bold text-sm leading-none mt-0.5">
-                {Number(guide.rating || 4.9).toFixed(1)}
+                {Number(guide.rating || 0).toFixed(1)}
               </span>
               <span className="text-white/70 text-xs font-semibold mt-0.5">
                 ({guide.reviewCount?.toLocaleString() || 0})

@@ -226,10 +226,11 @@ export default function TourGuideProfilePage() {
     if (!allPhotos.includes(u)) allPhotos.push(u);
   });
   if (allPhotos.length === 0) {
-    allPhotos.push('https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80');
+    // No photos uploaded — leave allPhotos empty so we show an empty state
   }
 
-  const mainPhoto = allPhotos[0];
+  const hasPhotos = allPhotos.length > 0;
+  const mainPhoto = allPhotos[0] || null;
   const sidePhotos = allPhotos.slice(1, 5);
 
   const guideName = guide.name || 'Guide';
@@ -266,8 +267,8 @@ export default function TourGuideProfilePage() {
         <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2">{guideName}</h1>
         <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
           <div className="flex items-center gap-1.5">
-            <StarRow rating={guide.rating || 5} size="sm" />
-            <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating || 5).toFixed(1)}</span>
+            <StarRow rating={guide.rating || 0} size="sm" />
+            <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating || 0).toFixed(1)}</span>
             <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount || 0} reviews</span>
           </div>
           {guide.verified ? (
@@ -291,6 +292,17 @@ export default function TourGuideProfilePage() {
           {/* Desktop Grid Layout */}
           <div className="hidden md:grid grid-cols-2 gap-2 h-[450px]">
             {/* Main Photo */}
+            {!hasPhotos ? (
+              <div className="col-span-2 h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                <div className="text-center">
+                  <div className="w-28 h-28 rounded-full bg-white dark:bg-slate-700 shadow-lg flex items-center justify-center text-5xl font-black text-slate-300 dark:text-slate-500 mx-auto mb-4">
+                    {(guideName)[0]?.toUpperCase()}
+                  </div>
+                  <p className="text-slate-400 dark:text-slate-500 font-bold text-sm uppercase tracking-wider">No photos uploaded yet</p>
+                </div>
+              </div>
+            ) : (
+              <>
             <div
               onClick={() => setLightboxIdx(0)}
               className="h-full relative group cursor-pointer overflow-hidden"
@@ -341,30 +353,45 @@ export default function TourGuideProfilePage() {
                 ))}
               </div>
             )}
+            </>
+            )}
           </div>
 
           {/* Mobile Layout */}
           <div className="md:hidden relative aspect-[4/3] overflow-hidden">
-            <img
-              src={allPhotos[lightboxIdx || 0] || mainPhoto}
-              alt={guideName}
-              className="w-full h-full object-cover cursor-pointer"
-              onClick={() => setLightboxIdx(lightboxIdx || 0)}
-            />
-            {allPhotos.length > 1 && (
-              <div className="absolute bottom-3 right-3 bg-slate-900/80 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur">
-                {(lightboxIdx || 0) + 1} / {allPhotos.length}
+            {hasPhotos ? (
+              <>
+              <img
+                src={allPhotos[lightboxIdx || 0]}
+                alt={guideName}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setLightboxIdx(lightboxIdx || 0)}
+              />
+              {allPhotos.length > 1 && (
+                <div className="absolute bottom-3 right-3 bg-slate-900/80 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur">
+                  {(lightboxIdx || 0) + 1} / {allPhotos.length}
+                </div>
+              )}
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                <div className="text-center">
+                  <div className="w-20 h-20 rounded-full bg-white dark:bg-slate-700 shadow-md flex items-center justify-center text-4xl font-black text-slate-300 dark:text-slate-500 mx-auto mb-2">
+                    {(guideName)[0]?.toUpperCase()}
+                  </div>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">No photos uploaded</p>
+                </div>
               </div>
             )}
           </div>
 
           {/* Floating "View All Photos" Button */}
-          {allPhotos.length > 1 && (
+          {hasPhotos && allPhotos.length > 1 && (
             <button
               onClick={() => setLightboxIdx(0)}
               className="absolute bottom-4 right-4 bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-lg border border-slate-200/80 dark:border-slate-700 flex items-center gap-2 backdrop-blur transition-all"
             >
-              <i className="ph ph-grid-four text-base text-emerald-500" />
+            <i className="ph ph-grid-four text-base text-emerald-500" />
               Show all {allPhotos.length} photos
             </button>
           )}
@@ -388,7 +415,7 @@ export default function TourGuideProfilePage() {
                 {guide.yearsExp || 5} years experience {categoriesList.length > 0 ? `· ${categoriesList.join(', ')}` : ''}
               </p>
             </div>
-            <img src={guide.photo || mainPhoto} alt={guideName} className="w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg" />
+          <img src={guide.photo || (hasPhotos ? mainPhoto : null)} alt={guideName} className={`w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg ${!guide.photo && !hasPhotos ? 'hidden' : ''}`} />
           </div>
 
           {/* Highlights */}
@@ -476,7 +503,7 @@ export default function TourGuideProfilePage() {
             <div className="flex items-center gap-3 mb-6">
               <i className="ph-fill ph-star text-2xl text-slate-900 dark:text-white" />
               <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                {Number(reviewStats?.averageRating || guide.rating || 5).toFixed(1)} · {reviewStats?.total ?? guide.reviewCount ?? 0} reviews
+                {Number(reviewStats?.averageRating || guide.rating || 0).toFixed(1)} · {reviewStats?.total ?? guide.reviewCount ?? 0} reviews
               </h2>
             </div>
 
@@ -539,7 +566,7 @@ export default function TourGuideProfilePage() {
                       </span>
                     </div>
 
-                    <StarRow rating={r.rating || 5} />
+                    <StarRow rating={r.rating || 0} />
                     <p className="text-slate-700 dark:text-slate-300 text-sm line-clamp-4">{r.text}</p>
 
                     {Array.isArray(r.tags) && r.tags.length > 0 && (
