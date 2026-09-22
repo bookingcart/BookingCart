@@ -32,7 +32,7 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
   });
 
   const [categories, setCategories] = useState(
-    Array.isArray(profile?.step_categories?.selected) ? profile.step_categories.selected : (profile?.categories || ['Safari Guide', 'Wildlife Guide'])
+    Array.isArray(profile?.step_categories) ? profile.step_categories : (Array.isArray(profile?.step_categories?.selected) ? profile.step_categories.selected : (profile?.categories || ['Safari Guide', 'Wildlife Guide']))
   );
 
   const [areas, setAreas] = useState({
@@ -44,16 +44,16 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
   const [newAttraction, setNewAttraction] = useState('');
 
   const [languages, setLanguages] = useState(
-    Array.isArray(profile?.step_languages?.list) ? profile.step_languages.list : [
+    Array.isArray(profile?.step_languages) ? profile.step_languages : (Array.isArray(profile?.step_languages?.list) ? profile.step_languages.list : [
       { name: 'English', level: 'Native' },
       { name: 'Swahili', level: 'Fluent' }
-    ]
+    ])
   );
   const [newLangName, setNewLangName] = useState('French');
   const [newLangLevel, setNewLangLevel] = useState('Fluent');
 
   const [skills, setSkills] = useState(
-    Array.isArray(profile?.step_skills?.selected) ? profile.step_skills.selected : (profile?.skills || ['Wildlife Tracking', 'First Aid & Safety', 'Storytelling & History'])
+    Array.isArray(profile?.step_skills) ? profile.step_skills : (Array.isArray(profile?.step_skills?.selected) ? profile.step_skills.selected : (profile?.skills || ['Wildlife Tracking', 'First Aid & Safety', 'Storytelling & History']))
   );
   const [customSkill, setCustomSkill] = useState('');
 

@@ -222,6 +222,9 @@ export default function TourGuideProfilePage() {
     .filter(u => u !== guide.photo);
 
   const allPhotos = [];
+  if (guide.photo) {
+    allPhotos.push(guide.photo);
+  }
   photoUrls.forEach(u => {
     if (!allPhotos.includes(u)) allPhotos.push(u);
   });
@@ -483,8 +486,8 @@ export default function TourGuideProfilePage() {
                 <h3 className="font-bold text-slate-900 dark:text-white mb-3 text-sm uppercase tracking-wider">Languages</h3>
                 <ul className="space-y-3">
                   {languagesList.map((l, idx) => {
-                    const langName = typeof l === 'string' ? l : (l?.lang || l?.language || '');
-                    const langProf = typeof l === 'object' ? (l?.proficiency || '') : '';
+                    const langName = typeof l === 'string' ? l : (l?.lang || l?.language || l?.name || '');
+                    const langProf = typeof l === 'object' ? (l?.proficiency || l?.level || '') : '';
                     return (
                       <li key={langName || idx} className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-100 dark:border-slate-800 pb-2">
                         <span className="flex items-center gap-3"><i className="ph ph-translate text-lg text-slate-400" /> {langName}</span>

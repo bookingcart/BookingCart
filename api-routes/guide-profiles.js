@@ -142,9 +142,9 @@ function profileToGuide(profile) {
     verified: true,
     rating: 0,
     review_count: 0,
-    categories: Array.isArray(categories.selected) ? categories.selected : [],
-    skills: Array.isArray(skills.selected) ? skills.selected : [],
-    languages: Array.isArray(languages.list) ? languages.list : [],
+    categories: Array.isArray(categories) ? categories : (Array.isArray(categories?.selected) ? categories.selected : []),
+    skills: Array.isArray(skills) ? skills : (Array.isArray(skills?.selected) ? skills.selected : []),
+    languages: Array.isArray(languages) ? languages : (Array.isArray(languages?.list) ? languages.list : []),
     areas: {
       country: areas.country || '',
       regions: Array.isArray(areas.regions) ? areas.regions : [],
@@ -602,6 +602,14 @@ module.exports = async (req, res) => {
         : [];
       const availMap = buildAvailabilityMap(stepAvail);
 
+      // Normalize categories, skills, languages for syncing
+      const stepCats = fullProfile.step_categories;
+      const categoriesArr = Array.isArray(stepCats) ? stepCats : (Array.isArray(stepCats?.selected) ? stepCats.selected : []);
+      const stepSk = fullProfile.step_skills;
+      const skillsArr = Array.isArray(stepSk) ? stepSk : (Array.isArray(stepSk?.selected) ? stepSk.selected : []);
+      const stepLangs = fullProfile.step_languages;
+      const languagesArr = Array.isArray(stepLangs) ? stepLangs : (Array.isArray(stepLangs?.list) ? stepLangs.list : []);
+
       // Build stable slug for lookup
       const stableSlugBase = (fullProfile.email || newName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
       const stableSlug = `guide-${stableSlugBase}`;
@@ -618,7 +626,11 @@ module.exports = async (req, res) => {
              availability = $5, 
              working_days = $6, 
              working_hours = $7, 
-             max_tours_per_day = $8, 
+             max_tours_per_day = $8,
+             languages = CASE WHEN $11 != '[]'::jsonb THEN $11 ELSE languages END,
+             categories = CASE WHEN $12 != '[]'::jsonb THEN $12 ELSE categories END,
+             skills = CASE WHEN $13 != '[]'::jsonb THEN $13 ELSE skills END,
+             bio = COALESCE(NULLIF($14, ''), bio),
              updated_at = NOW()
            WHERE (email IS NOT NULL AND LOWER(TRIM(email)) = $3)
               OR (name IS NOT NULL AND LOWER(TRIM(name)) = $9)
@@ -633,7 +645,11 @@ module.exports = async (req, res) => {
             JSON.stringify({ start: stepAvail.startTime || '07:00', end: stepAvail.endTime || '19:00' }),
             parseInt(stepAvail.maxToursPerDay || 1),
             targetName,
-            stableSlug
+            stableSlug,
+            JSON.stringify(languagesArr),
+            JSON.stringify(categoriesArr),
+            JSON.stringify(skillsArr),
+            personal.bio || fullProfile.bio || ''
           ]
         ).catch((err) => console.error('[guide-profiles] Failed to sync to bc_guides DB:', err));
       } else if (global.__guides) {
@@ -647,6 +663,10 @@ module.exports = async (req, res) => {
           global.__guides[gIdx].name = newName;
           if (targetEmail) global.__guides[gIdx].email = targetEmail;
           if (galleryArr.length > 0) global.__guides[gIdx].gallery = galleryArr;
+          if (languagesArr.length > 0) global.__guides[gIdx].languages = languagesArr;
+          if (categoriesArr.length > 0) global.__guides[gIdx].categories = categoriesArr;
+          if (skillsArr.length > 0) global.__guides[gIdx].skills = skillsArr;
+          if (personal.bio) global.__guides[gIdx].bio = personal.bio;
           global.__guides[gIdx].availability = availMap;
           global.__guides[gIdx].working_days = JSON.stringify(stepAvail.workingDays || []);
           global.__guides[gIdx].working_hours = JSON.stringify({ start: stepAvail.startTime || '07:00', end: stepAvail.endTime || '19:00' });
