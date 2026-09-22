@@ -51,6 +51,7 @@ const guideWalletsHandler = require('./api-routes/guide-wallets');
 const notificationsHandler = require('./api-routes/notifications');
 const hotelProfilesHandler = require('./api-routes/hotel-profiles');
 const stripeConnectHandler = require('./api-routes/stripe-connect');
+const uploadHandler = require('./api-routes/upload');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -96,6 +97,10 @@ app.use(
 );
 if (!API_ONLY && SERVE_STATIC && fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
+}
+const PUBLIC_DIR = path.join(__dirname, 'public');
+if (fs.existsSync(PUBLIC_DIR)) {
+  app.use(express.static(PUBLIC_DIR));
 }
 
 const betterAuthLimiter = rateLimit({
@@ -197,6 +202,7 @@ app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
 // Hotel Owner routes
 app.all('/api/hotel-profiles', apiLimiter, run(hotelProfilesHandler));
 app.all('/api/stripe/connect', apiLimiter, run(stripeConnectHandler));
+app.all('/api/upload', apiLimiter, run(uploadHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>

@@ -80,13 +80,33 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
   );
   const [newCert, setNewCert] = useState({ name: '', issuer: '', year: new Date().getFullYear().toString() });
 
+  // Helper to upload base64 to server
+  const uploadImage = async (base64Str) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('bc_token') : '';
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ image: base64Str, folder: 'guides' })
+      });
+      const data = await res.json();
+      if (data.ok) return data.url;
+    } catch (err) {
+      console.error('Upload failed:', err);
+    }
+    return base64Str; // fallback
+  };
+
   // Photo Upload Handler (Local Device File Pick)
   const handlePhotoFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      setPersonal(prev => ({ ...prev, photo: reader.result }));
+    reader.onload = async () => {
+      const base64 = reader.result;
+      setPersonal(prev => ({ ...prev, photo: base64 })); // optimistic
+      const url = await uploadImage(base64);
+      if (url !== base64) setPersonal(prev => ({ ...prev, photo: url }));
     };
     reader.readAsDataURL(file);
   };
@@ -96,14 +116,19 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    setSaving(true);
+    setSavedMsg('Uploading images...');
+
     const readAsDataURL = (file) => new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(file);
     });
 
-    const newUrls = await Promise.all(files.map(readAsDataURL));
-    const updatedGallery = [...gallery, ...newUrls];
+    const base64Urls = await Promise.all(files.map(readAsDataURL));
+    const uploadedUrls = await Promise.all(base64Urls.map(url => uploadImage(url)));
+    
+    const updatedGallery = [...gallery, ...uploadedUrls];
     setGallery(updatedGallery);
     await saveSection('Gallery Management', updatedGallery);
   };
