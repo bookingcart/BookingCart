@@ -1,6 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import GuideCard from '../components/GuideCard.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
+
+const FAQ_ITEMS = [
+  [
+    {
+      q: "How do I book a tour guide?",
+      a: "Simply search for a destination, filter by your preferred language and specialties, and browse through our list of verified local experts. Once you find a match, select your dates and proceed to booking."
+    },
+    {
+      q: "Can I customize my tour itinerary?",
+      a: "Yes! Many of our guides offer customizable itineraries. You can message the guide directly after booking to adjust the tour to your preferences and interests."
+    },
+    {
+      q: "Are the tour guides verified?",
+      a: "Absolutely. We thoroughly vet all our guides, checking their certifications, background, and reviews to ensure you have a safe and enriching experience."
+    }
+  ],
+  [
+    {
+      q: "How do I become a tour guide?",
+      a: "If you're a local expert, you can apply to become a guide by clicking the 'For travel pros' section or navigating to our guide onboarding page. You'll need to provide your details, qualifications, and undergo our verification process."
+    },
+    {
+      q: "What happens if I need to cancel my booking?",
+      a: "Cancellation policies vary by guide. You can find the specific cancellation terms on each guide's profile before you complete your booking. We generally offer a full refund for cancellations made 48 hours in advance."
+    },
+    {
+      q: "How do payments work?",
+      a: "Payments are processed securely through our platform. Your funds are held in escrow and released to the guide only after your tour is successfully completed, ensuring your peace of mind."
+    }
+  ]
+];
 
 // ─── AI Matching Engine ───────────────────────────────────────────────────────
 function scoreGuide(guide, criteria) {
@@ -77,6 +109,11 @@ export default function TourGuidesPage() {
   const [sortBy, setSortBy] = useState('match');
 
   const [showFilters, setShowFilters] = useState(false);
+  const [openFaq, setOpenFaq] = useState({});
+
+  const toggleFaq = (id) => {
+    setOpenFaq(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   useEffect(() => { document.title = 'BookingCart — Tour Guides'; }, []);
 
@@ -296,6 +333,134 @@ export default function TourGuidesPage() {
         )}
 
       </main>
+
+      {/* For travel pros section */}
+      <section className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
+        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-8 tracking-tight">For travel pros</h2>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          {/* Become a Guide Card */}
+          <a href="/guide-onboarding" className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer block">
+            <div className="w-full flex flex-col items-start text-left mb-8">
+              <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-green-600 transition-colors">Become a Guide</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">List your services and expertise</p>
+            </div>
+            <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+              <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <i className="ph ph-user-plus text-5xl text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </a>
+
+          {/* Manage Bookings Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+            <div className="w-full flex flex-col items-start text-left mb-8">
+              <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-amber-600 transition-colors">Manage Bookings</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Keep your calendar organized</p>
+            </div>
+            <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+              <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                <i className="ph ph-calendar-check text-5xl text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Earn Money Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+            <div className="w-full flex flex-col items-start text-left mb-8">
+              <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">Earn Money</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Get paid directly and securely</p>
+            </div>
+            <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+              <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                <i className="ph ph-wallet text-5xl text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Grow Your Business Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-[24px] p-6 sm:p-8 flex flex-col items-center text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-slate-100 dark:border-slate-700 transition-all duration-300 group cursor-pointer">
+            <div className="w-full flex flex-col items-start text-left mb-8">
+              <h3 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 group-hover:text-purple-600 transition-colors">Grow Your Business</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Get reviews and boost ranking</p>
+            </div>
+            <div className="relative w-40 h-40 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-500">
+              <div className="w-24 h-24 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                <i className="ph ph-trend-up text-5xl text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* FAQ Accordion Section */}
+      <section className="max-w-7xl mx-auto px-6 py-16 border-t border-slate-100 dark:border-slate-800 dark:bg-slate-950 transition-colors">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-8">
+          Frequently asked questions
+        </h2>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
+          {/* Column 1 */}
+          <div className="space-y-4">
+            {FAQ_ITEMS[0].map((item, idx) => {
+              const id = `col1-${idx}`;
+              const isOpen = !!openFaq[id];
+              return (
+                <div key={id} className={`border rounded-2xl overflow-hidden bg-white dark:bg-slate-800 transition-all duration-300 ${isOpen ? 'border-green-500 shadow-sm shadow-green-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
+                  <button
+                    onClick={() => toggleFaq(id)}
+                    className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 dark:text-slate-100 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white transition-colors animate-fade-in"
+                  >
+                    <span>{item.q}</span>
+                    <i className={`ph ph-caret-down text-lg text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-green-600' : ''}`}></i>
+                  </button>
+                  <div
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isOpen ? 'max-h-[300px] border-t border-slate-100 dark:border-slate-700' : 'max-h-0'
+                    }`}
+                  >
+                    <div className="p-5 text-sm text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900">
+                      {item.a}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Column 2 */}
+          <div className="space-y-4">
+            {FAQ_ITEMS[1].map((item, idx) => {
+              const id = `col2-${idx}`;
+              const isOpen = !!openFaq[id];
+              return (
+                <div key={id} className={`border rounded-2xl overflow-hidden bg-white dark:bg-slate-800 transition-all duration-300 ${isOpen ? 'border-green-500 shadow-sm shadow-green-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
+                  <button
+                    onClick={() => toggleFaq(id)}
+                    className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 dark:text-slate-100 hover:text-slate-900 dark:text-slate-100 dark:hover:text-white transition-colors animate-fade-in"
+                  >
+                    <span>{item.q}</span>
+                    <i className={`ph ph-caret-down text-lg text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-green-600' : ''}`}></i>
+                  </button>
+                  <div
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isOpen ? 'max-h-[300px] border-t border-slate-100 dark:border-slate-700' : 'max-h-0'
+                    }`}
+                  >
+                    <div className="p-5 text-sm text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900">
+                      {item.a}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <FlightFooter />
     </div>
   );
 }
