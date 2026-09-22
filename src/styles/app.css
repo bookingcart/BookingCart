@@ -792,3 +792,44 @@ details.filter-chip[open] > summary .filter-chip-caret {
     line-height: 1.4;
 }
 .dark .toast__desc { color: #cbd5e1; }
+
+/* ─── Tour Guide System Utility Styles ─── */
+.guide-skill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.dark .guide-skill-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.guide-lang-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+.dark .guide-lang-chip {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+.guide-cal-available { background-color: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); color: #059669; }
+.guide-cal-pending   { background-color: rgba(251, 191, 36, 0.15); border-color: rgba(251, 191, 36, 0.3); color: #d97706; }
+.guide-cal-booked    { background-color: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #dc2626; }
+.guide-cal-blocked   { background-color: rgba(100, 116, 139, 0.1); border-color: rgba(100, 116, 139, 0.2); color: #64748b; }
+

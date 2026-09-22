@@ -4,6 +4,8 @@ const STORAGE_USER         = 'bookingcart_user';
 const STORAGE_GOOGLE_TOKEN = 'bookingcart_google_id_token';
 const STORAGE_JWT_TOKEN    = 'bookingcart_jwt_token';
 const STORAGE_SESSION_ONLY = 'bookingcart_session_only';
+const STORAGE_SESSION_START = 'bc_session_start';
+const SESSION_TIMEOUT_MS   = 24 * 60 * 60 * 1000; // 24 hours
 
 const AuthContext = createContext(null);
 
@@ -37,7 +39,19 @@ function clearStoredAuth() {
     localStorage.removeItem(STORAGE_JWT_TOKEN);
     localStorage.removeItem('bc_user');
     localStorage.removeItem(STORAGE_SESSION_ONLY);
+    localStorage.removeItem(STORAGE_SESSION_START);
   } catch {}
+}
+
+/** Returns true if the stored session start timestamp is older than 24 hours. */
+function isSessionExpiredByAge() {
+  try {
+    const ts = localStorage.getItem(STORAGE_SESSION_START);
+    if (!ts) return false; // No timestamp = old session, don't force logout
+    return (Date.now() - Number(ts)) > SESSION_TIMEOUT_MS;
+  } catch {
+    return false;
+  }
 }
 
 function readStoredToken() {
@@ -107,29 +121,28 @@ export function AuthProvider({ children }) {
     return true;
   }, [refresh]);
 
-  /** Login: stores user and token, updates UI */
-  const login = useCallback(async ({ email, token, user: userData, rememberMe = false }) => {
+  /** Login: stores user and token, updates UI. Always persists across sessions. */
+  const login = useCallback(async ({ email, token, user: userData, rememberMe = true }) => {
     try {
       localStorage.removeItem(STORAGE_GOOGLE_TOKEN);
       localStorage.setItem(STORAGE_USER, JSON.stringify(userData || { email }));
       if (token) {
         localStorage.setItem(STORAGE_JWT_TOKEN, token);
       }
-      // Set expiry if not remembering
-      if (!rememberMe) {
-        localStorage.setItem(STORAGE_SESSION_ONLY, 'true');
-      } else {
-        localStorage.removeItem(STORAGE_SESSION_ONLY);
-      }
+      // Always persist login — remove any old session-only flag
+      localStorage.removeItem(STORAGE_SESSION_ONLY);
+      // Stamp session start time for 24-hour timeout
+      localStorage.setItem(STORAGE_SESSION_START, String(Date.now()));
     } catch {}
     refresh();
     if (typeof window.applyAuthUI === 'function') window.applyAuthUI();
     return userData;
   }, [refresh]);
 
+
   /** Register: stores user and token, updates UI */
   const register = useCallback(async ({ email, token, user: userData }) => {
-    return login({ email, token, user: userData, rememberMe: false });
+    return login({ email, token, user: userData, rememberMe: true });
   }, [login]);
 
   /** Sign out: clears all tokens and user data, updates UI */
@@ -143,6 +156,18 @@ export function AuthProvider({ children }) {
     refresh();
     if (typeof window.applyAuthUI === 'function') window.applyAuthUI();
   }, [refresh]);
+
+  // ── 24-hour session timeout check ──────────────────────────────────────────
+  useEffect(() => {
+    // If there is a stored user but their 24-hour window has passed, log them out.
+    const storedUser = readStoredUser();
+    if (storedUser && isSessionExpiredByAge()) {
+      clearStoredAuth();
+      refresh();
+      if (typeof window.applyAuthUI === 'function') window.applyAuthUI();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const token = getToken();

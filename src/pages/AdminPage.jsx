@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Fragment } from 'react';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -564,12 +564,656 @@ function UsersPanel() {
   );
 }
 
+function GuidesPanel({ getToken }) {
+  const [guides, setGuides] = useState([]);
+  const [pendingProfiles, setPendingProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'reviews'
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Country filter and sorting
+  const [countryFilter, setCountryFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('country'); // 'country' | 'name' | 'rating'
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(getToken ? { 'Authorization': `Bearer ${getToken()}` } : {})
+  });
+
+  const loadGuides = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides');
+      const data = await res.json();
+      if (data.ok && data.guides) {
+        setGuides(data.guides);
+      }
+    } catch (err) {
+      console.error('Failed to load guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPending = async () => {
+    try {
+      const headers = authHeaders();
+      // Fetch both pending (submitted) and draft (in-progress) profiles
+      const [resPending, resDraft] = await Promise.all([
+        fetch('/api/guide-profiles', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ action: 'admin-list', statusFilter: 'pending' })
+        }),
+        fetch('/api/guide-profiles', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ action: 'admin-list', statusFilter: 'draft' })
+        })
+      ]);
+      const [dataPending, dataDraft] = await Promise.all([resPending.json(), resDraft.json()]);
+      const pending = dataPending.ok ? (dataPending.profiles || []) : [];
+      const drafts = dataDraft.ok ? (dataDraft.profiles || []) : [];
+      setPendingProfiles([...pending, ...drafts]);
+    } catch (err) {
+      console.error('Failed to load pending profiles:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadGuides();
+    loadPending();
+  }, []);
+
+  const loadReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await fetch('/api/guide-reviews', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'admin-list' })
+      });
+      const data = await res.json();
+      if (data.ok) setReviews(data.reviews || []);
+    } catch (err) {
+      console.error('Failed to load reviews:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleModerateReview = async (reviewId, status) => {
+    try {
+      const res = await fetch('/api/guide-reviews', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'moderate', reviewId, status })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Review ${status}`);
+        if (status === 'deleted') {
+          setReviews(prev => prev.filter(r => r.id !== reviewId));
+        } else {
+          setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, status } : r));
+        }
+      }
+    } catch (err) {
+      console.error('Moderation error:', err);
+    }
+  };
+
+  // Load reviews when tab becomes active
+  useEffect(() => {
+    if (activeTab === 'reviews') loadReviews();
+  }, [activeTab]);
+
+  const handleStatusChange = async (guideId, newStatus) => {
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'status', id: guideId, status: newStatus })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Updated status for guide #${guideId} to ${newStatus}`);
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to update guide status:', err);
+    }
+  };
+
+  const handleToggleVerified = async (guideId, currentVerified) => {
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'toggle-verified', id: guideId, verified: !currentVerified })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Verification badge ${!currentVerified ? 'awarded to' : 'revoked from'} guide #${guideId}`);
+        setGuides(prev => prev.map(g => (String(g.id) === String(guideId) ? { ...g, verified: !currentVerified } : g)));
+      }
+    } catch (err) {
+      console.error('Failed to toggle verification badge:', err);
+    }
+  };
+
+  const handleSeed = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'seed' })
+      });
+      const data = await res.json();
+      if (data.ok || data.seeded) {
+        setActionMsg(`Demo guides seeded successfully! (${data.seeded || 0} guides)`);
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to seed guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearDemo = async () => {
+    if (!window.confirm('Are you sure you want to remove all demo guides?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear-demo' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg('Demo guides cleared successfully!');
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to clear demo guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncRealGuides = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/guides', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'sync-real-guides' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Restored and synced ${data.syncedCount || 0} real registered guide accounts!`);
+        loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to sync real guides:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileReview = async (profileId, status, note = '') => {
+    try {
+      const res = await fetch('/api/guide-profiles', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'admin-review', profileId, status, note })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Profile marked as ${status}`);
+        loadPending();
+        if (status === 'approved') loadGuides();
+      }
+    } catch (err) {
+      console.error('Failed to review profile:', err);
+    }
+  };
+
+  const activeCount = guides.filter(g => g.status === 'active').length;
+
+  const countriesList = Array.from(new Set(guides.map(g => g.country).filter(Boolean))).sort();
+
+  const processedGuides = [...guides]
+    .filter(g => countryFilter === 'all' || (g.country || '').toLowerCase() === countryFilter.toLowerCase())
+    .sort((a, b) => {
+      if (sortBy === 'country') {
+        const cComp = (a.country || 'Unknown').localeCompare(b.country || 'Unknown');
+        if (cComp !== 0) return cComp;
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'rating') return parseFloat(b.rating || 0) - parseFloat(a.rating || 0);
+      return 0;
+    });
+
+  return (
+    <div className="space-y-6">
+      {actionMsg && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-sm flex justify-between items-center">
+          <span>{actionMsg}</span>
+          <button onClick={() => setActionMsg('')} className="text-emerald-400 hover:text-white">&times;</button>
+        </div>
+      )}
+
+      {/* Stats Header */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5">
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Guides</div>
+          <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">{guides.length}</div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-emerald-200 dark:border-emerald-800 p-5">
+          <div className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">Active Guides</div>
+          <div className="text-2xl font-extrabold text-emerald-600">{activeCount}</div>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Guide Database</div>
+            <div className="text-xs text-slate-500">Manage real & demo accounts</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncRealGuides}
+              disabled={loading}
+              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-bold text-xs rounded-xl transition-colors"
+              title="Restore & sync all registered guide profiles"
+            >
+              Restore Real Guides
+            </button>
+            <button
+              onClick={handleClearDemo}
+              disabled={loading}
+              className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 font-bold text-xs rounded-xl transition-colors"
+            >
+              Clear Demo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-px">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'all' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+        >
+          Active Guides
+        </button>
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'pending' ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+        >
+          Pending Review
+          {pendingProfiles.length > 0 && (
+            <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 px-1.5 py-0.5 rounded text-xs font-black">
+              {pendingProfiles.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'reviews' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+        >
+          Review Moderation
+        </button>
+      </div>
+
+      {activeTab === 'pending' ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Applicant</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Completeness</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Registered</th>
+                  <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {pendingProfiles.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-12 text-center text-slate-400">
+                      <i className="ph ph-user-plus text-3xl block mb-2" />
+                      No guide registrations found.
+                    </td>
+                  </tr>
+                ) : (
+                  pendingProfiles.map(p => {
+                    const personal = p.step_personal || {};
+                    const categories = p.step_categories || {};
+                    const catList = Array.isArray(categories.selected) ? categories.selected : [];
+                    const statusColors = {
+                      pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+                      draft: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+                      approved: 'bg-green-100 text-green-700',
+                      rejected: 'bg-red-100 text-red-600',
+                      revision: 'bg-purple-100 text-purple-700',
+                    };
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {personal.photo ? (
+                              <img src={personal.photo} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 font-bold text-sm">
+                                {(personal.fullName || p.email || '?')[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-slate-100">{personal.fullName || '(No name yet)'}</p>
+                              <p className="text-xs text-slate-500">{p.email}</p>
+                              {catList.length > 0 && (
+                                <p className="text-xs text-slate-400 mt-0.5">{catList.slice(0, 2).join(', ')}{catList.length > 2 ? ` +${catList.length - 2}` : ''}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${statusColors[p.status] || statusColors.draft}`}>
+                            {p.status === 'pending' ? '⏳ Awaiting Review' : p.status === 'draft' ? '✏️ In Progress' : p.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${(p.completeness || 0) >= 80 ? 'bg-emerald-500' : (p.completeness || 0) >= 50 ? 'bg-amber-500' : 'bg-rose-400'}`}
+                                style={{ width: `${p.completeness || 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{p.completeness || 0}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-slate-500">
+                          {new Date(p.created_at || p.updated_at || Date.now()).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          {p.status === 'pending' && (
+                            <>
+                              <button onClick={() => handleProfileReview(p.id, 'rejected')} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-colors">Reject</button>
+                              <button onClick={() => handleProfileReview(p.id, 'revision')} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold transition-colors">Revision</button>
+                              <button onClick={() => handleProfileReview(p.id, 'approved')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors">✓ Approve</button>
+                            </>
+                          )}
+                          {p.status === 'draft' && (
+                            <span className="text-xs text-slate-400 italic">Awaiting submission</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeTab === 'reviews' ? (
+        /* Review Moderation Tab */
+        <div className="space-y-4">
+          {reviewsLoading ? (
+            <div className="text-center py-10 text-slate-400">Loading reviews…</div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-400">
+              <i className="ph ph-chat-circle text-3xl mb-2 block" />
+              No reviews to moderate.
+            </div>
+          ) : (
+            reviews.map(r => (
+              <div key={r.id} className={`bg-white dark:bg-slate-800 rounded-2xl border p-5 shadow-sm ${
+                r.status === 'hidden' ? 'border-slate-300 dark:border-slate-600 opacity-60' : 'border-slate-200 dark:border-slate-700'
+              }`}>
+                <div className="flex justify-between items-start flex-wrap gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-bold text-slate-900 dark:text-white">{r.authorName}</p>
+                      <span className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded capitalize">{r.status}</span>
+                      <span className="text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">✓ Verified Booking</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-2">Guide: {r.guideId} · {new Date(r.createdAt).toLocaleDateString()}</p>
+                    <div className="flex gap-0.5 mb-2">
+                      {Array.from({length: 5}).map((_,i) => <i key={i} className={`ph${r.rating > i ? '-fill' : ''} ph-star text-amber-400`} />)}
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-3">{r.text}</p>
+                    {r.tags?.length > 0 && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        {r.tags.map(t => <span key={t} className="text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded">{t}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center shrink-0">
+                    <button onClick={() => handleModerateReview(r.id, 'approved')} disabled={r.status === 'approved'} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white rounded-lg text-xs font-bold">Approve</button>
+                    <button onClick={() => handleModerateReview(r.id, 'hidden')} disabled={r.status === 'hidden'} className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-40 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold">Hide</button>
+                    <button onClick={() => { if(window.confirm('Permanently delete this review?')) handleModerateReview(r.id, 'deleted'); }} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:hover:bg-rose-900/30 dark:text-rose-400 rounded-lg text-xs font-bold">Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+        {/* Country Filter & Sort Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Country:</span>
+            <select
+              value={countryFilter}
+              onChange={e => setCountryFilter(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <option value="all">🌍 All Countries ({guides.length})</option>
+              {countriesList.map(c => (
+                <option key={c} value={c}>📍 {c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sort Guides:</span>
+            <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+              <button
+                onClick={() => setSortBy('country')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${sortBy === 'country' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+              >
+                🌍 By Country
+              </button>
+              <button
+                onClick={() => setSortBy('name')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${sortBy === 'name' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+              >
+                👤 By Name
+              </button>
+              <button
+                onClick={() => setSortBy('rating')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${sortBy === 'rating' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+              >
+                ⭐ By Rating
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Guide</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Country / Location</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Rating</th>
+                  <th className="text-left px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
+                  <th className="text-right px-6 py-4 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-400">Loading tour guides...</td>
+                  </tr>
+                ) : processedGuides.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-400">
+                      No guides found for selected country filter. Click <strong>Restore Real Guides</strong> or <strong>Seed Guides</strong>.
+                    </td>
+                  </tr>
+                ) : (
+                  processedGuides.map((g, idx) => {
+                    const showCountryHeader = sortBy === 'country' && (idx === 0 || (processedGuides[idx - 1].country || 'Other') !== (g.country || 'Other'));
+                    return (
+                      <Fragment key={g.id || g.slug}>
+                        {showCountryHeader && (
+                          <tr className="bg-emerald-50/80 dark:bg-emerald-950/40 border-y border-emerald-200 dark:border-emerald-800">
+                            <td colSpan="5" className="px-6 py-2.5 font-black text-xs text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                              <span>📍 {g.country || 'Other Locations'}</span>
+                              <span className="bg-emerald-200/80 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                                {processedGuides.filter(x => (x.country || 'Other') === (g.country || 'Other')).length} Guides
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={g.photo || (Array.isArray(g.gallery) && (g.gallery[0]?.url || g.gallery[0])) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'}
+                          alt={g.name}
+                          className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                            {g.name}
+                            {g.verified ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" title="Verified Guide">
+                                <i className="ph-fill ph-seal-check text-emerald-500 text-xs"></i> Verified
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic">Unverified</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500">{g.yearsExp || 5}+ years experience</div>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            {g.registrationFeeType === 'free_early_bird' || idx < 200 ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200">
+                                🎁 Reg: Free (Early 200)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200">
+                                💳 Reg: $10 Paid
+                              </span>
+                            )}
+
+                            {g.verificationFeePaid || g.verificationStatus === 'pending_admin' ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200" title="$50 USD Verification Fee Paid">
+                                💵 Verif: $50 Paid
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                Verif: Not Paid
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      {g.city}{g.city && g.country ? ', ' : ''}{g.country}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                        <i className="ph-fill ph-star text-amber-400"></i>
+                        <span>{g.rating || '4.9'}</span>
+                        <span className="text-xs text-slate-400 font-normal">({g.reviewCount || 0})</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          g.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
+                        }`}
+                      >
+                        {g.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      {g.verified ? (
+                        <button
+                          onClick={() => handleToggleVerified(g.id, true)}
+                          className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                          title="Revoke Verification Badge awarded by Admin"
+                        >
+                          <i className="ph-fill ph-seal-check text-emerald-500"></i> Revoke Badge
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleVerified(g.id, false)}
+                          className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                          title="Award Verification Badge to Guide"
+                        >
+                          <i className="ph-bold ph-seal-check text-emerald-600"></i> Award Badge
+                        </button>
+                      )}
+                      {g.status === 'active' ? (
+                        <button
+                          onClick={() => handleStatusChange(g.id, 'suspended')}
+                          className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Suspend
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStatusChange(g.id, 'active')}
+                          className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      <a
+                        href={`/tour-guides/${g.id || g.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors inline-block"
+                      >
+                        View Profile
+                      </a>
+                    </td>
+                  </tr>
+                </Fragment>
+              );
+            })
+          )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   useEffect(() => { document.title = 'BookingCart — Admin'; }, []);
   useLegacyScripts(SCRIPTS, 'admin');
   const [adminTab, setAdminTab] = useState('bookings');
   
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
   const isAdmin = user && adminEmails.includes(user.email.toLowerCase());
 
@@ -673,9 +1317,16 @@ export default function AdminPage() {
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${adminTab === 'attractions' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-binoculars" /> Attractions
                 </button>
+                <button onClick={() => setAdminTab('guides')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'guides' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-compass" /> Tour Guides
+                </button>
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
+              {adminTab === 'attractions' && <AttractionsAnalytics />}
+              {adminTab === 'guides' && <GuidesPanel getToken={getToken} />}
               {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'bookings' && <>
               

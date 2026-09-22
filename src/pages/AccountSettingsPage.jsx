@@ -165,6 +165,7 @@ export default function AccountSettingsPage() {
   const canChangePassword = hasJwtToken && !hasGoogleToken;
   const accountEmail = String(user?.email || '').trim().toLowerCase();
   const signInHref = `/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+  const isGuide = !!user && (user.isGuide || user.role === 'guide' || user.role === 'guide_applicant' || !!user.guideId || !!user.guideProfileId);
 
   useEffect(() => {
     if (activeSection) document.title = `${SECTION_TITLE[activeSection]} · Account | BookingCart`;
@@ -339,6 +340,20 @@ export default function AccountSettingsPage() {
             </NavLink>
           ))}
         </nav>
+        {isGuide && (
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <a
+              href="/guide-dashboard"
+              className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 text-white font-extrabold text-xs shadow-sm hover:opacity-95 transition-all"
+            >
+              <span className="flex items-center gap-2">
+                <i className="ph ph-squares-four text-base text-emerald-200" />
+                Guide Dashboard
+              </span>
+              <i className="ph ph-caret-right text-xs text-emerald-200" />
+            </a>
+          </div>
+        )}
         <div className="mt-3 pt-3 border-t border-slate-100">
           <a href="/" className="sidebar-link text-slate-400"><i className="ph ph-arrow-left" /> Back to Home</a>
         </div>
@@ -378,6 +393,30 @@ export default function AccountSettingsPage() {
           {activeSection === 'profile' && (
             <section>
               <PageHeading title="Profile Information" subtitle="Manage your personal details and preferences" />
+              {isGuide && (
+                <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between flex-wrap gap-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shrink-0">
+                      <i className="ph ph-seal-check text-xl" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-extrabold text-emerald-950">
+                        Registered Tour Guide Profile
+                      </div>
+                      <p className="text-xs text-emerald-700 mt-0.5">
+                        You are registered as a tour guide. Manage your tour packages, rates, availability &amp; public guide profile in your Guide Dashboard.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href="/guide-dashboard?tab=edit-profile"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-colors shrink-0 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <i className="ph ph-pencil-line text-sm" />
+                    Open Guide Dashboard
+                  </a>
+                </div>
+              )}
               <div className="settings-card">
                 <div className="settings-card-header">Profile picture</div>
                 <div className="settings-card-sub">Use your signed-in avatar or upload a new image.</div>

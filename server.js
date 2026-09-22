@@ -44,6 +44,15 @@ const staysLocationsHandler = require('./api-routes/stays-locations');
 const getyourguideSearchHandler = require('./api-routes/getyourguide-search');
 const getyourguideTourHandler = require('./api-routes/getyourguide-tour');
 const attractionsHandler = require('./api-routes/attractions');
+const guidesHandler = require('./api-routes/guides');
+const guideBookingsHandler = require('./api-routes/guide-bookings');
+const guideProfilesHandler = require('./api-routes/guide-profiles');
+const guideReviewsHandler = require('./api-routes/guide-reviews');
+const guideWalletsHandler = require('./api-routes/guide-wallets');
+const notificationsHandler = require('./api-routes/notifications');
+const hotelProfilesHandler = require('./api-routes/hotel-profiles');
+const stripeConnectHandler = require('./api-routes/stripe-connect');
+const uploadHandler = require('./api-routes/upload');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -90,6 +99,10 @@ app.use(
 if (!API_ONLY && SERVE_STATIC && fs.existsSync(DIST_DIR)) {
   app.use(express.static(DIST_DIR));
 }
+const PUBLIC_DIR = path.join(__dirname, 'public');
+if (fs.existsSync(PUBLIC_DIR)) {
+  app.use(express.static(PUBLIC_DIR));
+}
 
 const betterAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -104,7 +117,8 @@ app.all('/api/better-auth/*', betterAuthLimiter, (req, res, next) =>
   Promise.resolve(betterAuthHandler(req, res)).catch(next)
 );
 
-app.use(express.json({ limit: '512kb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -179,6 +193,34 @@ app.get('/api/attractions/search', searchLimiter, (req, res) => { req.params = {
 app.get('/api/attractions/analytics', apiLimiter, (req, res) => { req.params = { action: 'analytics' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/:source/:id', searchLimiter, (req, res) => { req.params.action = 'detail'; return attractionsHandler(req, res); });
 app.post('/api/attractions/events', apiLimiter, (req, res) => { req.params = { action: 'events' }; return attractionsHandler(req, res); });
+
+// Tour Guide routes
+app.all('/api/guides', apiLimiter, run(guidesHandler));
+app.get('/api/guides/:id', apiLimiter, run((req, res) => {
+  req.query = { ...req.query, id: req.params.id };
+  return guidesHandler(req, res);
+}));
+app.all('/api/guide-bookings', apiLimiter, run(guideBookingsHandler));
+app.all('/api/guide-profiles', apiLimiter, run(guideProfilesHandler));
+app.all('/api/guide-reviews', apiLimiter, run(guideReviewsHandler));
+app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
+
+// Hotel Owner routes
+app.all('/api/hotel-profiles', apiLimiter, run(hotelProfilesHandler));
+app.all('/api/stripe/connect', apiLimiter, run(stripeConnectHandler));
+app.all('/api/upload', apiLimiter, run(uploadHandler));
+app.get('/api/upload/:id', apiLimiter, run(uploadHandler));
+
+// Notification routes — SSE stream + REST
+app.get('/api/notifications/stream', (req, res, next) =>
+  Promise.resolve(notificationsHandler(req, res)).catch(next)
+);
+app.all('/api/notifications', apiLimiter, (req, res, next) =>
+  Promise.resolve(notificationsHandler(req, res)).catch(next)
+);
+app.all('/api/notifications/*', apiLimiter, (req, res, next) =>
+  Promise.resolve(notificationsHandler(req, res)).catch(next)
+);
 
 // Email + password auth endpoints — use strict authLimiter (10 req / 15 min) to prevent brute-force
 app.post('/api/auth/register', authLimiter, (req, res, next) => {

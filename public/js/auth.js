@@ -3,6 +3,8 @@
   const STORAGE_USER = 'bookingcart_user';
   const STORAGE_TOKEN = 'bookingcart_google_id_token';
   const STORAGE_REDIRECT = 'bookingcart_post_auth_redirect';
+  const STORAGE_SESSION_START = 'bc_session_start';
+  const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   function isLoopbackIpHost(hostname) {
     return hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname === '::1';
@@ -62,7 +64,18 @@
       localStorage.removeItem('bookingcart_jwt_token');
       localStorage.removeItem('bc_user');
       localStorage.removeItem('bookingcart_session_only');
+      localStorage.removeItem(STORAGE_SESSION_START);
     } catch (e) {}
+  }
+
+  function isSessionExpiredByAge() {
+    try {
+      var ts = localStorage.getItem(STORAGE_SESSION_START);
+      if (!ts) return false;
+      return (Date.now() - Number(ts)) > SESSION_TIMEOUT_MS;
+    } catch (e) {
+      return false;
+    }
   }
 
   function handleAuthFailure(status, error) {
@@ -164,6 +177,8 @@
       localStorage.removeItem('bookingcart_jwt_token');
       localStorage.setItem(STORAGE_USER, JSON.stringify(payload));
       localStorage.setItem(STORAGE_TOKEN, response.credential);
+      // Stamp session start for 24-hour timeout
+      localStorage.setItem(STORAGE_SESSION_START, String(Date.now()));
 
       applyAuthUI();
 
@@ -460,9 +475,17 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
+      // Check 24-hour session timeout on every page load
+      if (isSessionExpiredByAge()) {
+        clearStoredAuth();
+      }
       applyAuthUI();
     });
   } else {
+    // Check 24-hour session timeout on every page load
+    if (isSessionExpiredByAge()) {
+      clearStoredAuth();
+    }
     applyAuthUI();
   }
 

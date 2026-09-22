@@ -761,10 +761,14 @@
       }
 
       try {
+        const SEARCH_TTL = 24 * 60 * 60 * 1000; // 24 hours
         const history = JSON.parse(localStorage.getItem("bc_recent_searches") || "[]");
         const entry = { ...payload, timestamp: Date.now() };
-        // Remove duplicate searches
-        const filtered = history.filter(s => !(s.from === payload.from && s.to === payload.to && s.depart === payload.depart && s.return === payload.return));
+        // Remove duplicate searches and entries older than 24 hours
+        const filtered = history.filter(s =>
+          !(s.from === payload.from && s.to === payload.to && s.depart === payload.depart && s.return === payload.return) &&
+          (Date.now() - Number(s.timestamp || 0)) < SEARCH_TTL
+        );
         filtered.unshift(entry);
         localStorage.setItem("bc_recent_searches", JSON.stringify(filtered.slice(0, 5)));
       } catch (e) {
@@ -2510,6 +2514,14 @@
       window.applyAuthUI();
     }
   }
+
+  window.__reInitBookingCart = function() {
+    initTripTabs();
+    initPassengerControls();
+    initCalendar();
+    initSearchForm();
+    initAirportSuggestAll();
+  };
 
   window.BookingCart = {
     readState,

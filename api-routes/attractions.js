@@ -59,7 +59,8 @@ module.exports = async function attractionsHandler(req, res) {
       if (!Number.isFinite(input.lat) || !Number.isFinite(input.lon) || input.lat < -90 || input.lat > 90 || input.lon < -180 || input.lon > 180) {
         return res.status(400).json({ ok: false, error: 'Choose a destination before searching' });
       }
-      return res.json(await searchAttractions(input));
+      const data = await searchAttractions(input);
+      return res.status(data.ok ? 200 : 503).json(data);
     }
 
     if (req.method === 'GET' && action === 'analytics') {
@@ -87,6 +88,7 @@ module.exports = async function attractionsHandler(req, res) {
       if (auth.ok) email = auth.email;
       const forwarded = String(req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
       const sessionHash = crypto.createHash('sha256').update(`${process.env.JWT_SECRET || 'local'}:${cleanText(body.sessionId, 120)}:${forwarded}`).digest('hex');
+      try {
         await initDb();
         const context = body.context && typeof body.context === 'object' ? body.context : {};
         const safeContext = JSON.stringify(context).length <= 4000 ? context : {};
