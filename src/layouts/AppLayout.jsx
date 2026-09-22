@@ -32,15 +32,16 @@ export default function AppLayout() {
   else if (pathname.startsWith('/events')) activeNav = 'events';
   else if (pathname.startsWith('/tracker')) activeNav = 'tracker';
   else if (pathname.startsWith('/explore')) activeNav = 'explore';
+  else if (pathname.startsWith('/attractions')) activeNav = 'attractions';
 
   // Don't show the sign-in popup on the auth/login/register pages
-  const isAuthPage = ['/auth', '/login', '/register'].includes(pathname);
+  const suppressSignInPopup = ['/auth', '/login', '/register'].includes(pathname) || pathname.startsWith('/attractions') || new URLSearchParams(search).get('mode') === 'attractions';
 
   return (
     <>
       <BookingCartNavbar activeNav={activeNav} />
       <Outlet />
-      {!isAuthPage && <SignInPopup />}
+      {!suppressSignInPopup && <SignInPopup />}
     </>
   );
 }

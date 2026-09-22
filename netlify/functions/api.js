@@ -25,6 +25,7 @@ const authHandler = require("../../api-routes/auth");
 const supportHandler = require("../../api-routes/support");
 const ticketDownloadHandler = require("../../api-routes/ticket-download");
 const priceAlertHandler = require("../../api-routes/price-alert");
+const attractionsHandler = require("../../api-routes/attractions");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const stripe = STRIPE_SECRET_KEY && !STRIPE_SECRET_KEY.startsWith("rk_") ? Stripe(STRIPE_SECRET_KEY) : null;
@@ -851,6 +852,15 @@ exports.handler = async (event) => {
 
     if (route === "price-alert" && event.httpMethod === "POST") {
       return await invokeExpressHandler(priceAlertHandler, event);
+    }
+
+    if (route === "attractions/destinations" && event.httpMethod === "GET") return await invokeExpressHandler(attractionsHandler, event, { action: "destinations" });
+    if (route === "attractions/search" && event.httpMethod === "GET") return await invokeExpressHandler(attractionsHandler, event, { action: "search" });
+    if (route === "attractions/events" && event.httpMethod === "POST") return await invokeExpressHandler(attractionsHandler, event, { action: "events" });
+    if (route === "attractions/analytics" && event.httpMethod === "GET") return await invokeExpressHandler(attractionsHandler, event, { action: "analytics" });
+    if (route.startsWith("attractions/") && event.httpMethod === "GET") {
+      const [, source, ...idParts] = route.split("/");
+      return await invokeExpressHandler(attractionsHandler, event, { action: "detail", source, id: idParts.join("/") });
     }
 
     if (route === "better-auth" || route.startsWith("better-auth/")) {
