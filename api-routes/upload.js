@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { verifyRequestBearer } = require('../lib/jwt');
+const { verifyRequestBearer } = require('../lib/google-verify');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
