@@ -565,6 +565,7 @@ module.exports = async (req, res) => {
       if (guideId) {
         // Single guide fetch with failsafe multi-criteria fallback
         let guide = null;
+        let guideEmail = '';
 
         const cleanId = guideId.toLowerCase();
         const cleanNoPrefix = cleanId.replace(/^guide-/, '');
@@ -575,7 +576,10 @@ module.exports = async (req, res) => {
           const isNumeric = /^\d+$/.test(guideId);
           if (isNumeric) {
             const result = await query(`SELECT * FROM bc_guides WHERE id = $1`, [parseInt(guideId)]);
-            if (result.rows.length) guide = rowToGuide(result.rows[0]);
+            if (result.rows.length) {
+              guide = rowToGuide(result.rows[0]);
+              guideEmail = result.rows[0].email || '';
+            }
           }
 
           if (!guide) {
@@ -592,7 +596,28 @@ module.exports = async (req, res) => {
                LIMIT 1`,
               [cleanId, cleanNoPrefix, cleanWithPrefix, cleanSpaces]
             );
-            if (result.rows.length) guide = rowToGuide(result.rows[0]);
+            if (result.rows.length) {
+              guide = rowToGuide(result.rows[0]);
+              guideEmail = result.rows[0].email || '';
+            }
+          }
+
+          // Older published rows may have missed the gallery sync while the
+          // approved source profile still has its photos.
+          if (guide && guide.gallery.length === 0 && guideEmail) {
+            const source = await query(
+              `SELECT step_gallery FROM bc_guide_profiles
+               WHERE LOWER(email) = LOWER($1) AND status = 'approved'
+               ORDER BY updated_at DESC LIMIT 1`,
+              [guideEmail]
+            ).catch(error => {
+              if (error.code === '42P01') return { rows: [] };
+              throw error;
+            });
+            const saved = source.rows[0]?.step_gallery;
+            if (Array.isArray(saved)) {
+              guide.gallery = saved.map(item => typeof item === 'string' ? item : item?.url || item?.src || '').filter(Boolean);
+            }
           }
 
           // Fallback 1: check bc_guide_profiles if not found in bc_guides

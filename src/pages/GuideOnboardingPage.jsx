@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import GuideProfileCompleteness, { CompletenessBar } from '../components/GuideProfileCompleteness.jsx';
 import GuideAIOptimizer from '../components/GuideAIOptimizer.jsx';
+import { uploadGuideImage } from '../lib/guideImage.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ALL_CATEGORIES = [
@@ -93,23 +94,32 @@ function TextInput({ id, value, onChange, placeholder, type = 'text', required, 
   return <input id={id} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required} maxLength={maxLength} className={cls} />;
 }
 
-function PhotoUploader({ value, onChange, label = 'Profile Photo' }) {
+function PhotoUploader({ value, onChange, onBusy, label = 'Profile Photo' }) {
   const fileRef = useRef(null);
-  function handleFile(e) {
+  const [uploading, setUploading] = useState(false);
+  async function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) { alert('Photo must be less than 20MB'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => onChange(reader.result);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    onBusy?.(true);
+    try {
+      const token = localStorage.getItem('bc_guide_token') || localStorage.getItem('bc_jwt');
+      onChange(await uploadGuideImage(file, token));
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setUploading(false);
+      onBusy?.(false);
+      e.target.value = '';
+    }
   }
   return (
     <div>
       <div
-        onClick={() => fileRef.current?.click()}
+        onClick={() => !uploading && fileRef.current?.click()}
         className="relative flex flex-col items-center justify-center w-full h-40 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-green-500 dark:hover:border-green-500 cursor-pointer transition-all bg-slate-50 dark:bg-slate-800 group overflow-hidden"
       >
-        {value ? (
+        {uploading ? <span className="text-sm font-bold text-green-700">Uploading photo…</span> : value ? (
           <>
             <img src={value} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -171,6 +181,7 @@ export default function GuideOnboardingPage() {
 
   const [currentStep, setCurrentStep] = useState(parseInt(stepParam) || 1);
   const [saving, setSaving] = useState(false);
+  const [uploadsInProgress, setUploadsInProgress] = useState(0);
   const [submitState, setSubmitState] = useState('idle'); // idle | submitting | success | error
   const [errors, setErrors] = useState({});
   const [completeness, setCompleteness] = useState(0);
@@ -265,6 +276,8 @@ export default function GuideOnboardingPage() {
     setDraft(prev => ({ ...prev, [field]: value }));
   }
 
+  const trackUpload = busy => setUploadsInProgress(count => Math.max(0, count + (busy ? 1 : -1)));
+
   function buildProfilePayload() {
     return {
       step_personal: {
@@ -308,16 +321,14 @@ export default function GuideOnboardingPage() {
   }), [authToken]);
 
   async function saveStep(stepKey, data) {
-    if (!authToken) return;
-    try {
-      await fetch('/api/guide-profiles', {
+    if (!authToken) throw new Error('Your session has expired. Please sign in again.');
+    const res = await fetch('/api/guide-profiles', {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ action: 'save', step: stepKey, data, profileId, currentStep }),
-      });
-    } catch (err) {
-      console.error('Step save error:', err);
-    }
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || 'Could not save this step. Please try again.');
   }
 
   async function recalcCompleteness() {
@@ -444,8 +455,14 @@ export default function GuideOnboardingPage() {
     const stepKeyMap = { 2:'personal', 3:'categories', 4:'areas', 5:'languages', 6:'skills', 7:'certifications', 8:'experience', 9:'pricing', 10:'gallery', 11:'availability', 12:'booking_settings' };
     const stepKey = stepKeyMap[currentStep];
     if (stepKey) {
-      const payload = buildProfilePayload();
-      await saveStep(stepKey, payload[`step_${stepKey}`] || payload[stepKey]);
+      try {
+        const payload = buildProfilePayload();
+        await saveStep(stepKey, payload[`step_${stepKey}`] || payload[stepKey]);
+      } catch (error) {
+        setErrors({ save: error.message });
+        setSaving(false);
+        return;
+      }
     }
 
     setSaving(false);
@@ -666,7 +683,7 @@ export default function GuideOnboardingPage() {
             <div>
               <StepHeader step={2} />
               <FieldGroup label="Profile Photo">
-                <PhotoUploader value={draft.photo} onChange={v => set('photo', v)} />
+                <PhotoUploader value={draft.photo} onChange={v => set('photo', v)} onBusy={trackUpload} />
               </FieldGroup>
               <div className="grid sm:grid-cols-2 gap-4">
                 <FieldGroup label="Date of Birth">
@@ -922,7 +939,7 @@ export default function GuideOnboardingPage() {
                 </div>
                 <div className="mt-3">
                   <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Certificate Image</label>
-                  <PhotoUploader value={draft.newCertUrl} onChange={v => set('newCertUrl', v)} label="Certificate" />
+                  <PhotoUploader value={draft.newCertUrl} onChange={v => set('newCertUrl', v)} onBusy={trackUpload} label="Certificate" />
                 </div>
                 <button
                   type="button"
@@ -1078,6 +1095,7 @@ export default function GuideOnboardingPage() {
                     <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Featured Image *</label>
                     <PhotoUploader 
                       value={draft.newGalleryUrl} 
+                      onBusy={trackUpload}
                       onChange={v => {
                         set('newGalleryUrl', v);
                         if (v && draft.gallery.length < 30) {
@@ -1431,6 +1449,7 @@ export default function GuideOnboardingPage() {
                 <i className="ph ph-arrow-left" /> Back
               </button>
 
+              {errors.save && <p role="alert" className="text-sm font-semibold text-red-600 max-w-sm">{errors.save}</p>}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 hidden sm:block">
                   {currentStep} / 14
@@ -1446,7 +1465,7 @@ export default function GuideOnboardingPage() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={saving}
+                  disabled={saving || uploadsInProgress > 0}
                   className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-sm shadow-md shadow-green-600/25 transition-all hover:-translate-y-0.5 disabled:opacity-60"
                 >
                   {saving ? <><i className="ph ph-spinner-gap animate-spin" />Saving…</> : <>{currentStep === 13 ? 'Continue to Submit' : 'Continue'}<i className="ph ph-arrow-right" /></>}

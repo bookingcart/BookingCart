@@ -203,6 +203,7 @@ app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
 app.all('/api/hotel-profiles', apiLimiter, run(hotelProfilesHandler));
 app.all('/api/stripe/connect', apiLimiter, run(stripeConnectHandler));
 app.all('/api/upload', apiLimiter, run(uploadHandler));
+app.get('/api/upload/:id', apiLimiter, run(uploadHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>

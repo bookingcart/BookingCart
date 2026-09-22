@@ -272,8 +272,6 @@ export default function GuideDashboardPage() {
   };
 
   const handleSaveProfileSection = async (sectionName, payload) => {
-    // Save to API
-    try {
       const token = getToken();
       const res = await fetch('/api/guide-profiles', {
         method: 'POST',
@@ -284,12 +282,8 @@ export default function GuideDashboardPage() {
         body: JSON.stringify({ action: 'save', step: sectionName.toLowerCase().split(' ')[0], data: payload })
       });
       const data = await res.json();
-      if (data.ok && data.profile) {
-        setProfile(data.profile);
-      }
-    } catch (err) {
-      console.warn('Saved locally:', err);
-    }
+      if (!res.ok || !data.ok || !data.profile) throw new Error(data.error || 'Could not save your guide profile.');
+      setProfile(data.profile);
   };
 
   const handleReplySubmit = async (reviewId) => {
@@ -779,6 +773,7 @@ export default function GuideDashboardPage() {
           <GuideProfileEditor
             profile={profile}
             onSave={handleSaveProfileSection}
+            authToken={getToken()}
             onLogActivity={handleLogActivity}
           />
         )}
@@ -788,6 +783,7 @@ export default function GuideDashboardPage() {
           <GuideCalendarManager
             availability={profile?.step_availability}
             onSave={handleSaveProfileSection}
+            authToken={getToken()}
             onLogActivity={handleLogActivity}
           />
         )}

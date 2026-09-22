@@ -559,10 +559,12 @@ module.exports = async (req, res) => {
       }
       if (!targetId) return res.status(404).json({ ok: false, error: 'Profile not found. Please restart registration.' });
 
-      await query(
-        `UPDATE bc_guide_profiles SET ${stepKey} = $1, current_step = $2, updated_at = NOW() WHERE id = $3`,
-        [colData, currentStep || 1, targetId]
+      const updated = await query(
+        `UPDATE bc_guide_profiles SET ${stepKey} = $1, current_step = $2, updated_at = NOW()
+         WHERE id = $3 AND LOWER(email) = $4 RETURNING id`,
+        [colData, currentStep || 1, targetId, auth.email.toLowerCase()]
       );
+      if (!updated.rows.length) return res.status(404).json({ ok: false, error: 'Your guide profile was not found.' });
       const r = await query(`SELECT * FROM bc_guide_profiles WHERE id = $1`, [targetId]);
       fullProfile = r.rows[0] || null;
     } else {
@@ -575,7 +577,7 @@ module.exports = async (req, res) => {
           if (p.email === auth.email) { profile = p; break; }
         }
       }
-      if (!profile) return res.status(404).json({ ok: false, error: 'Profile not found.' });
+      if (!profile || profile.email?.toLowerCase() !== auth.email.toLowerCase()) return res.status(404).json({ ok: false, error: 'Your guide profile was not found.' });
       profile[stepKey] = data;
       profile.current_step = currentStep || profile.current_step;
       profile.updated_at = new Date().toISOString();
@@ -592,7 +594,7 @@ module.exports = async (req, res) => {
     }
 
     // Also sync profile data to bc_guides if already published
-    if (fullProfile) {
+    if (fullProfile && fullProfile.status === 'approved') {
       const personal = fullProfile.step_personal || {};
       const stepAvail = fullProfile.step_availability || {};
       const newPhoto = personal.photo || fullProfile.photo || '';
@@ -622,7 +624,7 @@ module.exports = async (req, res) => {
              photo = COALESCE(NULLIF($1, ''), photo), 
              name = $2, 
              email = $3, 
-             gallery = $4, 
+             gallery = CASE WHEN $15 THEN $4 ELSE gallery END,
              availability = $5, 
              working_days = $6, 
              working_hours = $7, 
@@ -649,9 +651,10 @@ module.exports = async (req, res) => {
             JSON.stringify(languagesArr),
             JSON.stringify(categoriesArr),
             JSON.stringify(skillsArr),
-            personal.bio || fullProfile.bio || ''
+            personal.bio || fullProfile.bio || '',
+            step === 'gallery'
           ]
-        ).catch((err) => console.error('[guide-profiles] Failed to sync to bc_guides DB:', err));
+        );
       } else if (global.__guides) {
         const gIdx = global.__guides.findIndex(g =>
           (targetEmail && (g.email || '').toLowerCase().trim() === targetEmail) ||
@@ -662,7 +665,7 @@ module.exports = async (req, res) => {
           if (newPhoto) global.__guides[gIdx].photo = newPhoto;
           global.__guides[gIdx].name = newName;
           if (targetEmail) global.__guides[gIdx].email = targetEmail;
-          if (galleryArr.length > 0) global.__guides[gIdx].gallery = galleryArr;
+          if (step === 'gallery') global.__guides[gIdx].gallery = galleryArr;
           if (languagesArr.length > 0) global.__guides[gIdx].languages = languagesArr;
           if (categoriesArr.length > 0) global.__guides[gIdx].categories = categoriesArr;
           if (skillsArr.length > 0) global.__guides[gIdx].skills = skillsArr;
