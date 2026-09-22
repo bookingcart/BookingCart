@@ -144,7 +144,9 @@ function profileToGuide(profile) {
       attractions: Array.isArray(areas.attractions) ? areas.attractions : [],
     },
     certifications: certs.map(c => `${c.name || ''} – ${c.org || ''}`).filter(Boolean),
-    gallery: Array.isArray(gallery) ? gallery.filter(u => u && u.url).map(u => u.url) : [],
+    gallery: gallery
+      .map(item => typeof item === 'string' ? item.trim() : item?.url?.trim())
+      .filter(Boolean),
     reviews: [],
     pricing: {
       perDay: parseFloat(pricing.perDay || 0),

@@ -15,6 +15,19 @@ function StarRow({ rating, size = 'md' }) {
   );
 }
 
+const FALLBACK_GALLERY_PHOTO = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
+
+function galleryPhotoUrl(photo) {
+  if (typeof photo === 'string') return photo.trim();
+  if (photo && typeof photo === 'object' && typeof photo.url === 'string') return photo.url.trim();
+  return '';
+}
+
+function useFallbackPhoto(event) {
+  const image = event.currentTarget;
+  if (image.src !== FALLBACK_GALLERY_PHOTO) image.src = FALLBACK_GALLERY_PHOTO;
+}
+
 export default function TourGuideProfilePage() {
   const { guideId } = useParams();
   const navigate = useNavigate();
@@ -161,8 +174,10 @@ export default function TourGuideProfilePage() {
   }
 
   // Gallery processing
-  const photos = guide.gallery || [];
-  const mainPhoto = photos[0] || guide.photo || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
+  const photos = (Array.isArray(guide.gallery) ? guide.gallery : [])
+    .map(galleryPhotoUrl)
+    .filter(Boolean);
+  const mainPhoto = photos[0] || galleryPhotoUrl(guide.photo) || FALLBACK_GALLERY_PHOTO;
   const smallPhotos = photos.slice(1, 5);
 
   return (
@@ -202,14 +217,14 @@ export default function TourGuideProfilePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 h-full rounded-3xl overflow-hidden">
           {/* Main Photo */}
           <div className="h-full relative group cursor-pointer">
-            <img src={mainPhoto} alt={guide.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <img src={mainPhoto} alt={guide.name} onError={useFallbackPhoto} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
           </div>
           {/* Grid Photos (Desktop only) */}
           <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
             {smallPhotos.map((p, i) => (
               <div key={i} className="h-full relative group cursor-pointer overflow-hidden">
-                <img src={p.url || p} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <img src={p} alt={`${guide.name} tour gallery ${i + 2}`} onError={useFallbackPhoto} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
               </div>
             ))}
