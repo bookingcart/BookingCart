@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import GuideAvailabilityCalendar from '../components/GuideAvailabilityCalendar.jsx';
 
+const GALLERY_FALLBACK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#e2e8f0"/><path d="M280 350l80-90 80 80 55-55 90 110H215z" fill="#94a3b8"/><circle cx="510" cy="220" r="35" fill="#94a3b8"/></svg>');
+function showGalleryFallback(event) {
+  const image = event.currentTarget;
+  if (image.src !== GALLERY_FALLBACK) image.src = GALLERY_FALLBACK;
+}
+
 function StarRow({ rating, size = 'md' }) {
   const full = Math.floor(rating);
   const hasHalf = (rating % 1) >= 0.5;
@@ -217,7 +223,10 @@ export default function TourGuideProfilePage() {
     }
   }
   const photoUrls = rawPhotos
-    .map(p => (typeof p === 'string' ? p : p?.url || p?.src || ''))
+    .map(p => {
+      const url = typeof p === 'string' ? p : p?.url || p?.src;
+      return typeof url === 'string' ? url.trim() : '';
+    })
     .filter(Boolean)
     .filter(u => u !== guide.photo);
 
@@ -310,7 +319,7 @@ export default function TourGuideProfilePage() {
               onClick={() => setLightboxIdx(0)}
               className="h-full relative group cursor-pointer overflow-hidden"
             >
-              <img src={mainPhoto} alt={guideName} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <img src={mainPhoto} alt={guideName} onError={showGalleryFallback} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
               <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
                   <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
@@ -331,7 +340,7 @@ export default function TourGuideProfilePage() {
                 onClick={() => setLightboxIdx(1)}
                 className="h-full relative group cursor-pointer overflow-hidden"
               >
-                <img src={sidePhotos[0]} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <img src={sidePhotos[0]} alt="" onError={showGalleryFallback} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
                   <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
                     <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
@@ -346,7 +355,7 @@ export default function TourGuideProfilePage() {
                     onClick={() => setLightboxIdx(idx + 1)}
                     className="h-full relative group cursor-pointer overflow-hidden"
                   >
-                    <img src={url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img src={url} alt="" onError={showGalleryFallback} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
                       <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-3 py-1.5 rounded-full font-extrabold text-[11px] shadow-lg backdrop-blur transition-opacity">
                         View

@@ -152,7 +152,10 @@ function profileToGuide(profile) {
       attractions: Array.isArray(areas.attractions) ? areas.attractions : [],
     },
     certifications: certs.map(c => `${c.name || ''} – ${c.org || ''}`).filter(Boolean),
-    gallery: Array.isArray(gallery) ? gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [],
+    gallery: Array.isArray(gallery) ? gallery.map(u => {
+      const url = typeof u === 'string' ? u : u?.url || u?.src;
+      return typeof url === 'string' ? url.trim() : '';
+    }).filter(Boolean) : [],
     reviews: [],
     pricing: {
       perDay: parseFloat(pricing.perDay || 0),
