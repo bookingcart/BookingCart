@@ -235,7 +235,14 @@ export default function HomePage() {
     try {
       const stored = localStorage.getItem('bc_recent_searches');
       if (stored) {
-        setRecentSearches(JSON.parse(stored));
+        const SEARCH_TTL = 24 * 60 * 60 * 1000; // 24 hours
+        const all = JSON.parse(stored);
+        const fresh = all.filter(s => (Date.now() - Number(s.timestamp || 0)) < SEARCH_TTL);
+        // Persist the cleaned list back so stale entries don't linger
+        if (fresh.length !== all.length) {
+          localStorage.setItem('bc_recent_searches', JSON.stringify(fresh));
+        }
+        setRecentSearches(fresh);
       }
     } catch(e) {}
   }, []);
@@ -275,6 +282,7 @@ export default function HomePage() {
       // Small delay lets React finish rendering the #deals-grid DOM node first
       const t = setTimeout(() => {
         if (typeof window.__reInitDeals === 'function') window.__reInitDeals();
+        if (typeof window.__reInitBookingCart === 'function') window.__reInitBookingCart();
       }, 50);
       return () => clearTimeout(t);
     }

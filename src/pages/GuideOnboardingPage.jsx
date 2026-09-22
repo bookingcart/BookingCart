@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import GuideProfileCompleteness, { CompletenessBar } from '../components/GuideProfileCompleteness.jsx';
 import GuideAIOptimizer from '../components/GuideAIOptimizer.jsx';
+import { uploadGuideImage } from '../lib/guideImage.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ALL_CATEGORIES = [
@@ -93,23 +94,32 @@ function TextInput({ id, value, onChange, placeholder, type = 'text', required, 
   return <input id={id} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required} maxLength={maxLength} className={cls} />;
 }
 
-function PhotoUploader({ value, onChange, label = 'Profile Photo' }) {
+function PhotoUploader({ value, onChange, onBusy, label = 'Profile Photo' }) {
   const fileRef = useRef(null);
-  function handleFile(e) {
+  const [uploading, setUploading] = useState(false);
+  async function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('Photo must be less than 2MB'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => onChange(reader.result);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    onBusy?.(true);
+    try {
+      const token = localStorage.getItem('bc_guide_token') || localStorage.getItem('bc_jwt');
+      onChange(await uploadGuideImage(file, token));
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setUploading(false);
+      onBusy?.(false);
+      e.target.value = '';
+    }
   }
   return (
     <div>
       <div
-        onClick={() => fileRef.current?.click()}
+        onClick={() => !uploading && fileRef.current?.click()}
         className="relative flex flex-col items-center justify-center w-full h-40 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-green-500 dark:hover:border-green-500 cursor-pointer transition-all bg-slate-50 dark:bg-slate-800 group overflow-hidden"
       >
-        {value ? (
+        {uploading ? <span className="text-sm font-bold text-green-700">Uploading photo…</span> : value ? (
           <>
             <img src={value} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -120,7 +130,7 @@ function PhotoUploader({ value, onChange, label = 'Profile Photo' }) {
           <div className="text-center px-4">
             <i className="ph ph-camera-plus text-4xl text-slate-300 dark:text-slate-600 mb-2 block" />
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Click to upload {label}</p>
-            <p className="text-xs text-slate-400 mt-1">JPG or PNG, max 2MB</p>
+            <p className="text-xs text-slate-400 mt-1">JPG or PNG, max 20MB</p>
           </div>
         )}
       </div>
@@ -171,10 +181,13 @@ export default function GuideOnboardingPage() {
 
   const [currentStep, setCurrentStep] = useState(parseInt(stepParam) || 1);
   const [saving, setSaving] = useState(false);
+  const [uploadsInProgress, setUploadsInProgress] = useState(0);
   const [submitState, setSubmitState] = useState('idle'); // idle | submitting | success | error
   const [errors, setErrors] = useState({});
   const [completeness, setCompleteness] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [feeStatus, setFeeStatus] = useState({ guideCount: 0, freeEligible: true, freeLimit: 200, registrationFeeCents: 1000 });
+  const [checkingFeePayment, setCheckingFeePayment] = useState(false);
 
   // Auth token for API calls after registration
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('bc_guide_token') || localStorage.getItem('bc_jwt') || '');
@@ -228,11 +241,42 @@ export default function GuideOnboardingPage() {
   });
 
   useEffect(() => { saveDraft(draft); }, [draft]);
-  useEffect(() => { document.title = 'BookingCart — Become a Guide'; }, []);
+  useEffect(() => {
+    document.title = 'BookingCart — Become a Guide';
+    fetch('/api/guides?action=fee-status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) setFeeStatus(data);
+      })
+      .catch(err => console.warn('Failed to load fee status:', err));
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registration_paid') === '1' && params.get('session_id')) {
+      const sessionId = params.get('session_id');
+      setCheckingFeePayment(true);
+      fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(async data => {
+          if (data.ok && (data.session?.payment_status === 'paid' || data.session?.status === 'complete')) {
+            const guideEmail = params.get('email') || '';
+            await fetch('/api/guide-profiles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'mark-fee-paid', feeType: 'registration', email: guideEmail, profileId })
+            });
+            setCurrentStep(2);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setCheckingFeePayment(false));
+    }
+  }, []);
 
   function set(field, value) {
     setDraft(prev => ({ ...prev, [field]: value }));
   }
+
+  const trackUpload = busy => setUploadsInProgress(count => Math.max(0, count + (busy ? 1 : -1)));
 
   function buildProfilePayload() {
     return {
@@ -277,16 +321,14 @@ export default function GuideOnboardingPage() {
   }), [authToken]);
 
   async function saveStep(stepKey, data) {
-    if (!authToken) return;
-    try {
-      await fetch('/api/guide-profiles', {
+    if (!authToken) throw new Error('Your session has expired. Please sign in again.');
+    const res = await fetch('/api/guide-profiles', {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({ action: 'save', step: stepKey, data, profileId, currentStep }),
-      });
-    } catch (err) {
-      console.error('Step save error:', err);
-    }
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || 'Could not save this step. Please try again.');
   }
 
   async function recalcCompleteness() {
@@ -376,6 +418,32 @@ export default function GuideOnboardingPage() {
         localStorage.setItem('bc_guide_profile_id', String(data.profileId));
         // Also set main auth token so site recognizes them as logged in
         localStorage.setItem('bc_jwt', data.token);
+
+        // If registration fee is required ($10) and not eligible for free slot (<200)
+        if (!data.registrationFeePaid && !data.freeEligible) {
+          const payRes = await fetch('/api/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amountCents: 1000,
+              currency: 'usd',
+              description: 'BookingCart Tour Guide Account Registration Fee ($10 USD)',
+              customerEmail: draft.email,
+              paymentPurpose: 'guide-registration-fee',
+              successPath: `/guide-onboarding?registration_paid=1&email=${encodeURIComponent(draft.email)}`,
+              cancelPath: '/guide-onboarding?step=1'
+            })
+          });
+          const payData = await payRes.json();
+          if (payData.ok && payData.url) {
+            window.location.href = payData.url;
+            return;
+          } else {
+            setErrors({ email: payData.error || 'Failed to initialize $10 USD registration checkout.' });
+            setSaving(false);
+            return;
+          }
+        }
       } catch (err) {
         setErrors({ email: 'Network error. Please try again.' });
         setSaving(false);
@@ -387,8 +455,14 @@ export default function GuideOnboardingPage() {
     const stepKeyMap = { 2:'personal', 3:'categories', 4:'areas', 5:'languages', 6:'skills', 7:'certifications', 8:'experience', 9:'pricing', 10:'gallery', 11:'availability', 12:'booking_settings' };
     const stepKey = stepKeyMap[currentStep];
     if (stepKey) {
-      const payload = buildProfilePayload();
-      await saveStep(stepKey, payload[`step_${stepKey}`] || payload[stepKey]);
+      try {
+        const payload = buildProfilePayload();
+        await saveStep(stepKey, payload[`step_${stepKey}`] || payload[stepKey]);
+      } catch (error) {
+        setErrors({ save: error.message });
+        setSaving(false);
+        return;
+      }
     }
 
     setSaving(false);
@@ -540,17 +614,46 @@ export default function GuideOnboardingPage() {
             <div>
               <StepHeader step={1} />
 
-              {/* Hero illustration */}
-              <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative">
-                <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5" />
-                <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                  <i className="ph ph-compass text-4xl" />
+              {/* Early Bird Free Registration vs $10 Fee Banner */}
+              {feeStatus.freeEligible ? (
+                <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative shadow-lg shadow-emerald-900/20 border border-emerald-400/30">
+                  <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10" />
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 text-3xl">
+                    🎉
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="bg-emerald-400/30 text-white font-black text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-emerald-300/40">
+                        First 200 Early Access
+                      </span>
+                      <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        Slot #{feeStatus.guideCount + 1} of {feeStatus.freeLimit}
+                      </span>
+                    </div>
+                    <h3 className="font-black text-xl">Account Registration is FREE ($0 USD)</h3>
+                    <p className="text-emerald-100 text-xs sm:text-sm mt-1">
+                      You're among the first 200 guides! Registration fee ($10 USD) is completely waived for your account.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-xl">Join our Guide Network</h3>
-                  <p className="text-white/80 text-sm mt-1">Create your professional guide profile and start receiving bookings from travelers worldwide.</p>
+              ) : (
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative border border-slate-700 shadow-lg">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-amber-400/30 text-3xl">
+                    💳
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="bg-amber-500/20 text-amber-300 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-amber-400/30">
+                        Standard Registration
+                      </span>
+                    </div>
+                    <h3 className="font-black text-xl">Guide Registration Fee: $10 USD</h3>
+                    <p className="text-slate-300 text-xs sm:text-sm mt-1">
+                      The first 200 free registration slots have been claimed. Proceed with account details to pay $10 USD via secure Stripe checkout.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <FieldGroup label="Full Name" required error={errors.fullName}>
                 <TextInput id="fullName" value={draft.fullName} onChange={v => set('fullName', v)} placeholder="Sarah Johnson" required />
@@ -580,7 +683,7 @@ export default function GuideOnboardingPage() {
             <div>
               <StepHeader step={2} />
               <FieldGroup label="Profile Photo">
-                <PhotoUploader value={draft.photo} onChange={v => set('photo', v)} />
+                <PhotoUploader value={draft.photo} onChange={v => set('photo', v)} onBusy={trackUpload} />
               </FieldGroup>
               <div className="grid sm:grid-cols-2 gap-4">
                 <FieldGroup label="Date of Birth">
@@ -836,7 +939,7 @@ export default function GuideOnboardingPage() {
                 </div>
                 <div className="mt-3">
                   <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Certificate Image</label>
-                  <PhotoUploader value={draft.newCertUrl} onChange={v => set('newCertUrl', v)} label="Certificate" />
+                  <PhotoUploader value={draft.newCertUrl} onChange={v => set('newCertUrl', v)} onBusy={trackUpload} label="Certificate" />
                 </div>
                 <button
                   type="button"
@@ -985,46 +1088,49 @@ export default function GuideOnboardingPage() {
 
               <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 mb-6">
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-4 flex items-center gap-2">
-                  <i className="ph ph-link text-green-600" /> Add Photo or Video
+                  <i className="ph ph-image text-green-600" /> Upload Featured Images & Photos
                 </h3>
                 <div className="space-y-4 mb-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Photo *</label>
-                    <PhotoUploader value={draft.newGalleryUrl} onChange={v => set('newGalleryUrl', v)} label="Photo" />
+                    <label className="text-xs font-bold text-slate-500 mb-2 block">Upload Featured Image *</label>
+                    <PhotoUploader 
+                      value={draft.newGalleryUrl} 
+                      onBusy={trackUpload}
+                      onChange={v => {
+                        set('newGalleryUrl', v);
+                        if (v && draft.gallery.length < 30) {
+                          set('gallery', [...draft.gallery, { url: v, caption: (draft.newGalleryCaption || '').trim(), type: 'photo' }]);
+                          set('newGalleryUrl', '');
+                          set('newGalleryCaption', '');
+                        }
+                      }} 
+                      label="Featured Image" 
+                    />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Caption</label>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">Caption (Optional)</label>
                     <TextInput value={draft.newGalleryCaption} onChange={v => set('newGalleryCaption', v)} placeholder="Gorilla tracking in Bwindi…" />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!draft.newGalleryUrl.trim()) return;
-                    if (draft.gallery.length >= 30) { alert('Maximum 30 photos allowed'); return; }
-                    set('gallery', [...draft.gallery, { url: draft.newGalleryUrl.trim(), caption: draft.newGalleryCaption.trim(), type: 'photo' }]);
-                    set('newGalleryUrl', ''); set('newGalleryCaption', '');
-                  }}
-                  className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-sm"
-                >
-                  Add to Gallery
-                </button>
-                <p className="text-xs text-slate-400 mt-2">Upload a high-quality JPG or PNG. {draft.gallery.length}/30 photos added.</p>
+                <p className="text-xs text-slate-400 mt-2">Upload high-quality JPG or PNG images. {draft.gallery.length}/30 photos added.</p>
               </div>
 
               {draft.gallery.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {draft.gallery.map((item, i) => (
-                    <div key={i} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800">
-                      <img src={item.url} alt={item.caption || ''} className="w-full h-full object-cover" onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=60'; }} />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                        {item.caption && <p className="text-white text-xs font-semibold text-center">{item.caption}</p>}
-                        <button type="button" onClick={() => set('gallery', draft.gallery.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 font-bold text-xs flex items-center gap-1">
-                          <i className="ph ph-trash" /> Remove
-                        </button>
+                  {draft.gallery.map((item, i) => {
+                    const imgSrc = typeof item === 'string' ? item : (item?.url || item?.src || '');
+                    return (
+                      <div key={i} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800">
+                        <img src={imgSrc} alt={item?.caption || ''} className="w-full h-full object-cover" onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=60'; }} />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                          {item?.caption && <p className="text-white text-xs font-semibold text-center">{item.caption}</p>}
+                          <button type="button" onClick={() => set('gallery', draft.gallery.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 font-bold text-xs flex items-center gap-1">
+                            <i className="ph ph-trash" /> Remove
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 text-slate-400">
@@ -1343,6 +1449,7 @@ export default function GuideOnboardingPage() {
                 <i className="ph ph-arrow-left" /> Back
               </button>
 
+              {errors.save && <p role="alert" className="text-sm font-semibold text-red-600 max-w-sm">{errors.save}</p>}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 hidden sm:block">
                   {currentStep} / 14
@@ -1358,7 +1465,7 @@ export default function GuideOnboardingPage() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={saving}
+                  disabled={saving || uploadsInProgress > 0}
                   className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-sm shadow-md shadow-green-600/25 transition-all hover:-translate-y-0.5 disabled:opacity-60"
                 >
                   {saving ? <><i className="ph ph-spinner-gap animate-spin" />Saving…</> : <>{currentStep === 13 ? 'Continue to Submit' : 'Continue'}<i className="ph ph-arrow-right" /></>}

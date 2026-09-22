@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import GuideAvailabilityCalendar from '../components/GuideAvailabilityCalendar.jsx';
 
+const GALLERY_FALLBACK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#e2e8f0"/><path d="M280 350l80-90 80 80 55-55 90 110H215z" fill="#94a3b8"/><circle cx="510" cy="220" r="35" fill="#94a3b8"/></svg>');
+function showGalleryFallback(event) {
+  const image = event.currentTarget;
+  if (image.src !== GALLERY_FALLBACK) image.src = GALLERY_FALLBACK;
+}
+
 function StarRow({ rating, size = 'md' }) {
   const full = Math.floor(rating);
   const hasHalf = (rating % 1) >= 0.5;
@@ -15,17 +21,31 @@ function StarRow({ rating, size = 'md' }) {
   );
 }
 
-const FALLBACK_GALLERY_PHOTO = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80';
-
-function galleryPhotoUrl(photo) {
-  if (typeof photo === 'string') return photo.trim();
-  if (photo && typeof photo === 'object' && typeof photo.url === 'string') return photo.url.trim();
-  return '';
-}
-
-function useFallbackPhoto(event) {
-  const image = event.currentTarget;
-  if (image.src !== FALLBACK_GALLERY_PHOTO) image.src = FALLBACK_GALLERY_PHOTO;
+function normalizeAvailability(raw) {
+  if (!raw) return {};
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (_) { return {}; }
+  }
+  if (typeof parsed !== 'object' || parsed === null) return {};
+  // If it's a working-hours object (startTime/endTime/workingDays from onboarding), not a date map
+  if (parsed.startTime !== undefined || parsed.endTime !== undefined || parsed.workingDays !== undefined) {
+    return {}; // Calendar will show all days as available
+  }
+  // If it has blockedDates array
+  if (Array.isArray(parsed.blockedDates)) {
+    const map = {};
+    for (const d of parsed.blockedDates) {
+      if (typeof d === 'string') map[d] = 'blocked';
+    }
+    return map;
+  }
+  // If it's already a date->status map, filter out non-date keys
+  const dateMap = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(k)) dateMap[k] = v;
+  }
+  return dateMap;
 }
 
 export default function TourGuideProfilePage() {
@@ -46,32 +66,41 @@ export default function TourGuideProfilePage() {
   const [pickingEnd, setPickingEnd] = useState(false);
   const [guests, setGuests] = useState(1);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const res = await fetch(`/api/guides?slug=${encodeURIComponent(guideId)}`);
         const data = await res.json();
         if (data.ok && data.guide) {
           setGuide(data.guide);
-          document.title = `BookingCart — ${data.guide.name}`;
+          document.title = `BookingCart — ${data.guide.name || 'Guide Profile'}`;
 
-          // Fetch live reviews and stats
-          const rRes = await fetch('/api/guide-reviews', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'guide-dashboard', guideId: data.guide.slug })
-          });
-          const rData = await rRes.json();
-          if (rData.ok) {
-            setReviews(rData.reviews || []);
-            setReviewStats(rData.stats || null);
+          // Fetch live reviews and stats gracefully (do not break profile if reviews fetch fails)
+          try {
+            const rRes = await fetch('/api/guide-reviews', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'guide-dashboard', guideId: data.guide.slug || guideId })
+            });
+            if (rRes.ok) {
+              const rData = await rRes.json();
+              if (rData.ok) {
+                setReviews(rData.reviews || []);
+                setReviewStats(rData.stats || null);
+              }
+            }
+          } catch (rErr) {
+            console.warn('Could not load guide reviews:', rErr);
           }
         } else {
-          setError('Guide not found');
+          setError(data?.error || 'Guide not found');
         }
-      } catch {
+      } catch (err) {
+        console.error('Failed to load guide profile:', err);
         setError('Failed to load guide profile');
       } finally {
         setLoading(false);
@@ -104,8 +133,13 @@ export default function TourGuideProfilePage() {
   }
 
   const nights = calcNights();
-  const pricePerDay = parseFloat(guide?.pricing?.perDay || 0);
-  const perPerson = parseFloat(guide?.pricing?.perPerson || 0);
+  
+  let pricingObj = guide?.pricing || {};
+  if (typeof pricingObj === 'string') {
+    try { pricingObj = JSON.parse(pricingObj); } catch (_) { pricingObj = {}; }
+  }
+  const pricePerDay = parseFloat(pricingObj?.perDay || 0);
+  const perPerson = parseFloat(pricingObj?.perPerson || 0);
   const subtotal = nights * pricePerDay + (perPerson > 0 ? guests * perPerson : 0);
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
@@ -117,26 +151,27 @@ export default function TourGuideProfilePage() {
     }
     setBookingLoading(true);
     try {
-      const ref = `GUIDE-${guide.slug.toUpperCase().slice(0, 8)}-${Date.now()}`;
+      const slugKey = guide?.slug || guideId || 'guide';
+      const ref = `GUIDE-${slugKey.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)}-${Date.now()}`;
       await fetch('/api/guide-bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'save',
-          booking: { ref, guideId: guide.slug, startDate: selectedStart, endDate: selectedEnd, guests, total }
+          booking: { ref, guideId: slugKey, startDate: selectedStart, endDate: selectedEnd, guests, total }
         })
       });
       const params = new URLSearchParams({
-        guideId: guide.slug,
-        guideName: guide.name,
-        guidePhoto: guide.photo,
+        guideId: slugKey,
+        guideName: guide?.name || 'Guide',
+        guidePhoto: guide?.photo || '',
         startDate: selectedStart,
         endDate: selectedEnd,
         guests: guests.toString(),
         nights: nights.toString(),
         pricePerDay: pricePerDay.toString(),
         total: total.toString(),
-        currency: guide.pricing?.currency || 'USD',
+        currency: pricingObj?.currency || 'USD',
         ref
       });
       navigate(`/tour-guides/checkout?${params.toString()}`);
@@ -173,12 +208,57 @@ export default function TourGuideProfilePage() {
     );
   }
 
-  // Gallery processing
-  const photos = (Array.isArray(guide.gallery) ? guide.gallery : [])
-    .map(galleryPhotoUrl)
-    .filter(Boolean);
-  const mainPhoto = photos[0] || galleryPhotoUrl(guide.photo) || FALLBACK_GALLERY_PHOTO;
-  const smallPhotos = photos.slice(1, 5);
+  // Gallery processing — normalize entries to plain URL strings
+  let rawPhotos = [];
+  if (Array.isArray(guide.gallery)) {
+    rawPhotos = guide.gallery;
+  } else if (typeof guide.gallery === 'string' && guide.gallery.trim()) {
+    const str = guide.gallery.trim();
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) rawPhotos = parsed;
+      else if (str.startsWith('http') || str.startsWith('data:')) rawPhotos = [str];
+    } catch (_) {
+      if (str.startsWith('http') || str.startsWith('data:')) rawPhotos = [str];
+    }
+  }
+  const photoUrls = rawPhotos
+    .map(p => {
+      const url = typeof p === 'string' ? p : p?.url || p?.src;
+      return typeof url === 'string' ? url.trim() : '';
+    })
+    .filter(Boolean)
+    .filter(u => u !== guide.photo);
+
+  const allPhotos = [];
+  if (guide.photo) {
+    allPhotos.push(guide.photo);
+  }
+  photoUrls.forEach(u => {
+    if (!allPhotos.includes(u)) allPhotos.push(u);
+  });
+  if (allPhotos.length === 0) {
+    // No photos uploaded — leave allPhotos empty so we show an empty state
+  }
+
+  const hasPhotos = allPhotos.length > 0;
+  const mainPhoto = allPhotos[0] || null;
+  const sidePhotos = allPhotos.slice(1, 5);
+
+  const guideName = guide.name || 'Guide';
+  const nameFirst = guideName.split(' ')[0] || 'Guide';
+
+  const categoriesList = Array.isArray(guide.categories)
+    ? guide.categories
+    : (typeof guide.categories === 'string' ? guide.categories.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const skillsList = Array.isArray(guide.skills)
+    ? guide.skills
+    : (typeof guide.skills === 'string' ? guide.skills.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const languagesList = Array.isArray(guide.languages)
+    ? guide.languages
+    : (typeof guide.languages === 'string' ? guide.languages.split(',').map(s => s.trim()).filter(Boolean) : []);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 pt-6 pb-20 px-4 sm:px-6">
@@ -190,49 +270,143 @@ export default function TourGuideProfilePage() {
           <i className="ph ph-caret-right text-xs" />
           <span>{guide.country}</span>
           <i className="ph ph-caret-right text-xs" />
-          <span className="text-slate-900 dark:text-white">{guide.name}</span>
+          <span className="text-slate-900 dark:text-white">{guideName}</span>
         </div>
       </div>
 
       {/* ── Header ── */}
       <div className="max-w-7xl mx-auto mb-6">
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2">{guide.name}</h1>
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white mb-2">{guideName}</h1>
         <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
           <div className="flex items-center gap-1.5">
-            <StarRow rating={guide.rating} size="sm" />
-            <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating).toFixed(1)}</span>
-            <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount} reviews</span>
+            <StarRow rating={guide.rating || 0} size="sm" />
+            <span className="font-bold text-slate-900 dark:text-white">{Number(guide.rating || 0).toFixed(1)}</span>
+            <span className="underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">{guide.reviewCount || 0} reviews</span>
           </div>
-          <span className="flex items-center gap-1.5">
-            <i className="ph-fill ph-seal-check text-green-500 text-base" /> Superguide
-          </span>
+          {guide.verified ? (
+            <span className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Verified Guide">
+              <i className="ph-fill ph-seal-check text-emerald-500 text-base" /> Verified
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-slate-500 text-xs">
+              <i className="ph ph-shield-check text-base" /> Standard Guide
+            </span>
+          )}
           <span className="flex items-center gap-1.5 underline cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors">
-            <i className="ph ph-map-pin text-base" /> {guide.city}, {guide.country}
+            <i className="ph ph-map-pin text-base" /> {guide.city}{guide.city && guide.country ? ', ' : ''}{guide.country}
           </span>
         </div>
       </div>
 
-      {/* ── Image Gallery (Airbnb Style) ── */}
-      <div className="max-w-7xl mx-auto mb-10 h-[50vh] min-h-[300px] max-h-[500px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 h-full rounded-3xl overflow-hidden">
-          {/* Main Photo */}
-          <div className="h-full relative group cursor-pointer">
-            <img src={mainPhoto} alt={guide.name} onError={useFallbackPhoto} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-          </div>
-          {/* Grid Photos (Desktop only) */}
-          <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
-            {smallPhotos.map((p, i) => (
-              <div key={i} className="h-full relative group cursor-pointer overflow-hidden">
-                <img src={p} alt={`${guide.name} tour gallery ${i + 2}`} onError={useFallbackPhoto} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+      {/* ── Image Gallery (Airbnb Style with Lightbox) ── */}
+      <div className="max-w-7xl mx-auto mb-10">
+        <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+          {/* Desktop Grid Layout */}
+          <div className="hidden md:grid grid-cols-2 gap-2 h-[450px]">
+            {/* Main Photo */}
+            {!hasPhotos ? (
+              <div className="col-span-2 h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                <div className="text-center">
+                  <div className="w-28 h-28 rounded-full bg-white dark:bg-slate-700 shadow-lg flex items-center justify-center text-5xl font-black text-slate-300 dark:text-slate-500 mx-auto mb-4">
+                    {(guideName)[0]?.toUpperCase()}
+                  </div>
+                  <p className="text-slate-400 dark:text-slate-500 font-bold text-sm uppercase tracking-wider">No photos uploaded yet</p>
+                </div>
               </div>
-            ))}
-            {/* Fill empty slots if less than 4 small photos */}
-            {Array.from({ length: Math.max(0, 4 - smallPhotos.length) }).map((_, i) => (
-              <div key={`empty-${i}`} className="bg-slate-100 dark:bg-slate-800 h-full" />
-            ))}
+            ) : (
+              <>
+            <div
+              onClick={() => setLightboxIdx(0)}
+              className="h-full relative group cursor-pointer overflow-hidden"
+            >
+              <img src={mainPhoto} alt={guideName} onError={showGalleryFallback} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
+                  <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
+                </span>
+              </div>
+            </div>
+
+            {/* Side Photos */}
+            {sidePhotos.length === 0 ? (
+              <div className="h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-8 text-slate-400">
+                <div className="text-center">
+                  <i className="ph ph-image text-4xl mb-2 block text-slate-300 dark:text-slate-600" />
+                  <p className="text-xs font-bold uppercase tracking-wider">No additional gallery photos</p>
+                </div>
+              </div>
+            ) : sidePhotos.length === 1 ? (
+              <div
+                onClick={() => setLightboxIdx(1)}
+                className="h-full relative group cursor-pointer overflow-hidden"
+              >
+                <img src={sidePhotos[0]} alt="" onError={showGalleryFallback} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-lg backdrop-blur transition-opacity">
+                    <i className="ph ph-magnifying-glass-plus text-base mr-1.5" /> View Photo
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full">
+                {sidePhotos.map((url, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setLightboxIdx(idx + 1)}
+                    className="h-full relative group cursor-pointer overflow-hidden"
+                  >
+                    <img src={url} alt="" onError={showGalleryFallback} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 bg-white/90 dark:bg-slate-900/90 text-slate-900 dark:text-white px-3 py-1.5 rounded-full font-extrabold text-[11px] shadow-lg backdrop-blur transition-opacity">
+                        View
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </>
+            )}
           </div>
+
+          {/* Mobile Layout */}
+          <div className="md:hidden relative aspect-[4/3] overflow-hidden">
+            {hasPhotos ? (
+              <>
+              <img
+                src={allPhotos[lightboxIdx || 0]}
+                alt={guideName}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setLightboxIdx(lightboxIdx || 0)}
+              />
+              {allPhotos.length > 1 && (
+                <div className="absolute bottom-3 right-3 bg-slate-900/80 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur">
+                  {(lightboxIdx || 0) + 1} / {allPhotos.length}
+                </div>
+              )}
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                <div className="text-center">
+                  <div className="w-20 h-20 rounded-full bg-white dark:bg-slate-700 shadow-md flex items-center justify-center text-4xl font-black text-slate-300 dark:text-slate-500 mx-auto mb-2">
+                    {(guideName)[0]?.toUpperCase()}
+                  </div>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">No photos uploaded</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Floating "View All Photos" Button */}
+          {hasPhotos && allPhotos.length > 1 && (
+            <button
+              onClick={() => setLightboxIdx(0)}
+              className="absolute bottom-4 right-4 bg-white/95 dark:bg-slate-900/95 hover:bg-white dark:hover:bg-slate-900 text-slate-900 dark:text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-lg border border-slate-200/80 dark:border-slate-700 flex items-center gap-2 backdrop-blur transition-all"
+            >
+            <i className="ph ph-grid-four text-base text-emerald-500" />
+              Show all {allPhotos.length} photos
+            </button>
+          )}
         </div>
       </div>
 
@@ -245,20 +419,33 @@ export default function TourGuideProfilePage() {
           {/* Overview / Host Info */}
           <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-8">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1">
-                Guided by {guide.name.split(' ')[0]}
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                Guided by {nameFirst}
+                {guide.verified && <i className="ph-fill ph-seal-check text-emerald-500 text-xl" title="Verified by Admin" />}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 font-medium">
-                {guide.yearsExp} years experience · {guide.categories?.join(', ')}
+                {guide.yearsExp || 5} years experience {categoriesList.length > 0 ? `· ${categoriesList.join(', ')}` : ''}
               </p>
             </div>
-            <img src={guide.photo} alt={guide.name} className="w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg" />
+          <img src={guide.photo || (hasPhotos ? mainPhoto : null)} alt={guideName} className={`w-14 h-14 rounded-full object-cover ml-4 border-2 border-white dark:border-slate-800 shadow-lg ${!guide.photo && !hasPhotos ? 'hidden' : ''}`} />
           </div>
 
           {/* Highlights */}
           <div className="border-b border-slate-200 dark:border-slate-800 pb-8 space-y-5">
+            {guide.verified && (
+              <div className="flex gap-4">
+                <i className="ph-fill ph-seal-check text-2xl text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Verified by Admin
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full">Awarded</span>
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">Identity, professional credentials, licenses, and tour experience officially verified by BookingCart administrators.</p>
+                </div>
+              </div>
+            )}
             <div className="flex gap-4">
-              <i className="ph ph-medal text-2xl text-slate-900 dark:text-white" />
+              <i className="ph ph-medal text-2xl text-slate-900 dark:text-white shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white">Top-rated guide</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">Highly rated for knowledge and storytelling.</p>
@@ -297,9 +484,9 @@ export default function TourGuideProfilePage() {
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white mb-3 text-sm uppercase tracking-wider">Skills</h3>
                 <ul className="space-y-3">
-                  {(guide.skills || []).map(skill => (
-                    <li key={skill} className="flex items-center gap-3 text-slate-700 dark:text-slate-300 font-semibold">
-                      <i className="ph-fill ph-check-circle text-green-500 text-lg" /> {skill}
+                  {skillsList.map((skill, idx) => (
+                    <li key={typeof skill === 'string' ? skill : idx} className="flex items-center gap-3 text-slate-700 dark:text-slate-300 font-semibold">
+                      <i className="ph-fill ph-check-circle text-green-500 text-lg" /> {typeof skill === 'string' ? skill : (skill?.name || '')}
                     </li>
                   ))}
                 </ul>
@@ -307,12 +494,16 @@ export default function TourGuideProfilePage() {
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white mb-3 text-sm uppercase tracking-wider">Languages</h3>
                 <ul className="space-y-3">
-                  {(guide.languages || []).map(l => (
-                    <li key={l.lang} className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <span className="flex items-center gap-3"><i className="ph ph-translate text-lg text-slate-400" /> {l.lang}</span>
-                      <span className="text-xs font-bold text-slate-400 uppercase">{l.proficiency}</span>
-                    </li>
-                  ))}
+                  {languagesList.map((l, idx) => {
+                    const langName = typeof l === 'string' ? l : (l?.lang || l?.language || l?.name || '');
+                    const langProf = typeof l === 'object' ? (l?.proficiency || l?.level || '') : '';
+                    return (
+                      <li key={langName || idx} className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <span className="flex items-center gap-3"><i className="ph ph-translate text-lg text-slate-400" /> {langName}</span>
+                        {langProf && <span className="text-xs font-bold text-slate-400 uppercase">{langProf}</span>}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
@@ -324,7 +515,7 @@ export default function TourGuideProfilePage() {
             <div className="flex items-center gap-3 mb-6">
               <i className="ph-fill ph-star text-2xl text-slate-900 dark:text-white" />
               <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                {Number(reviewStats?.averageRating || guide.rating).toFixed(1)} · {reviewStats?.total ?? guide.reviewCount} reviews
+                {Number(reviewStats?.averageRating || guide.rating || 0).toFixed(1)} · {reviewStats?.total ?? guide.reviewCount ?? 0} reviews
               </h2>
             </div>
 
@@ -340,7 +531,7 @@ export default function TourGuideProfilePage() {
             )}
 
             {/* AI Summary */}
-            {reviewStats && reviewStats.total >= 3 && reviewStats.topTags.length > 0 && (
+            {reviewStats && reviewStats.total >= 3 && Array.isArray(reviewStats.topTags) && reviewStats.topTags.length > 0 && (
               <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 mb-8">
                 <div className="flex items-center gap-2 mb-3">
                   <i className="ph-fill ph-sparkle text-green-600" />
@@ -378,7 +569,7 @@ export default function TourGuideProfilePage() {
                           <h4 className="font-bold text-slate-900 dark:text-white text-sm">{r.authorName || 'Traveler'}</h4>
                           <p className="text-xs text-slate-500">
                             {r.travelerType && <span>{r.travelerType} · </span>}
-                            {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : ''}
                           </p>
                         </div>
                       </div>
@@ -387,10 +578,10 @@ export default function TourGuideProfilePage() {
                       </span>
                     </div>
 
-                    <StarRow rating={r.rating} />
+                    <StarRow rating={r.rating || 0} />
                     <p className="text-slate-700 dark:text-slate-300 text-sm line-clamp-4">{r.text}</p>
 
-                    {r.tags && r.tags.length > 0 && (
+                    {Array.isArray(r.tags) && r.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         {r.tags.slice(0, 3).map(t => (
                           <span key={t} className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded">{t}</span>
@@ -468,11 +659,10 @@ export default function TourGuideProfilePage() {
             {/* Mini Calendar injection */}
             <div className="mb-4">
               <GuideAvailabilityCalendar 
-                availabilityMap={guide.availability || {}} 
+                availability={normalizeAvailability(guide?.availability)} 
                 selectedStart={selectedStart} 
                 selectedEnd={selectedEnd} 
-                onSelectDate={handleDateSelect} 
-                pickingEnd={pickingEnd} 
+                onDateSelect={handleDateSelect} 
               />
             </div>
 
@@ -546,6 +736,54 @@ export default function TourGuideProfilePage() {
           {bookingLoading ? '...' : (selectedStart && selectedEnd ? 'Book Now' : 'Check Dates')}
         </button>
       </div>
+
+      {/* ── Lightbox Modal ── */}
+      {lightboxIdx !== null && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-fade-in">
+          {/* Close button */}
+          <button
+            onClick={() => setLightboxIdx(null)}
+            className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold transition-all z-10"
+            aria-label="Close photo modal"
+          >
+            &times;
+          </button>
+
+          {/* Prev button */}
+          {allPhotos.length > 1 && (
+            <button
+              onClick={() => setLightboxIdx((lightboxIdx - 1 + allPhotos.length) % allPhotos.length)}
+              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold transition-all z-10"
+              aria-label="Previous photo"
+            >
+              <i className="ph ph-caret-left" />
+            </button>
+          )}
+
+          {/* Image display */}
+          <div className="max-w-5xl max-h-[85vh] flex flex-col items-center justify-center">
+            <img
+              src={allPhotos[lightboxIdx]}
+              alt={`Photo ${lightboxIdx + 1}`}
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+            />
+            <p className="text-slate-400 text-xs font-bold mt-4">
+              Photo {lightboxIdx + 1} of {allPhotos.length}
+            </p>
+          </div>
+
+          {/* Next button */}
+          {allPhotos.length > 1 && (
+            <button
+              onClick={() => setLightboxIdx((lightboxIdx + 1) % allPhotos.length)}
+              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl font-bold transition-all z-10"
+              aria-label="Next photo"
+            >
+              <i className="ph ph-caret-right" />
+            </button>
+          )}
+        </div>
+      )}
       
     </div>
   );

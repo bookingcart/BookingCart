@@ -91,6 +91,24 @@ function nextMemId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function buildAvailabilityMap(availability = {}) {
+  const availMap = {};
+  const today = new Date();
+  const workingDays = (availability.workingDays || ['Mon','Tue','Wed','Thu','Fri']).map(d => String(d).toLowerCase().slice(0, 3));
+  const blockedDates = Array.isArray(availability.blockedDates) ? availability.blockedDates : [];
+  const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const key = d.toISOString().split('T')[0];
+    const dayName = dayNames[d.getDay()];
+    if (blockedDates.includes(key)) availMap[key] = 'blocked';
+    else if (workingDays.includes(dayName)) availMap[key] = 'available';
+    else availMap[key] = 'blocked';
+  }
+  return availMap;
+}
+
 // ─── Build bc_guides row from profile ────────────────────────────────────────
 function profileToGuide(profile) {
   const personal = profile.step_personal || {};
@@ -105,28 +123,18 @@ function profileToGuide(profile) {
   const availability = profile.step_availability || {};
   const bookingSettings = profile.step_booking_settings || {};
 
-  const slug = `guide-${(personal.fullName || profile.email || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${Date.now()}`;
+  // Use a stable slug based on email so ON CONFLICT (slug) can match existing rows
+  const slugBase = (profile.email || personal.fullName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
+  const slug = `guide-${slugBase}`;
 
   // Build availability map for next 90 days
-  const availMap = {};
-  const today = new Date();
-  const workingDays = (availability.workingDays || ['Mon','Tue','Wed','Thu','Fri']).map(d => d.toLowerCase().slice(0, 3));
-  const blockedDates = Array.isArray(availability.blockedDates) ? availability.blockedDates : [];
-  const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
-  for (let i = 0; i < 90; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    const key = d.toISOString().split('T')[0];
-    const dayName = dayNames[d.getDay()];
-    if (blockedDates.includes(key)) availMap[key] = 'blocked';
-    else if (workingDays.includes(dayName)) availMap[key] = 'available';
-    else availMap[key] = 'blocked';
-  }
+  const availMap = buildAvailabilityMap(availability);
 
   return {
     slug,
-    name: personal.fullName || profile.email,
-    photo: personal.photo || '',
+    email: profile.email || '',
+    name: personal.fullName || personal.name || profile.email,
+    photo: personal.photo || profile.photo || (Array.isArray(gallery) && (typeof gallery[0] === 'string' ? gallery[0] : gallery[0]?.url)) || '',
     country: areas.country || '',
     city: personal.city || '',
     bio: personal.bio || '',
@@ -134,9 +142,9 @@ function profileToGuide(profile) {
     verified: true,
     rating: 0,
     review_count: 0,
-    categories: Array.isArray(categories.selected) ? categories.selected : [],
-    skills: Array.isArray(skills.selected) ? skills.selected : [],
-    languages: Array.isArray(languages.list) ? languages.list : [],
+    categories: Array.isArray(categories) ? categories : (Array.isArray(categories?.selected) ? categories.selected : []),
+    skills: Array.isArray(skills) ? skills : (Array.isArray(skills?.selected) ? skills.selected : []),
+    languages: Array.isArray(languages) ? languages : (Array.isArray(languages?.list) ? languages.list : []),
     areas: {
       country: areas.country || '',
       regions: Array.isArray(areas.regions) ? areas.regions : [],
@@ -144,9 +152,10 @@ function profileToGuide(profile) {
       attractions: Array.isArray(areas.attractions) ? areas.attractions : [],
     },
     certifications: certs.map(c => `${c.name || ''} – ${c.org || ''}`).filter(Boolean),
-    gallery: gallery
-      .map(item => typeof item === 'string' ? item.trim() : item?.url?.trim())
-      .filter(Boolean),
+    gallery: Array.isArray(gallery) ? gallery.map(u => {
+      const url = typeof u === 'string' ? u : u?.url || u?.src;
+      return typeof url === 'string' ? url.trim() : '';
+    }).filter(Boolean) : [],
     reviews: [],
     pricing: {
       perDay: parseFloat(pricing.perDay || 0),
@@ -219,6 +228,34 @@ async function ensureTables() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await query(`
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_paid BOOLEAN DEFAULT false;
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT false;
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unrequested';
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS stripe_onboarding_complete BOOLEAN DEFAULT false;
+  `).catch(() => {});
+}
+
+async function getRegistrationCount(dbReady) {
+  let count = 0;
+  try {
+    if (dbReady) {
+      const r = await query(`SELECT COUNT(*) as count FROM bc_guide_profiles WHERE status != 'draft'`);
+      count = parseInt(r.rows[0]?.count || 0);
+    } else {
+      const store = getMemProfiles();
+      for (const [, p] of store) {
+        if (p.status !== 'draft') count++;
+      }
+    }
+  } catch {}
+  if (global.__guides) {
+    count = Math.max(count, global.__guides.length);
+  }
+  return count;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -266,6 +303,95 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const { action } = body;
 
+  // ── CHECK-FEE-STATUS — get count of registered guides & fee rules ──────────
+  if (action === 'check-fee-status') {
+    const count = await getRegistrationCount(dbReady);
+    const freeLimit = 200;
+    const isFreeSlot = count < freeLimit;
+    return res.json({
+      ok: true,
+      guideCount: count,
+      freeLimit,
+      freeEligible: isFreeSlot,
+      registrationFeeCents: 1000, // $10 USD
+      verificationFeeCents: 5000  // $50 USD
+    });
+  }
+
+  // ── MARK-FEE-PAID — record payment confirmation for registration or verification ──
+  if (action === 'mark-fee-paid') {
+    const { feeType, profileId, email, sessionId } = body; // feeType: 'registration' | 'verification'
+
+    // Prefer the authenticated user's email for security — fall back to the body email
+    let authEmail = '';
+    try {
+      const authResult = await verifyRequestBearer(req);
+      if (authResult.ok) authEmail = (authResult.email || '').toLowerCase().trim();
+    } catch (_) {}
+
+    const targetEmail = authEmail || (email || '').toLowerCase().trim();
+    const numericId = parseInt(profileId) || null;
+
+    if (!targetEmail && !numericId) {
+      return res.status(400).json({ ok: false, error: 'Email or profileId required' });
+    }
+
+    if (dbReady) {
+      const params = [];
+      const conditions = [];
+      if (targetEmail) { params.push(targetEmail); conditions.push(`email = $${params.length}`); }
+      if (numericId)   { params.push(numericId);   conditions.push(`id = $${params.length}`); }
+      const whereClause = conditions.join(' OR ');
+
+      if (feeType === 'registration') {
+        await query(
+          `UPDATE bc_guide_profiles SET registration_fee_paid = true, registration_fee_type = 'paid_10usd', updated_at = NOW() WHERE ${whereClause}`,
+          params
+        );
+      } else if (feeType === 'verification') {
+        await query(
+          `UPDATE bc_guide_profiles SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE ${whereClause}`,
+          params
+        );
+        // Also mark in bc_guides table so the public listing shows pending_admin
+        if (targetEmail) {
+          await query(
+            `UPDATE bc_guides SET verification_fee_paid = true, verification_status = 'pending_admin', updated_at = NOW() WHERE email = $1`,
+            [targetEmail]
+          ).catch(() => {});
+        }
+      }
+    } else {
+      const store = getMemProfiles();
+      for (const [, p] of store) {
+        if ((targetEmail && p.email === targetEmail) || (numericId && String(p.id) === String(numericId))) {
+          if (feeType === 'registration') {
+            p.registration_fee_paid = true;
+            p.registration_fee_type = 'paid_10usd';
+          } else if (feeType === 'verification') {
+            p.verification_fee_paid = true;
+            p.verification_status = 'pending_admin';
+          }
+        }
+      }
+      if (global.__guides) {
+        const gIdx = global.__guides.findIndex(g =>
+          (targetEmail && g.email === targetEmail) || (numericId && String(g.id) === String(numericId))
+        );
+        if (gIdx >= 0) {
+          if (feeType === 'registration') {
+            global.__guides[gIdx].registrationFeePaid = true;
+            global.__guides[gIdx].registrationFeeType = 'paid_10usd';
+          } else if (feeType === 'verification') {
+            global.__guides[gIdx].verificationFeePaid = true;
+            global.__guides[gIdx].verificationStatus = 'pending_admin';
+          }
+        }
+      }
+    }
+    return res.json({ ok: true, feeType, paid: true });
+  }
+
   // ── REGISTER — create user + draft profile ────────────────────────────────
   if (action === 'register') {
     const { fullName, email, phone, password } = body;
@@ -273,75 +399,145 @@ module.exports = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Name, email, and password are required.' });
     }
     const emailLower = email.toLowerCase().trim();
+    const nameTrimmed = String(fullName).trim();
+
+    const count = await getRegistrationCount(dbReady);
+    const freeLimit = 200;
+    const isFreeSlot = count < freeLimit;
+    const regFeePaid = isFreeSlot;
+    const regFeeType = isFreeSlot ? 'free_early_bird' : 'paid_10usd';
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     let userId = null;
 
     if (dbReady) {
-      // Check for existing user
+      // ── Duplicate email check: if they already have ANY guide profile, tell them to log in ──
+      const existingGuideProfile = await query(
+        `SELECT id FROM bc_guide_profiles WHERE email = $1 LIMIT 1`, [emailLower]
+      );
+      if (existingGuideProfile.rows.length > 0) {
+        return res.status(409).json({
+          ok: false,
+          error: 'A guide account with this email already exists. Please log in instead.'
+        });
+      }
+
+      // ── Duplicate name check: no two guides may share the same display name ──
+      const duplicateName = await query(
+        `SELECT id FROM bc_guide_profiles
+         WHERE LOWER(TRIM((step_personal->>'fullName'))) = LOWER(TRIM($1))
+         LIMIT 1`,
+        [nameTrimmed]
+      );
+      if (duplicateName.rows.length > 0) {
+        return res.status(409).json({
+          ok: false,
+          error: 'A guide with this name already exists. Please use a different name (e.g. add a middle name or initial).'
+        });
+      }
+
+      // Check for existing user account (they may have signed up as a traveler first)
       const existing = await query('SELECT id FROM bc_users WHERE email = $1', [emailLower]);
       if (existing.rows.length > 0) {
         userId = existing.rows[0].id;
-        // Update role to guide_applicant if not already
-        await query(`UPDATE bc_users SET role = 'guide_applicant', phone = $1, updated_at = NOW() WHERE id = $2`, [phone || '', userId]);
+        await query(`UPDATE bc_users SET name = $1, role = 'guide_applicant', phone = $2, updated_at = NOW() WHERE id = $3`, [nameTrimmed, phone || '', userId]);
       } else {
         const r = await query(
           `INSERT INTO bc_users (email, name, phone, password_hash, auth_method, role, profile, state, created_at, updated_at)
            VALUES ($1,$2,$3,$4,'email','guide_applicant',$5,$6,NOW(),NOW()) RETURNING id`,
-          [emailLower, fullName, phone || '', hash,
-           JSON.stringify({ email: emailLower, name: fullName }),
-           JSON.stringify({ name: fullName, email: emailLower, signedUpAt: new Date().toISOString() })]
+          [emailLower, nameTrimmed, phone || '', hash,
+           JSON.stringify({ email: emailLower, name: nameTrimmed }),
+           JSON.stringify({ name: nameTrimmed, email: emailLower, signedUpAt: new Date().toISOString() })]
         );
         userId = r.rows[0].id;
       }
 
-      // Check for existing draft
-      const existingDraft = await query(
-        `SELECT id FROM bc_guide_profiles WHERE email = $1 AND status = 'draft' LIMIT 1`, [emailLower]
-      );
+      // Insert brand-new draft profile (duplicate check above ensures this is fresh)
       let profileId;
-      if (existingDraft.rows.length > 0) {
-        profileId = existingDraft.rows[0].id;
-      } else {
-        const pr = await query(
-          `INSERT INTO bc_guide_profiles (user_id, email, step_personal, current_step, status, created_at, updated_at)
-           VALUES ($1, $2, $3, 1, 'draft', NOW(), NOW()) RETURNING id`,
-          [userId, emailLower, JSON.stringify({ fullName, phone, email: emailLower })]
-        );
-        profileId = pr.rows[0].id;
-      }
+      const pr = await query(
+        `INSERT INTO bc_guide_profiles (user_id, email, step_personal, current_step, status, registration_fee_paid, registration_fee_type, created_at, updated_at)
+         VALUES ($1, $2, $3, 1, 'draft', $4, $5, NOW(), NOW()) RETURNING id`,
+        [userId, emailLower, JSON.stringify({ fullName: nameTrimmed, phone, email: emailLower }), regFeePaid, regFeeType]
+      );
+      profileId = pr.rows[0].id;
 
       const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: fullName, role: 'guide_applicant' },
+        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
         { expiresIn: '30d' }
       );
-      return res.status(201).json({ ok: true, token, profileId, user: { email: emailLower, name: fullName } });
+      return res.status(201).json({
+        ok: true,
+        token,
+        profileId,
+        user: { email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
+        registrationFeePaid: regFeePaid,
+        registrationFeeType: regFeeType,
+        guideCount: count,
+        freeLimit,
+        freeEligible: isFreeSlot
+      });
     } else {
       // In-memory fallback
       const memUsers = getMemUsers();
+      const store = getMemProfiles();
+
+      // ── Duplicate email check (in-memory) ──
+      for (const [, p] of store) {
+        if (p.email === emailLower) {
+          return res.status(409).json({
+            ok: false,
+            error: 'A guide account with this email already exists. Please log in instead.'
+          });
+        }
+      }
+
+      // ── Duplicate name check (in-memory) ──
+      for (const [, p] of store) {
+        const existingName = String((p.step_personal && p.step_personal.fullName) || '').toLowerCase().trim();
+        if (existingName && existingName === nameTrimmed.toLowerCase()) {
+          return res.status(409).json({
+            ok: false,
+            error: 'A guide with this name already exists. Please use a different name (e.g. add a middle name or initial).'
+          });
+        }
+      }
+
       let memUser = memUsers.get(emailLower);
       if (memUser) {
         userId = memUser.id;
+        memUser.role = 'guide_applicant';
+        memUser.name = nameTrimmed;
       } else {
         userId = nextMemId('u');
-        memUser = { id: userId, email: emailLower, name: fullName, phone: phone || '', passwordHash: hash, role: 'guide_applicant' };
+        memUser = { id: userId, email: emailLower, name: nameTrimmed, phone: phone || '', passwordHash: hash, role: 'guide_applicant' };
         memUsers.set(emailLower, memUser);
       }
       const profileId = nextMemId('gp');
-      const store = getMemProfiles();
       store.set(profileId, {
         id: profileId, user_id: userId, email: emailLower, status: 'draft', current_step: 1,
-        step_personal: { fullName, phone, email: emailLower },
+        registration_fee_paid: regFeePaid, registration_fee_type: regFeeType,
+        verification_fee_paid: false, verification_status: 'unrequested',
+        step_personal: { fullName: nameTrimmed, phone, email: emailLower },
         step_categories: {}, step_areas: {}, step_languages: {}, step_skills: {},
         step_certifications: [], step_experience: {}, step_pricing: {}, step_gallery: [],
         step_availability: {}, step_booking_settings: {}, completeness: 0,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       });
       const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: fullName, role: 'guide_applicant' },
+        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
         { expiresIn: '30d' }
       );
-      return res.status(201).json({ ok: true, token, profileId, user: { email: emailLower, name: fullName } });
+      return res.status(201).json({
+        ok: true,
+        token,
+        profileId,
+        user: { email: emailLower, name: nameTrimmed, role: 'guide_applicant', isGuide: true, guideProfileId: profileId },
+        registrationFeePaid: regFeePaid,
+        registrationFeeType: regFeeType,
+        guideCount: count,
+        freeLimit,
+        freeEligible: isFreeSlot
+      });
     }
   }
 
@@ -361,15 +557,17 @@ module.exports = async (req, res) => {
       const colData = JSON.stringify(Array.isArray(data) ? data : data);
       let targetId = profileId;
       if (!targetId) {
-        const r = await query(`SELECT id FROM bc_guide_profiles WHERE email = $1 AND status = 'draft' ORDER BY created_at DESC LIMIT 1`, [auth.email]);
+        const r = await query(`SELECT id FROM bc_guide_profiles WHERE email = $1 ORDER BY created_at DESC LIMIT 1`, [auth.email]);
         targetId = r.rows.length ? r.rows[0].id : null;
       }
-      if (!targetId) return res.status(404).json({ ok: false, error: 'Draft profile not found. Please restart registration.' });
+      if (!targetId) return res.status(404).json({ ok: false, error: 'Profile not found. Please restart registration.' });
 
-      await query(
-        `UPDATE bc_guide_profiles SET ${stepKey} = $1, current_step = $2, updated_at = NOW() WHERE id = $3`,
-        [colData, currentStep || 1, targetId]
+      const updated = await query(
+        `UPDATE bc_guide_profiles SET ${stepKey} = $1, current_step = $2, updated_at = NOW()
+         WHERE id = $3 AND LOWER(email) = $4 RETURNING id`,
+        [colData, currentStep || 1, targetId, auth.email.toLowerCase()]
       );
+      if (!updated.rows.length) return res.status(404).json({ ok: false, error: 'Your guide profile was not found.' });
       const r = await query(`SELECT * FROM bc_guide_profiles WHERE id = $1`, [targetId]);
       fullProfile = r.rows[0] || null;
     } else {
@@ -379,10 +577,10 @@ module.exports = async (req, res) => {
         profile = store.get(profileId);
       } else {
         for (const [, p] of store) {
-          if (p.email === auth.email && p.status === 'draft') { profile = p; break; }
+          if (p.email === auth.email) { profile = p; break; }
         }
       }
-      if (!profile) return res.status(404).json({ ok: false, error: 'Draft profile not found.' });
+      if (!profile || profile.email?.toLowerCase() !== auth.email.toLowerCase()) return res.status(404).json({ ok: false, error: 'Your guide profile was not found.' });
       profile[stepKey] = data;
       profile.current_step = currentStep || profile.current_step;
       profile.updated_at = new Date().toISOString();
@@ -398,7 +596,92 @@ module.exports = async (req, res) => {
       fullProfile.completeness = completeness;
     }
 
-    return res.json({ ok: true, completeness });
+    // Also sync profile data to bc_guides if already published
+    if (fullProfile && fullProfile.status === 'approved') {
+      const personal = fullProfile.step_personal || {};
+      const stepAvail = fullProfile.step_availability || {};
+      const newPhoto = personal.photo || fullProfile.photo || '';
+      const newName = personal.fullName || personal.name || fullProfile.email;
+      const galleryArr = Array.isArray(fullProfile.step_gallery)
+        ? fullProfile.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean)
+        : [];
+      const availMap = buildAvailabilityMap(stepAvail);
+
+      // Normalize categories, skills, languages for syncing
+      const stepCats = fullProfile.step_categories;
+      const categoriesArr = Array.isArray(stepCats) ? stepCats : (Array.isArray(stepCats?.selected) ? stepCats.selected : []);
+      const stepSk = fullProfile.step_skills;
+      const skillsArr = Array.isArray(stepSk) ? stepSk : (Array.isArray(stepSk?.selected) ? stepSk.selected : []);
+      const stepLangs = fullProfile.step_languages;
+      const languagesArr = Array.isArray(stepLangs) ? stepLangs : (Array.isArray(stepLangs?.list) ? stepLangs.list : []);
+
+      // Build stable slug for lookup
+      const stableSlugBase = (fullProfile.email || newName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
+      const stableSlug = `guide-${stableSlugBase}`;
+      const targetEmail = (fullProfile.email || '').toLowerCase().trim();
+      const targetName = (newName || '').toLowerCase().trim();
+
+      if (dbReady) {
+        await query(
+          `UPDATE bc_guides SET 
+             photo = COALESCE(NULLIF($1, ''), photo), 
+             name = $2, 
+             email = $3, 
+             gallery = CASE WHEN $15 THEN $4 ELSE gallery END,
+             availability = $5, 
+             working_days = $6, 
+             working_hours = $7, 
+             max_tours_per_day = $8,
+             languages = CASE WHEN $11 != '[]'::jsonb THEN $11 ELSE languages END,
+             categories = CASE WHEN $12 != '[]'::jsonb THEN $12 ELSE categories END,
+             skills = CASE WHEN $13 != '[]'::jsonb THEN $13 ELSE skills END,
+             bio = COALESCE(NULLIF($14, ''), bio),
+             updated_at = NOW()
+           WHERE (email IS NOT NULL AND LOWER(TRIM(email)) = $3)
+              OR (name IS NOT NULL AND LOWER(TRIM(name)) = $9)
+              OR slug = $10`,
+          [
+            newPhoto || '',
+            newName,
+            targetEmail,
+            JSON.stringify(galleryArr),
+            JSON.stringify(availMap),
+            JSON.stringify(stepAvail.workingDays || []),
+            JSON.stringify({ start: stepAvail.startTime || '07:00', end: stepAvail.endTime || '19:00' }),
+            parseInt(stepAvail.maxToursPerDay || 1),
+            targetName,
+            stableSlug,
+            JSON.stringify(languagesArr),
+            JSON.stringify(categoriesArr),
+            JSON.stringify(skillsArr),
+            personal.bio || fullProfile.bio || '',
+            step === 'gallery'
+          ]
+        );
+      } else if (global.__guides) {
+        const gIdx = global.__guides.findIndex(g =>
+          (targetEmail && (g.email || '').toLowerCase().trim() === targetEmail) ||
+          (targetName && (g.name || '').toLowerCase().trim() === targetName) ||
+          g.slug === stableSlug
+        );
+        if (gIdx >= 0) {
+          if (newPhoto) global.__guides[gIdx].photo = newPhoto;
+          global.__guides[gIdx].name = newName;
+          if (targetEmail) global.__guides[gIdx].email = targetEmail;
+          if (step === 'gallery') global.__guides[gIdx].gallery = galleryArr;
+          if (languagesArr.length > 0) global.__guides[gIdx].languages = languagesArr;
+          if (categoriesArr.length > 0) global.__guides[gIdx].categories = categoriesArr;
+          if (skillsArr.length > 0) global.__guides[gIdx].skills = skillsArr;
+          if (personal.bio) global.__guides[gIdx].bio = personal.bio;
+          global.__guides[gIdx].availability = availMap;
+          global.__guides[gIdx].working_days = JSON.stringify(stepAvail.workingDays || []);
+          global.__guides[gIdx].working_hours = JSON.stringify({ start: stepAvail.startTime || '07:00', end: stepAvail.endTime || '19:00' });
+          global.__guides[gIdx].max_tours_per_day = parseInt(stepAvail.maxToursPerDay || 1);
+        }
+      }
+    }
+
+    return res.json({ ok: true, completeness, profile: fullProfile });
   }
 
   // ── SUBMIT — transition draft to pending ──────────────────────────────────
@@ -499,15 +782,21 @@ module.exports = async (req, res) => {
         if (dbReady) {
           await query(`
             INSERT INTO bc_guides (
-              slug, name, photo, country, city, years_exp, verified, rating, review_count,
+              slug, name, email, photo, country, city, years_exp, verified, rating, review_count,
               categories, skills, languages, areas, certifications, gallery, reviews,
               pricing, trust_indicators, demand_level, status, availability,
               created_at, updated_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW())
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
             ON CONFLICT (slug) DO UPDATE SET
-              name=EXCLUDED.name, photo=EXCLUDED.photo, status='active', updated_at=NOW()`,
+              name=EXCLUDED.name, email=EXCLUDED.email, photo=EXCLUDED.photo,
+              country=EXCLUDED.country, city=EXCLUDED.city, years_exp=EXCLUDED.years_exp,
+              categories=EXCLUDED.categories, skills=EXCLUDED.skills, languages=EXCLUDED.languages,
+              areas=EXCLUDED.areas, certifications=EXCLUDED.certifications,
+              gallery=EXCLUDED.gallery, pricing=EXCLUDED.pricing,
+              trust_indicators=EXCLUDED.trust_indicators, availability=EXCLUDED.availability,
+              status='active', updated_at=NOW()`,
             [
-              guideData.slug, guideData.name, guideData.photo, guideData.country,
+              guideData.slug, guideData.name, guideData.email || fullProfile.email || '', guideData.photo, guideData.country,
               guideData.city, guideData.years_exp, guideData.verified, guideData.rating,
               guideData.review_count, JSON.stringify(guideData.categories),
               JSON.stringify(guideData.skills), JSON.stringify(guideData.languages),

@@ -25,9 +25,15 @@ export default class ErrorBoundary extends Component {
             <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mb-2">
               Something went wrong
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
               A page error occurred. Reload to continue — your booking data is safe.
             </p>
+            {this.state.error && (
+              <div className="bg-red-50 text-red-900 border border-red-200 text-xs text-left p-3 rounded-xl mb-6 font-mono overflow-auto max-h-48">
+                <p className="font-bold">{this.state.error.toString()}</p>
+                {this.state.error.stack && <pre className="mt-1 text-[10px] whitespace-pre-wrap">{this.state.error.stack}</pre>}
+              </div>
+            )}
             <button
               onClick={() => window.location.reload()}
               className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors"

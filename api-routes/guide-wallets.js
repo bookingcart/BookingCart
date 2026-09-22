@@ -3,6 +3,9 @@
 const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { verifyRequestBearer } = require('../lib/google-verify');
+const Stripe = require('stripe');
+
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 module.exports = async (req, res) => {
   applyCors(req, res);
@@ -114,11 +117,38 @@ module.exports = async (req, res) => {
         return res.status(400).json({ ok: false, error: 'Insufficient available funds' });
       }
 
+      // Execute Stripe Transfer if method is Stripe Connect
+      let finalStatus = 'pending';
+      if (method === 'Stripe Connect') {
+        if (!stripe) return res.status(503).json({ ok: false, error: 'Stripe is not configured.' });
+        
+        // Get guide's stripe account id
+        const profileRes = await query(`SELECT stripe_account_id FROM bc_guide_profiles WHERE id = $1`, [guideId]);
+        const stripeAccountId = profileRes.rows[0]?.stripe_account_id;
+        
+        if (!stripeAccountId) {
+          return res.status(400).json({ ok: false, error: 'Guide has not connected a Stripe account.' });
+        }
+
+        try {
+          const transfer = await stripe.transfers.create({
+            amount: Math.round(amount * 100),
+            currency: 'usd',
+            destination: stripeAccountId,
+            description: 'Tour Guide Payout',
+          });
+          finalStatus = 'completed'; // Payout successful instantly
+        } catch (stripeErr) {
+          console.error('Stripe transfer failed:', stripeErr);
+          return res.status(500).json({ ok: false, error: stripeErr.message || 'Transfer failed' });
+        }
+      }
+
       // Record withdrawal
       if (dbReady) {
         await query(
           'INSERT INTO bc_guide_withdrawals (guide_id, amount, method, status) VALUES ($1, $2, $3, $4)',
-          [guideId, amount, method, 'pending']
+          [guideId, amount, method, finalStatus]
         );
       } else {
         if (!global.__guideWithdrawals) global.__guideWithdrawals = [];
@@ -127,12 +157,12 @@ module.exports = async (req, res) => {
           guide_id: guideId,
           amount,
           method,
-          status: 'pending',
+          status: finalStatus,
           created_at: new Date().toISOString()
         });
       }
 
-      return res.json({ ok: true, message: 'Withdrawal requested successfully' });
+      return res.json({ ok: true, message: finalStatus === 'completed' ? 'Payout successful' : 'Withdrawal requested successfully' });
     }
 
     return res.status(400).json({ ok: false, error: 'Unknown action' });

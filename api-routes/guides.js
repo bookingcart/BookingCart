@@ -327,6 +327,13 @@ const SEED_GUIDES = [
   }
 ];
 
+function getMemGuides() {
+  if (!global.__guides || global.__guides.length === 0) {
+    global.__guides = SEED_GUIDES.map((g, i) => ({ ...g, id: i + 1 }));
+  }
+  return global.__guides;
+}
+
 function buildAvailability({ bookedDates = [], pendingDates = [], blockedDates = [] } = {}) {
   // Build a map for 3 months of availability
   const result = {};
@@ -348,34 +355,105 @@ function buildAvailability({ bookedDates = [], pendingDates = [], blockedDates =
   return result;
 }
 
+function safeParseJson(val, fallback) {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'object') return val;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return fallback;
+    if (trimmed.startsWith('data:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return [trimmed];
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed !== null ? parsed : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 // ─── Row mapper ─────────────────────────────────────────────────────────────
 function rowToGuide(row) {
+  let categories = safeParseJson(row.categories, []);
+  if (!Array.isArray(categories)) categories = typeof categories === 'string' ? [categories] : [];
+  
+  let skills = safeParseJson(row.skills, []);
+  if (!Array.isArray(skills)) skills = typeof skills === 'string' ? [skills] : [];
+  
+  let languages = safeParseJson(row.languages, []);
+  if (!Array.isArray(languages)) languages = typeof languages === 'string' ? [languages] : [];
+  
+  let certifications = safeParseJson(row.certifications, []);
+  if (!Array.isArray(certifications)) certifications = typeof certifications === 'string' ? [certifications] : [];
+  
+  let gallery = safeParseJson(row.gallery, []);
+  if (!Array.isArray(gallery)) gallery = typeof gallery === 'string' && gallery.trim() ? [gallery.trim()] : [];
+  gallery = gallery.map(u => (typeof u === 'string' ? u : u?.url || u?.src || '')).filter(Boolean);
+  
+  let reviews = safeParseJson(row.reviews, []);
+  if (!Array.isArray(reviews)) reviews = [];
+  
+  let pricing = safeParseJson(row.pricing, {});
+  if (typeof pricing !== 'object' || pricing === null) pricing = { perDay: parseFloat(pricing) || 0 };
+  
+  let areas = safeParseJson(row.areas, {});
+  if (typeof areas !== 'object' || areas === null) areas = {};
+  
+  let trustIndicators = safeParseJson(row.trust_indicators, {});
+  if (typeof trustIndicators !== 'object' || trustIndicators === null) trustIndicators = {};
+  
+  let availability = safeParseJson(row.availability, {});
+  if (typeof availability !== 'object' || availability === null) availability = {};
+
   return {
     id: row.id,
     slug: row.slug,
-    name: row.name,
+    name: row.name || 'Guide',
     photo: row.photo || '',
     country: row.country || '',
     city: row.city || '',
+    bio: row.bio || '',
     yearsExp: row.years_exp || 0,
     verified: !!row.verified,
+    registrationFeePaid: row.registration_fee_paid !== undefined ? !!row.registration_fee_paid : true,
+    registrationFeeType: row.registration_fee_type || 'free_early_bird',
+    verificationFeePaid: row.verification_fee_paid !== undefined ? !!row.verification_fee_paid : true,
+    verificationStatus: row.verification_status || (row.verified ? 'approved' : 'unrequested'),
     rating: row.rating ? parseFloat(row.rating) : 0,
     reviewCount: row.review_count || 0,
-    categories: row.categories || [],
-    skills: row.skills || [],
-    languages: row.languages || [],
-    areas: row.areas || {},
-    certifications: row.certifications || [],
-    gallery: row.gallery || [],
-    reviews: row.reviews || [],
-    pricing: row.pricing || {},
-    trustIndicators: row.trust_indicators || {},
+    categories,
+    skills,
+    languages,
+    areas,
+    certifications,
+    gallery,
+    reviews,
+    pricing,
+    trustIndicators,
     demandLevel: row.demand_level || 'moderate',
     status: row.status || 'active',
-    availability: row.availability || {},
+    availability,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Deduplicates a list of guides by name (case-insensitive, trimmed).
+ * When duplicates exist, the first encountered entry is kept.
+ * This hides existing DB duplicates on every list response until the
+ * admin runs the 'dedupe' action to permanently remove them.
+ */
+function dedupeByName(guides) {
+  const seen = new Set();
+  return guides.filter(g => {
+    const key = String(g.name || '').toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 // ─── Main handler ────────────────────────────────────────────────────────────
@@ -417,8 +495,28 @@ module.exports = async (req, res) => {
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
         `);
-        const countRes = await query('SELECT COUNT(*) FROM bc_guides');
-        if (parseInt(countRes.rows[0].count) === 0) {
+        await query(`
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_paid BOOLEAN DEFAULT true;
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT true;
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'approved';
+        `).catch(() => {});
+        await query(`
+          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
+          UPDATE bc_guides g
+          SET email = gp.email
+          FROM bc_guide_profiles gp
+          WHERE (g.email IS NULL OR g.email = '')
+            AND (
+              LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'fullName')))
+              OR LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'name')))
+            );
+        `).catch(() => {});
+
+        // Auto-seed SEED_GUIDES into bc_guides table if empty
+        const countCheck = await query('SELECT COUNT(*) as cnt FROM bc_guides');
+        const guideCnt = parseInt(countCheck.rows[0]?.cnt || 0);
+        if (guideCnt === 0) {
           for (const g of SEED_GUIDES) {
             await query(`
               INSERT INTO bc_guides (slug, name, photo, country, city, years_exp, verified, rating, review_count,
@@ -431,37 +529,201 @@ module.exports = async (req, res) => {
                JSON.stringify(g.areas), JSON.stringify(g.certifications), JSON.stringify(g.gallery),
                JSON.stringify(g.reviews), JSON.stringify(g.pricing), JSON.stringify(g.trustIndicators),
                g.demandLevel, g.status, JSON.stringify(g.availability)]
-            );
+            ).catch(() => {});
           }
         }
+
         dbReady = true;
       }
-    } catch (err) {
-      console.warn('Postgres guides connection failed, using in-memory fallback:', err.message);
-      if (!global.__guides) global.__guides = [];
+    } catch (dbErr) {
+      console.warn('Guides DB unavailable, using memory fallback:', dbErr.message);
     }
-
-    // Seed in-memory store if empty
-    if (!dbReady && (!global.__guides || global.__guides.length === 0)) {
-      global.__guides = SEED_GUIDES.map((g, i) => ({ ...g, id: i + 1, createdAt: new Date().toISOString() }));
-    }
-
-    // ── GET /api/guides or /api/guides/:id ──────────────────────────────────
     if (req.method === 'GET') {
-      const guideId = req.query.id || req.query.slug;
+      if (req.query.action === 'fee-status') {
+        let count = 0;
+        if (dbReady) {
+          const r = await query('SELECT COUNT(*) as count FROM bc_guides');
+          count = parseInt(r.rows[0]?.count || 0);
+        } else {
+          count = (global.__guides || []).length;
+        }
+        const freeLimit = 200;
+        return res.json({
+          ok: true,
+          guideCount: count,
+          freeLimit,
+          freeEligible: count < freeLimit,
+          registrationFeeCents: 1000,
+          verificationFeeCents: 5000
+        });
+      }
+
+      const rawGuideId = String(req.query.id || req.query.slug || '').trim();
+      let guideId = rawGuideId;
+      try { guideId = decodeURIComponent(rawGuideId).trim(); } catch (_) {}
 
       if (guideId) {
-        // Single guide fetch
+        // Single guide fetch with failsafe multi-criteria fallback
         let guide = null;
+        let guideEmail = '';
+
+        const cleanId = guideId.toLowerCase();
+        const cleanNoPrefix = cleanId.replace(/^guide-/, '');
+        const cleanWithPrefix = cleanId.startsWith('guide-') ? cleanId : 'guide-' + cleanId;
+        const cleanSpaces = cleanId.replace(/-/g, ' ');
+
         if (dbReady) {
           const isNumeric = /^\d+$/.test(guideId);
-          const col = isNumeric ? 'id = $1' : 'slug = $1';
-          const val = isNumeric ? parseInt(guideId) : guideId;
-          const result = await query(`SELECT * FROM bc_guides WHERE ${col}`, [val]);
-          guide = result.rows.length ? rowToGuide(result.rows[0]) : null;
-        } else {
-          guide = (global.__guides || []).find(g => g.slug === guideId || String(g.id) === String(guideId)) || null;
+          if (isNumeric) {
+            const result = await query(`SELECT * FROM bc_guides WHERE id = $1`, [parseInt(guideId)]);
+            if (result.rows.length) {
+              guide = rowToGuide(result.rows[0]);
+              guideEmail = result.rows[0].email || '';
+            }
+          }
+
+          if (!guide) {
+            // Flexible match by slug, email, or name (case-insensitive)
+            const result = await query(
+              `SELECT * FROM bc_guides 
+               WHERE LOWER(slug) = $1 
+                  OR LOWER(slug) = $2
+                  OR LOWER(slug) = $3
+                  OR (email IS NOT NULL AND LOWER(TRIM(email)) = $1)
+                  OR LOWER(TRIM(name)) = $1
+                  OR LOWER(TRIM(name)) = $4
+                  OR LOWER(REPLACE(slug, '-', ' ')) = $4
+               LIMIT 1`,
+              [cleanId, cleanNoPrefix, cleanWithPrefix, cleanSpaces]
+            );
+            if (result.rows.length) {
+              guide = rowToGuide(result.rows[0]);
+              guideEmail = result.rows[0].email || '';
+            }
+          }
+
+          // Older published rows may have missed the gallery sync while the
+          // approved source profile still has its photos.
+          if (guide && guide.gallery.length === 0 && guideEmail) {
+            const source = await query(
+              `SELECT step_gallery FROM bc_guide_profiles
+               WHERE LOWER(email) = LOWER($1) AND status = 'approved'
+               ORDER BY updated_at DESC LIMIT 1`,
+              [guideEmail]
+            ).catch(error => {
+              if (error.code === '42P01') return { rows: [] };
+              throw error;
+            });
+            const saved = source.rows[0]?.step_gallery;
+            if (Array.isArray(saved)) {
+              guide.gallery = saved.map(item => typeof item === 'string' ? item : item?.url || item?.src || '').filter(Boolean);
+            }
+          }
+
+          // Fallback 1: check bc_guide_profiles if not found in bc_guides
+          if (!guide) {
+            const profileRes = await query(
+              `SELECT * FROM bc_guide_profiles 
+               WHERE (id::text = $1)
+                  OR LOWER(TRIM(email)) = $1
+                  OR LOWER(TRIM(step_personal->>'fullName')) = $1
+                  OR LOWER(TRIM(step_personal->>'fullName')) = $4
+                  OR LOWER(TRIM(step_personal->>'name')) = $1
+                  OR LOWER(TRIM(step_personal->>'name')) = $4
+               ORDER BY created_at DESC LIMIT 1`,
+              [cleanId, cleanNoPrefix, cleanWithPrefix, cleanSpaces]
+            );
+            if (profileRes.rows.length) {
+              const p = profileRes.rows[0];
+              const personal = p.step_personal || {};
+              const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
+              const slugBase = (p.email || personal.fullName || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '').slice(0, 50);
+              guide = {
+                id: p.id,
+                slug: `guide-${slugBase}`,
+                name: personal.fullName || personal.name || p.email,
+                photo: personal.photo || (Array.isArray(gallery) && (typeof gallery[0] === 'string' ? gallery[0] : gallery[0]?.url)) || '',
+                country: (p.step_areas || {}).country || '',
+                city: personal.city || '',
+                bio: personal.bio || '',
+                yearsExp: parseInt((p.step_experience || {}).yearsExp || 5),
+                verified: p.status === 'approved',
+                rating: 0,
+                reviewCount: 0,
+                categories: Array.isArray(p.step_categories) ? p.step_categories : (Array.isArray(p.step_categories?.selected) ? p.step_categories.selected : []),
+                skills: Array.isArray(p.step_skills) ? p.step_skills : (Array.isArray(p.step_skills?.selected) ? p.step_skills.selected : []),
+                languages: Array.isArray(p.step_languages) ? p.step_languages : (Array.isArray(p.step_languages?.list) ? p.step_languages.list : []),
+                areas: p.step_areas || {},
+                certifications: Array.isArray(p.step_certifications) ? p.step_certifications : [],
+                gallery: Array.isArray(gallery) ? gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [],
+                reviews: [],
+                pricing: {
+                  perDay: parseFloat((p.step_pricing || {}).perDay || 0),
+                  perHour: parseFloat((p.step_pricing || {}).perHour || 0),
+                  currency: (p.step_pricing || {}).currency || 'USD'
+                },
+                trustIndicators: {},
+                demandLevel: 'moderate',
+                status: p.status || 'active',
+                availability: p.step_availability || {},
+                createdAt: p.created_at,
+                updatedAt: p.updated_at
+              };
+            }
+          }
         }
+
+        // Fallback 2: Check SEED_GUIDES / getMemGuides() in memory
+        if (!guide) {
+          const memGuides = getMemGuides();
+          guide = memGuides.find(g =>
+            (g.slug && g.slug.toLowerCase() === cleanId) ||
+            (g.slug && g.slug.toLowerCase() === cleanNoPrefix) ||
+            (g.slug && g.slug.toLowerCase() === cleanWithPrefix) ||
+            String(g.id) === guideId ||
+            (g.email && g.email.toLowerCase() === cleanId) ||
+            (g.name && g.name.toLowerCase() === cleanId) ||
+            (g.name && g.name.toLowerCase() === cleanSpaces)
+          ) || null;
+        }
+
+        // Fallback 3: Check global.__bc_guide_profiles in memory
+        if (!guide && global.__bc_guide_profiles) {
+          for (const [, p] of global.__bc_guide_profiles) {
+            const pName = ((p.step_personal && (p.step_personal.fullName || p.step_personal.name)) || '').toLowerCase();
+            const pEmail = (p.email || '').toLowerCase();
+            if (
+              String(p.id) === guideId ||
+              pEmail === cleanId ||
+              pName === cleanId ||
+              pName === cleanSpaces
+            ) {
+              const personal = p.step_personal || {};
+              const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
+              guide = {
+                id: p.id,
+                slug: `guide-${(p.email || 'unknown').split('@')[0]}`,
+                name: personal.fullName || personal.name || p.email,
+                photo: personal.photo || '',
+                country: (p.step_areas || {}).country || '',
+                city: personal.city || '',
+                bio: personal.bio || '',
+                yearsExp: 5,
+                verified: p.status === 'approved',
+                rating: 0,
+                reviewCount: 0,
+                categories: [],
+                skills: [],
+                languages: [],
+                gallery: gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean),
+                pricing: { perDay: 150 },
+                status: 'active'
+              };
+              break;
+            }
+          }
+        }
+
         if (!guide) return res.status(404).json({ ok: false, error: 'Guide not found' });
         return res.json({ ok: true, guide });
       }
@@ -483,7 +745,7 @@ module.exports = async (req, res) => {
         const result = await query(`SELECT * FROM bc_guides ${where} ORDER BY rating DESC, review_count DESC LIMIT $${pi} OFFSET $${pi + 1}`, [...params, lim, off]);
         guides = result.rows.map(rowToGuide);
       } else {
-        guides = (global.__guides || [])
+        guides = getMemGuides()
           .filter(g => !statusFilter || g.status === statusFilter || (statusFilter === 'active' && g.status === 'active'))
           .filter(g => !location || g.country.toLowerCase().includes(location.toLowerCase()) || g.city.toLowerCase().includes(location.toLowerCase()))
           .filter(g => !skill || (g.skills || []).some(s => s.toLowerCase().includes(skill.toLowerCase())))
@@ -495,7 +757,7 @@ module.exports = async (req, res) => {
           .slice(off, off + lim);
       }
 
-      return res.json({ ok: true, guides, total: guides.length });
+      return res.json({ ok: true, guides: dedupeByName(guides), total: dedupeByName(guides).length });
     }
 
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
@@ -527,6 +789,132 @@ module.exports = async (req, res) => {
       return res.json({ ok: true, seeded: SEED_GUIDES.length });
     }
 
+    if (action === 'clear-demo' || action === 'clear-all') {
+      const demoSlugs = SEED_GUIDES.map(g => g.slug);
+      if (dbReady) {
+        if (action === 'clear-all') {
+          await query('TRUNCATE bc_guides');
+        } else {
+          await query('DELETE FROM bc_guides WHERE slug = ANY($1)', [demoSlugs]);
+        }
+      }
+      if (action === 'clear-all') {
+        global.__guides = [];
+      } else {
+        global.__guides = (global.__guides || []).filter(g => !demoSlugs.includes(g.slug));
+      }
+      return res.json({ ok: true, cleared: true });
+    }
+
+    if (action === 'sync-real-guides') {
+      let syncedCount = 0;
+      if (dbReady) {
+        const profilesRes = await query(`SELECT * FROM bc_guide_profiles`);
+        for (const p of profilesRes.rows) {
+          const personal = p.step_personal || {};
+          const areas = p.step_areas || {};
+          const name = personal.fullName || personal.name || p.email;
+          const slug = `guide-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+          const galleryArr = Array.isArray(p.step_gallery) ? p.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [];
+          const photo = personal.photo || p.photo || galleryArr[0] || '';
+          await query(`
+            INSERT INTO bc_guides (slug, name, email, photo, country, city, years_exp, verified, rating, review_count,
+              categories, skills, languages, areas, certifications, gallery, reviews, pricing, trust_indicators,
+              demand_level, status, availability, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW(),NOW())
+            ON CONFLICT (slug) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, photo=EXCLUDED.photo, status='active', updated_at=NOW()`,
+            [slug, name, p.email || '', photo, areas.country || 'Uganda', personal.city || '', 5, true, 4.9, 0,
+             JSON.stringify(p.step_categories?.selected || []), JSON.stringify(p.step_skills?.selected || []),
+             JSON.stringify(p.step_languages?.list || []), JSON.stringify(areas), JSON.stringify(p.step_certifications || []),
+             JSON.stringify(galleryArr), JSON.stringify([]), JSON.stringify(p.step_pricing || {}),
+             JSON.stringify({}), 'moderate', p.status === 'approved' ? 'active' : 'pending', JSON.stringify(p.step_availability || {})]
+          );
+          syncedCount++;
+        }
+      } else {
+        const memStore = global.__bc_guide_profiles;
+        if (memStore) {
+          if (!global.__guides) global.__guides = [];
+          for (const [, p] of memStore) {
+            const personal = p.step_personal || {};
+            const areas = p.step_areas || {};
+            const name = personal.fullName || personal.name || p.email;
+            const slug = `guide-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+            const idx = global.__guides.findIndex(g => g.slug === slug || g.email === p.email);
+            const galleryArr = Array.isArray(p.step_gallery) ? p.step_gallery.map(u => (typeof u === 'string' ? u : u?.url)).filter(Boolean) : [];
+            const photo = personal.photo || p.photo || galleryArr[0] || (global.__guides[idx] && global.__guides[idx].photo) || '';
+            const realGuide = {
+              id: idx >= 0 ? global.__guides[idx].id : Date.now() + Math.floor(Math.random() * 1000),
+              slug,
+              name,
+              email: p.email,
+              photo,
+              country: areas.country || 'Uganda',
+              city: personal.city || 'Kampala',
+              yearsExp: parseInt(p.step_experience?.yearsExp || 5),
+              verified: true,
+              rating: 4.9,
+              reviewCount: 0,
+              categories: Array.isArray(p.step_categories) ? p.step_categories : (Array.isArray(p.step_categories?.selected) ? p.step_categories.selected : ['Safari Guide']),
+              skills: Array.isArray(p.step_skills) ? p.step_skills : (Array.isArray(p.step_skills?.selected) ? p.step_skills.selected : ['Wildlife Tracking']),
+              languages: Array.isArray(p.step_languages) ? p.step_languages : (Array.isArray(p.step_languages?.list) ? p.step_languages.list : [{ lang: 'English', proficiency: 'Native' }]),
+              areas: areas,
+              certifications: p.step_certifications || [],
+              gallery: galleryArr,
+              reviews: [],
+              pricing: p.step_pricing || { perDay: 150 },
+              trustIndicators: {},
+              demandLevel: 'moderate',
+              status: p.status === 'approved' ? 'active' : 'pending',
+              availability: {}
+            };
+            if (idx >= 0) global.__guides[idx] = realGuide;
+            else global.__guides.push(realGuide);
+            syncedCount++;
+          }
+        }
+      }
+      return res.json({ ok: true, syncedCount });
+    }
+
+    // ── Deduplicate existing guide rows by name ─────────────────────────────
+    if (action === 'dedupe') {
+      const gate = await requireAdminEmail(req);
+      if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
+
+      let removed = 0;
+      if (dbReady) {
+        // For each duplicated name, keep the row with the MAX id and delete the rest
+        const dupes = await query(`
+          SELECT LOWER(TRIM(name)) as lname, COUNT(*) as cnt, MAX(id) as keep_id
+          FROM bc_guides
+          GROUP BY LOWER(TRIM(name))
+          HAVING COUNT(*) > 1
+        `);
+        for (const row of dupes.rows) {
+          const del = await query(
+            `DELETE FROM bc_guides WHERE LOWER(TRIM(name)) = $1 AND id != $2`,
+            [row.lname, row.keep_id]
+          );
+          removed += del.rowCount || 0;
+        }
+      } else {
+        // In-memory: deduplicate global.__guides by name
+        const seen = new Map();
+        const deduped = [];
+        for (const g of (global.__guides || [])) {
+          const key = String(g.name || '').toLowerCase().trim();
+          if (!seen.has(key)) {
+            seen.set(key, true);
+            deduped.push(g);
+          } else {
+            removed++;
+          }
+        }
+        global.__guides = deduped;
+      }
+      return res.json({ ok: true, removed });
+    }
     // ── Admin-only mutations ──────────────────────────────────────────────
     const gate = await requireAdminEmail(req);
     if (!gate.ok) return res.status(gate.status).json({ ok: false, error: gate.error });
@@ -542,16 +930,29 @@ module.exports = async (req, res) => {
       return res.json({ ok: true });
     }
 
+    if (action === 'toggle-verified') {
+      if (!id) return res.status(400).json({ ok: false, error: 'Missing id' });
+      const isVerified = req.body.verified !== undefined ? Boolean(req.body.verified) : true;
+      if (dbReady) {
+        await query('UPDATE bc_guides SET verified = $1, updated_at = NOW() WHERE id = $2', [isVerified, id]);
+      } else {
+        const idx = (global.__guides || []).findIndex(g => String(g.id) === String(id));
+        if (idx > -1) global.__guides[idx].verified = isVerified;
+      }
+      return res.json({ ok: true, verified: isVerified });
+    }
+
     if (action === 'update' && guide) {
       if (!id) return res.status(400).json({ ok: false, error: 'Missing id' });
       if (dbReady) {
         await query(`UPDATE bc_guides SET name=$1, photo=$2, country=$3, city=$4, years_exp=$5, verified=$6,
           categories=$7, skills=$8, languages=$9, areas=$10, certifications=$11, pricing=$12,
-          trust_indicators=$13, demand_level=$14, status=$15, availability=$16, updated_at=NOW() WHERE id=$17`,
+          trust_indicators=$13, demand_level=$14, status=$15, availability=$16, gallery=$17, updated_at=NOW() WHERE id=$18`,
           [guide.name, guide.photo, guide.country, guide.city, guide.yearsExp, guide.verified,
            JSON.stringify(guide.categories), JSON.stringify(guide.skills), JSON.stringify(guide.languages),
            JSON.stringify(guide.areas), JSON.stringify(guide.certifications), JSON.stringify(guide.pricing),
-           JSON.stringify(guide.trustIndicators), guide.demandLevel, guide.status, JSON.stringify(guide.availability), id]
+           JSON.stringify(guide.trustIndicators), guide.demandLevel, guide.status, JSON.stringify(guide.availability),
+           JSON.stringify(guide.gallery || []), id]
         );
       } else {
         const idx = (global.__guides || []).findIndex(g => String(g.id) === String(id));

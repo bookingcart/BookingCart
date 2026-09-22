@@ -6,7 +6,7 @@ import { legacyHrefToRoute } from '../lib/legacyRoutes.js';
 
 /** Shell for nested routes — shared navbar + page chrome. */
 export default function AppLayout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
 
   /* Upgrade the global legacy-navigation bridge to use React Router
@@ -22,7 +22,8 @@ export default function AppLayout() {
 
   /* Derive which nav item to highlight */
   let activeNav = 'flights';
-  if (pathname.startsWith('/stays')) activeNav = 'stays';
+  const queryParams = new URLSearchParams(search);
+  if (pathname.startsWith('/stays') || (pathname === '/' && queryParams.get('mode') === 'stays')) activeNav = 'stays';
   else if (pathname.startsWith('/tour-guides')) activeNav = 'guides';
   else if (
     pathname.startsWith('/my-bookings') ||
