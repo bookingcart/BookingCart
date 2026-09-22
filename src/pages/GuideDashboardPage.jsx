@@ -59,10 +59,7 @@ export default function GuideDashboardPage() {
   const [bookings, setBookings] = useState([]);
   const [bookingFilter, setBookingFilter] = useState('all');
   const [wallet, setWallet] = useState(null);
-  const [activityLogs, setActivityLogs] = useState([
-    { date: 'Today', action: 'Logged into Guide Portal', category: 'Security' },
-    { date: 'Yesterday', action: 'Updated Tour Pricing Rates', category: 'Pricing' }
-  ]);
+  const [activityLogs, setActivityLogs] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -107,7 +104,7 @@ export default function GuideDashboardPage() {
         const dataR = await resR.json();
         if (dataR.ok) {
           setReviews(dataR.reviews || []);
-          setStats(dataR.stats || { total: 14, averageRating: 4.9, topTags: ['Knowledgeable', 'Punctual', 'Great Storyteller'] });
+          setStats(dataR.stats || { total: 0, averageRating: 0, topTags: [] });
         }
 
         // Load Bookings
@@ -127,7 +124,7 @@ export default function GuideDashboardPage() {
         });
         const dataW = await resW.json();
         if (dataW.ok) setWallet(dataW.wallet);
-        else setWallet({ available: 450.00, pending: 210.00, withdrawn: 1250.00, lifetime: 1910.00 });
+        else setWallet({ available: 0, pending: 0, withdrawn: 0, lifetime: 0 });
 
       } catch (err) {
         console.error(err);
@@ -140,6 +137,32 @@ export default function GuideDashboardPage() {
   }, [user, navigate, guideId]);
 
   const [verifyingFee, setVerifyingFee] = useState(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
+
+  useEffect(() => {
+    // Handle Stripe Connect return
+    if (searchParams.get('stripe_connected') === '1' && profile?.id) {
+      const checkStripe = async () => {
+        try {
+          const res = await fetch('/api/stripe/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check-status', guideId: profile.id, email: user?.email })
+          });
+          const data = await res.json();
+          if (data.ok && data.connected) {
+            setProfile(prev => ({ ...prev, stripe_onboarding_complete: true }));
+            alert('🎉 Stripe account connected successfully! You can now receive automated payouts.');
+          } else {
+            alert('Your Stripe account onboarding is incomplete. Please resume it when you are ready.');
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      checkStripe();
+    }
+  }, [searchParams, profile?.id, user?.email]);
 
   useEffect(() => {
     // Only process the callback once both user AND profile have loaded
@@ -214,6 +237,28 @@ export default function GuideDashboardPage() {
     } catch (err) {
       console.error(err);
       alert('Network error initiating checkout session.');
+    }
+  }
+
+  async function handleConnectStripe() {
+    setConnectingStripe(true);
+    try {
+      const res = await fetch('/api/stripe/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create-account-link', guideId: profile?.id, email: user?.email })
+      });
+      const data = await res.json();
+      if (data.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Failed to initiate Stripe connection.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error initiating Stripe connection.');
+    } finally {
+      setConnectingStripe(false);
     }
   }
 
@@ -303,7 +348,10 @@ export default function GuideDashboardPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        alert('Withdrawal requested successfully!');
+        const msg = withdrawMethod === 'Stripe Connect'
+          ? `✅ $${amt.toFixed(2)} payout sent to your Stripe account!`
+          : `Withdrawal of $${amt.toFixed(2)} requested via ${withdrawMethod}. Processing may take 1-3 business days.`;
+        alert(msg);
         if (wallet) setWallet(prev => ({ ...prev, available: prev.available - amt, withdrawn: prev.withdrawn + amt }));
         setShowWithdrawModal(false);
         setWithdrawAmount('');
@@ -893,12 +941,47 @@ export default function GuideDashboardPage() {
           <div className="space-y-8">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white">Earnings & Wallet</h2>
 
+            {/* Stripe Connect Banner */}
+            {!profile?.stripe_onboarding_complete ? (
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-6 text-white shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <i className="ph ph-stripe-logo text-2xl" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-black text-lg">Connect with Stripe to receive payouts</h3>
+                    <p className="text-sm text-indigo-100 mt-1">Set up your Stripe Express account to receive automated payouts directly to your bank account. Fast, secure, and instant.</p>
+                  </div>
+                  <button
+                    onClick={handleConnectStripe}
+                    disabled={connectingStripe}
+                    className="flex-shrink-0 bg-white text-indigo-700 font-black text-sm px-6 py-3 rounded-xl hover:bg-indigo-50 transition-colors disabled:opacity-50 shadow-md"
+                  >
+                    {connectingStripe ? 'Redirecting...' : 'Connect with Stripe'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-3xl p-4 flex items-center gap-3">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+                  <i className="ph-fill ph-check-circle text-lg" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-emerald-800 dark:text-emerald-300">Stripe Connected</span>
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">Your payouts will be sent directly to your bank account.</span>
+                </div>
+              </div>
+            )}
+
             <div className="grid sm:grid-cols-4 gap-4">
               <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-6 rounded-3xl shadow-sm">
                 <div className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider mb-2">Available Balance</div>
                 <div className="text-4xl font-black text-emerald-600 mb-4">${wallet.available.toFixed(2)}</div>
                 <button
-                  onClick={() => setShowWithdrawModal(true)}
+                  onClick={() => {
+                    if (profile?.stripe_onboarding_complete) setWithdrawMethod('Stripe Connect');
+                    setShowWithdrawModal(true);
+                  }}
                   disabled={wallet.available <= 0}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl shadow transition-all"
                 >
@@ -999,6 +1082,7 @@ export default function GuideDashboardPage() {
                   onChange={e => setWithdrawMethod(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
+                  {profile?.stripe_onboarding_complete && <option>Stripe Connect</option>}
                   <option>Bank Transfer</option>
                   <option>Mobile Money (MTN / Airtel)</option>
                   <option>PayPal</option>

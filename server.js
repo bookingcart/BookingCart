@@ -50,6 +50,7 @@ const guideReviewsHandler = require('./api-routes/guide-reviews');
 const guideWalletsHandler = require('./api-routes/guide-wallets');
 const notificationsHandler = require('./api-routes/notifications');
 const hotelProfilesHandler = require('./api-routes/hotel-profiles');
+const stripeConnectHandler = require('./api-routes/stripe-connect');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -195,6 +196,7 @@ app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
 
 // Hotel Owner routes
 app.all('/api/hotel-profiles', apiLimiter, run(hotelProfilesHandler));
+app.all('/api/stripe/connect', apiLimiter, run(stripeConnectHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>

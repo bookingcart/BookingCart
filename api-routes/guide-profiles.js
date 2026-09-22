@@ -231,6 +231,8 @@ async function ensureTables() {
     ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
     ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT false;
     ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unrequested';
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS stripe_onboarding_complete BOOLEAN DEFAULT false;
   `).catch(() => {});
 }
 

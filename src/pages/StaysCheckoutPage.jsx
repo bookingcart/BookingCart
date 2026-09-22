@@ -3,11 +3,13 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { DuffelCardForm, useDuffelCardFormActions, createThreeDSecureSession } from '@duffel/components';
 import { useRef } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function StaysCheckoutPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const quoteId = searchParams.get('quote_id') || 'quo_dummy_12345';
+  const { isAuthenticated } = useAuth();
 
   const [firstName, setFirstName] = useState('Cart');
   const [lastName, setLastName] = useState('Booking');
@@ -511,14 +513,16 @@ export default function StaysCheckoutPage() {
             {/* Step 1: Enter Details */}
             <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm p-6">
               {/* Sign-in prompt */}
-              <div className="flex items-center gap-3 mb-6 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-black text-lg">B</div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">Please sign in, {firstName} {lastName} <span className="text-green-600 font-normal cursor-pointer hover:underline">Not Cart?</span></div>
-                  <div className="text-xs text-slate-500">Save time: Sign in to book with your saved details.</div>
+              {!isAuthenticated && (
+                <div className="flex items-center gap-3 mb-6 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-black text-lg">B</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">Please sign in, {firstName} {lastName} <span className="text-green-600 font-normal cursor-pointer hover:underline">Not Cart?</span></div>
+                    <div className="text-xs text-slate-500">Save time: Sign in to book with your saved details.</div>
+                  </div>
+                  <button onClick={(e) => { e.preventDefault(); window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`; }} className="bg-green-600 text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-green-700 transition-colors">Sign in</button>
                 </div>
-                <button className="bg-green-600 text-white text-sm font-bold px-4 py-1.5 rounded hover:bg-green-700 transition-colors">Sign in</button>
-              </div>
+              )}
 
               <h2 className="text-xl font-black text-slate-900 dark:text-white mb-4">Enter your details</h2>
 
