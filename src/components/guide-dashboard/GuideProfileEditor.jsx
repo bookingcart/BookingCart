@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { uploadGuideImage } from '../../lib/guideImage.js';
 
 const CATEGORY_OPTIONS = [
   'Safari Guide', 'Wildlife Guide', 'Birding Guide', 'Food Tour Guide', 
@@ -15,7 +16,7 @@ const SKILL_OPTIONS = [
 const LANGUAGE_OPTIONS = ['English', 'French', 'German', 'Spanish', 'Swahili', 'Italian', 'Dutch', 'Chinese', 'Japanese'];
 const PROFICIENCY_LEVELS = ['Native', 'Fluent', 'Professional', 'Intermediate', 'Basic'];
 
-export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
+export default function GuideProfileEditor({ profile, onSave, onLogActivity, authToken }) {
   const [activeSubTab, setActiveSubTab] = useState('personal');
   const [savedMsg, setSavedMsg] = useState('');
   const [saving, setSaving] = useState(false);
@@ -80,35 +81,17 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
   );
   const [newCert, setNewCert] = useState({ name: '', issuer: '', year: new Date().getFullYear().toString() });
 
-  // Helper to upload base64 to server
-  const uploadImage = async (base64Str) => {
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('bc_token') : '';
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ image: base64Str, folder: 'guides' })
-      });
-      const data = await res.json();
-      if (data.ok) return data.url;
-    } catch (err) {
-      console.error('Upload failed:', err);
-    }
-    return base64Str; // fallback
-  };
-
   // Photo Upload Handler (Local Device File Pick)
-  const handlePhotoFileChange = (e) => {
+  const handlePhotoFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result;
-      setPersonal(prev => ({ ...prev, photo: base64 })); // optimistic
-      const url = await uploadImage(base64);
-      if (url !== base64) setPersonal(prev => ({ ...prev, photo: url }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const photo = await uploadGuideImage(file, authToken);
+      setPersonal(prev => ({ ...prev, photo }));
+    } catch (error) {
+      setSavedMsg(`❌ ${error.message}`);
+    }
+    e.target.value = '';
   };
 
   // Gallery Upload Handler (Local Device File Pick)
@@ -119,18 +102,19 @@ export default function GuideProfileEditor({ profile, onSave, onLogActivity }) {
     setSaving(true);
     setSavedMsg('Uploading images...');
 
-    const readAsDataURL = (file) => new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.readAsDataURL(file);
-    });
-
-    const base64Urls = await Promise.all(files.map(readAsDataURL));
-    const uploadedUrls = await Promise.all(base64Urls.map(url => uploadImage(url)));
-    
-    const updatedGallery = [...gallery, ...uploadedUrls];
-    setGallery(updatedGallery);
-    await saveSection('Gallery Management', updatedGallery);
+    try {
+      if (gallery.length + files.length > 30) throw new Error('Maximum 30 photos allowed.');
+      const images = await Promise.all(files.map(file => uploadGuideImage(file, authToken)));
+      const updatedGallery = [...gallery, ...images];
+      if (onSave) await onSave('Gallery Management', updatedGallery);
+      setGallery(updatedGallery);
+      setSavedMsg('✅ Gallery saved successfully!');
+    } catch (error) {
+      setSavedMsg(`❌ ${error.message}`);
+    } finally {
+      setSaving(false);
+      e.target.value = '';
+    }
   };
 
   const saveSection = async (sectionName, payload) => {
