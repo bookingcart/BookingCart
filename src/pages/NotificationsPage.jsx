@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import BookingCartNavbar from '../components/BookingCartNavbar.jsx';
 
 const API = '/api/notifications';
 
@@ -207,7 +206,6 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <BookingCartNavbar />
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         {/* Page Header */}
         <div className="border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-950">
