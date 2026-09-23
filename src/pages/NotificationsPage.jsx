@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import BookingCartNavbar from '../components/BookingCartNavbar.jsx';
 
 const API = '/api/notifications';
 
