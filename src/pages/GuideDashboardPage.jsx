@@ -522,17 +522,23 @@ export default function GuideDashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Average Rating</div>
-                <div className="text-3xl font-black text-slate-900 dark:text-white">{stats?.averageRating || 4.9}</div>
-                <StarRow rating={stats?.averageRating || 4.9} size="sm" />
+                <div className="text-3xl font-black text-slate-900 dark:text-white">
+                  {stats?.averageRating ? parseFloat(stats.averageRating).toFixed(1) : '—'}
+                </div>
+                {stats?.averageRating ? <StarRow rating={parseFloat(stats.averageRating)} size="sm" /> : (
+                  <span className="text-[10px] text-slate-400 font-semibold">No reviews yet</span>
+                )}
               </div>
               <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tours</div>
-                <div className="text-3xl font-black text-slate-900 dark:text-white">{bookings.length || 12}</div>
-                <span className="text-[10px] font-extrabold text-emerald-600">Active Bookings</span>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Bookings</div>
+                <div className="text-3xl font-black text-slate-900 dark:text-white">{bookings.length}</div>
+                <span className="text-[10px] font-extrabold text-emerald-600">
+                  {bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length} Active
+                </span>
               </div>
               <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Available Payout</div>
-                <div className="text-3xl font-black text-emerald-600">${(wallet?.available || 450).toFixed(2)}</div>
+                <div className="text-3xl font-black text-emerald-600">${wallet ? parseFloat(wallet.available || 0).toFixed(2) : '0.00'}</div>
                 <button onClick={() => setActiveTab('earnings')} className="text-[10px] font-bold text-emerald-600 underline">Request Payout</button>
               </div>
               <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -541,6 +547,9 @@ export default function GuideDashboardPage() {
                 <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
                   <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${completenessScore}%` }} />
                 </div>
+                {missingItems.length > 0 && (
+                  <span className="text-[10px] text-slate-400 font-semibold mt-1 block">{missingItems.length} items missing</span>
+                )}
               </div>
             </div>
 
