@@ -17,24 +17,147 @@ function StatePanel({ icon, title, message, action }) {
 
 function AttractionCard({ item, saved, onSave, onAdd, onHover }) {
   const offer = item.offers?.[0];
-  const price = offer?.amount != null && offer?.currency ? new Intl.NumberFormat(undefined, { style: 'currency', currency: offer.currency, maximumFractionDigits: 0 }).format(offer.amount) : '';
-  return <article id={`attraction-${item.id.replace(/[^a-z0-9_-]/gi, '-')}`} onMouseEnter={() => onHover(item.id)} onFocus={() => onHover(item.id)} className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-slate-800">
-    <div className="relative h-48 overflow-hidden"><AttractionImage image={item.image} name={item.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-      <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">{item.category}</span>
-      {item.bookable ? <span className="absolute right-3 top-3 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Bookable</span> : null}
-    </div>
-    <div className="p-5"><p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">{[item.city,item.country].filter(Boolean).join(', ') || item.attribution?.label}</p>
-      <h2 className="mt-1 text-lg font-extrabold leading-snug text-slate-900 dark:text-white">{item.name}</h2>
-      <p className="mt-2 line-clamp-2 min-h-10 text-sm text-slate-500 dark:text-slate-400">{item.summary || item.address || 'Open the field guide for location and source details.'}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link to={`/attractions/${item.source}/${encodeURIComponent(item.sourceId)}`} state={{ attraction: item }} className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-900">View details</Link>
-        <button type="button" onClick={() => onSave(item)} aria-pressed={saved} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-600"><i className={`ph ${saved ? 'ph-fill ph-heart text-rose-500' : 'ph-heart'}`} aria-hidden="true" /> {saved ? 'Saved' : 'Save'}</button>
-        <button type="button" onClick={() => onAdd(item)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-600">Add to trip</button>
+  const price = offer?.amount != null && offer?.currency 
+    ? new Intl.NumberFormat(undefined, { style: 'currency', currency: offer.currency, maximumFractionDigits: 0 }).format(offer.amount) 
+    : '';
+
+  const isLocalEvent = item.source === 'local_event';
+
+  return (
+    <article
+      id={`attraction-${item.id.replace(/[^a-z0-9_-]/gi, '-')}`}
+      onMouseEnter={() => onHover(item.id)}
+      onFocus={() => onHover(item.id)}
+      className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+    >
+      {/* ── Photo Section ── */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
+        <AttractionImage 
+          image={item.image} 
+          name={item.name} 
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+        />
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent pointer-events-none" />
+
+        {/* Top Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2 items-start pointer-events-none">
+          <span className="inline-flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1.5 rounded-full shadow-md backdrop-blur-md border border-emerald-500/30">
+            {isLocalEvent ? <i className="ph-fill ph-ticket text-emerald-500 text-sm" /> : <i className="ph-fill ph-map-pin text-emerald-500 text-sm" />}
+            {item.category}
+          </span>
+        </div>
+        
+        {item.bookable && (
+          <div className="absolute top-3 right-3 bg-emerald-500/95 backdrop-blur-md text-white px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
+            <i className="ph-fill ph-lightning text-xs" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Bookable</span>
+          </div>
+        )}
+
+        {/* Bottom Info inside Photo */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 pointer-events-none">
+          <div className="flex-1 min-w-0">
+            {item.rating != null && (
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="flex items-center gap-0.5 text-sm text-amber-400">
+                  <i className="ph-fill ph-star" />
+                </div>
+                <span className="text-white font-bold text-sm leading-none mt-0.5">
+                  {Number(item.rating).toFixed(1)}
+                </span>
+                <span className="text-white/70 text-xs font-semibold mt-0.5">
+                  ({item.reviewCount?.toLocaleString() || 0})
+                </span>
+              </div>
+            )}
+          </div>
+          
+          {price && (
+            <div className="shrink-0 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl px-3 py-1.5 text-right">
+              <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider leading-none mb-1">From</p>
+              <p className="text-white font-black text-lg leading-none">{price}</p>
+            </div>
+          )}
+        </div>
       </div>
-      {offer?.url ? <a href={offer.url} target="_blank" rel="noopener noreferrer sponsored" onClick={() => trackAttractionEvent('outbound_booking_click', item, { provider: offer.provider })} className="mt-4 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-3 text-sm font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"><span>{price ? `From ${price}` : 'Check live availability'}</span><span>Book on {offer.provider} <i className="ph ph-arrow-up-right" aria-hidden="true" /></span></a> : null}
-      <p className="mt-3 text-[11px] text-slate-400">Source: <a href={item.attribution?.url} target="_blank" rel="noreferrer" className="underline">{item.attribution?.label}</a></p>
-    </div>
-  </article>;
+
+      {/* ── Content Section ── */}
+      <div className="p-5 flex flex-col flex-1">
+        {/* Title & Location */}
+        <div className="mb-3">
+          <h2 className="font-black text-lg text-slate-900 dark:text-white leading-tight group-hover:text-emerald-600 transition-colors line-clamp-2 mb-1.5">
+            {item.name}
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold flex items-center gap-1.5">
+            <i className="ph ph-map-pin text-emerald-500 text-base shrink-0" />
+            <span className="truncate">{[item.city, item.country].filter(Boolean).join(', ') || item.attribution?.label}</span>
+          </p>
+        </div>
+        
+        <p className="line-clamp-2 min-h-10 text-sm text-slate-500 dark:text-slate-400 mb-4 flex-1">
+          {item.summary || item.address || 'Open the field guide for location and source details.'}
+        </p>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2 mt-auto">
+          {isLocalEvent ? (
+            <Link 
+              to={`/event-confirmation?ref=book_${item.sourceId}`} 
+              className="flex-1 text-center rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-900 transition-colors"
+            >
+              Get Tickets
+            </Link>
+          ) : (
+            <Link 
+              to={`/attractions/${item.source}/${encodeURIComponent(item.sourceId)}`} 
+              state={{ attraction: item }} 
+              className="flex-1 text-center rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white dark:bg-white dark:text-slate-900 transition-colors"
+            >
+              View details
+            </Link>
+          )}
+          
+          <button 
+            type="button" 
+            onClick={() => onSave(item)} 
+            aria-pressed={saved} 
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            title={saved ? "Remove from saved" : "Save attraction"}
+          >
+            <i className={`ph ${saved ? 'ph-fill ph-heart text-rose-500' : 'ph-heart text-slate-400 dark:text-slate-500'}`} />
+          </button>
+          
+          <button 
+            type="button" 
+            onClick={() => onAdd(item)} 
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            title="Add to itinerary"
+          >
+            <i className="ph ph-plus" />
+          </button>
+        </div>
+
+        {offer?.url && !isLocalEvent && (
+          <a 
+            href={offer.url} 
+            target="_blank" 
+            rel="noopener noreferrer sponsored" 
+            onClick={() => trackAttractionEvent('outbound_booking_click', item, { provider: offer.provider })} 
+            className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-3 text-sm font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
+          >
+            <span>Check live availability</span>
+            <span className="flex items-center gap-1">On {offer.provider} <i className="ph ph-arrow-up-right" /></span>
+          </a>
+        )}
+        
+        <p className="mt-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-t border-slate-100 dark:border-slate-800 pt-3">
+          Source: <a href={item.attribution?.url} target="_blank" rel="noreferrer" className="hover:text-slate-600 dark:hover:text-slate-300">{item.attribution?.label}</a>
+        </p>
+      </div>
+    </article>
+  );
 }
 
 export default function AttractionsResultsPage() {
