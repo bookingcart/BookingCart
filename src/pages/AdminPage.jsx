@@ -564,6 +564,167 @@ function UsersPanel() {
   );
 }
 
+/* ─── Events Panel ────────────────────────────────────────────────── */
+function EventsPanel({ getToken }) {
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState('');
+  const [filter, setFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected'
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(getToken ? { 'Authorization': `Bearer ${getToken()}` } : {})
+  });
+
+  const loadProfiles = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/event-profiles', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'admin-list', statusFilter: filter })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setProfiles(data.profiles || []);
+      }
+    } catch (err) {
+      console.error('Failed to load event profiles:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadProfiles(); }, [filter]);
+
+  const handleReview = async (profileId, newStatus, note = '') => {
+    if (!window.confirm(`Mark this event listing as ${newStatus}?`)) return;
+    try {
+      const res = await fetch('/api/event-profiles', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'admin-review', profileId, status: newStatus, note })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Listing marked as ${newStatus}`);
+        loadProfiles();
+      } else {
+        alert(data.error || 'Failed to review listing');
+      }
+    } catch (err) {
+      console.error('Failed to review listing:', err);
+      alert('Network error');
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 dark:bg-slate-900">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center">
+            <i className="ph ph-ticket text-white text-lg" />
+          </div>
+          <div>
+            <h2 className="font-extrabold text-slate-900 dark:text-slate-100">Event & Attraction Listings</h2>
+            <p className="text-xs text-slate-400">Review organizer submissions</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {['pending', 'approved', 'rejected'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${filter === f ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+              {f}
+            </button>
+          ))}
+          <button onClick={loadProfiles}
+            className="w-9 h-9 rounded-xl border border-slate-200 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            title="Refresh">
+            <i className="ph ph-arrows-clockwise" />
+          </button>
+        </div>
+      </div>
+
+      {actionMsg && (
+        <div className="mx-6 mt-4 p-3 bg-emerald-50 text-emerald-700 text-sm font-bold border border-emerald-200 rounded-xl flex items-center gap-2">
+          <i className="ph ph-check-circle" /> {actionMsg}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-16 text-center text-slate-400"><i className="ph ph-spinner-gap text-3xl animate-spin" /></div>
+      ) : profiles.length === 0 ? (
+        <div className="py-16 text-center text-slate-400">
+          <i className="ph ph-ticket text-4xl mb-2" />
+          <p className="text-sm font-medium">No {filter} event listings found.</p>
+        </div>
+      ) : (
+        <div className="p-6 grid gap-6">
+          {profiles.map(p => {
+            const info = p.step_event_info || {};
+            const loc = p.step_location || {};
+            const tickets = p.step_tickets?.list || [];
+            const banner = p.ticket_banner_image;
+            return (
+              <div key={p.id} className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 relative">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {banner ? (
+                    <img src={banner} className="w-full lg:w-48 h-32 object-cover rounded-xl" alt="Ticket Banner" />
+                  ) : (
+                    <div className="w-full lg:w-48 h-32 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 text-xs">
+                      No Banner Image
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white">{info.eventName || 'Unnamed Event'}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{loc.city}{loc.country ? `, ${loc.country}` : ''}</p>
+                        <p className="text-xs text-slate-400 mt-1"><span className="font-bold">Organizer:</span> {info.organizerName || p.email}</p>
+                      </div>
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase ${
+                        p.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        p.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex gap-3 text-xs">
+                      <div className="bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl">
+                        <span className="text-slate-400 block mb-0.5">Tickets</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{tickets.length} Types</span>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl">
+                        <span className="text-slate-400 block mb-0.5">Completeness</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{p.completeness}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {p.status !== 'approved' && (
+                      <button onClick={() => handleReview(p.id, 'approved')} className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold text-xs rounded-xl transition-colors text-left w-full sm:w-auto">
+                        <i className="ph ph-check-circle mr-1" /> Approve Listing
+                      </button>
+                    )}
+                    {p.status !== 'rejected' && (
+                      <button onClick={() => handleReview(p.id, 'rejected')} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl transition-colors text-left w-full sm:w-auto">
+                        <i className="ph ph-x-circle mr-1" /> Reject Listing
+                      </button>
+                    )}
+                    <a href={`mailto:${p.email}`} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 text-left w-full sm:w-auto">
+                      <i className="ph ph-envelope mr-1" /> Contact Organizer
+                    </a>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GuidesPanel({ getToken }) {
   const [guides, setGuides] = useState([]);
   const [pendingProfiles, setPendingProfiles] = useState([]);
@@ -1322,12 +1483,18 @@ export default function AdminPage() {
                     ${adminTab === 'guides' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-compass" /> Tour Guides
                 </button>
+                <button onClick={() => setAdminTab('events')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'events' ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-ticket" /> Events & Attractions
+                </button>
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
               {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'guides' && <GuidesPanel getToken={getToken} />}
               {adminTab === 'attractions' && <AttractionsAnalytics />}
+              {adminTab === 'events' && <EventsPanel getToken={getToken} />}
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">
