@@ -378,6 +378,17 @@ export default function HomePage() {
               >
                 <i className="ph ph-bed text-base text-blue-600"></i> Stays
               </a>
+              <a
+                href="/?mode=attractions"
+                id="mode-attractions-btn"
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                  activeMode === 'attractions'
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <i className={`ph ph-ticket text-base ${activeMode === 'attractions' ? '' : 'text-amber-500'}`}></i> Attractions
+              </a>
             </div>
 
             <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
@@ -770,21 +781,21 @@ export default function HomePage() {
                     </form>
                   </div>
 
-                  {/* Quick-pick popular destinations */}
+                  {/* Quick-pick popular categories */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {['Paris', 'Tokyo', 'New York', 'Dubai', 'Nairobi', 'London', 'Bangkok', 'Cape Town'].map(city => (
+                    {['Events', 'Safari', 'Museums', 'Nature', 'Landmarks', 'Family Fun', 'Adventure', 'Cultural'].map(category => (
                       <button
-                        key={city}
+                        key={category}
                         type="button"
                         onClick={() => {
-                          const url = `/attractions/results?q=${encodeURIComponent(city)}`;
+                          const url = `/attractions/results?q=${encodeURIComponent(category)}`;
                           if (typeof window.__bcNavigate === 'function') window.__bcNavigate(url);
                           else window.location.href = url;
                         }}
                         className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-white/80 dark:border-slate-700 shadow-sm hover:bg-white dark:hover:bg-slate-700 transition-all"
                       >
-                        <i className="ph ph-map-pin text-green-500 text-sm"></i>
-                        {city}
+                        <i className="ph ph-sparkle text-amber-500 text-sm"></i>
+                        {category}
                       </button>
                     ))}
                   </div>

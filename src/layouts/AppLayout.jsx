@@ -24,7 +24,8 @@ export default function AppLayout() {
   let activeNav = 'flights';
   const queryParams = new URLSearchParams(search);
   if (pathname.startsWith('/stays') || (pathname === '/' && queryParams.get('mode') === 'stays')) activeNav = 'stays';
-  else if (pathname.startsWith('/tour-guides')) activeNav = 'guides';
+  else if (pathname.startsWith('/tour-guides') || (pathname === '/' && queryParams.get('mode') === 'guides')) activeNav = 'guides';
+  else if (pathname.startsWith('/attractions') || (pathname === '/' && queryParams.get('mode') === 'attractions')) activeNav = 'attractions';
   else if (
     pathname.startsWith('/my-bookings') ||
     pathname.startsWith('/booking-details')
@@ -32,7 +33,6 @@ export default function AppLayout() {
   else if (pathname.startsWith('/events')) activeNav = 'events';
   else if (pathname.startsWith('/tracker')) activeNav = 'tracker';
   else if (pathname.startsWith('/explore')) activeNav = 'explore';
-  else if (pathname.startsWith('/attractions')) activeNav = 'attractions';
 
   // Don't show the sign-in popup on the auth/login/register pages
   const suppressSignInPopup = ['/auth', '/login', '/register'].includes(pathname) || pathname.startsWith('/attractions') || new URLSearchParams(search).get('mode') === 'attractions';

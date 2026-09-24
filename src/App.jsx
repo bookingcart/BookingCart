@@ -50,6 +50,7 @@ const GuideReviewFormPage = lazy(() => import('./pages/GuideReviewFormPage.jsx')
 const GuideDashboardPage = lazy(() => import('./pages/GuideDashboardPage.jsx'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
 const HotelOnboardingPage = lazy(() => import('./pages/HotelOnboardingPage.jsx'));
+const EventOnboardingPage = lazy(() => import('./pages/EventOnboardingPage.jsx'));
 const HotelDashboardPage = lazy(() => import('./pages/HotelDashboardPage.jsx'));
 
 export default function App() {
@@ -87,6 +88,8 @@ export default function App() {
           <Route path="/list-your-hotel" element={<HotelOnboardingPage />} />
           <Route path="/list-your-hotel/:step" element={<HotelOnboardingPage />} />
           <Route path="/hotel-dashboard" element={<HotelDashboardPage />} />
+          <Route path="/list-your-event" element={<EventOnboardingPage />} />
+          <Route path="/list-your-event/:step" element={<EventOnboardingPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/visa" element={<Navigate to="/visa/new" replace />} />
           <Route path="/visa/new" element={<VisaNewPage />} />

@@ -97,6 +97,16 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               </a>
             )}
 
+            {activeNav === 'attractions' && (
+              <a
+                href="/list-your-event"
+                className="flex h-10 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-sm font-bold text-white transition-colors shadow-sm shadow-amber-500/25"
+              >
+                <i className="ph ph-ticket text-base" />
+                <span>List your event or attraction</span>
+              </a>
+            )}
+
             {isHotelOwner && (
               <a
                 href="/hotel-dashboard"
@@ -179,6 +189,16 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 >
                   <i className="ph ph-buildings text-base" />
                   List Your Property
+                </a>
+              )}
+              {activeNav === 'attractions' && (
+                <a
+                  href="/list-your-event"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white transition-colors hover:bg-amber-600 shadow-sm shadow-amber-500/25"
+                >
+                  <i className="ph ph-ticket text-base" />
+                  List your event or attraction
                 </a>
               )}
               {isHotelOwner && (
