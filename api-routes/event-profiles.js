@@ -91,6 +91,7 @@ async function ensureTables() {
       step_gallery JSONB DEFAULT '[]',
       step_policies JSONB DEFAULT '{}',
       step_contact JSONB DEFAULT '{}',
+      ticket_banner_image TEXT DEFAULT '',
       status TEXT DEFAULT 'draft',
       admin_note TEXT DEFAULT '',
       completeness INTEGER DEFAULT 0,
@@ -99,6 +100,9 @@ async function ensureTables() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `).catch(() => {});
+
+  // Add ticket_banner_image column if upgrading existing table
+  await query(`ALTER TABLE bc_event_profiles ADD COLUMN IF NOT EXISTS ticket_banner_image TEXT DEFAULT ''`).catch(() => {});
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -269,6 +273,13 @@ module.exports = async (req, res) => {
         `UPDATE bc_event_profiles SET ${stepKey} = $1, current_step = $2, updated_at = NOW() WHERE id = $3`,
         [colData, currentStep || 1, targetId]
       );
+      // Also persist ticketBannerImage as a dedicated column when gallery step is saved
+      if (step === 'gallery' && data && data.ticketBannerImage !== undefined) {
+        await query(
+          `UPDATE bc_event_profiles SET ticket_banner_image = $1 WHERE id = $2`,
+          [data.ticketBannerImage || '', targetId]
+        );
+      }
       const r = await query(`SELECT * FROM bc_event_profiles WHERE id = $1`, [targetId]);
       fullProfile = r.rows[0] || null;
     } else {
@@ -283,6 +294,10 @@ module.exports = async (req, res) => {
       }
       if (!profile) return res.status(404).json({ ok: false, error: 'Profile not found.' });
       profile[stepKey] = data;
+      // Also persist ticketBannerImage in memory store when gallery step saved
+      if (step === 'gallery' && data && data.ticketBannerImage !== undefined) {
+        profile.ticket_banner_image = data.ticketBannerImage || '';
+      }
       profile.current_step = currentStep || profile.current_step;
       profile.updated_at = new Date().toISOString();
       store.set(profile.id, profile);
@@ -314,19 +329,61 @@ module.exports = async (req, res) => {
         targetId = r.rows.length ? r.rows[0].id : null;
       }
       if (!targetId) return res.status(404).json({ ok: false, error: 'Draft not found' });
+
+      // Fetch the draft to check its eventName
+      const draftRes = await query(`SELECT step_event_info FROM bc_event_profiles WHERE id = $1`, [targetId]);
+      const draftInfo = draftRes.rows[0]?.step_event_info || {};
+      const eventName = draftInfo.eventName || '';
+
+      // Check for duplicates
+      if (eventName) {
+        const dupRes = await query(
+          `SELECT id FROM bc_event_profiles WHERE id != $1 AND status IN ('pending', 'approved') AND step_event_info->>'eventName' ILIKE $2 LIMIT 1`,
+          [targetId, eventName.trim()]
+        );
+        if (dupRes.rows.length > 0) {
+          return res.status(409).json({ ok: false, error: 'An event or attraction with this name is already listed.' });
+        }
+      }
+
       await query(`UPDATE bc_event_profiles SET status = 'pending', updated_at = NOW() WHERE id = $1`, [targetId]);
       const r = await query(`SELECT * FROM bc_event_profiles WHERE id = $1`, [targetId]);
       fullProfile = r.rows[0];
     } else {
       const store = getMemProfiles();
+      
+      // First find the draft
+      let draftProfile = null;
+      let draftKey = null;
       for (const [key, p] of store) {
         if ((p.email === auth.email || String(p.id) === String(profileId)) && p.status === 'draft') {
-          p.status = 'pending';
-          p.updated_at = new Date().toISOString();
-          store.set(key, p);
-          fullProfile = p;
+          draftProfile = p;
+          draftKey = key;
           break;
         }
+      }
+
+      if (draftProfile) {
+        const eventName = draftProfile.step_event_info?.eventName || '';
+        // Check for duplicates
+        let isDuplicate = false;
+        if (eventName) {
+          for (const [, p] of store) {
+            if (p.id !== draftProfile.id && ['pending', 'approved'].includes(p.status) && (p.step_event_info?.eventName || '').toLowerCase() === eventName.trim().toLowerCase()) {
+              isDuplicate = true;
+              break;
+            }
+          }
+        }
+
+        if (isDuplicate) {
+          return res.status(409).json({ ok: false, error: 'An event or attraction with this name is already listed.' });
+        }
+
+        draftProfile.status = 'pending';
+        draftProfile.updated_at = new Date().toISOString();
+        store.set(draftKey, draftProfile);
+        fullProfile = draftProfile;
       }
     }
 

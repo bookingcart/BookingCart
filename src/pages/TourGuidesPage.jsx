@@ -163,53 +163,74 @@ export default function TourGuidesPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
 
-      {/* ── Minimal Hero & Search ── */}
-      <section className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 pt-10 pb-6 px-4">
-        <div className="max-w-7xl mx-auto">
+      {/* ── Hero & Search ── */}
+      <section className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 min-h-[500px] flex flex-col items-center justify-center text-center px-4 dark:bg-slate-950 transition-colors" data-step="search">
+        <div className="absolute inset-0 z-0 select-none pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-b from-white/90 dark:from-slate-950/95 via-white/50 dark:via-slate-950/70 to-white/20 dark:to-slate-950/30 z-10 rounded-b-[40px]"></div>
+          <img
+            src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=2000&q=80"
+            className="absolute inset-0 w-full h-full object-cover object-center rounded-b-[40px] opacity-100 transition-opacity duration-1000 ease-in-out"
+            alt="Tour Guides background"
+          />
+        </div>
+        
+        <div className="relative z-10 max-w-4xl w-full mx-auto">
+          <h1 className="text-5xl lg:text-7xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight mb-4">
+            Find Local Experts
+          </h1>
+          <p className="text-lg lg:text-xl text-slate-600 dark:text-slate-300 font-medium mb-8">
+            Discover the world with verified local tour guides.
+          </p>
+
           {/* Mode Switcher */}
-          <div className="flex justify-center mb-8">
-            <div className="inline-flex bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 shadow-inner">
-              <a href="/" className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
-                <i className="ph ph-airplane-tilt text-lg text-green-600"></i> Flights
-              </a>
-              <button className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50">
-                <i className="ph ph-compass text-lg text-amber-500"></i> Tour Guides
-              </button>
-              <a href="/stays" className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
-                <i className="ph ph-bed text-lg text-blue-600"></i> Stays
-              </a>
-            </div>
+          <div className="inline-flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1">
+            <a href="/" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
+              <i className="ph ph-airplane-tilt text-base"></i> Flights
+            </a>
+            <button type="button" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 bg-green-600 text-white shadow-md shadow-green-600/30">
+              <i className="ph ph-compass text-base text-white"></i> Tour Guides
+            </button>
+            <a href="/?mode=stays" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
+              <i className="ph ph-bed text-base text-blue-600"></i> Stays
+            </a>
+            <a href="/?mode=attractions" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
+              <i className="ph ph-ticket text-base text-amber-500"></i> Attractions
+            </a>
           </div>
 
           {/* Unified Search Bar */}
-          <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-slate-200 dark:border-slate-700 p-2 flex flex-col md:flex-row items-center gap-2 relative z-20">
-            <div className="flex-1 w-full md:w-auto flex items-center gap-3 px-4 py-2 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700">
-              <i className="ph ph-map-pin text-xl text-green-600" />
-              <input
-                type="text"
-                placeholder="Where are you going?"
-                className="w-full bg-transparent border-none text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-0 text-base"
-                value={searchLocation}
-                onChange={e => setSearchLocation(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex-1 w-full md:w-auto flex items-center gap-3 px-4 py-2 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700">
-              <i className="ph ph-calendar text-xl text-amber-500" />
-              <input
-                type="date"
-                className="w-full bg-transparent border-none text-slate-900 dark:text-white font-bold text-base focus:outline-none focus:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-50 dark:[&::-webkit-calendar-picker-indicator]:invert"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-              />
-            </div>
+          <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
+            <div className="relative z-10 max-w-4xl w-full mx-auto px-0">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-1 sm:p-1.5 shadow-lg ring-1 ring-slate-100/80 dark:ring-slate-700/80 transition-colors flex flex-col md:flex-row items-stretch gap-1">
+                <div className="flex-1 w-full md:w-auto flex items-center gap-2 bg-slate-50 dark:bg-slate-700 rounded-lg px-3 h-10 sm:h-12 border border-transparent focus-within:border-green-500/50 transition-colors">
+                  <i className="ph ph-map-pin text-xl text-green-600" />
+                  <input
+                    type="text"
+                    placeholder="Where are you going?"
+                    className="w-full bg-transparent border-none text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-0 text-sm sm:text-base p-0"
+                    value={searchLocation}
+                    onChange={e => setSearchLocation(e.target.value)}
+                  />
+                </div>
+                
+                <div className="flex-1 w-full md:w-auto flex items-center gap-2 bg-slate-50 dark:bg-slate-700 rounded-lg px-3 h-10 sm:h-12 border border-transparent focus-within:border-green-500/50 transition-colors">
+                  <i className="ph ph-calendar text-xl text-amber-500" />
+                  <input
+                    type="date"
+                    className="w-full bg-transparent border-none text-slate-900 dark:text-white font-bold text-sm sm:text-base focus:outline-none focus:ring-0 [&::-webkit-calendar-picker-indicator]:opacity-50 dark:[&::-webkit-calendar-picker-indicator]:invert p-0"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                  />
+                </div>
 
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`shrink-0 h-12 px-6 rounded-full font-bold text-sm transition-colors flex items-center gap-2 ${showFilters ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}`}
-            >
-              <i className="ph ph-faders text-lg" /> Filters
-            </button>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`shrink-0 h-10 sm:h-12 px-6 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 ${showFilters ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}`}
+                >
+                  <i className="ph ph-faders text-lg" /> Filters
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Expanded Filters */}

@@ -273,6 +273,7 @@ export default function EventOnboardingPage() {
 
     // Step 6 – Gallery
     gallery: [], // [{url, caption}]
+    ticketBannerImage: '', // custom image shown on generated ticket
 
     // Step 7 – Policies
     startTime: '09:00', endTime: '18:00', cancellationPolicy: '',
@@ -404,12 +405,12 @@ export default function EventOnboardingPage() {
         location: { country: draft.country, city: draft.city, address: draft.address, postalCode: draft.postalCode, latitude: draft.latitude, longitude: draft.longitude, nearbyAttractions: draft.nearbyAttractions, distanceFromAirport: draft.distanceFromAirport },
         features: { selected: draft.features },
         tickets: { list: draft.tickets },
-        gallery: draft.gallery,
+        gallery: { list: draft.gallery, ticketBannerImage: draft.ticketBannerImage },
         policies: { startTime: draft.startTime, endTime: draft.endTime, cancellationPolicy: draft.cancellationPolicy, ageRestriction: draft.ageRestriction, accessibilityInfo: draft.accessibilityInfo },
         contact: { bookingEmail: draft.bookingEmail, phone: draft.phone2, whatsapp: draft.whatsapp, website: draft.website, facebook: draft.facebook },
       };
-      // We will skip saving to DB for now or handle via event-profiles API
-      // await saveStep(stepKey, dataMap[stepKey]); 
+      // Save to backend if authenticated
+      await saveStep(stepKey, dataMap[stepKey]);
     }
 
     setSaving(false);
@@ -423,8 +424,11 @@ export default function EventOnboardingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  const [submitError, setSubmitError] = useState('');
+
   async function handleSubmit() {
     setSubmitState('submitting');
+    setSubmitError('');
     try {
       const res = await fetch('/api/event-profiles', {
         method: 'POST',
@@ -438,9 +442,11 @@ export default function EventOnboardingPage() {
         localStorage.removeItem('bc_event_profile_id');
       } else {
         setSubmitState('error');
+        setSubmitError(data.error || 'Submission failed. Please try again.');
       }
     } catch {
       setSubmitState('error');
+      setSubmitError('Network error. Please try again.');
     }
   }
 
@@ -797,13 +803,54 @@ export default function EventOnboardingPage() {
           {/* STEP 6: GALLERY */}
           {/* ══════════════════════════════════════════════════════════════════ */}
           {currentStep === 6 && (
-            <div>
+            <div className="space-y-8">
               <StepHeader step={6} />
-              <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
-                Upload high-quality photos of your event or attraction. Let guests see what they will experience.
-                <strong className="text-slate-900 dark:text-white"> Listings with 6+ photos get 3x more bookings.</strong>
-              </p>
-              <MultiPhotoUploader value={draft.gallery} onChange={v => set('gallery', v)} maxPhotos={15} />
+
+              {/* Ticket Banner Image */}
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+                    <i className="ph ph-ticket text-white text-xl" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-slate-900 dark:text-white text-sm">Ticket Banner Image <span className="text-amber-600 text-xs font-bold">(Required for ticket generation)</span></h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">This image appears on every booking ticket issued to your guests. Use a high-quality, landscape photo of your venue or event.</p>
+                  </div>
+                </div>
+                {draft.ticketBannerImage ? (
+                  <div className="relative rounded-xl overflow-hidden h-48 border border-amber-300 dark:border-amber-700">
+                    <img src={draft.ticketBannerImage} alt="Ticket banner" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => set('ticketBannerImage', '')}
+                        className="bg-red-500 text-white font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2"
+                      >
+                        <i className="ph ph-trash" /> Remove
+                      </button>
+                    </div>
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <i className="ph ph-check-circle" /> Ticket Banner Set
+                    </div>
+                  </div>
+                ) : (
+                  <PhotoUploader
+                    value={draft.ticketBannerImage}
+                    onChange={v => set('ticketBannerImage', v)}
+                    label="Upload Ticket Banner"
+                  />
+                )}
+              </div>
+
+              {/* General Gallery */}
+              <div>
+                <h4 className="font-black text-slate-900 dark:text-white mb-2">Event Gallery Photos</h4>
+                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
+                  Upload high-quality photos of your event or attraction. Let guests see what they will experience.
+                  <strong className="text-slate-900 dark:text-white"> Listings with 6+ photos get 3x more bookings.</strong>
+                </p>
+                <MultiPhotoUploader value={draft.gallery} onChange={v => set('gallery', v)} maxPhotos={15} />
+              </div>
             </div>
           )}
 
@@ -1067,11 +1114,21 @@ export default function EventOnboardingPage() {
                     {submitState === 'submitting' ? (
                       <><i className="ph ph-spinner-gap animate-spin text-xl" /> Submitting…</>
                     ) : (
-                      <><i className="ph ph-paper-plane-tilt text-xl" /> Submit My Property Listing</>
+                      <><i className="ph ph-paper-plane-tilt text-xl" /> Submit My Event Listing</>
                     )}
                   </button>
                   {submitState === 'error' && (
-                    <p className="text-red-500 text-sm text-center font-semibold">Submission failed. Please try again or contact support.</p>
+                    <div className={`rounded-xl p-4 flex items-start gap-3 ${submitError.includes('already listed') ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800' : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'}`}>
+                      <i className={`ph ${submitError.includes('already listed') ? 'ph-warning text-amber-500' : 'ph-x-circle text-red-500'} text-xl shrink-0 mt-0.5`} />
+                      <div>
+                        <p className={`font-bold text-sm ${submitError.includes('already listed') ? 'text-amber-900 dark:text-amber-200' : 'text-red-900 dark:text-red-200'}`}>
+                          {submitError.includes('already listed') ? 'Duplicate Listing Detected' : 'Submission Failed'}
+                        </p>
+                        <p className={`text-xs mt-1 ${submitError.includes('already listed') ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400'}`}>
+                          {submitError || 'Please try again or contact support.'}
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
