@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
+import LocalEventCard from '../components/LocalEventCard.jsx';
 
 const FLIGHT_SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js?v=4','/js/deals.js?v=1'];
 
@@ -134,8 +135,78 @@ function getRegionFromCountry(countryCode, countryName) {
 }
 
 function AttractionsHomeContent() {
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  
+  useEffect(() => {
+    fetch('/api/attractions/featured-events')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok && data.results) setFeaturedEvents(data.results);
+      })
+      .catch(console.error);
+  }, []);
+
   const categories = [['ph-bank','Museums & culture','Collections, galleries, and cultural spaces'],['ph-mountains','Nature & parks','Gardens, viewpoints, and protected landscapes'],['ph-castle-turret','Landmarks','Historic sites and architectural icons'],['ph-confetti','Family & fun','Zoos, theme parks, and hands-on experiences']];
-  return <div className="bg-slate-50 py-16 dark:bg-slate-950"><section className="mx-auto max-w-7xl px-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-emerald-700">Explore with context</p><h2 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">A global field guide, not a fake ticket counter</h2><p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">Discover verified places worldwide. When a trusted partner has a bookable offer, we label it clearly and hand you over securely.</p></div><a href="/attractions/trip" className="rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">Open your trip plan</a></div><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{categories.map(([icon,title,text]) => <div key={title} className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900"><i className={`ph ${icon} text-3xl text-emerald-600`} aria-hidden="true" /><h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{text}</p></div>)}</div><div className="mt-12 grid gap-5 lg:grid-cols-3"><div className="rounded-3xl bg-emerald-900 p-7 text-white"><p className="text-xs font-bold uppercase tracking-wide text-emerald-200">01 · Discover</p><h3 className="mt-2 text-2xl font-black">Search any destination</h3><p className="mt-2 text-emerald-100">Global points of interest come from Geoapify, OpenStreetMap, and Wikimedia.</p></div><div className="rounded-3xl bg-slate-900 p-7 text-white"><p className="text-xs font-bold uppercase tracking-wide text-slate-300">02 · Plan</p><h3 className="mt-2 text-2xl font-black">Save and order your day</h3><p className="mt-2 text-slate-300">Build an itinerary with visit times and notes. A plan never pretends to be a reservation.</p></div><div className="rounded-3xl border border-slate-200 bg-white p-7 dark:border-slate-700 dark:bg-slate-900"><p className="text-xs font-bold uppercase tracking-wide text-emerald-700">03 · Book when available</p><h3 className="mt-2 text-2xl font-black dark:text-white">Follow a verified offer</h3><p className="mt-2 text-slate-500">Bookable experiences name the provider and open its secure checkout.</p></div></div></section></div>;
+  
+  return (
+    <div className="bg-slate-50 py-16 dark:bg-slate-950">
+      <section className="mx-auto max-w-7xl px-6">
+        
+        {/* Featured Events Section */}
+        {featuredEvents.length > 0 && (
+          <div className="mb-16">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white">Trending Local Events</h2>
+                <p className="mt-2 text-slate-500 dark:text-slate-400">Book your tickets for the best events and attractions.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {featuredEvents.map(event => (
+                <LocalEventCard key={event.id} item={event} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Static Informational Content */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-emerald-700">Explore with context</p>
+            <h2 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">A global field guide, not a fake ticket counter</h2>
+            <p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">Discover verified places worldwide. When a trusted partner has a bookable offer, we label it clearly and hand you over securely.</p>
+          </div>
+          <a href="/attractions/trip" className="rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">Open your trip plan</a>
+        </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {categories.map(([icon,title,text]) => (
+            <div key={title} className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+              <i className={`ph ${icon} text-3xl text-emerald-600`} aria-hidden="true" />
+              <h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-12 grid gap-5 lg:grid-cols-3">
+          <div className="rounded-3xl bg-emerald-900 p-7 text-white">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-200">01 · Discover</p>
+            <h3 className="mt-2 text-2xl font-black">Search any destination</h3>
+            <p className="mt-2 text-emerald-100">Global points of interest come from Geoapify, OpenStreetMap, and Wikimedia.</p>
+          </div>
+          <div className="rounded-3xl bg-slate-900 p-7 text-white">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-300">02 · Plan</p>
+            <h3 className="mt-2 text-2xl font-black">Save and order your day</h3>
+            <p className="mt-2 text-slate-300">Build an itinerary with visit times and notes. A plan never pretends to be a reservation.</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-7 dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">03 · Book when available</p>
+            <h3 className="mt-2 text-2xl font-black dark:text-white">Follow a verified offer</h3>
+            <p className="mt-2 text-slate-500">Bookable experiences name the provider and open its secure checkout.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export default function HomePage() {
@@ -351,43 +422,50 @@ export default function HomePage() {
             </p>
 
             {/* Flights / Tour Guides / Stays mode switcher */}
-            <div className="inline-flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1">
+            <div className="flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto sm:inline-flex">
               <button
                 type="button"
                 id="mode-flights-btn"
                 onClick={() => setActiveMode('flights')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeMode === 'flights'
                     ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                <i className="ph ph-airplane-tilt text-base"></i> Flights
+                <i className="ph ph-airplane-tilt text-base shrink-0"></i>
+                <span className="hidden xs:inline sm:inline">Flights</span>
+                <span className="xs:hidden sm:hidden">Fly</span>
               </button>
               <a
                 href="/tour-guides"
                 id="mode-guides-btn"
-                className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
               >
-                <i className="ph ph-compass text-base text-green-600"></i> Tour Guides
+                <i className="ph ph-compass text-base text-green-600 shrink-0"></i>
+                <span className="hidden sm:inline">Tour Guides</span>
+                <span className="sm:hidden">Guides</span>
               </a>
               <a
                 href="/stays"
                 id="mode-stays-btn"
-                className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
               >
-                <i className="ph ph-bed text-base text-blue-600"></i> Stays
+                <i className="ph ph-bed text-base text-blue-600 shrink-0"></i>
+                <span>Stays</span>
               </a>
               <a
                 href="/?mode=attractions"
                 id="mode-attractions-btn"
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeMode === 'attractions'
                     ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                <i className={`ph ph-ticket text-base ${activeMode === 'attractions' ? '' : 'text-amber-500'}`}></i> Attractions
+                <i className={`ph ph-ticket text-base shrink-0 ${activeMode === 'attractions' ? '' : 'text-amber-500'}`}></i>
+                <span className="hidden sm:inline">Attractions</span>
+                <span className="sm:hidden">Events</span>
               </a>
             </div>
 

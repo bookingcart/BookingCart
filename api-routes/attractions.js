@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { applyCors } = require('../lib/cors');
 const { query, isDbConfigured, initDb } = require('../lib/db');
 const { verifyRequestBearer } = require('../lib/google-verify');
-const { geocodeDestination, searchAttractions, getAttraction, cleanText } = require('../lib/attractions');
+const { geocodeDestination, searchAttractions, getAttraction, cleanText, searchLocalEvents } = require('../lib/attractions');
 
 const EVENT_TYPES = new Set(['search_submitted','results_loaded','results_partial','results_error','zero_results','detail_viewed','saved','unsaved','itinerary_added','itinerary_removed','map_interaction','outbound_booking_click']);
 
@@ -61,6 +61,11 @@ module.exports = async function attractionsHandler(req, res) {
       }
       const data = await searchAttractions(input);
       return res.status(data.ok ? 200 : 503).json(data);
+    }
+
+    if (req.method === 'GET' && action === 'featured-events') {
+      const results = await searchLocalEvents({});
+      return res.json({ ok: true, results });
     }
 
     if (req.method === 'GET' && action === 'analytics') {

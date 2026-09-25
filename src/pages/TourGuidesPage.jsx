@@ -183,18 +183,25 @@ export default function TourGuidesPage() {
           </p>
 
           {/* Mode Switcher */}
-          <div className="inline-flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1">
-            <a href="/" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
-              <i className="ph ph-airplane-tilt text-base"></i> Flights
+          <div className="flex bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl p-1 shadow-sm border border-white/80 dark:border-slate-700/80 mb-6 gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto sm:inline-flex">
+            <a href="/" className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
+              <i className="ph ph-airplane-tilt text-base shrink-0"></i>
+              <span className="hidden sm:inline">Flights</span>
+              <span className="sm:hidden">Fly</span>
             </a>
-            <button type="button" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 bg-green-600 text-white shadow-md shadow-green-600/30">
-              <i className="ph ph-compass text-base text-white"></i> Tour Guides
+            <button type="button" className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap bg-green-600 text-white shadow-md shadow-green-600/30">
+              <i className="ph ph-compass text-base text-white shrink-0"></i>
+              <span className="hidden sm:inline">Tour Guides</span>
+              <span className="sm:hidden">Guides</span>
             </button>
-            <a href="/?mode=stays" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
-              <i className="ph ph-bed text-base text-blue-600"></i> Stays
+            <a href="/stays" className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
+              <i className="ph ph-bed text-base text-blue-600 shrink-0"></i>
+              <span>Stays</span>
             </a>
-            <a href="/?mode=attractions" className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
-              <i className="ph ph-ticket text-base text-amber-500"></i> Attractions
+            <a href="/?mode=attractions" className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white">
+              <i className="ph ph-ticket text-base text-amber-500 shrink-0"></i>
+              <span className="hidden sm:inline">Attractions</span>
+              <span className="sm:hidden">Events</span>
             </a>
           </div>
 
