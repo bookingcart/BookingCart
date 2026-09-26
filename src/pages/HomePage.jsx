@@ -136,79 +136,184 @@ function getRegionFromCountry(countryCode, countryName) {
 
 function AttractionsHomeContent() {
   const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   
   useEffect(() => {
     fetch('/api/attractions/featured-events')
       .then(res => res.json())
-      .then(data => {
-        if (data.ok && data.results) setFeaturedEvents(data.results);
-      })
+      .then(data => { if (data.ok && data.results) setFeaturedEvents(data.results); })
       .catch(console.error);
   }, []);
 
-  const categories = [['ph-bank','Museums & culture','Collections, galleries, and cultural spaces'],['ph-mountains','Nature & parks','Gardens, viewpoints, and protected landscapes'],['ph-castle-turret','Landmarks','Historic sites and architectural icons'],['ph-confetti','Family & fun','Zoos, theme parks, and hands-on experiences']];
-  
-  return (
-    <div className="bg-slate-50 py-16 dark:bg-slate-950">
-      <section className="mx-auto max-w-7xl px-6">
-        
-        {/* Featured Events Section */}
-        {featuredEvents.length > 0 && (
-          <div className="mb-16">
-            <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-              <div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white">Trending Local Events</h2>
-                <p className="mt-2 text-slate-500 dark:text-slate-400">Book your tickets for the best events and attractions.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {featuredEvents.map(event => (
-                <LocalEventCard key={event.id} item={event} />
-              ))}
-            </div>
-          </div>
-        )}
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) window.location.href = `/attractions?destination=${encodeURIComponent(searchQuery)}`;
+  };
 
-        {/* Static Informational Content */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-emerald-700">Explore with context</p>
-            <h2 className="mt-2 text-3xl font-black text-slate-900 dark:text-white">A global field guide, not a fake ticket counter</h2>
-            <p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">Discover verified places worldwide. When a trusted partner has a bookable offer, we label it clearly and hand you over securely.</p>
-          </div>
-          <a href="/attractions/trip" className="rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">Open your trip plan</a>
-        </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map(([icon,title,text]) => (
-            <div key={title} className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
-              <i className={`ph ${icon} text-3xl text-emerald-600`} aria-hidden="true" />
-              <h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
-            </div>
+  const trendingDestinations = [
+    { name: 'Paris', country: 'France', img: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80&auto=format&fit=crop', count: '1,200+ activities' },
+    { name: 'Dubai', country: 'UAE', img: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=400&q=80&auto=format&fit=crop', count: '890+ activities' },
+    { name: 'Kampala', country: 'Uganda', img: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Urban_Rising%2C_KAMPALA%2C_Uganda.jpg', count: '130+ activities' },
+    { name: 'Cape Town', country: 'South Africa', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=400&q=80&auto=format&fit=crop', count: '540+ activities' },
+    { name: 'Nairobi', country: 'Kenya', img: 'https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=400&q=80&auto=format&fit=crop', count: '320+ activities' },
+    { name: 'Marrakech', country: 'Morocco', img: 'https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=400&q=80&auto=format&fit=crop', count: '410+ activities' },
+  ];
+
+  const categories = [
+    { icon: 'ph-ticket', label: 'Tours & Sightseeing' },
+    { icon: 'ph-bank', label: 'Museums & Culture' },
+    { icon: 'ph-mountains', label: 'Nature & Parks' },
+    { icon: 'ph-confetti', label: 'Theme Parks' },
+    { icon: 'ph-fork-knife', label: 'Food & Drink' },
+    { icon: 'ph-boat', label: 'Water Activities' },
+    { icon: 'ph-castle-turret', label: 'Landmarks' },
+    { icon: 'ph-person-simple-ski', label: 'Sports & Adventure' },
+    { icon: 'ph-film-strip', label: 'Cinemas' },
+    { icon: 'ph-music-notes', label: 'Concerts' },
+  ];
+
+  return (
+    <div className="bg-white dark:bg-slate-950">
+
+
+
+      {/* ── CATEGORY PILLS ── */}
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 mt-8 mb-10">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          {categories.map(cat => (
+            <a key={cat.label} href={`/attractions?category=${encodeURIComponent(cat.label)}`}
+              className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full font-semibold text-sm border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-slate-300 transition-all whitespace-nowrap bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+              <i className={`ph ${cat.icon} text-base`} />
+              {cat.label}
+            </a>
           ))}
         </div>
-        <div className="mt-12 grid gap-5 lg:grid-cols-3">
-          <div className="rounded-3xl bg-emerald-900 p-7 text-white">
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-200">01 · Discover</p>
-            <h3 className="mt-2 text-2xl font-black">Search any destination</h3>
-            <p className="mt-2 text-emerald-100">Global points of interest come from Geoapify, OpenStreetMap, and Wikimedia.</p>
-          </div>
-          <div className="rounded-3xl bg-slate-900 p-7 text-white">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-300">02 · Plan</p>
-            <h3 className="mt-2 text-2xl font-black">Save and order your day</h3>
-            <p className="mt-2 text-slate-300">Build an itinerary with visit times and notes. A plan never pretends to be a reservation.</p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">03 · Book when available</p>
-            <h3 className="mt-2 text-2xl font-black dark:text-white">Follow a verified offer</h3>
-            <p className="mt-2 text-slate-500">Bookable experiences name the provider and open its secure checkout.</p>
+      </div>
+
+      {/* ── TRENDING DESTINATIONS ── */}
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Trending destinations</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Most popular places for tours &amp; activities</p>
           </div>
         </div>
-      </section>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {trendingDestinations.map(dest => (
+            <a key={dest.name} href={`/attractions?destination=${encodeURIComponent(dest.name)}`}
+              className="group rounded-2xl overflow-hidden relative aspect-[3/4] shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 duration-300 block">
+              <img src={dest.img} alt={dest.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <p className="text-white font-extrabold text-sm leading-tight">{dest.name}</p>
+                <p className="text-white/70 text-xs">{dest.count}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* ── EXPLORE MORE DESTINATIONS ── */}
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Explore more destinations</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Find things to do around the world</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { name: 'Rome', country: 'Italy', img: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=600&q=80&auto=format&fit=crop', count: '530+ activities' },
+            { name: 'Amsterdam', country: 'Netherlands', img: 'https://images.unsplash.com/photo-1468657988500-aca2be09f4c6?w=600&q=80&auto=format&fit=crop', count: '380+ activities' },
+            { name: 'Istanbul', country: 'Turkey', img: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=600&q=80&auto=format&fit=crop', count: '420+ activities' },
+            { name: 'Bangkok', country: 'Thailand', img: 'https://upload.wikimedia.org/wikipedia/commons/7/7d/4Y1A1159_Bangkok_%2833536795515%29.jpg', count: '610+ activities' },
+            { name: 'Singapore', country: 'Singapore', img: 'https://images.unsplash.com/photo-1565967511849-76a60a516170?w=600&q=80&auto=format&fit=crop', count: '290+ activities' },
+            { name: 'Sydney', country: 'Australia', img: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=600&q=80&auto=format&fit=crop', count: '460+ activities' },
+            { name: 'Cairo', country: 'Egypt', img: 'https://images.unsplash.com/photo-1572252009286-268acec5ca0a?w=600&q=80&auto=format&fit=crop', count: '220+ activities' },
+            { name: 'Bali', country: 'Indonesia', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&q=80&auto=format&fit=crop', count: '340+ activities' },
+            { name: 'Lisbon', country: 'Portugal', img: 'https://images.unsplash.com/photo-1548707309-dcebeab9ea9b?w=600&q=80&auto=format&fit=crop', count: '270+ activities' },
+            { name: 'Prague', country: 'Czech Republic', img: 'https://images.unsplash.com/photo-1519677100203-a0e668c92439?w=600&q=80&auto=format&fit=crop', count: '310+ activities' },
+            { name: 'Vienna', country: 'Austria', img: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Schoenbrunn_philharmoniker_2012.jpg', count: '250+ activities' },
+            { name: 'Cape Town', country: 'South Africa', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80&auto=format&fit=crop', count: '180+ activities' },
+            // 🌍 Africa
+            { name: 'Nairobi', country: 'Kenya', img: 'https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=600&q=80&auto=format&fit=crop', count: '320+ activities' },
+            { name: 'Marrakech', country: 'Morocco', img: 'https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=600&q=80&auto=format&fit=crop', count: '410+ activities' },
+            { name: 'Accra', country: 'Ghana', img: 'https://upload.wikimedia.org/wikipedia/commons/0/0a/Acca.jpg', count: '150+ activities' },
+            { name: 'Zanzibar', country: 'Tanzania', img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=600&q=80&auto=format&fit=crop', count: '190+ activities' },
+            { name: 'Casablanca', country: 'Morocco', img: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=600&q=80&auto=format&fit=crop', count: '170+ activities' },
+            { name: 'Lagos', country: 'Nigeria', img: 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Lagos-centre-from-executive-lounge-Continental-hotel-2026-IMG_7970.jpg', count: '200+ activities' },
+            { name: 'Kampala', country: 'Uganda', img: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Urban_Rising%2C_KAMPALA%2C_Uganda.jpg', count: '130+ activities' },
+          ].map(dest => (
+            <a
+              key={dest.name}
+              href={`/attractions?destination=${encodeURIComponent(dest.name)}`}
+              className="group flex items-center gap-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-3 hover:shadow-md hover:border-slate-200 dark:hover:border-slate-600 transition-all duration-200"
+            >
+              <div className="w-20 h-16 shrink-0 rounded-xl overflow-hidden">
+                <img
+                  src={dest.img}
+                  alt={dest.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  loading="lazy"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-slate-900 dark:text-white text-sm truncate group-hover:text-green-600 transition-colors">{dest.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{dest.country}</p>
+                <p className="text-xs font-semibold text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                  <i className="ph ph-ticket text-xs" />{dest.count}
+                </p>
+              </div>
+              <i className="ph ph-arrow-right text-slate-300 dark:text-slate-600 group-hover:text-green-500 group-hover:translate-x-1 transition-all shrink-0" />
+            </a>
+          ))}
+        </div>
+      </div>
+
+
+      {/* ── LOCAL EVENTS ── */}
+      {featuredEvents.length > 0 && (
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Local events &amp; experiences</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Book tickets directly for these verified events</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {featuredEvents.map(event => (
+              <LocalEventCard key={event.id} item={event} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── WHY BOOK WITH US ── */}
+      <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-14">
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-8 text-center">Why book with BookingCart?</h2>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { icon: 'ph-seal-check', title: 'Verified experiences', text: 'Every listing is reviewed by our team before going live.', color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' },
+              { icon: 'ph-shield-check', title: 'Secure checkout', text: 'Pay safely with Stripe. Your data is always protected.', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/40' },
+              { icon: 'ph-clock-countdown', title: 'Instant confirmation', text: 'Get your tickets confirmed immediately after booking.', color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40' },
+            ].map(item => (
+              <div key={item.title} className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 flex gap-4 items-start shadow-sm">
+                <div className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center ${item.color}`}>
+                  <i className={`ph-fill ${item.icon} text-xl`} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white mb-1">{item.title}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">{item.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
 export default function HomePage() {
   const [recentSearches, setRecentSearches] = useState([]);
   const location = useLocation();
