@@ -13,7 +13,8 @@ function StatePanel({ icon, title, message, action }) {
   return <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl text-emerald-700 dark:bg-emerald-950"><i className={`ph ${icon}`} aria-hidden="true" /></div>
     <h2 className="text-xl font-bold text-slate-900 dark:text-white">{title}</h2><p className="mx-auto mt-2 max-w-md text-slate-500 dark:text-slate-400">{message}</p>{action}
-// Removed LocalEventCard since it was moved to its own file
+  </div>;
+}
 
 function AttractionCard({ item, saved, onSave, onAdd, onHover }) {
   if (item.source === 'local_event') {
