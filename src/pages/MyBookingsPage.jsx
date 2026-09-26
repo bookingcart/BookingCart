@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
