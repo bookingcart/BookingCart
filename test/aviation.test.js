@@ -551,6 +551,41 @@ function stripeRetriever(session) {
   };
 }
 
+test("round trip bookings require a return date on or after departure", () => {
+  const service = createAviationService();
+  const base = {
+    email: "guest@example.com",
+    aircraftId: "ac_caravan",
+    origin: "EBB",
+    destination: "MFU",
+    departDate: "2026-11-12",
+    tripType: "round",
+    passengers: 2,
+  };
+
+  for (const returnDate of ["", "not-a-date", "2026/11/16"]) {
+    const rejected = service.createBooking({ ...base, returnDate });
+    assert.equal(rejected.ok, false);
+    assert.match(rejected.error, /Return date is required for round trips/);
+    assert.equal(rejected.booking, undefined);
+  }
+
+  const tooEarly = service.createBooking({ ...base, returnDate: "2026-11-11" });
+  assert.equal(tooEarly.ok, false);
+  assert.match(tooEarly.error, /on or after the departure date/);
+  assert.equal(service.bookings.size, 0);
+
+  const sameDay = service.createBooking({ ...base, returnDate: "2026-11-12" });
+  assert.equal(sameDay.ok, true);
+  assert.equal(sameDay.booking.tripType, "round");
+  assert.equal(sameDay.booking.returnDate, "2026-11-12");
+
+  const later = service.createBooking({ ...base, returnDate: "2026-11-16" });
+  assert.equal(later.ok, true);
+  assert.equal(later.booking.returnDate, "2026-11-16");
+  assert.equal(service.bookings.size, 2);
+});
+
 test("card confirmation verifies Stripe before marking a booking paid", async () => {
   const service = createAviationService();
   const created = service.createBooking({
