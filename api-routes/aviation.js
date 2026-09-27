@@ -286,7 +286,7 @@ module.exports = async function aviationHandler(req, res) {
     }
 
     if (action === "itinerary" && req.method === "GET") {
-      const itinerary = service.getItinerary(String(queryValue(req, "ref") || ""));
+      const itinerary = service.getItinerary(String(queryValue(req, "ref") || ""), queryValue(req, "email"));
       if (!itinerary) return res.status(404).json({ ok: false, error: "Itinerary not found" });
       return res.json({ ok: true, itinerary });
     }

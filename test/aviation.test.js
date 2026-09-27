@@ -320,6 +320,47 @@ test("combined itinerary totals jet, helicopter, lodge, park, and transfer", () 
   assert.equal(service.checkoutItinerary(saved.itinerary.ref, "guest@example.com").itinerary.status, "checked_out");
 });
 
+test("owner can update an itinerary and another email cannot overwrite it", () => {
+  const service = createAviationService();
+  const originalItems = [{ type: "hotel", title: "Luxury lodge reservation", price: 2400, details: "Two nights" }];
+  const saved = service.saveItinerary({ email: "owner@example.com", title: "Safari", items: originalItems });
+  assert.equal(saved.ok, true);
+
+  const blocked = service.saveItinerary({
+    ref: saved.itinerary.ref,
+    email: "intruder@example.com",
+    title: "Stolen trip",
+    items: [{ type: "hotel", title: "Replaced lodge", price: 1, details: "Overwrite" }],
+  });
+  assert.equal(blocked.ok, false);
+  const stored = service.itineraries.get(saved.itinerary.ref);
+  assert.equal(stored.email, "owner@example.com");
+  assert.equal(stored.items[0].title, "Luxury lodge reservation");
+  assert.equal(stored.items[0].price, 2400);
+
+  const updated = service.saveItinerary({
+    ref: saved.itinerary.ref,
+    email: "Owner@Example.com",
+    title: "Safari revised",
+    items: [{ type: "hotel", title: "Luxury lodge reservation", price: 2600, details: "Three nights" }],
+  });
+  assert.equal(updated.ok, true);
+  assert.equal(updated.itinerary.ref, saved.itinerary.ref);
+  assert.equal(updated.itinerary.items[0].price, 2600);
+  assert.equal(service.getItinerary(saved.itinerary.ref, "owner@example.com").items[0].price, 2600);
+  assert.equal(service.getItinerary(saved.itinerary.ref, "intruder@example.com"), null);
+
+  const invented = service.saveItinerary({
+    ref: "ITN-GUESSED-REF",
+    email: "other@example.com",
+    title: "New trip",
+    items: [{ type: "attraction", title: "Park entry", price: 180, details: "Day pass" }],
+  });
+  assert.equal(invented.ok, true);
+  assert.notEqual(invented.itinerary.ref, "ITN-GUESSED-REF");
+  assert.equal(service.itineraries.has("ITN-GUESSED-REF"), false);
+});
+
 test("airport directory includes airstrips, heliports, and private terminals", () => {
   const service = createAviationService();
   const murchison = service.searchAirports({ q: "Murchison" });
