@@ -62,10 +62,19 @@ test("round trip quotes cost more than one-way and public listings mask complian
   const oneWay = service.search({ origin: "EBB", destination: "MFU", tripType: "oneway", departDate: "2026-11-12", category: "light_jet" });
   const round = service.search({ origin: "EBB", destination: "MFU", tripType: "round", departDate: "2026-11-12", returnDate: "2026-11-16", category: "light_jet" });
   assert.ok(round.results[0].quote.price > oneWay.results[0].quote.price);
-  const masked = publicAircraft(SEED_AIRCRAFT[0]);
+  const masked = publicAircraft({
+    ...SEED_AIRCRAFT[0],
+    operatorEmail: "ops@sinrah.example",
+    adminNote: "internal review note",
+    documents: [{ id: "DOC-1", url: "https://files.example/aoc.pdf" }],
+  });
   assert.equal(masked.safety.aoc, "Verified");
   assert.equal(masked.safety.insurance, "Covered");
   assert.equal(masked.documents, undefined);
+  assert.equal(masked.operatorEmail, undefined);
+  assert.equal(masked.operatorId, undefined);
+  assert.equal(masked.adminNote, undefined);
+  assert.equal(masked.operatorName, SEED_AIRCRAFT[0].operatorName);
 });
 
 test("operator aircraft cannot be approved until safety and verification are complete", () => {
@@ -125,7 +134,16 @@ test("operator aircraft cannot be approved until safety and verification are com
   assert.equal(service.search({ origin: "EBB", destination: "KGL", departDate: "2026-12-01" }).results.some((item) => item.aircraft.registration === "5X-NEW"), false);
   const approved = service.reviewAircraft(submitted.aircraft.id, "approved", "File complete");
   assert.equal(approved.ok, true);
-  assert.ok(service.search({ origin: "EBB", destination: "KGL", departDate: "2026-12-01", manufacturer: "Cessna" }).results.some((item) => item.aircraft.id === submitted.aircraft.id));
+  const published = service.search({ origin: "EBB", destination: "KGL", departDate: "2026-12-01", manufacturer: "Cessna" }).results.find((item) => item.aircraft.id === submitted.aircraft.id);
+  assert.ok(published);
+  assert.equal(published.aircraft.operatorEmail, undefined);
+  assert.equal(published.aircraft.operatorId, undefined);
+  assert.equal(published.aircraft.documents, undefined);
+  assert.equal(published.aircraft.adminNote, undefined);
+  assert.equal(published.aircraft.operatorName, "Lake Air");
+  assert.equal(service.getAircraft(submitted.aircraft.id).operatorEmail, undefined);
+  assert.equal(service.getOperator("pilot@example.com").fleet[0].operatorEmail, "pilot@example.com");
+  assert.equal(service.getOperator("pilot@example.com").fleet[0].operatorId, service.getOperator("pilot@example.com").operator.id);
 });
 
 test("charter quotation acceptance creates a confirmed-path booking and analytics", () => {
