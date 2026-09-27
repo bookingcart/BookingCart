@@ -761,11 +761,24 @@ test("booking-confirm endpoint does not trust a caller-supplied session id", asy
     assert.equal(forged.body.ok, false);
     assert.deepEqual(retrieved, ["cs_forged"]);
 
-    const pending = responseRecorder();
+    const hidden = responseRecorder();
     await aviationHandler({
       method: "GET",
       headers: {},
       query: { ref: booking.ref },
+      params: { action: "booking" },
+      body: {},
+      socket: {},
+    }, hidden);
+    assert.equal(hidden.statusCode, 403);
+    assert.equal(hidden.body.ok, false);
+    assert.equal(hidden.body.booking, undefined);
+
+    const pending = responseRecorder();
+    await aviationHandler({
+      method: "GET",
+      headers: {},
+      query: { ref: booking.ref, email: booking.email },
       params: { action: "booking" },
       body: {},
       socket: {},
@@ -788,6 +801,71 @@ test("booking-confirm endpoint does not trust a caller-supplied session id", asy
     assert.equal(paid.body.booking.status, "confirmed");
   } finally {
     aviationHandler.resetAviationStripeClient();
+    aviationHandler.resetAviationRuntime();
+    if (previousDb === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDb;
+  }
+});
+
+test("unauthenticated analytics GET is rejected", async () => {
+  const previousDb = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  aviationHandler.resetAviationRuntime();
+  try {
+    const res = responseRecorder();
+    await aviationHandler({
+      method: "GET",
+      headers: {},
+      query: { action: "analytics" },
+      params: {},
+      body: {},
+      socket: {},
+    }, res);
+    assert.ok(res.statusCode === 401 || res.statusCode === 503);
+    assert.equal(res.body.ok, false);
+    assert.equal(res.body.analytics, undefined);
+    assert.ok(res.body.error);
+
+    const saved = responseRecorder();
+    await aviationHandler({
+      method: "POST",
+      headers: {},
+      query: {},
+      params: { action: "itinerary-save" },
+      body: {
+        email: "guest@example.com",
+        title: "Safari week",
+        items: [{ type: "hotel", title: "Lodge", price: 400 }],
+      },
+      socket: {},
+    }, saved);
+    assert.equal(saved.statusCode, 200, saved.body && saved.body.error);
+    const ref = saved.body.itinerary.ref;
+
+    const leaked = responseRecorder();
+    await aviationHandler({
+      method: "GET",
+      headers: {},
+      query: { ref },
+      params: { action: "itinerary" },
+      body: {},
+      socket: {},
+    }, leaked);
+    assert.equal(leaked.statusCode, 404);
+    assert.equal(leaked.body.itinerary, undefined);
+
+    const owned = responseRecorder();
+    await aviationHandler({
+      method: "GET",
+      headers: {},
+      query: { ref, email: "guest@example.com" },
+      params: { action: "itinerary" },
+      body: {},
+      socket: {},
+    }, owned);
+    assert.equal(owned.statusCode, 200);
+    assert.equal(owned.body.itinerary.ref, ref);
+  } finally {
     aviationHandler.resetAviationRuntime();
     if (previousDb === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = previousDb;

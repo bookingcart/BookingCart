@@ -87,6 +87,19 @@ function queryValue(req, key) {
   return req.query?.[key] ?? req.body?.[key];
 }
 
+async function callerEmails(req) {
+  const supplied = String(queryValue(req, "email") || "").trim().toLowerCase();
+  const auth = await verifyRequestBearer(req);
+  const bearer = auth.ok ? String(auth.email || "").trim().toLowerCase() : "";
+  return { supplied, bearer };
+}
+
+function emailOwnsRecord(ownerEmail, callers) {
+  const owner = String(ownerEmail || "").trim().toLowerCase();
+  if (!owner) return false;
+  return callers.supplied === owner || callers.bearer === owner;
+}
+
 let stripeClient;
 let stripeOverride;
 
@@ -275,18 +288,26 @@ module.exports = async function aviationHandler(req, res) {
     }
 
     if (action === "analytics" && req.method === "GET") {
+      const admin = await requireAdminEmail(req);
+      if (!admin.ok) return res.status(admin.status).json({ ok: false, error: admin.error });
       return res.json({ ok: true, analytics: service.analytics() });
     }
 
     if (action === "booking" && req.method === "GET") {
       const booking = service.getBooking(String(queryValue(req, "ref") || ""));
       if (!booking) return res.status(404).json({ ok: false, error: "Booking not found" });
+      const callers = await callerEmails(req);
+      if (!emailOwnsRecord(booking.email, callers)) {
+        return res.status(403).json({ ok: false, error: "You cannot view this booking" });
+      }
       const aircraft = service.getAircraft(booking.aircraftId);
       return res.json({ ok: true, booking, report: buildFlightReport(booking, aircraft) });
     }
 
     if (action === "itinerary" && req.method === "GET") {
-      const itinerary = service.getItinerary(String(queryValue(req, "ref") || ""), queryValue(req, "email"));
+      const ref = String(queryValue(req, "ref") || "");
+      const callers = await callerEmails(req);
+      const itinerary = service.getItinerary(ref, callers.supplied) || service.getItinerary(ref, callers.bearer);
       if (!itinerary) return res.status(404).json({ ok: false, error: "Itinerary not found" });
       return res.json({ ok: true, itinerary });
     }

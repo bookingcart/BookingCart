@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AviationLayout from "../components/aviation/AviationLayout.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { aviationRequest, money } from "../lib/aviationClient.js";
 
 export default function AviationConfirmationPage() {
   const [params] = useSearchParams();
+  const { getToken } = useAuth();
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState("");
 
@@ -13,15 +15,16 @@ export default function AviationConfirmationPage() {
     const ref = params.get("ref");
     if (!ref) return;
     const email = sessionStorage.getItem(`aviation-booking-${ref}`) || "";
+    const token = getToken();
     const finish = params.get("paid") === "1" && email
       ? aviationRequest("booking-confirm", { method: "POST", body: { ref, email, method: "card", sessionId: params.get("session_id") || "" } })
       : Promise.resolve();
     finish
       .catch((err) => setError(err.message || "Payment could not be confirmed"))
-      .then(() => aviationRequest("booking", { query: { ref } }))
+      .then(() => aviationRequest("booking", { token, query: { ref, email } }))
       .then((data) => setBooking(data.booking))
       .catch((err) => setError(err.message));
-  }, [params]);
+  }, [params, getToken]);
 
   return (
     <AviationLayout>
