@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AviationLayout from "../components/aviation/AviationLayout.jsx";
-import { aviationRequest, durationLabel, money } from "../lib/aviationClient.js";
+import { aviationRequest, durationLabel, money, stripeCheckoutOutcome } from "../lib/aviationClient.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function AviationCheckoutPage() {
@@ -53,12 +53,18 @@ export default function AviationCheckoutPage() {
             cancelPath: `/aviation/checkout?${params.toString()}`,
           }),
         });
-        const session = await response.json();
-        if (!response.ok || !session.url) {
-          throw new Error(session.error || "Card checkout could not be started");
+        const session = await response.json().catch(() => ({}));
+        const outcome = stripeCheckoutOutcome({
+          ok: response.ok,
+          status: response.status,
+          url: session.url,
+          error: session.error,
+        });
+        if (outcome.action === "redirect") {
+          window.location.href = outcome.url;
+          return;
         }
-        window.location.href = session.url;
-        return;
+        if (outcome.action === "error") throw new Error(outcome.error);
       }
       await aviationRequest("booking-confirm", { method: "POST", body: { ref: created.booking.ref, email: contact.email, method: "invoice" } });
       window.location.href = `/aviation/confirmation?ref=${created.booking.ref}`;

@@ -86,3 +86,13 @@ export async function aviationRequest(action, options = {}) {
   }
   return data;
 }
+
+const STRIPE_UNCONFIGURED = /stripe is not configured|misconfigured/i;
+
+export function stripeCheckoutOutcome({ ok = false, status, url, error } = {}) {
+  const message = String(error || "").trim();
+  const unconfigured = Number(status) === 503 || STRIPE_UNCONFIGURED.test(message);
+  if (ok && url) return { action: "redirect", url: String(url) };
+  if (unconfigured) return { action: "invoice" };
+  return { action: "error", error: message || "Card checkout could not be started" };
+}

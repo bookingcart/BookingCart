@@ -793,3 +793,31 @@ test("booking-confirm endpoint does not trust a caller-supplied session id", asy
     else process.env.DATABASE_URL = previousDb;
   }
 });
+
+test("card checkout falls back to invoice only when Stripe is unconfigured", async () => {
+  const { stripeCheckoutOutcome } = await import("../src/lib/aviationClient.js");
+  const missingKey = "Stripe is not configured (missing STRIPE_SECRET_KEY)";
+  const restrictedKey = "Stripe is misconfigured: STRIPE_SECRET_KEY is a restricted key (rk_*). Use a secret key (sk_test_* or sk_live_*) for checkout sessions.";
+
+  assert.deepEqual(stripeCheckoutOutcome({ ok: true, status: 200, url: "https://checkout.stripe.com/c/pay_cs" }), {
+    action: "redirect",
+    url: "https://checkout.stripe.com/c/pay_cs",
+  });
+  assert.equal(stripeCheckoutOutcome({ ok: false, status: 503, error: missingKey }).action, "invoice");
+  assert.equal(stripeCheckoutOutcome({ ok: false, status: 503, error: restrictedKey }).action, "invoice");
+  assert.equal(stripeCheckoutOutcome({ ok: false, status: 503, error: "Stripe is not configured with a valid STRIPE_SECRET_KEY" }).action, "invoice");
+  assert.equal(stripeCheckoutOutcome({ ok: false, status: 503 }).action, "invoice");
+
+  for (const failure of [
+    { ok: false, status: 400, error: "amountCents must be a positive integer" },
+    { ok: false, status: 500, error: "Unable to create checkout session" },
+    { ok: false, status: 502, error: "Bad gateway" },
+    { ok: true, status: 200 },
+    { ok: false, status: 500 },
+  ]) {
+    const outcome = stripeCheckoutOutcome(failure);
+    assert.equal(outcome.action, "error");
+    assert.notEqual(outcome.action, "invoice");
+    assert.ok(outcome.error);
+  }
+});
