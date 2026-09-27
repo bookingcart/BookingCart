@@ -176,6 +176,140 @@ test("charter quotation acceptance creates a confirmed-path booking and analytic
   assert.ok(analytics.popularRoutes[0].route.includes("EBB"));
 });
 
+// Ids are millisecond timestamps, so rekey each record before the next insert.
+function registerVerifiedOperator(service, email, companyName, id) {
+  service.saveOperator(email, {
+    companyName,
+    baseAirport: "EBB",
+    aoc: "UG-AOC-501",
+    insurance: "Cover",
+    regulatoryStatus: "compliant",
+  });
+  const operator = service.getOperator(email).operator;
+  if (operator.id !== id) {
+    service.operators.delete(operator.id);
+    operator.id = id;
+    service.operators.set(id, operator);
+  }
+  const reviewed = service.reviewOperator(id, "verified");
+  assert.equal(reviewed.ok, true);
+}
+
+function approveAircraft(service, email, input) {
+  const stableId = input.id;
+  const payload = { ...input };
+  delete payload.id;
+  const saved = service.saveAircraft(email, {
+    manufacturer: "Cessna",
+    model: "CJ2",
+    year: 2018,
+    baseAirport: "EBB",
+    passengers: 6,
+    rangeNm: 1600,
+    cruiseSpeedKt: 400,
+    hourlyRate: 3900,
+    safety: {
+      aoc: "UG-AOC-501",
+      certification: "UCAA",
+      insurance: "Hull",
+      maintenanceCurrent: true,
+      pilotCertifications: ["ATPL"],
+      regulatoryStatus: "compliant",
+    },
+    submit: true,
+    ...payload,
+  });
+  assert.equal(saved.ok, true, saved.error);
+  const aircraft = saved.aircraft;
+  if (stableId && aircraft.id !== stableId) {
+    service.aircraftMap.delete(aircraft.id);
+    aircraft.id = stableId;
+    service.aircraftMap.set(stableId, aircraft);
+  }
+  const approved = service.reviewAircraft(aircraft.id, "approved");
+  assert.equal(approved.ok, true, approved.error);
+  return approved.aircraft;
+}
+
+test("verified operators only see assigned or fleet-matching charters", () => {
+  const service = createAviationService();
+  registerVerifiedOperator(service, "alpha@example.com", "Alpha Jets", "op_alpha");
+  registerVerifiedOperator(service, "bravo@example.com", "Bravo Heli", "op_bravo");
+  const alphaJet = approveAircraft(service, "alpha@example.com", {
+    id: "ac_alpha",
+    name: "Alpha Light",
+    category: "light_jet",
+    registration: "5X-ALP1",
+  });
+  const bravoHeli = approveAircraft(service, "bravo@example.com", {
+    id: "ac_bravo",
+    name: "Bravo Scenic",
+    category: "scenic",
+    registration: "5X-BRV1",
+  });
+
+  const assigned = service.createCharter({
+    email: "guest-a@example.com",
+    name: "Assigned Guest",
+    phone: "+256700000001",
+    passengers: 2,
+    legs: [{ from: "EBB", to: "NBO", date: "2026-12-01", time: "09:00" }],
+    aircraftCategory: "light_jet",
+    preferredAircraftId: alphaJet.id,
+    notes: "Assigned catering note",
+  });
+  const matching = service.createCharter({
+    email: "guest-m@example.com",
+    name: "Matching Guest",
+    phone: "+256700000002",
+    passengers: 3,
+    legs: [{ from: "EBB", to: "KGL", date: "2026-12-02", time: "10:00" }],
+    aircraftCategory: "light_jet",
+    notes: "Fleet match note",
+  });
+  const unrelated = service.createCharter({
+    email: "secret@example.com",
+    name: "Private Guest",
+    phone: "+256700111222",
+    passengers: 2,
+    legs: [{ from: "EBB", to: "KLA", date: "2026-12-03", time: "11:00" }],
+    aircraftCategory: "scenic",
+    preferredAircraftId: bravoHeli.id,
+    notes: "Private medical note",
+  });
+  assert.equal(assigned.ok, true);
+  assert.equal(matching.ok, true);
+  assert.equal(unrelated.ok, true);
+
+  const alphaPortal = service.getOperator("alpha@example.com");
+  const alphaRefs = alphaPortal.charters.map((item) => item.ref).sort();
+  assert.deepEqual(alphaRefs, [assigned.charter.ref, matching.charter.ref].sort());
+  assert.deepEqual(service.listCharters({ operatorEmail: "alpha@example.com" }).map((item) => item.ref).sort(), alphaRefs);
+  assert.equal(alphaPortal.charters.some((item) => item.notes === "Private medical note" || item.email === "secret@example.com" || item.phone === "+256700111222"), false);
+
+  const bravoRefs = service.getOperator("bravo@example.com").charters.map((item) => item.ref);
+  assert.deepEqual(bravoRefs, [unrelated.charter.ref]);
+  assert.equal(bravoRefs.includes(assigned.charter.ref), false);
+
+  service.saveOperator("pending@example.com", { companyName: "Pending Air", baseAirport: "EBB" });
+  assert.deepEqual(service.getOperator("pending@example.com").charters, []);
+
+  const leaked = service.operatorCharterAction("alpha@example.com", unrelated.charter.ref, { action: "reject" });
+  assert.equal(leaked.ok, false);
+  assert.equal(leaked.charter, undefined);
+  assert.equal(JSON.stringify(leaked).includes("Private medical note"), false);
+  assert.equal(JSON.stringify(leaked).includes("secret@example.com"), false);
+  assert.equal(service.charters.get(unrelated.charter.ref).status, "requested");
+
+  const quoted = service.submitQuotation("alpha@example.com", unrelated.charter.ref, { aircraftId: alphaJet.id, amount: 5000 });
+  assert.equal(quoted.ok, false);
+  assert.equal(quoted.charter, undefined);
+
+  const visible = service.operatorCharterAction("alpha@example.com", assigned.charter.ref, { action: "negotiate", message: "Can depart at 09:30" });
+  assert.equal(visible.ok, true);
+  assert.equal(visible.charter.ref, assigned.charter.ref);
+});
+
 test("combined itinerary totals jet, helicopter, lodge, park, and transfer", () => {
   const service = createAviationService();
   const preset = service.presetItinerary("murchison");
