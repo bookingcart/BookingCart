@@ -273,6 +273,17 @@ const bcGuideBookings = pgTable(
   ]
 );
 
+const bcAviationRecords = pgTable(
+  "bc_aviation_records",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").default({}).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [index("idx_aviation_records_kind").on(table.kind)]
+);
+
 module.exports = {
   baAccount,
   baSession,
@@ -280,6 +291,7 @@ module.exports = {
   baVerification,
   bcAdminAudit,
   bcAttractionEvents,
+  bcAviationRecords,
   bcBookings,
   bcGuideBookings,
   bcGuides,

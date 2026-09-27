@@ -26,6 +26,7 @@ const supportHandler = require("../../api-routes/support");
 const ticketDownloadHandler = require("../../api-routes/ticket-download");
 const priceAlertHandler = require("../../api-routes/price-alert");
 const attractionsHandler = require("../../api-routes/attractions");
+const aviationHandler = require("../../api-routes/aviation");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const stripe = STRIPE_SECRET_KEY && !STRIPE_SECRET_KEY.startsWith("rk_") ? Stripe(STRIPE_SECRET_KEY) : null;
@@ -852,6 +853,11 @@ exports.handler = async (event) => {
 
     if (route === "price-alert" && event.httpMethod === "POST") {
       return await invokeExpressHandler(priceAlertHandler, event);
+    }
+
+    if (route === "aviation" || route.startsWith("aviation/")) {
+      const action = route === "aviation" ? "" : route.slice("aviation/".length).split("/")[0];
+      return await invokeExpressHandler(aviationHandler, event, action ? { action } : {});
     }
 
     if (route === "attractions/destinations" && event.httpMethod === "GET") return await invokeExpressHandler(attractionsHandler, event, { action: "destinations" });

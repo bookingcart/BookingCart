@@ -119,6 +119,12 @@ The deploy runner is intentionally verbose. It prints the migration journal stat
 
 Set `DATABASE_URL` in every Vercel environment that builds this branch, including Preview, because migrations are forced during build.
 
+## Private jets and charters
+
+Luxury aviation lives at `/aviation`. Guests can search jets, helicopters, and safari charters, request multi-leg quotes, and combine a flight with a lodge, park tickets, and ground transfer in one itinerary. Operators register at `/aviation/operators/join`; administrators review safety files at `/admin/aviation`.
+
+Aircraft are bookable only after the operator is verified and the listing has an AOC, certification, insurance, current maintenance, and pilot certifications. Apply migration `db/migrations/0005_aviation.sql` before using a persistent database. Without `DATABASE_URL`, the API keeps operator records in memory and still serves the seeded fleet.
+
 ## Authentication
 
 - Existing `/api/auth/*` routes remain available during the Better Auth migration.
