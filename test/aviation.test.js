@@ -328,6 +328,116 @@ test("verified operators only see assigned or fleet-matching charters", () => {
   assert.equal(visible.charter.ref, assigned.charter.ref);
 });
 
+test("quotation rejects an aircraft that cannot operate the charter and still accepts a capable one", () => {
+  const service = createAviationService();
+  registerVerifiedOperator(service, "fit@example.com", "Fit Air", "op_fit");
+  const shortHaul = approveAircraft(service, "fit@example.com", {
+    id: "ac_short",
+    name: "Short Hopper",
+    category: "light_jet",
+    registration: "5X-SHRT",
+    passengers: 2,
+    rangeNm: 250,
+  });
+  const capable = approveAircraft(service, "fit@example.com", {
+    id: "ac_capable",
+    name: "Capable Jet",
+    category: "light_jet",
+    registration: "5X-CAP1",
+    passengers: 8,
+    rangeNm: 3500,
+  });
+
+  const longHaul = service.createCharter({
+    email: "guest-fit@example.com",
+    name: "Range Guest",
+    passengers: 2,
+    legs: [
+      { from: "EBB", to: "MFU", date: "2026-12-10", time: "08:00" },
+      { from: "MFU", to: "DXB", date: "2026-12-12", time: "11:00" },
+    ],
+    aircraftCategory: "light_jet",
+    preferredAircraftId: shortHaul.id,
+  });
+  assert.equal(longHaul.ok, true);
+  const ranged = service.submitQuotation("fit@example.com", longHaul.charter.ref, { aircraftId: shortHaul.id, amount: 18000 });
+  assert.equal(ranged.ok, false);
+  assert.match(ranged.error, /cannot operate this itinerary/);
+  assert.equal(service.charters.get(longHaul.charter.ref).quotations.length, 0);
+  assert.equal(service.charters.get(longHaul.charter.ref).status, "requested");
+
+  const viaAction = service.operatorCharterAction("fit@example.com", longHaul.charter.ref, { aircraftId: shortHaul.id, amount: 18000 });
+  assert.equal(viaAction.ok, false);
+  assert.equal(service.charters.get(longHaul.charter.ref).quotations.length, 0);
+
+  const crowded = service.createCharter({
+    email: "guest-cap@example.com",
+    name: "Capacity Guest",
+    passengers: 6,
+    legs: [{ from: "EBB", to: "MFU", date: "2026-12-11", time: "08:00" }],
+    aircraftCategory: "light_jet",
+    preferredAircraftId: shortHaul.id,
+  });
+  const capacity = service.submitQuotation("fit@example.com", crowded.charter.ref, { aircraftId: shortHaul.id, amount: 4000 });
+  assert.equal(capacity.ok, false);
+  assert.match(capacity.error, /capacity/);
+  assert.equal(service.charters.get(crowded.charter.ref).quotations.length, 0);
+
+  const unknown = service.createCharter({
+    email: "guest-miss@example.com",
+    name: "Missing Airport",
+    passengers: 2,
+    legs: [{ from: "EBB", to: "NOWHERE", date: "2026-12-11", time: "08:00" }],
+    aircraftCategory: "light_jet",
+    preferredAircraftId: capable.id,
+  });
+  const missingAirport = service.submitQuotation("fit@example.com", unknown.charter.ref, { aircraftId: capable.id, amount: 5000 });
+  assert.equal(missingAirport.ok, false);
+  assert.match(missingAirport.error, /airport is not in the directory/);
+
+  service.setAircraftOps("fit@example.com", capable.id, {
+    availability: [{ status: "blocked", from: "2026-12-11", to: "2026-12-11" }],
+  });
+  const blockedQuote = service.submitQuotation("fit@example.com", crowded.charter.ref, { aircraftId: capable.id, amount: 5000 });
+  assert.equal(blockedQuote.ok, false);
+  assert.match(blockedQuote.error, /not available/);
+  service.setAircraftOps("fit@example.com", capable.id, { availability: [] });
+
+  const stored = service.charters.get(longHaul.charter.ref);
+  stored.quotations.push({
+    id: "QTE-UNFIT",
+    operatorId: "op_fit",
+    operatorEmail: "fit@example.com",
+    operatorName: "Fit Air",
+    aircraftId: shortHaul.id,
+    aircraftName: shortHaul.name,
+    amount: 18000,
+    currency: "USD",
+    schedule: "08:00",
+    status: "offered",
+  });
+  stored.status = "quoted";
+  const acceptedUnfit = service.decideCharter("guest-fit@example.com", longHaul.charter.ref, { action: "accept", quotationId: "QTE-UNFIT" });
+  assert.equal(acceptedUnfit.ok, false);
+  assert.equal(acceptedUnfit.booking, undefined);
+  assert.equal(service.charters.get(longHaul.charter.ref).status, "quoted");
+  assert.equal(service.bookings.size, 0);
+
+  capable.safety.aoc = "";
+  const unsafe = service.submitQuotation("fit@example.com", crowded.charter.ref, { aircraftId: capable.id, amount: 6000 });
+  assert.equal(unsafe.ok, false);
+  assert.match(unsafe.error, /Air Operator Certificate/);
+  capable.safety.aoc = "UG-AOC-501";
+
+  const quoted = service.submitQuotation("fit@example.com", crowded.charter.ref, { aircraftId: capable.id, amount: 6400, schedule: "08:00 LT" });
+  assert.equal(quoted.ok, true, quoted.error);
+  assert.equal(quoted.charter.quotations.length, 1);
+  const accepted = service.decideCharter("guest-cap@example.com", crowded.charter.ref, { action: "accept", quotationId: quoted.charter.quotations[0].id });
+  assert.equal(accepted.ok, true, accepted.error);
+  assert.equal(accepted.charter.status, "confirmed");
+  assert.equal(accepted.booking.quote.price, 6400);
+});
+
 test("combined itinerary totals jet, helicopter, lodge, park, and transfer", () => {
   const service = createAviationService();
   const preset = service.presetItinerary("murchison");
