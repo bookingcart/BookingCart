@@ -87,6 +87,140 @@ function queryValue(req, key) {
   return req.query?.[key] ?? req.body?.[key];
 }
 
+let stripeClient;
+let stripeOverride;
+
+function setAviationStripeClient(client) {
+  stripeOverride = client;
+}
+
+function resetAviationStripeClient() {
+  stripeOverride = undefined;
+  stripeClient = undefined;
+}
+
+function getAviationStripeClient() {
+  if (stripeOverride !== undefined) return stripeOverride;
+  if (stripeClient !== undefined) return stripeClient;
+  const key = String(process.env.STRIPE_SECRET_KEY || "");
+  if (!key || key.startsWith("rk_")) {
+    stripeClient = null;
+    return null;
+  }
+  const Stripe = require("stripe");
+  stripeClient = Stripe(key);
+  return stripeClient;
+}
+
+function readCents(value) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(parsed);
+}
+
+function quoteAmountCents(booking) {
+  const price = Number(booking?.quote?.price);
+  if (!Number.isFinite(price)) return null;
+  return Math.round(price * 100);
+}
+
+async function verifyAviationCardSession(stripe, { sessionId, booking } = {}) {
+  if (!stripe || typeof stripe.checkout?.sessions?.retrieve !== "function") {
+    return { ok: false, status: 503, error: "Card payments are not available" };
+  }
+  const id = String(sessionId || "").trim();
+  if (!id || id.length > 255) {
+    return { ok: false, status: 400, error: "A Stripe checkout session is required" };
+  }
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.retrieve(id);
+  } catch {
+    return { ok: false, status: 400, error: "Unable to verify checkout session" };
+  }
+
+  if (!session || session.id !== id || session.payment_status !== "paid" || session.status !== "complete") {
+    return { ok: false, status: 400, error: "Checkout session is not paid" };
+  }
+  if (session.mode && session.mode !== "payment") {
+    return { ok: false, status: 400, error: "Checkout session is not a card payment" };
+  }
+
+  const bookingRef = String(session.metadata?.bookingRef || "").trim();
+  const clientRef = String(session.client_reference_id || "").trim();
+  if (!bookingRef || bookingRef !== booking.ref || (clientRef && clientRef !== booking.ref)) {
+    return { ok: false, status: 400, error: "Checkout session does not match this booking" };
+  }
+  if (String(session.metadata?.paymentPurpose || "").trim().toLowerCase() !== "aviation") {
+    return { ok: false, status: 400, error: "Checkout session is not an aviation payment" };
+  }
+
+  const expectedCents = quoteAmountCents(booking);
+  const paidCents = readCents(session.amount_total);
+  const metadataCents = readCents(session.metadata?.amountCents);
+  if (expectedCents == null || expectedCents < 50 || paidCents !== expectedCents || metadataCents !== expectedCents) {
+    return { ok: false, status: 400, error: "Checkout amount does not match the booking quote" };
+  }
+
+  const currency = String(session.currency || "").trim().toUpperCase();
+  const expectedCurrency = String(booking.quote?.currency || "USD").trim().toUpperCase();
+  if (!currency || currency !== expectedCurrency) {
+    return { ok: false, status: 400, error: "Checkout currency does not match the booking quote" };
+  }
+
+  const sessionEmail = String(session.customer_email || session.customer_details?.email || "").trim().toLowerCase();
+  if (sessionEmail && sessionEmail !== String(booking.email || "").toLowerCase()) {
+    return { ok: false, status: 400, error: "Checkout session does not match this booking" };
+  }
+
+  return {
+    ok: true,
+    payment: {
+      method: "card",
+      sessionId: id,
+      status: "paid",
+      cardVerified: true,
+      amountCents: paidCents,
+      currency,
+    },
+  };
+}
+
+async function confirmAviationBooking(service, body = {}, { requesterEmail = "", stripe } = {}) {
+  const existing = service.getBooking(String(body.ref || ""));
+  if (!existing) return { ok: false, status: 404, error: "Booking not found" };
+  const requester = String(body.email || requesterEmail || "").trim().toLowerCase();
+  if (!requester || requester !== existing.email) {
+    return { ok: false, status: 403, error: "You cannot confirm this booking" };
+  }
+
+  const requestedMethod = String(body.method || body.payment?.method || "").trim().toLowerCase();
+  const nestedMethod = String(body.payment?.method || "").trim().toLowerCase();
+  if (body.method && nestedMethod && nestedMethod !== requestedMethod) {
+    return { ok: false, status: 400, error: "Choose card or invoice confirmation" };
+  }
+
+  let payment;
+  if (requestedMethod === "invoice") {
+    payment = { method: "invoice" };
+  } else if (requestedMethod === "card") {
+    const verified = await verifyAviationCardSession(stripe, {
+      sessionId: body.sessionId || body.payment?.sessionId,
+      booking: existing,
+    });
+    if (!verified.ok) return { ok: false, status: verified.status || 400, error: verified.error };
+    payment = verified.payment;
+  } else {
+    return { ok: false, status: 400, error: "Choose card or invoice confirmation" };
+  }
+
+  const confirmed = service.confirmBooking(existing.ref, payment);
+  if (!confirmed.ok) return { ok: false, status: 400, error: confirmed.error || "Unable to confirm booking" };
+  return { ok: true, status: 200, booking: confirmed.booking };
+}
+
 module.exports = async function aviationHandler(req, res) {
   applyCors(req, res);
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -234,13 +368,13 @@ module.exports = async function aviationHandler(req, res) {
     }
 
     if (action === "booking-confirm") {
-      const existing = service.getBooking(body.ref);
-      if (!existing) return res.status(404).json({ ok: false, error: "Booking not found" });
-      const requester = (body.email || email || "").toLowerCase();
-      if (!requester || requester !== existing.email) return res.status(403).json({ ok: false, error: "You cannot confirm this booking" });
-      const confirmed = service.confirmBooking(body.ref, body.payment || body);
+      const confirmed = await confirmAviationBooking(service, body, {
+        requesterEmail: email,
+        stripe: getAviationStripeClient(),
+      });
+      if (!confirmed.ok) return res.status(confirmed.status).json({ ok: false, error: confirmed.error });
       await persist(runtimeState, [{ kind: "booking", id: confirmed.booking.ref, payload: confirmed.booking }]);
-      return res.json(confirmed);
+      return res.json({ ok: true, booking: confirmed.booking });
     }
 
     if (action === "crew") {
@@ -312,3 +446,7 @@ module.exports = async function aviationHandler(req, res) {
 };
 
 module.exports.resetAviationRuntime = resetAviationRuntime;
+module.exports.setAviationStripeClient = setAviationStripeClient;
+module.exports.resetAviationStripeClient = resetAviationStripeClient;
+module.exports.verifyAviationCardSession = verifyAviationCardSession;
+module.exports.confirmAviationBooking = confirmAviationBooking;

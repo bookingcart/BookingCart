@@ -17,7 +17,7 @@ export default function AviationConfirmationPage() {
       ? aviationRequest("booking-confirm", { method: "POST", body: { ref, email, method: "card", sessionId: params.get("session_id") || "" } })
       : Promise.resolve();
     finish
-      .catch(() => {})
+      .catch((err) => setError(err.message || "Payment could not be confirmed"))
       .then(() => aviationRequest("booking", { query: { ref } }))
       .then((data) => setBooking(data.booking))
       .catch((err) => setError(err.message));

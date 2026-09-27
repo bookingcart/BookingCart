@@ -54,10 +54,11 @@ export default function AviationCheckoutPage() {
           }),
         });
         const session = await response.json();
-        if (session.url) {
-          window.location.href = session.url;
-          return;
+        if (!response.ok || !session.url) {
+          throw new Error(session.error || "Card checkout could not be started");
         }
+        window.location.href = session.url;
+        return;
       }
       await aviationRequest("booking-confirm", { method: "POST", body: { ref: created.booking.ref, email: contact.email, method: "invoice" } });
       window.location.href = `/aviation/confirmation?ref=${created.booking.ref}`;

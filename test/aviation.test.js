@@ -213,3 +213,245 @@ test("aviation routes are registered for Express and Netlify", () => {
   assert.match(netlify, /aviationHandler/);
   assert.match(netlify, /route === "aviation"/);
 });
+
+function paidCheckoutSession(booking, amountCents, overrides = {}) {
+  const metadata = {
+    bookingRef: booking.ref,
+    paymentPurpose: "aviation",
+    amountCents: String(amountCents),
+    ...(overrides.metadata || {}),
+  };
+  return {
+    id: "cs_test_paid",
+    status: "complete",
+    payment_status: "paid",
+    mode: "payment",
+    amount_total: amountCents,
+    currency: String(booking.quote.currency || "USD").toLowerCase(),
+    customer_email: booking.email,
+    client_reference_id: booking.ref,
+    ...overrides,
+    metadata,
+  };
+}
+
+function stripeRetriever(session) {
+  return {
+    checkout: {
+      sessions: {
+        retrieve: async (id) => {
+          if (id !== session.id) throw new Error("No such checkout.session");
+          return session;
+        },
+      },
+    },
+  };
+}
+
+test("card confirmation verifies Stripe before marking a booking paid", async () => {
+  const service = createAviationService();
+  const created = service.createBooking({
+    email: "guest@example.com",
+    name: "Amina",
+    aircraftId: "ac_caravan",
+    origin: "EBB",
+    destination: "MFU",
+    departDate: "2026-11-12",
+    passengers: 2,
+  });
+  assert.equal(created.ok, true);
+  const booking = created.booking;
+  const amountCents = Math.round(booking.quote.price * 100);
+  assert.ok(amountCents >= 50);
+
+  const unverified = service.confirmBooking(booking.ref, { method: "card", sessionId: "cs_forged" });
+  assert.equal(unverified.ok, false);
+  assert.equal(service.getBooking(booking.ref).status, "pending_payment");
+  assert.equal(service.getBooking(booking.ref).payment, null);
+
+  const forged = await aviationHandler.confirmAviationBooking(service, {
+    ref: booking.ref,
+    email: booking.email,
+    method: "card",
+    sessionId: "cs_forged",
+    cardVerified: true,
+  }, { stripe: stripeRetriever(paidCheckoutSession(booking, amountCents)) });
+  assert.equal(forged.ok, false);
+  assert.equal(service.getBooking(booking.ref).payment, null);
+
+  const unpaid = await aviationHandler.verifyAviationCardSession(
+    stripeRetriever(paidCheckoutSession(booking, amountCents, { id: "cs_unpaid", payment_status: "unpaid" })),
+    { sessionId: "cs_unpaid", booking }
+  );
+  assert.equal(unpaid.ok, false);
+
+  const wrongRef = await aviationHandler.verifyAviationCardSession(
+    stripeRetriever(paidCheckoutSession(booking, amountCents, { id: "cs_other", metadata: { bookingRef: "AVN-OTHER" } })),
+    { sessionId: "cs_other", booking }
+  );
+  assert.equal(wrongRef.ok, false);
+
+  const wrongAmount = await aviationHandler.verifyAviationCardSession(
+    stripeRetriever(paidCheckoutSession(booking, amountCents, {
+      id: "cs_amount",
+      amount_total: amountCents - 100,
+      metadata: { amountCents: String(amountCents - 100) },
+    })),
+    { sessionId: "cs_amount", booking }
+  );
+  assert.equal(wrongAmount.ok, false);
+
+  const wrongPurpose = await aviationHandler.verifyAviationCardSession(
+    stripeRetriever(paidCheckoutSession(booking, amountCents, {
+      id: "cs_purpose",
+      metadata: { paymentPurpose: "booking" },
+    })),
+    { sessionId: "cs_purpose", booking }
+  );
+  assert.equal(wrongPurpose.ok, false);
+
+  const matched = await aviationHandler.confirmAviationBooking(service, {
+    ref: booking.ref,
+    email: booking.email,
+    method: "card",
+    sessionId: "cs_test_paid",
+  }, { stripe: stripeRetriever(paidCheckoutSession(booking, amountCents)) });
+  assert.equal(matched.ok, true);
+  assert.equal(matched.booking.status, "confirmed");
+  assert.equal(matched.booking.payment.method, "card");
+  assert.equal(matched.booking.payment.status, "paid");
+  assert.equal(matched.booking.payment.sessionId, "cs_test_paid");
+
+  const second = service.createBooking({
+    email: "guest@example.com",
+    aircraftId: "ac_caravan",
+    origin: "EBB",
+    destination: "MFU",
+    departDate: "2026-11-13",
+    passengers: 2,
+  });
+  let stripeCalled = false;
+  const invoiced = await aviationHandler.confirmAviationBooking(service, {
+    ref: second.booking.ref,
+    email: "guest@example.com",
+    method: "invoice",
+    sessionId: "cs_should_not_be_trusted",
+  }, {
+    stripe: {
+      checkout: {
+        sessions: {
+          retrieve: async () => {
+            stripeCalled = true;
+            throw new Error("invoice path must not retrieve a card session");
+          },
+        },
+      },
+    },
+  });
+  assert.equal(stripeCalled, false);
+  assert.equal(invoiced.ok, true);
+  assert.equal(invoiced.booking.status, "confirmed");
+  assert.equal(invoiced.booking.payment.method, "invoice");
+  assert.equal(invoiced.booking.payment.status, "invoiced");
+  assert.equal(invoiced.booking.payment.sessionId, "");
+
+  const implicit = await aviationHandler.confirmAviationBooking(service, {
+    ref: second.booking.ref,
+    email: "guest@example.com",
+    sessionId: "cs_test_paid",
+  }, { stripe: stripeRetriever(paidCheckoutSession(booking, amountCents)) });
+  assert.equal(implicit.ok, false);
+  assert.equal(service.getBooking(second.booking.ref).payment.status, "invoiced");
+});
+
+test("booking-confirm endpoint does not trust a caller-supplied session id", async () => {
+  const previousDb = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  aviationHandler.resetAviationRuntime();
+  aviationHandler.resetAviationStripeClient();
+  try {
+    const created = responseRecorder();
+    await aviationHandler({
+      method: "POST",
+      headers: {},
+      query: {},
+      params: { action: "booking-create" },
+      body: {
+        email: "payer@example.com",
+        aircraftId: "ac_caravan",
+        origin: "EBB",
+        destination: "MFU",
+        departDate: "2026-12-02",
+        passengers: 1,
+      },
+      socket: {},
+    }, created);
+    assert.equal(created.statusCode, 200);
+    assert.equal(created.body.ok, true, created.body && created.body.error);
+    const booking = created.body.booking;
+    const amountCents = Math.round(booking.quote.price * 100);
+    const retrieved = [];
+    aviationHandler.setAviationStripeClient({
+      checkout: {
+        sessions: {
+          retrieve: async (id) => {
+            retrieved.push(id);
+            if (id !== "cs_endpoint_paid") throw new Error("No such checkout.session");
+            return paidCheckoutSession(booking, amountCents, { id });
+          },
+        },
+      },
+    });
+
+    const forged = responseRecorder();
+    await aviationHandler({
+      method: "POST",
+      headers: {},
+      query: {},
+      params: { action: "booking-confirm" },
+      body: {
+        ref: booking.ref,
+        email: booking.email,
+        method: "card",
+        sessionId: "cs_forged",
+        cardVerified: true,
+        payment: { method: "card", status: "paid", cardVerified: true, sessionId: "cs_forged" },
+      },
+      socket: {},
+    }, forged);
+    assert.equal(forged.statusCode, 400);
+    assert.equal(forged.body.ok, false);
+    assert.deepEqual(retrieved, ["cs_forged"]);
+
+    const pending = responseRecorder();
+    await aviationHandler({
+      method: "GET",
+      headers: {},
+      query: { ref: booking.ref },
+      params: { action: "booking" },
+      body: {},
+      socket: {},
+    }, pending);
+    assert.equal(pending.body.booking.status, "pending_payment");
+    assert.equal(pending.body.booking.payment, null);
+
+    const paid = responseRecorder();
+    await aviationHandler({
+      method: "POST",
+      headers: {},
+      query: {},
+      params: { action: "booking-confirm" },
+      body: { ref: booking.ref, email: booking.email, method: "card", sessionId: "cs_endpoint_paid" },
+      socket: {},
+    }, paid);
+    assert.equal(paid.statusCode, 200);
+    assert.equal(paid.body.booking.payment.method, "card");
+    assert.equal(paid.body.booking.payment.status, "paid");
+    assert.equal(paid.body.booking.status, "confirmed");
+  } finally {
+    aviationHandler.resetAviationStripeClient();
+    aviationHandler.resetAviationRuntime();
+    if (previousDb === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDb;
+  }
+});
