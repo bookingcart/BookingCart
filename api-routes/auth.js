@@ -247,6 +247,13 @@ module.exports = async (req, res) => {
       user.isGuide = true;
     }
 
+    try {
+      if (dbReady) {
+        const opRes = await query("SELECT id FROM bc_aviation_records WHERE kind = 'operator' AND LOWER(payload->>'email') = $1 LIMIT 1", [auth.email.toLowerCase()]);
+        if (opRes.rows.length > 0) user.isOperator = true;
+      }
+    } catch (err) {}
+
     return res.json({
       ok: true,
       user,
