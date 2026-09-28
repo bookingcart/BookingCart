@@ -107,6 +107,14 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
         >
           <i className="ph ph-suitcase-rolling text-xl text-slate-400"></i> Bookings & Trips
         </a>
+        <a
+          href="/attraction-dashboard"
+          role="menuitem"
+          className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+          onClick={() => setOpen(false)}
+        >
+          <i className="ph ph-map-trifold text-xl text-violet-500"></i> Attraction Dashboard
+        </a>
         {user?.isOperator && (
           <a
             href="/aviation/dashboard"
