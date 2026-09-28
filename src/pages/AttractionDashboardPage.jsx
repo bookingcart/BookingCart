@@ -20,19 +20,14 @@ const STATUS_CONFIG = {
 const MENU_ITEMS = [
   { id: 'overview',      label: 'Overview',       icon: 'ph-squares-four' },
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
-  { id: 'create',        label: 'Create New',      icon: 'ph-ticket' },
+  { id: 'create',        label: 'Create New',      icon: 'ph-ticket', route: '/list-your-event' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
   { id: 'notifications', label: 'Notifications',   icon: 'ph-bell' },
   { id: 'settings',      label: 'Profile Settings',icon: 'ph-gear' },
 ];
 
 // Site Theme Design Tokens (Matching Homepage & Navbar Attractions styling)
-const ACCENT_BG     = 'bg-amber-500';
-const ACCENT_HOVER  = 'hover:bg-amber-600';
-const ACCENT_TEXT   = 'text-amber-600 dark:text-amber-400';
-const ACCENT_LIGHT  = 'bg-amber-50 dark:bg-amber-950/40';
-const ACCENT_RING   = 'focus:ring-amber-500';
-const ACCENT_SHADOW = 'shadow-sm shadow-amber-500/25';
+const ACCENT_LIGHT   = 'bg-amber-50 dark:bg-amber-950/40';
 const SIDEBAR_ACTIVE = 'bg-amber-500 text-white shadow-md shadow-amber-500/25';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,46 +56,11 @@ function ProgressBar({ value, color = 'bg-amber-500' }) {
   );
 }
 
-// Sparkline chart using SVG
-function Sparkline({ data = [], color = '#f59e0b', height = 48 }) {
-  if (!data.length || data.every(v => v === 0)) {
-    return (
-      <div style={{ height }} className="w-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-        <span className="text-[11px] text-slate-400 font-semibold">No data points recorded yet</span>
-      </div>
-    );
-  }
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
-  const range = max - min || 1;
-  const w = 200;
-  const h = height;
-  const pts = data.map((v, i) => {
-    const x = (i / Math.max(1, data.length - 1)) * w;
-    const y = h - ((v - min) / range) * h;
-    return `${x},${y}`;
-  });
-  const pathD = `M ${pts.join(' L ')}`;
-  const areaD = `M ${pts[0]} L ${pts.join(' L ')} L ${w},${h} L 0,${h} Z`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full overflow-visible" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={`grad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#grad-${color.replace('#','')})`} />
-      <path d={pathD} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 // ─── Modal wrapper ─────────────────────────────────────────────────────────────
 function Modal({ open, onClose, title, children, wide = false }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    if (open) document.addEventListener('keydown', handler);
+    if (open) document.removeEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
@@ -126,7 +86,7 @@ function Modal({ open, onClose, title, children, wide = false }) {
   );
 }
 
-// ─── Form field helpers ────────────────────────────────────────────────────────
+// Form field helpers
 function Field({ label, required, children, hint }) {
   return (
     <div>
@@ -145,12 +105,13 @@ const inputCls = `w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 d
 
 const textareaCls = `${inputCls} resize-none`;
 
-// Homepage-Consistent "List your event or attraction" CTA Button
-function ListAttractionButton({ onClick, label = "List your event or attraction", className = "" }) {
+// Homepage & Navbar-Consistent "List your event or attraction" CTA Button
+function ListAttractionButton({ label = "List your event or attraction", className = "", onClick }) {
+  const navigate = useNavigate();
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={onClick || (() => navigate('/list-your-event'))}
       className={`flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-all shadow-sm shadow-amber-500/25 ${className}`}
     >
       <i className="ph ph-ticket text-base" />
@@ -159,7 +120,7 @@ function ListAttractionButton({ onClick, label = "List your event or attraction"
   );
 }
 
-// ─── Attraction Form (create/edit) ────────────────────────────────────────────
+// ─── Attraction Form (for editing existing attractions) ─────────────────────────
 function AttractionForm({ initial = {}, onSubmit, loading, submitLabel = 'Save Attraction' }) {
   const [form, setForm] = useState({
     name: '', category: '', city: '', country: '', location: '',
@@ -276,7 +237,6 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group flex flex-col">
-      {/* Featured Image */}
       <div className="relative h-40 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/40 dark:to-orange-950/40 overflow-hidden flex-shrink-0">
         {a.featured_image ? (
           <img src={a.featured_image} alt={a.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={e => { e.target.style.display='none'; }} />
@@ -289,7 +249,6 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
         <div className="absolute bottom-3 left-3">
           <StatusBadge status={a.status} />
         </div>
-        {/* Actions menu */}
         <div className="absolute top-2 right-2" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(o => !o)}
@@ -360,7 +319,7 @@ export default function AttractionDashboardPage() {
   const [activeTab, setActiveTab] = useState(tabParam || 'overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Client Data (No dummy fallback)
+  // Client Data
   const [attractions, setAttractions] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -373,15 +332,13 @@ export default function AttractionDashboardPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState('newest');
 
-  // Modals
-  const [showCreate, setShowCreate] = useState(false);
+  // Modals / Targets
   const [editTarget, setEditTarget] = useState(null);
   const [previewTarget, setPreviewTarget] = useState(null);
-  const [createLoading, setCreateLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
 
-  // Authentic notifications state (starts empty until real notifications exist)
-  const [notifs, setNotifs] = useState([]);
+  // Authentic notifications state
+  const [notifs] = useState([]);
 
   // Profile settings
   const [profileForm, setProfileForm] = useState({ name: '', email: '', businessName: '', phone: '', website: '', bio: '' });
@@ -428,10 +385,18 @@ export default function AttractionDashboardPage() {
     loadAttractions(1, true);
   }, [user, navigate, loadAttractions]);
 
-  // Re-fetch on filter change
   useEffect(() => {
     if (user) loadAttractions(1, true);
   }, [statusFilter, search, loadAttractions, user]);
+
+  // Handle tabParam changes
+  useEffect(() => {
+    if (tabParam === 'create') {
+      navigate('/list-your-event');
+    } else if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam, navigate]);
 
   // ── Sorted list ─────────────────────────────────────────────────────────────
   const sortedAttractions = [...attractions].sort((a, b) => {
@@ -441,7 +406,7 @@ export default function AttractionDashboardPage() {
     return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
 
-  // ── Stats (Derived exclusively from client data) ───────────────────────────
+  // ── Stats ───────────────────────────────────────────────────────────────────
   const stats = {
     total: total,
     published: attractions.filter(a => a.status === 'published').length,
@@ -452,30 +417,6 @@ export default function AttractionDashboardPage() {
   };
 
   // ── Actions ─────────────────────────────────────────────────────────────────
-  async function handleCreate(formData) {
-    setCreateLoading(true);
-    try {
-      const res = await fetch('/api/attraction-profiles', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ action: 'create', data: formData }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setAttractions(prev => [data.attraction, ...prev]);
-        setTotal(t => t + 1);
-        setShowCreate(false);
-        setActiveTab('attractions');
-      } else {
-        alert(data.error || 'Failed to create attraction');
-      }
-    } catch {
-      alert('Network error. Please try again.');
-    } finally {
-      setCreateLoading(false);
-    }
-  }
-
   async function handleEdit(formData) {
     if (!editTarget) return;
     setEditLoading(true);
@@ -585,7 +526,14 @@ export default function AttractionDashboardPage() {
             return (
               <button
                 key={item.id}
-                onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }}
+                onClick={() => {
+                  if (item.route) {
+                    navigate(item.route);
+                  } else {
+                    setActiveTab(item.id);
+                  }
+                  setMobileMenuOpen(false);
+                }}
                 className={`w-full px-4 py-3 rounded-2xl font-bold text-xs flex items-center gap-3 transition-all ${
                   active ? SIDEBAR_ACTIVE : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
@@ -603,10 +551,10 @@ export default function AttractionDashboardPage() {
         </nav>
       </div>
 
-      {/* Footer CTA matching homepage */}
+      {/* Footer CTA directly triggering navbar onboarding form (/list-your-event) */}
       <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
         <ListAttractionButton
-          onClick={() => { setShowCreate(true); setMobileMenuOpen(false); }}
+          onClick={() => { navigate('/list-your-event'); setMobileMenuOpen(false); }}
           className="w-full"
         />
         <div className="text-[11px] text-slate-400 text-center font-semibold truncate">
@@ -633,7 +581,7 @@ export default function AttractionDashboardPage() {
             Manage your attraction listings, view authentic analytics, and expand your reach on BookingCart.
           </p>
           <div className="flex flex-wrap gap-3">
-            <ListAttractionButton onClick={() => setShowCreate(true)} />
+            <ListAttractionButton onClick={() => navigate('/list-your-event')} />
             <button onClick={() => setActiveTab('attractions')}
               className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs rounded-xl backdrop-blur-md transition-all flex items-center gap-1.5">
               <i className="ph ph-map-trifold text-base" /> View All Listings
@@ -642,7 +590,7 @@ export default function AttractionDashboardPage() {
         </div>
       </div>
 
-      {/* Metric Cards (Real stats from user attractions) */}
+      {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
           { label: 'Total', value: stats.total, icon: 'ph-map-trifold', color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800', iconColor: 'text-amber-500' },
@@ -664,7 +612,6 @@ export default function AttractionDashboardPage() {
 
       {/* Recent Activity + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Attractions */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-black text-base text-slate-900 dark:text-white">Recent Attractions</h3>
@@ -679,7 +626,7 @@ export default function AttractionDashboardPage() {
               <i className="ph ph-ticket text-5xl text-slate-200 dark:text-slate-700 mb-3" />
               <p className="font-bold text-slate-600 dark:text-slate-400">You haven't created any attractions yet.</p>
               <ListAttractionButton
-                onClick={() => setShowCreate(true)}
+                onClick={() => navigate('/list-your-event')}
                 className="mt-4 inline-flex"
               />
             </div>
@@ -707,12 +654,12 @@ export default function AttractionDashboardPage() {
           )}
         </div>
 
-        {/* Quick Actions + Notifications preview */}
+        {/* Quick Actions */}
         <div className="space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
             <h3 className="font-black text-sm text-slate-900 dark:text-white mb-4">Quick Actions</h3>
             <div className="space-y-2">
-              <ListAttractionButton onClick={() => setShowCreate(true)} className="w-full justify-start" />
+              <ListAttractionButton onClick={() => navigate('/list-your-event')} className="w-full justify-start" />
               {[
                 { label: 'View Analytics', icon: 'ph-chart-line-up', onClick: () => setActiveTab('analytics') },
                 { label: 'Check Notifications', icon: 'ph-bell', onClick: () => setActiveTab('notifications') },
@@ -727,7 +674,6 @@ export default function AttractionDashboardPage() {
             </div>
           </div>
 
-          {/* Notifications preview (Real notifications) */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Notifications</h3>
@@ -763,16 +709,14 @@ export default function AttractionDashboardPage() {
   // ── MY ATTRACTIONS ────────────────────────────────────────────────────────
   const AttractionsTab = () => (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white">My Attractions</h2>
           <p className="text-xs text-slate-500 mt-0.5">{total} listing{total !== 1 ? 's' : ''} in your portfolio</p>
         </div>
-        <ListAttractionButton onClick={() => setShowCreate(true)} />
+        <ListAttractionButton onClick={() => navigate('/list-your-event')} />
       </div>
 
-      {/* Search / Filter / Sort */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -797,14 +741,12 @@ export default function AttractionDashboardPage() {
         </select>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
           <i className="ph ph-spinner-gap text-4xl text-amber-500 animate-spin" />
         </div>
       )}
 
-      {/* Empty State */}
       {!loading && sortedAttractions.length === 0 && (
         <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
           <div className="w-20 h-20 bg-amber-50 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -816,15 +758,14 @@ export default function AttractionDashboardPage() {
           <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
             {search || statusFilter
               ? 'Try adjusting your search or filters.'
-              : 'Start by creating your first attraction listing to publish it on BookingCart!'}
+              : 'Start by creating your first attraction listing using the official BookingCart listing wizard!'}
           </p>
           {!search && !statusFilter && (
-            <ListAttractionButton onClick={() => setShowCreate(true)} className="inline-flex" />
+            <ListAttractionButton onClick={() => navigate('/list-your-event')} className="inline-flex" />
           )}
         </div>
       )}
 
-      {/* Grid */}
       {!loading && sortedAttractions.length > 0 && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -841,7 +782,6 @@ export default function AttractionDashboardPage() {
             ))}
           </div>
 
-          {/* Pagination */}
           {total > LIMIT && (
             <div className="flex items-center justify-center gap-3 pt-4">
               <button disabled={page <= 1} onClick={() => loadAttractions(page - 1)}
@@ -860,7 +800,7 @@ export default function AttractionDashboardPage() {
     </div>
   );
 
-  // ── ANALYTICS (Driven strictly by client data) ────────────────────────────
+  // ── ANALYTICS ─────────────────────────────────────────────────────────────
   const AnalyticsTab = () => {
     const hasData = attractions.length > 0;
     return (
@@ -870,7 +810,6 @@ export default function AttractionDashboardPage() {
           <p className="text-xs text-slate-500 mt-0.5">Real-time stats across all your attraction listings.</p>
         </div>
 
-        {/* Summary cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-amber-600' },
@@ -888,7 +827,6 @@ export default function AttractionDashboardPage() {
           ))}
         </div>
 
-        {/* Top Attractions Performance */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
           <h3 className="font-black text-sm text-slate-900 dark:text-white mb-5">Most Viewed Attractions</h3>
           {!hasData ? (
@@ -896,7 +834,7 @@ export default function AttractionDashboardPage() {
               <i className="ph ph-chart-line-up text-4xl text-slate-300 dark:text-slate-600 mb-2 block" />
               <p className="text-sm font-bold text-slate-600 dark:text-slate-400">No performance data yet</p>
               <p className="text-xs text-slate-400 mt-1 mb-4">Create and publish attraction listings to start recording visitor analytics.</p>
-              <ListAttractionButton onClick={() => setShowCreate(true)} className="inline-flex" />
+              <ListAttractionButton onClick={() => navigate('/list-your-event')} className="inline-flex" />
             </div>
           ) : (
             <div className="space-y-4">
@@ -936,14 +874,6 @@ export default function AttractionDashboardPage() {
           <h2 className="text-2xl font-black text-slate-900 dark:text-white">Notifications</h2>
           <p className="text-xs text-slate-500 mt-0.5">{unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}</p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            onClick={() => setNotifs(prev => prev.map(n => ({ ...n, read: true })))}
-            className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
-          >
-            Mark all as read
-          </button>
-        )}
       </div>
 
       {notifs.length === 0 ? (
@@ -956,34 +886,7 @@ export default function AttractionDashboardPage() {
             You will receive updates here when your listings are reviewed by admins or when travelers make inquiries.
           </p>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {notifs.map(n => (
-            <div key={n.id}
-              className={`bg-white dark:bg-slate-900 rounded-3xl border p-5 shadow-sm flex items-start gap-4 transition-all ${
-                n.read ? 'border-slate-200 dark:border-slate-800' : 'border-amber-200 dark:border-amber-800 ring-1 ring-amber-200 dark:ring-amber-800/40'
-              }`}>
-              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${n.read ? 'bg-slate-100 dark:bg-slate-800' : ACCENT_LIGHT}`}>
-                <i className={`ph ${n.icon} text-lg ${n.color}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`text-sm font-black ${n.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</span>
-                  {!n.read && <span className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0" />}
-                </div>
-                <p className="text-xs text-slate-500 mt-1">{n.body}</p>
-                <p className="text-[10px] text-slate-400 mt-2 font-semibold">{n.time}</p>
-              </div>
-              <button
-                onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
-                className="text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
-              >
-                <i className="ph ph-x text-sm" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 
@@ -1010,7 +913,6 @@ export default function AttractionDashboardPage() {
           <p className="text-xs text-slate-500 mt-0.5">Manage your business details and contact information.</p>
         </div>
 
-        {/* Section tabs */}
         <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-bold">
           {['business', 'contact', 'security'].map(s => (
             <button key={s} onClick={() => setSection(s)}
@@ -1096,7 +998,7 @@ export default function AttractionDashboardPage() {
                   onClick={() => {
                     if (!pwForm.current || !pwForm.newPw) return alert('Fill in all password fields.');
                     if (pwForm.newPw !== pwForm.confirm) return alert('Passwords do not match.');
-                    alert('Password update requires current session re-authentication.');
+                    alert('Password update requires re-authentication.');
                   }}
                   className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm rounded-xl transition-all shadow-sm shadow-amber-500/25">
                   Update Password
@@ -1156,28 +1058,12 @@ export default function AttractionDashboardPage() {
 
         {activeTab === 'overview'      && <OverviewTab />}
         {activeTab === 'attractions'   && <AttractionsTab />}
-        {activeTab === 'create'        && (
-          <div className="space-y-6 max-w-2xl mx-auto">
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Create New Attraction</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Fill in the details below to add a new attraction or event to your portfolio.</p>
-            </div>
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-              <AttractionForm onSubmit={handleCreate} loading={createLoading} submitLabel="Create Attraction" />
-            </div>
-          </div>
-        )}
         {activeTab === 'analytics'     && <AnalyticsTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'settings'      && <SettingsTab />}
       </main>
 
       {/* ── Modals ── */}
-
-      {/* Create modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create New Attraction" wide>
-        <AttractionForm onSubmit={handleCreate} loading={createLoading} submitLabel="Create Attraction" />
-      </Modal>
 
       {/* Edit modal */}
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Attraction" wide>
@@ -1195,7 +1081,6 @@ export default function AttractionDashboardPage() {
       <Modal open={!!previewTarget} onClose={() => setPreviewTarget(null)} title="Attraction Preview" wide>
         {previewTarget && (
           <div className="space-y-5">
-            {/* Cover */}
             <div className="h-52 rounded-2xl overflow-hidden bg-amber-100 dark:bg-amber-950/40 relative">
               {previewTarget.featured_image ? (
                 <img src={previewTarget.featured_image} alt={previewTarget.name} className="w-full h-full object-cover" />
@@ -1216,7 +1101,6 @@ export default function AttractionDashboardPage() {
               </div>
             </div>
 
-            {/* Details */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Location', value: `${previewTarget.city || ''}${previewTarget.country ? `, ${previewTarget.country}` : ''}` || '—', icon: 'ph-map-pin' },
@@ -1274,7 +1158,7 @@ export default function AttractionDashboardPage() {
         {MENU_ITEMS.slice(0, 5).map(item => {
           const active = activeTab === item.id;
           return (
-            <button key={item.id} onClick={() => setActiveTab(item.id)}
+            <button key={item.id} onClick={() => item.route ? navigate(item.route) : setActiveTab(item.id)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${active ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-400'}`}>
               <i className={`ph ${item.icon} text-xl`} />
               <span className="text-[9px] font-bold">{item.label.split(' ')[0]}</span>
