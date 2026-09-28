@@ -10,6 +10,7 @@ const {
   dedupeAttractions,
 } = require('../lib/attractions');
 const attractionsHandler = require('../api-routes/attractions');
+const eventBookingsHandler = require('../api-routes/event-bookings');
 
 function responseRecorder() {
   return {
@@ -76,4 +77,24 @@ test('Attractions routes have Express and Netlify deployment parity', () => {
     assert.match(server, new RegExp(route.replace('/', '\\/')));
     assert.match(netlify, new RegExp(route.replace('/', '\\/')));
   }
+  assert.match(server, /event-bookings/);
+  assert.match(netlify, /event-bookings/);
+});
+
+test('local event booking creates a pending reservation, never a confirmed ticket', async () => {
+  global.__bc_event_profiles = new Map([['7', {
+    id: 7,
+    status: 'approved',
+    step_event_info: { eventName: 'Kigali Arts Night' },
+    step_location: { address: 'KG 1 Ave', city: 'Kigali', country: 'Rwanda' },
+    step_tickets: { list: [{ id: 'adult', name: 'Adult', price: 5000, currency: 'RWF' }] },
+  }]]);
+  global.__bc_event_bookings = new Map();
+  const req = { method: 'POST', headers: {}, query: {}, body: { eventId: '7', ticketId: 'adult', quantity: 2, guestName: 'Test Guest', guestEmail: 'guest@example.com' } };
+  const res = responseRecorder();
+  await eventBookingsHandler(req, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.booking.status, 'pending_payment');
+  assert.equal(res.body.booking.total, 10000);
+  assert.equal(res.body.booking.ticketNo, undefined);
 });

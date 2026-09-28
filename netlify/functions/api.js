@@ -26,6 +26,7 @@ const supportHandler = require("../../api-routes/support");
 const ticketDownloadHandler = require("../../api-routes/ticket-download");
 const priceAlertHandler = require("../../api-routes/price-alert");
 const attractionsHandler = require("../../api-routes/attractions");
+const eventBookingsHandler = require("../../api-routes/event-bookings");
 const aviationHandler = require("../../api-routes/aviation");
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
@@ -864,6 +865,7 @@ exports.handler = async (event) => {
     if (route === "attractions/search" && event.httpMethod === "GET") return await invokeExpressHandler(attractionsHandler, event, { action: "search" });
     if (route === "attractions/events" && event.httpMethod === "POST") return await invokeExpressHandler(attractionsHandler, event, { action: "events" });
     if (route === "attractions/analytics" && event.httpMethod === "GET") return await invokeExpressHandler(attractionsHandler, event, { action: "analytics" });
+    if (route === "event-bookings" && (event.httpMethod === "GET" || event.httpMethod === "POST")) return await invokeExpressHandler(eventBookingsHandler, event);
     if (route.startsWith("attractions/") && event.httpMethod === "GET") {
       const [, source, ...idParts] = route.split("/");
       return await invokeExpressHandler(attractionsHandler, event, { action: "detail", source, id: idParts.join("/") });

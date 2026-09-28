@@ -15,6 +15,13 @@
       "when": 1786291200000,
       "tag": "0001_global_attractions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790553600000,
+      "tag": "0002_event_booking_flow",
+      "breakpoints": true
     }
   ]
 }

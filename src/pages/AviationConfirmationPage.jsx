@@ -4,14 +4,61 @@ import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { aviationRequest, money, durationLabel } from "../lib/aviationClient.js";
 
+const AVIATION_TICKET_PREVIEW = {
+  ref: "BC989",
+  status: "confirmed",
+  name: "James Andrew",
+  passengers: 1,
+  departDate: "2026-09-21",
+  createdAt: "2026-05-05T07:00:00.000Z",
+  origin: { code: "EBB", name: "Entebbe International Airport" },
+  destination: { code: "MRC", name: "Morocco International Airport" },
+  aircraftName: "Montieri Private Jet",
+  aircraftImage: "https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1200&q=85",
+  quote: { durationMinutes: 40, distanceNm: 214, price: 6200, currency: "USD" },
+  payment: { sessionId: "08839373t3e3526" },
+};
+
+function TicketQr({ value }) {
+  const src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(value)}&bgcolor=171917&color=ffffff&format=svg&margin=5`;
+  return <img src={src} alt="Booking QR code" width="112" height="112" className="rounded-[12px] bg-black p-1.5" />;
+}
+
+function formatTicketDate(value) {
+  const date = value ? new Date(`${value}T12:00:00`) : new Date();
+  return Number.isNaN(date.getTime()) ? String(value || '') : date.toLocaleDateString('en-US', { weekday: 'long', month: '2-digit', day: '2-digit', year: 'numeric' }).replace(',', '.').toUpperCase();
+}
+
+function AviationTicket({ booking }) {
+  const qrData = JSON.stringify({ ref: booking.ref, route: `${booking.origin?.code}-${booking.destination?.code}`, passenger: booking.name });
+  const ticketNumber = booking.payment?.sessionId || booking.ref;
+  return <div id="aviation-ticket" className="relative mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] bg-white shadow-2xl" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
+    <header className="flex h-[92px] flex-col items-center justify-center bg-[#292b28] px-8"><img src="/images/logo%20.png" alt="BookingCart" className="h-auto w-[245px] brightness-0 invert" /><p className="mt-1 text-[10px] font-medium tracking-[0.34em] text-white/75">Compare. Book. instant</p></header>
+    <section className="relative h-[250px] overflow-hidden bg-slate-800">
+      <img src={booking.aircraftImage || 'https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1200&q=85'} alt={booking.aircraftName || 'Private aircraft'} className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-black/35" />
+      <p className="absolute right-6 top-5 text-[17px] font-black text-white">Boarding <span className="text-[#00dc58]">Pass</span></p>
+      <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between text-white"><div><p className="text-[42px] font-black leading-none">{booking.origin?.code}</p><p className="mt-1 max-w-[120px] text-[10px] leading-[1.05]">{booking.origin?.name || booking.origin?.city}</p></div><i className="ph-fill ph-airplane-tilt mb-5 text-2xl" /><div className="text-right"><p className="text-[42px] font-black leading-none">{booking.destination?.code}</p><p className="mt-1 ml-auto max-w-[120px] text-[10px] leading-[1.05]">{booking.destination?.name || booking.destination?.city}</p></div></div>
+    </section>
+    <section className="relative grid grid-cols-3 gap-5 border-t-2 border-dashed border-[#00d454] bg-[#292b28] px-9 py-5 text-white before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[12px] font-black text-[#00d454]">FLIGHT</p><p className="mt-1 text-[22px] font-light">{booking.ref?.slice(-6).toUpperCase()}</p></div><div><p className="text-[12px] font-black text-[#00d454]">GATE</p><p className="mt-1 text-[22px] font-light">VIP</p></div><div><p className="text-[12px] font-black text-[#00d454]">SEAT</p><p className="mt-1 text-[22px] font-light">{booking.passengers || 1} PAX</p></div></section>
+    <section className="mx-4 rounded-b-[24px] bg-[#00c950] px-5 py-5 text-[#20231f]"><div className="grid grid-cols-2 gap-x-7 gap-y-5"><div><p className="text-[11px] font-black text-white">PASSENGER</p><p className="text-[18px] leading-tight">{booking.name || 'Lead passenger'}</p></div><div><p className="text-[11px] font-black text-white">TICKET NO:</p><p className="break-all text-[14px] leading-tight">{ticketNumber}</p></div><div><p className="text-[11px] font-black text-white">BOARDING TIME</p><p className="text-[16px]">07:00 AM</p></div><div><p className="text-[11px] font-black text-white">EST. FLIGHT TIME</p><p className="text-[16px]">{durationLabel(booking.quote?.durationMinutes || 0)}</p></div></div></section>
+    <footer className="relative mt-3 flex min-h-[136px] items-center justify-between border-t-2 border-dashed border-[#00c950] px-8 py-5 before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[11px] font-black text-[#00b846]">ISSUE DATE</p><p className="text-[14px] text-[#292b28]">{formatTicketDate(booking.createdAt?.slice(0, 10))}</p><p className="mt-4 text-[11px] font-black text-[#00b846]">BOARDING</p><p className="text-[14px] text-[#292b28]">07:00 AM {formatTicketDate(booking.departDate)}</p></div><TicketQr value={qrData} /></footer>
+  </div>;
+}
+
 export default function AviationConfirmationPage() {
   const [params] = useSearchParams();
   const { getToken } = useAuth();
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     document.title = "Charter confirmed | BookingCart";
+    if (import.meta.env.DEV && params.get("preview") === "ticket") {
+      setBooking(AVIATION_TICKET_PREVIEW);
+      return;
+    }
     const ref = params.get("ref");
     if (!ref) return;
     const email = sessionStorage.getItem(`aviation-booking-${ref}`) || "";
@@ -26,6 +73,21 @@ export default function AviationConfirmationPage() {
       .catch((err) => setError(err.message));
   }, [params, getToken]);
 
+  async function downloadTicket() {
+    setDownloading(true);
+    try {
+      if (!window.html2canvas) {
+        await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js'; script.onload = resolve; script.onerror = reject; document.head.appendChild(script); });
+      }
+      const canvas = await window.html2canvas(document.getElementById('aviation-ticket'), { scale: 3, useCORS: true, backgroundColor: null });
+      const link = document.createElement('a'); link.download = `boarding-pass-${booking.ref}.png`; link.href = canvas.toDataURL('image/png'); link.click();
+    } catch {
+      setError('Could not download the boarding pass. Please try printing it instead.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <AviationLayout>
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
@@ -34,7 +96,7 @@ export default function AviationConfirmationPage() {
           <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 mb-4">
             <i className="ph ph-airplane-takeoff text-4xl text-emerald-700" />
           </div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Charter confirmed</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">{booking?.status === 'confirmed' ? 'Charter confirmed' : 'Booking received'}</p>
           <h1 className="mt-2 text-4xl font-black">{booking ? booking.ref : "Booking received"}</h1>
           {!booking && !error && <p className="mt-3 text-slate-500">Loading your booking details…</p>}
         </div>
@@ -46,8 +108,14 @@ export default function AviationConfirmationPage() {
           </div>
         )}
 
-        {booking && (
+        {booking && booking.status !== "confirmed" && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900"><h2 className="text-xl font-black">Payment still required</h2><p className="mt-2 text-sm">Your request is saved, but a boarding pass will only be issued after payment is verified.</p></div>
+        )}
+
+        {booking && booking.status === "confirmed" && (
           <>
+            <AviationTicket booking={booking} />
+            <div className="mx-auto mb-8 mt-4 flex max-w-[430px] gap-3"><button onClick={downloadTicket} disabled={downloading} className="flex-1 rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white disabled:opacity-60"><i className="ph ph-download-simple mr-2" />{downloading ? 'Preparing…' : 'Download boarding pass'}</button><button onClick={() => window.print()} className="rounded-xl bg-slate-800 px-4 py-3 text-white" aria-label="Print boarding pass"><i className="ph ph-printer text-xl" /></button></div>
             {/* Booking card */}
             <div className="rounded-3xl bg-slate-950 text-white p-6 shadow-2xl mb-6">
               <div className="flex items-start justify-between gap-3 flex-wrap">

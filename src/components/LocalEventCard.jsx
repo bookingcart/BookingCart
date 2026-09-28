@@ -8,6 +8,7 @@ function AttractionImage({ image, name, className }) {
 
 export default function LocalEventCard({ item, onHover = () => {} }) {
   const offer = item.offers?.[0];
+  const detailsUrl = `/events/${encodeURIComponent(item.sourceId || String(item.id).replace(/^local_event:/, ''))}`;
   const price = offer?.amount != null && offer?.currency 
     ? new Intl.NumberFormat(undefined, { style: 'currency', currency: offer.currency, maximumFractionDigits: 0 }).format(offer.amount) 
     : '';
@@ -19,7 +20,7 @@ export default function LocalEventCard({ item, onHover = () => {} }) {
       onFocus={() => onHover(item.id)}
       className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer"
     >
-      <Link to={offer?.url || '#'} className="contents">
+      <Link to={detailsUrl} state={{ event: item }} className="contents">
         {/* ── Photo Section ── */}
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0">
           <AttractionImage 
