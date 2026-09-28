@@ -13,7 +13,7 @@ const EMPTY_AIRCRAFT = {
   amenities: [], petFriendly: false, smokingAllowed: false, international: true, domestic: true,
   charterServices: ["on_demand"], helicopterServices: [], flightZones: ["EBB"],
   safety: { aoc: "", certification: "", insurance: "", maintenanceCurrent: false, pilotCertifications: "ATPL", regulatoryStatus: "compliant" },
-  images: "",
+  images: [],
 };
 
 const AMENITY_OPTIONS = [
@@ -102,7 +102,7 @@ export default function AviationDashboardPage() {
     setNotice(""); setError("");
     const body = {
       ...draft,
-      images: String(draft.images || "").split(",").map((item) => item.trim()).filter(Boolean),
+      images: Array.isArray(draft.images) ? draft.images : [],
       safety: { ...draft.safety, pilotCertifications: String(draft.safety.pilotCertifications || "").split(",").map((item) => item.trim()).filter(Boolean) },
       submit,
     };
@@ -393,7 +393,7 @@ export default function AviationDashboardPage() {
                   key={item.id}
                   onClick={() => setDraft({
                     ...item,
-                    images: (item.images || []).join(", "),
+                    images: Array.isArray(item.images) ? item.images : [],
                     amenities: item.amenities || [],
                     safety: { ...item.safety, pilotCertifications: (item.safety?.pilotCertifications || []).join(", ") },
                   })}
@@ -449,10 +449,53 @@ export default function AviationDashboardPage() {
                   </div>
                 ))}
 
-                {/* Image URLs */}
+                {/* Aircraft Images */}
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Aircraft image URLs (comma-separated)</label>
-                  <input value={draft.images} onChange={(e) => setDraft({ ...draft, images: e.target.value })} placeholder="https://… , https://…" className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800" />
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2 block">Aircraft images</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {(Array.isArray(draft.images) ? draft.images : []).map((img, idx) => (
+                      <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                        <img src={img} alt={`Aircraft ${idx + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = [...(Array.isArray(draft.images) ? draft.images : [])];
+                              next.splice(idx, 1);
+                              setDraft({ ...draft, images: next });
+                            }}
+                            className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-colors"
+                          >
+                            <i className="ph ph-trash text-sm" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {(!draft.images || draft.images.length < 10) && (
+                      <label className="aspect-video rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-emerald-500 flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-emerald-500 transition-all bg-slate-50 dark:bg-slate-800 cursor-pointer">
+                        <i className="ph ph-plus-circle text-2xl" />
+                        <span className="text-xs font-semibold">Add Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files);
+                            files.forEach(file => {
+                              if (file.size > 20 * 1024 * 1024) return;
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setDraft(prev => ({ ...prev, images: [...(Array.isArray(prev.images) ? prev.images : []), reader.result] }));
+                              };
+                              reader.readAsDataURL(file);
+                            });
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Upload up to 10 photos. First photo will be the cover image.</p>
                 </div>
 
                 {/* Amenities */}
