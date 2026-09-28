@@ -3,6 +3,7 @@ import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { connectSupportStream, loadSupportThreads, patchSupportThread, postSupportMessage } from '../lib/supportClient.js';
+import { aviationRequest } from '../lib/aviationClient.js';
 
 /* ─── Support Inbox ─────────────────────────────────────────────── */
 async function fetchSupportMessages() {
@@ -561,6 +562,276 @@ function UsersPanel() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── Private Jets Panel ──────────────────────────────────────────── */
+function PrivateJetsPanel({ getToken }) {
+  const [operators, setOperators] = useState([]);
+  const [aircraft, setAircraft] = useState([]);
+  const [charters, setCharters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'aircraft' | 'charters'
+  const [actionMsg, setActionMsg] = useState('');
+  const [error, setError] = useState('');
+
+  const token = getToken ? getToken() : null;
+
+  const load = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [opsData, acData, charterData] = await Promise.all([
+        aviationRequest('list-operators', { token }).catch(() => ({ operators: [] })),
+        aviationRequest('list-aircraft', { token }).catch(() => ({ aircraft: [] })),
+        aviationRequest('list-charters', { token }).catch(() => ({ charters: [] })),
+      ]);
+      setOperators(opsData.operators || []);
+      setAircraft(acData.aircraft || []);
+      setCharters(charterData.charters || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load aviation data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleCharterStatus = async (charterId, status) => {
+    try {
+      await aviationRequest('update-charter', {
+        method: 'POST',
+        token,
+        body: { id: charterId, status },
+      });
+      setActionMsg(`Charter #${charterId} marked as ${status}`);
+      setCharters(prev => prev.map(c => c.id === charterId ? { ...c, status } : c));
+    } catch (err) {
+      setActionMsg(`Error: ${err.message}`);
+    }
+  };
+
+  const statusBadge = (status) => {
+    const map = {
+      pending:   'bg-yellow-100 text-yellow-700',
+      confirmed: 'bg-green-100 text-green-700',
+      completed: 'bg-blue-100 text-blue-700',
+      cancelled: 'bg-red-100 text-red-700',
+    };
+    return `inline-block px-2 py-0.5 rounded-full text-xs font-bold ${map[status] || 'bg-slate-100 text-slate-600'}`;
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-24 text-slate-400">
+      <i className="ph ph-airplane-takeoff text-4xl animate-pulse mr-3" />
+      <span className="font-semibold">Loading aviation data…</span>
+    </div>
+  );
+
+  if (error) return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <i className="ph ph-warning-circle mr-2" />{error}
+    </div>
+  );
+
+  const totalRevenue = charters.reduce((sum, c) => sum + Number(c.total_price || 0), 0);
+  const pendingCharters = charters.filter(c => c.status === 'pending').length;
+  const confirmedCharters = charters.filter(c => c.status === 'confirmed').length;
+
+  return (
+    <section>
+      {/* Action message */}
+      {actionMsg && (
+        <div className="mb-4 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-green-700 text-sm font-medium flex items-center gap-2">
+          <i className="ph ph-check-circle" />{actionMsg}
+          <button onClick={() => setActionMsg('')} className="ml-auto text-green-400 hover:text-green-600"><i className="ph ph-x" /></button>
+        </div>
+      )}
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Operators', value: operators.length, icon: 'ph-building', color: 'text-green-600' },
+          { label: 'Aircraft Listed', value: aircraft.length, icon: 'ph-airplane', color: 'text-blue-600' },
+          { label: 'Charter Requests', value: charters.length, icon: 'ph-paper-plane-tilt', color: 'text-purple-600' },
+          { label: 'Est. Revenue', value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(totalRevenue), icon: 'ph-currency-dollar', color: 'text-amber-600' },
+        ].map(({ label, value, icon, color }) => (
+          <div key={label} className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <i className={`ph ${icon} ${color}`} />
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+            </div>
+            <p className={`text-3xl font-black ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2 mb-5">
+        {[
+          { id: 'overview', label: 'Overview', icon: 'ph-chart-bar' },
+          { id: 'aircraft', label: 'Aircraft', icon: 'ph-airplane' },
+          { id: 'charters', label: 'Charter Requests', icon: 'ph-paper-plane-tilt' },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+              ${activeTab === tab.id ? 'bg-green-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-green-50'}`}>
+            <i className={`ph ${tab.icon}`} />{tab.label}
+          </button>
+        ))}
+        <button onClick={load} className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-all">
+          <i className="ph ph-arrow-clockwise" /> Refresh
+        </button>
+      </div>
+
+      {/* Overview tab */}
+      {activeTab === 'overview' && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Charter status breakdown */}
+          <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 p-6">
+            <h3 className="font-black text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <i className="ph ph-chart-pie text-green-600" /> Charter Status Breakdown
+            </h3>
+            {[
+              { label: 'Pending', count: pendingCharters, color: 'bg-yellow-400' },
+              { label: 'Confirmed', count: confirmedCharters, color: 'bg-green-500' },
+              { label: 'Completed', count: charters.filter(c => c.status === 'completed').length, color: 'bg-blue-500' },
+              { label: 'Cancelled', count: charters.filter(c => c.status === 'cancelled').length, color: 'bg-red-400' },
+            ].map(row => (
+              <div key={row.label} className="flex items-center gap-3 py-2">
+                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${row.color}`} />
+                <span className="text-sm text-slate-600 dark:text-slate-400 flex-1">{row.label}</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{row.count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Top operators */}
+          <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 p-6">
+            <h3 className="font-black text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <i className="ph ph-building text-green-600" /> Operators
+            </h3>
+            {operators.length === 0 ? (
+              <p className="text-slate-400 text-sm">No operators registered yet.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                {operators.slice(0, 8).map(op => (
+                  <li key={op.id} className="py-2.5 flex items-center gap-3">
+                    <i className="ph ph-building-office text-green-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{op.name || 'Unnamed Operator'}</p>
+                      <p className="text-xs text-slate-400">{op.country || op.base_airport || '—'}</p>
+                    </div>
+                    <span className={statusBadge(op.status || 'active')}>{op.status || 'active'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Aircraft tab */}
+      {activeTab === 'aircraft' && (
+        <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 overflow-hidden">
+          {aircraft.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              <i className="ph ph-airplane text-4xl mb-2 block" />
+              <p>No aircraft listed yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                    {['Aircraft', 'Category', 'Capacity', 'Range', 'Base Airport', 'Price / hr', 'Status'].map(h => (
+                      <th key={h} className="text-left px-5 py-3 font-bold text-slate-500 uppercase tracking-wider text-xs">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {aircraft.map(ac => (
+                    <tr key={ac.id} className="hover:bg-green-50 dark:hover:bg-slate-700/40 transition-colors">
+                      <td className="px-5 py-3">
+                        <p className="font-semibold text-slate-800 dark:text-slate-100">{ac.name || `${ac.manufacturer} ${ac.model}`}</p>
+                        <p className="text-xs text-slate-400">{ac.registration_number || '—'}</p>
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{ac.category || '—'}</td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{ac.passenger_capacity ? `${ac.passenger_capacity} pax` : '—'}</td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{ac.flight_range ? `${ac.flight_range} nm` : '—'}</td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{ac.base_airport || '—'}</td>
+                      <td className="px-5 py-3 font-semibold text-green-600">{ac.price_per_hour ? `$${Number(ac.price_per_hour).toLocaleString()}` : '—'}</td>
+                      <td className="px-5 py-3"><span className={statusBadge(ac.status || 'available')}>{ac.status || 'available'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Charters tab */}
+      {activeTab === 'charters' && (
+        <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 overflow-hidden">
+          {charters.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              <i className="ph ph-paper-plane-tilt text-4xl mb-2 block" />
+              <p>No charter requests yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                    {['Ref', 'Client', 'Route', 'Date', 'Passengers', 'Total', 'Status', 'Actions'].map(h => (
+                      <th key={h} className={`text-left px-5 py-3 font-bold text-slate-500 uppercase tracking-wider text-xs ${h === 'Actions' ? 'text-right' : ''}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {charters.map(c => (
+                    <tr key={c.id} className="hover:bg-green-50 dark:hover:bg-slate-700/40 transition-colors">
+                      <td className="px-5 py-3 font-mono text-xs text-slate-500">#{String(c.id).slice(0, 8)}</td>
+                      <td className="px-5 py-3">
+                        <p className="font-semibold text-slate-800 dark:text-slate-100">{c.client_name || 'Guest'}</p>
+                        <p className="text-xs text-slate-400">{c.client_email || '—'}</p>
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">
+                        <span className="font-semibold">{c.departure_airport || '?'}</span>
+                        <i className="ph ph-arrow-right mx-1 text-slate-300" />
+                        <span className="font-semibold">{c.arrival_airport || '?'}</span>
+                      </td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{c.departure_date ? new Date(c.departure_date).toLocaleDateString() : '—'}</td>
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{c.passengers || '—'}</td>
+                      <td className="px-5 py-3 font-semibold text-green-600">{c.total_price ? `$${Number(c.total_price).toLocaleString()}` : '—'}</td>
+                      <td className="px-5 py-3"><span className={statusBadge(c.status)}>{c.status}</span></td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {c.status === 'pending' && (
+                            <button onClick={() => handleCharterStatus(c.id, 'confirmed')}
+                              className="px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors">
+                              Confirm
+                            </button>
+                          )}
+                          {c.status !== 'cancelled' && c.status !== 'completed' && (
+                            <button onClick={() => handleCharterStatus(c.id, 'cancelled')}
+                              className="px-2.5 py-1 rounded-lg bg-red-100 text-red-600 text-xs font-semibold hover:bg-red-200 transition-colors">
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1474,6 +1745,11 @@ export default function AdminPage() {
                     ${adminTab === 'users' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-users" /> Users
                 </button>
+                <button onClick={() => setAdminTab('aviation')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'aviation' ? 'bg-green-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-airplane-takeoff" /> Private Jets
+                </button>
                 <button onClick={() => setAdminTab('attractions')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${adminTab === 'attractions' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-binoculars" /> Attractions
@@ -1491,9 +1767,9 @@ export default function AdminPage() {
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
+              {adminTab === 'aviation' && <PrivateJetsPanel getToken={getToken} />}
               {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'guides' && <GuidesPanel getToken={getToken} />}
-              {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'events' && <EventsPanel getToken={getToken} />}
               {adminTab === 'bookings' && <>
               
