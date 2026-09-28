@@ -192,6 +192,7 @@ app.get('/api/gyg-search', searchLimiter, run(getyourguideSearchHandler));
 app.get('/api/gyg-tour/:id', searchLimiter, run(getyourguideTourHandler));
 app.get('/api/attractions/destinations', searchLimiter, (req, res) => { req.params = { action: 'destinations' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/search', searchLimiter, (req, res) => { req.params = { action: 'search' }; return attractionsHandler(req, res); });
+app.get('/api/attractions/featured-events', searchLimiter, (req, res) => { req.params = { action: 'featured-events' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/analytics', apiLimiter, (req, res) => { req.params = { action: 'analytics' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/:source/:id', searchLimiter, (req, res) => { req.params.action = 'detail'; return attractionsHandler(req, res); });
 app.post('/api/attractions/events', apiLimiter, (req, res) => { req.params = { action: 'events' }; return attractionsHandler(req, res); });
