@@ -45,6 +45,7 @@ export default function AviationDashboardPage() {
   const [profileForm, setProfileForm] = useState({
     companyName: "", contactName: "", phone: "", baseAirport: "", aoc: "", insurance: "", regulatoryStatus: "pending"
   });
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
 
   async function load() {
     const data = await aviationRequest("operator-get", { token: getToken() });
@@ -61,6 +62,22 @@ export default function AviationDashboardPage() {
         regulatoryStatus: op.regulatoryStatus || op.compliance?.regulatoryStatus || "pending",
       });
     }
+    // Fetch unread aviation notifications
+    try {
+      const recipientId = encodeURIComponent(user?.email || "");
+      const nRes = await fetch(`/api/notifications?recipientId=${recipientId}&role=operator`);
+      const nData = await nRes.json();
+      if (nData.success) {
+        const aviationTypes = [
+          'AVIATION_OPERATOR_VERIFIED','AVIATION_OPERATOR_REJECTED',
+          'AVIATION_AIRCRAFT_APPROVED','AVIATION_AIRCRAFT_REJECTED','AVIATION_AIRCRAFT_SUSPENDED',
+          'AVIATION_CHARTER_QUOTED','AVIATION_CHARTER_ACCEPTED','AVIATION_CHARTER_DECLINED',
+          'AVIATION_BOOKING_CONFIRMED',
+        ];
+        const unread = (nData.notifications || []).filter(n => !n.read && aviationTypes.includes(n.type)).length;
+        setUnreadNotifs(unread);
+      }
+    } catch {}
   }
 
   useEffect(() => {
@@ -148,6 +165,19 @@ export default function AviationDashboardPage() {
               </button>
             ))}
           </div>
+          {/* Notifications bell */}
+          <a
+            href="/notifications"
+            className="relative inline-flex items-center justify-center h-9 w-9 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all dark:bg-slate-900 dark:border-slate-700"
+            title="View aviation notifications"
+          >
+            <i className="ph ph-bell text-base text-slate-600 dark:text-slate-300" />
+            {unreadNotifs > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow">
+                {unreadNotifs > 9 ? "9+" : unreadNotifs}
+              </span>
+            )}
+          </a>
         </div>
 
         {notice && <div className="mb-4 rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-300">{notice}</div>}

@@ -5,6 +5,7 @@ const { applyCors } = require("../lib/cors");
 const { requireAdminEmail } = require("../lib/admin");
 const { verifyRequestBearer } = require("../lib/google-verify");
 const { createAviationService, buildFlightReport } = require("../lib/aviation");
+const notificationHub = require("../lib/notification-hub");
 
 let runtime = null;
 
@@ -368,6 +369,23 @@ module.exports = async function aviationHandler(req, res) {
       const quoted = service.operatorCharterAction(email, body.charterRef, body);
       if (!quoted.ok) return res.status(400).json(quoted);
       await persist(runtimeState, [{ kind: "charter", id: quoted.charter.ref, payload: quoted.charter }]);
+      // Notify client that a quotation has been submitted for their charter request
+      const charter = quoted.charter;
+      if (charter && charter.email && (body.amount || body.action === "reject")) {
+        const isReject = body.action === "reject";
+        notificationHub.dispatch({
+          recipientId: charter.email,
+          recipientEmail: charter.email,
+          recipientRole: "user",
+          type: isReject ? "AVIATION_CHARTER_REJECTED" : "AVIATION_CHARTER_QUOTED",
+          title: isReject ? "Charter Request Update" : "✈️ You Have a Charter Quotation!",
+          message: isReject
+            ? `Your charter request (${charter.ref}) could not be accommodated by this operator. We'll keep looking for alternatives.`
+            : `Your private jet charter request (${charter.ref}) has received a quotation of $${Number(body.amount || 0).toLocaleString()}. Review and accept or decline.`,
+          actionUrl: `/aviation/charter?ref=${charter.ref}`,
+          metadata: { charterRef: charter.ref, amount: body.amount, operatorEmail: email }
+        }).catch(() => {});
+      }
       return res.json(quoted);
     }
 
@@ -378,6 +396,40 @@ module.exports = async function aviationHandler(req, res) {
       const records = [{ kind: "charter", id: decided.charter.ref, payload: decided.charter }];
       if (decided.booking) records.push({ kind: "booking", id: decided.booking.ref, payload: decided.booking });
       await persist(runtimeState, records);
+      // Notify operator of client's decision
+      if (decided.charter) {
+        const decCharter = decided.charter;
+        const isAccepted = body.action === "accept";
+        // Find the relevant quotation to get operator email
+        const latestQuote = (decCharter.quotations || []).slice(-1)[0];
+        if (latestQuote && latestQuote.operatorEmail) {
+          notificationHub.dispatch({
+            recipientId: latestQuote.operatorEmail,
+            recipientEmail: latestQuote.operatorEmail,
+            recipientRole: "operator",
+            type: isAccepted ? "AVIATION_CHARTER_ACCEPTED" : "AVIATION_CHARTER_DECLINED",
+            title: isAccepted ? "🎉 Charter Quotation Accepted!" : "Charter Quotation Declined",
+            message: isAccepted
+              ? `The client accepted your quotation for charter ${decCharter.ref}. A booking has been created. Please prepare for departure.`
+              : `The client declined your quotation for charter ${decCharter.ref}. No further action required.`,
+            actionUrl: "/aviation/dashboard#charters",
+            metadata: { charterRef: decCharter.ref, bookingRef: decided.booking?.ref || "", action: body.action }
+          }).catch(() => {});
+        }
+        // Notify client of booking confirmation when accepted
+        if (isAccepted && decided.booking) {
+          notificationHub.dispatch({
+            recipientId: email,
+            recipientEmail: email,
+            recipientRole: "user",
+            type: "AVIATION_BOOKING_CONFIRMED",
+            title: "✈️ Charter Booking Confirmed!",
+            message: `Your private jet charter has been confirmed. Booking reference: ${decided.booking.ref}. Safe travels!`,
+            actionUrl: `/aviation/confirmation?ref=${decided.booking.ref}`,
+            metadata: { bookingRef: decided.booking.ref, charterRef: decCharter.ref }
+          }).catch(() => {});
+        }
+      }
       return res.json(decided);
     }
 
@@ -385,6 +437,18 @@ module.exports = async function aviationHandler(req, res) {
       const created = service.createBooking({ ...body, email: body.email || email });
       if (!created.ok) return res.status(400).json(created);
       await persist(runtimeState, [{ kind: "booking", id: created.booking.ref, payload: created.booking }]);
+      // Notify client their booking request was created
+      const newBooking = created.booking;
+      notificationHub.dispatch({
+        recipientId: newBooking.email,
+        recipientEmail: newBooking.email,
+        recipientRole: "user",
+        type: "AVIATION_BOOKING_CREATED",
+        title: "✈️ Private Jet Booking Request Received",
+        message: `Your booking request (${newBooking.ref}) for ${newBooking.origin?.code || ""} → ${newBooking.destination?.code || ""} on ${newBooking.departDate || ""} has been received. Complete payment to confirm.`,
+        actionUrl: `/aviation/confirmation?ref=${newBooking.ref}`,
+        metadata: { bookingRef: newBooking.ref, aircraftId: newBooking.aircraftId }
+      }).catch(() => {});
       return res.json(created);
     }
 
@@ -395,6 +459,31 @@ module.exports = async function aviationHandler(req, res) {
       });
       if (!confirmed.ok) return res.status(confirmed.status).json({ ok: false, error: confirmed.error });
       await persist(runtimeState, [{ kind: "booking", id: confirmed.booking.ref, payload: confirmed.booking }]);
+      // Notify client of confirmed booking
+      const confBook = confirmed.booking;
+      notificationHub.dispatch({
+        recipientId: confBook.email,
+        recipientEmail: confBook.email,
+        recipientRole: "user",
+        type: "AVIATION_BOOKING_CONFIRMED",
+        title: "✅ Private Jet Booking Confirmed!",
+        message: `Your booking (${confBook.ref}) is confirmed and paid. ${confBook.origin?.city || confBook.origin?.code || ""} → ${confBook.destination?.city || confBook.destination?.code || ""} on ${confBook.departDate || ""}. Enjoy your flight!`,
+        actionUrl: `/aviation/confirmation?ref=${confBook.ref}`,
+        metadata: { bookingRef: confBook.ref, paymentMethod: confBook.payment?.method || "" }
+      }).catch(() => {});
+      // Notify the operator of the new confirmed booking
+      if (confBook.operatorEmail) {
+        notificationHub.dispatch({
+          recipientId: confBook.operatorEmail,
+          recipientEmail: confBook.operatorEmail,
+          recipientRole: "operator",
+          type: "AVIATION_BOOKING_CONFIRMED",
+          title: "New Confirmed Booking!",
+          message: `A passenger has confirmed and paid for flight ${confBook.ref} on your aircraft. Route: ${confBook.origin?.code || ""} → ${confBook.destination?.code || ""}. Departs: ${confBook.departDate || ""}.`,
+          actionUrl: "/aviation/dashboard#operations",
+          metadata: { bookingRef: confBook.ref, aircraftId: confBook.aircraftId }
+        }).catch(() => {});
+      }
       return res.json({ ok: true, booking: confirmed.booking });
     }
 
@@ -443,12 +532,55 @@ module.exports = async function aviationHandler(req, res) {
         const reviewed = service.reviewOperator(body.id, body.status, body.note);
         if (!reviewed.ok) return res.status(400).json(reviewed);
         await persist(runtimeState, [{ kind: "operator", id: reviewed.operator.id, payload: reviewed.operator }]);
+        // Notify the operator of their verification decision
+        const op = reviewed.operator;
+        const isVerified = body.status === "verified";
+        const isRejected = body.status === "rejected";
+        if (isVerified || isRejected) {
+          notificationHub.dispatch({
+            recipientId: op.email,
+            recipientEmail: op.email,
+            recipientRole: "operator",
+            type: isVerified ? "AVIATION_OPERATOR_VERIFIED" : "AVIATION_OPERATOR_REJECTED",
+            title: isVerified ? "🎉 Operator Account Verified!" : "Operator Account Update",
+            message: isVerified
+              ? `Congratulations, ${op.companyName}! Your operator account has been verified. You can now submit aircraft listings for approval.`
+              : `Your operator account application has been reviewed. Status: ${body.status}. ${body.note ? `Note from admin: ${body.note}` : "Please contact support for more details."}`,
+            actionUrl: "/aviation/dashboard",
+            metadata: { operatorId: op.id, companyName: op.companyName, status: body.status, adminNote: body.note || "" }
+          }).catch(() => {});
+        }
         return res.json(reviewed);
       }
       if (action === "admin-aircraft") {
         const reviewed = service.reviewAircraft(body.id, body.status, body.note);
         if (!reviewed.ok) return res.status(400).json(reviewed);
         await persist(runtimeState, [{ kind: "aircraft", id: reviewed.aircraft.id, payload: reviewed.aircraft }]);
+        // Notify the operator of their aircraft listing decision
+        const aircraft = reviewed.aircraft;
+        const isApproved = body.status === "approved";
+        const isRejectedAc = body.status === "rejected";
+        const isSuspended = body.status === "suspended";
+        if (isApproved || isRejectedAc || isSuspended) {
+          notificationHub.dispatch({
+            recipientId: aircraft.operatorEmail,
+            recipientEmail: aircraft.operatorEmail,
+            recipientRole: "operator",
+            type: isApproved ? "AVIATION_AIRCRAFT_APPROVED" : (isSuspended ? "AVIATION_AIRCRAFT_SUSPENDED" : "AVIATION_AIRCRAFT_REJECTED"),
+            title: isApproved
+              ? `✅ Aircraft Listing Approved: ${aircraft.name}`
+              : isSuspended
+              ? `⚠️ Aircraft Listing Suspended: ${aircraft.name}`
+              : `Aircraft Listing Update: ${aircraft.name}`,
+            message: isApproved
+              ? `Your private jet listing "${aircraft.name}" (${aircraft.registration}) has been approved and is now live on BookingCart. Travellers can now book it.`
+              : isSuspended
+              ? `Your aircraft listing "${aircraft.name}" has been temporarily suspended. ${body.note ? `Reason: ${body.note}` : "Please contact support."}`
+              : `Your aircraft listing "${aircraft.name}" was not approved at this time. ${body.note ? `Admin note: ${body.note}` : "Please review your compliance information and resubmit."}`,
+            actionUrl: "/aviation/dashboard#fleet",
+            metadata: { aircraftId: aircraft.id, aircraftName: aircraft.name, registration: aircraft.registration, status: body.status, adminNote: body.note || "" }
+          }).catch(() => {});
+        }
         return res.json(reviewed);
       }
       if (action === "admin-dispute") {

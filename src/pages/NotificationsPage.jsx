@@ -7,6 +7,7 @@ const FILTER_OPTIONS = [
   { id: 'all',      label: 'All',       icon: 'ph-list-bullets' },
   { id: 'unread',   label: 'Unread',    icon: 'ph-circle-dashed' },
   { id: 'bookings', label: 'Bookings',  icon: 'ph-calendar' },
+  { id: 'aviation', label: 'Aviation',  icon: 'ph-airplane-takeoff' },
   { id: 'payments', label: 'Payments',  icon: 'ph-credit-card' },
   { id: 'reviews',  label: 'Reviews',   icon: 'ph-star' },
   { id: 'tours',    label: 'Tours',     icon: 'ph-map-pin' },
@@ -14,6 +15,12 @@ const FILTER_OPTIONS = [
 
 const TYPE_CATEGORIES = {
   bookings: ['BOOKING_REQUESTED','BOOKING_ACCEPTED','BOOKING_REJECTED','BOOKING_CANCELLED','BOOKING_UPDATED'],
+  aviation: [
+    'AVIATION_OPERATOR_VERIFIED','AVIATION_OPERATOR_REJECTED',
+    'AVIATION_AIRCRAFT_APPROVED','AVIATION_AIRCRAFT_REJECTED','AVIATION_AIRCRAFT_SUSPENDED',
+    'AVIATION_CHARTER_QUOTED','AVIATION_CHARTER_REJECTED','AVIATION_CHARTER_ACCEPTED','AVIATION_CHARTER_DECLINED',
+    'AVIATION_BOOKING_CREATED','AVIATION_BOOKING_CONFIRMED',
+  ],
   payments: ['PAYMENT_COMPLETED','PAYOUT_PROCESSED'],
   reviews:  ['REVIEW_RECEIVED'],
   tours:    ['TOUR_REMINDER_24H','TOUR_REMINDER_2H','TOUR_COMPLETED'],
@@ -32,6 +39,18 @@ const TYPE_CONFIG = {
   PAYOUT_PROCESSED:  { icon: 'ph-money',          color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', label: 'Payout' },
   REVIEW_RECEIVED:   { icon: 'ph-chat-circle-dots',color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/40', label: 'Review' },
   VERIFICATION_STATUS_CHANGED: { icon: 'ph-shield-check', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', label: 'Verified' },
+  // Aviation types
+  AVIATION_OPERATOR_VERIFIED:  { icon: 'ph-shield-check',       color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', label: 'Verified ✈️' },
+  AVIATION_OPERATOR_REJECTED:  { icon: 'ph-shield-warning',     color: 'text-rose-600 dark:text-rose-400',     bg: 'bg-rose-50 dark:bg-rose-950/40',     label: 'Operator' },
+  AVIATION_AIRCRAFT_APPROVED:  { icon: 'ph-airplane-takeoff',   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', label: 'Jet Approved' },
+  AVIATION_AIRCRAFT_REJECTED:  { icon: 'ph-airplane',           color: 'text-rose-600 dark:text-rose-400',     bg: 'bg-rose-50 dark:bg-rose-950/40',     label: 'Jet Rejected' },
+  AVIATION_AIRCRAFT_SUSPENDED: { icon: 'ph-airplane-landing',   color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-950/40',   label: 'Suspended' },
+  AVIATION_CHARTER_QUOTED:     { icon: 'ph-paper-plane-tilt',   color: 'text-sky-600 dark:text-sky-400',       bg: 'bg-sky-50 dark:bg-sky-950/40',       label: 'Quotation' },
+  AVIATION_CHARTER_REJECTED:   { icon: 'ph-x-circle',           color: 'text-rose-600 dark:text-rose-400',     bg: 'bg-rose-50 dark:bg-rose-950/40',     label: 'Charter' },
+  AVIATION_CHARTER_ACCEPTED:   { icon: 'ph-check-fat',          color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', label: 'Accepted ✈️' },
+  AVIATION_CHARTER_DECLINED:   { icon: 'ph-x-square',           color: 'text-slate-600 dark:text-slate-400',   bg: 'bg-slate-100 dark:bg-slate-800',     label: 'Declined' },
+  AVIATION_BOOKING_CREATED:    { icon: 'ph-airplane',           color: 'text-sky-600 dark:text-sky-400',       bg: 'bg-sky-50 dark:bg-sky-950/40',       label: 'Booking' },
+  AVIATION_BOOKING_CONFIRMED:  { icon: 'ph-check-circle',       color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/40', label: 'Confirmed ✈️' },
 };
 
 function getTypeConfig(type) {
