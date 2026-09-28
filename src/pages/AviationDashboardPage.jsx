@@ -4,7 +4,7 @@ import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import { CATEGORY_LABELS, aviationRequest, money } from "../lib/aviationClient.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const TABS = ["overview", "profile", "fleet", "charters", "operations"];
+const TABS = ["overview", "profile", "fleet", "charters", "operations", "wallet"];
 
 const EMPTY_AIRCRAFT = {
   name: "", category: "light_jet", manufacturer: "", model: "", year: 2020, registration: "",
@@ -46,6 +46,8 @@ export default function AviationDashboardPage() {
     companyName: "", contactName: "", phone: "", baseAirport: "", aoc: "", insurance: "", regulatoryStatus: "pending"
   });
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   async function load() {
     const data = await aviationRequest("operator-get", { token: getToken() });
@@ -61,6 +63,15 @@ export default function AviationDashboardPage() {
         insurance: op.insurance || op.compliance?.insurance || "",
         regulatoryStatus: op.regulatoryStatus || op.compliance?.regulatoryStatus || "pending",
       });
+      try {
+        const sRes = await fetch("/api/stripe-connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "check-status", role: "operator", operatorId: op.id })
+        });
+        const sData = await sRes.json();
+        if (sData.ok) setStripeConnected(sData.connected);
+      } catch {}
     }
     // Fetch unread aviation notifications
     try {
@@ -85,6 +96,42 @@ export default function AviationDashboardPage() {
     if (!user) { navigate("/auth?redirect=/aviation/dashboard"); return; }
     load().catch((err) => setError(err.message)).finally(() => setLoading(false));
   }, [user]);
+
+  async function handleConnectStripe() {
+    setStripeLoading(true);
+    try {
+      const res = await fetch("/api/stripe-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create-account-link", role: "operator", operatorId: portal.operator.id })
+      });
+      const data = await res.json();
+      if (data.ok && data.url) window.location.href = data.url;
+      else setError(data.error || "Could not connect to Stripe");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setStripeLoading(false);
+    }
+  }
+
+  async function handleStripeLogin() {
+    setStripeLoading(true);
+    try {
+      const res = await fetch("/api/stripe-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create-login-link", role: "operator", operatorId: portal.operator.id })
+      });
+      const data = await res.json();
+      if (data.ok && data.url) window.open(data.url, "_blank");
+      else setError(data.error || "Could not open Stripe dashboard");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setStripeLoading(false);
+    }
+  }
 
   async function saveOperatorProfile(e) {
     if (e) e.preventDefault();
@@ -145,39 +192,57 @@ export default function AviationDashboardPage() {
     <AviationLayout>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black uppercase text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 mb-2">
-              <i className="ph ph-shield-check text-sm" />
-              {portal.operator.status}
+        <div className="relative mb-8 rounded-[2rem] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-8 sm:p-10 shadow-2xl shadow-slate-900/20 text-white dark:from-slate-950 dark:via-slate-900 dark:to-black">
+          {/* subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent"></div>
+          <div className="relative flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-4 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-300 border border-emerald-500/30 mb-4 backdrop-blur-sm shadow-sm">
+                <i className="ph ph-shield-check text-sm" />
+                {portal.operator.status}
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-black tracking-tight">{portal.operator.companyName}</h1>
+              <p className="text-slate-300 mt-3 text-sm flex items-center gap-3 font-medium">
+                <span className="flex items-center gap-1.5"><i className="ph ph-map-pin text-emerald-400 text-lg"></i> Base: {portal.operator.baseAirport}</span>
+                <span className="text-slate-600">|</span> 
+                <span className="flex items-center gap-1.5"><i className="ph ph-airplane text-emerald-400 text-lg"></i> {portal.fleet?.length || 0} aircraft</span>
+              </p>
             </div>
-            <h1 className="text-4xl font-black">{portal.operator.companyName}</h1>
-            <p className="text-slate-500 mt-1 text-sm">Based at {portal.operator.baseAirport} · {portal.fleet?.length || 0} aircraft listed</p>
-          </div>
-          <div className="flex gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
-            {TABS.map((item) => (
-              <button
-                key={item}
-                onClick={() => setTab(item)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold capitalize transition-all ${tab === item ? "bg-white text-slate-950 shadow dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-800 dark:hover:text-white"}`}
+            <div className="flex items-center gap-4">
+              {/* Notifications bell */}
+              <a
+                href="/notifications"
+                className="relative inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all backdrop-blur-md shadow-lg hover:scale-105 active:scale-95"
+                title="View aviation notifications"
               >
-                {item}
-              </button>
-            ))}
+                <i className="ph ph-bell text-xl text-white" />
+                {unreadNotifs > 0 && (
+                  <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg border-2 border-slate-900 animate-pulse">
+                    {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                  </span>
+                )}
+              </a>
+            </div>
           </div>
-          {/* Notifications bell */}
-          <a
-            href="/notifications"
-            className="relative inline-flex items-center justify-center h-9 w-9 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all dark:bg-slate-900 dark:border-slate-700"
-            title="View aviation notifications"
-          >
-            <i className="ph ph-bell text-base text-slate-600 dark:text-slate-300" />
-            {unreadNotifs > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow">
-                {unreadNotifs > 9 ? "9+" : unreadNotifs}
-              </span>
-            )}
-          </a>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-3 overflow-x-auto pb-6 mb-2 scrollbar-hide">
+          {TABS.map((item) => (
+            <button
+              key={item}
+              onClick={() => setTab(item)}
+              className={`rounded-2xl px-6 py-3 text-sm font-black capitalize transition-all whitespace-nowrap shadow-sm border hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 ${tab === item ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900" : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:shadow-md dark:bg-slate-900 dark:border-slate-700 dark:hover:text-white dark:hover:border-slate-600"}`}
+            >
+              {item === 'overview' && <i className="ph ph-squares-four text-lg" />}
+              {item === 'profile' && <i className="ph ph-building text-lg" />}
+              {item === 'fleet' && <i className="ph ph-airplane-tilt text-lg" />}
+              {item === 'charters' && <i className="ph ph-paper-plane-tilt text-lg" />}
+              {item === 'operations' && <i className="ph ph-clipboard-text text-lg" />}
+              {item === 'wallet' && <i className="ph ph-wallet text-lg" />}
+              {item}
+            </button>
+          ))}
         </div>
 
         {notice && <div className="mb-4 rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-300">{notice}</div>}
@@ -703,6 +768,67 @@ export default function AviationDashboardPage() {
               ))}
               <button className="w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 transition-colors">Upload document record</button>
             </form>
+          </div>
+        )}
+
+        {/* ── WALLET ── */}
+        {tab === "wallet" && (
+          <div className="max-w-xl mx-auto mt-6">
+            <h2 className="text-2xl font-black mb-6">Wallet &amp; Payouts</h2>
+            <div className="rounded-3xl bg-white border border-slate-100 p-8 dark:bg-slate-900 dark:border-slate-800 text-center shadow-lg shadow-slate-200/40 dark:shadow-none transition-all">
+              <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white mb-6 shadow-xl shadow-indigo-500/30">
+                <i className="ph ph-wallet text-4xl" />
+              </div>
+              <h3 className="text-xl font-black mb-2">Receive payouts directly</h3>
+              <p className="text-sm text-slate-500 mb-8 max-w-sm mx-auto">
+                Connect your bank account to receive payouts automatically when charter flights are completed. Powered securely by Stripe.
+              </p>
+              
+              {stripeConnected ? (
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 mb-6 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60">
+                    <i className="ph ph-check-circle text-lg" />
+                    Stripe account connected
+                  </div>
+                  <button
+                    onClick={handleStripeLogin}
+                    disabled={stripeLoading}
+                    className="block w-full rounded-full bg-slate-950 py-3.5 text-sm font-black text-white hover:bg-slate-800 transition-colors dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 disabled:opacity-70 shadow-lg shadow-slate-950/20 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    {stripeLoading ? "Loading..." : "View Stripe Dashboard & Withdrawals"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={stripeLoading}
+                  className="block w-full rounded-full bg-indigo-600 py-3.5 text-sm font-black text-white hover:bg-indigo-700 transition-colors disabled:opacity-70 shadow-lg shadow-indigo-600/30 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {stripeLoading ? "Connecting..." : "Connect Bank Account"}
+                </button>
+              )}
+            </div>
+            
+            <div className="mt-8 rounded-3xl bg-slate-50 border border-slate-200 p-6 dark:bg-slate-800/50 dark:border-slate-700">
+              <h4 className="font-bold mb-2 flex items-center gap-2">
+                <i className="ph ph-info text-blue-600 text-lg" />
+                How payouts work
+              </h4>
+              <ul className="space-y-4 text-sm text-slate-600 dark:text-slate-400 mt-5">
+                <li className="flex items-start gap-4">
+                  <div className="mt-0.5 rounded-full bg-blue-100 w-6 h-6 flex items-center justify-center text-xs font-black text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 shrink-0">1</div>
+                  <p className="leading-relaxed">When a client books a flight, their payment is securely held in escrow.</p>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="mt-0.5 rounded-full bg-blue-100 w-6 h-6 flex items-center justify-center text-xs font-black text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 shrink-0">2</div>
+                  <p className="leading-relaxed">Funds become available for withdrawal 48 hours after the flight is successfully completed.</p>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="mt-0.5 rounded-full bg-blue-100 w-6 h-6 flex items-center justify-center text-xs font-black text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 shrink-0">3</div>
+                  <p className="leading-relaxed">Withdrawals take 2-3 business days to appear in your connected bank account.</p>
+                </li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
