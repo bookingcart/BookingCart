@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
+import { aviationRequest, money } from '../lib/aviationClient.js';
 
 const STATUS_BADGE = {
   confirmed: 'bg-green-100 text-green-700',
@@ -193,6 +194,9 @@ export default function MyBookingsPage() {
   const [guidesLoading, setGuidesLoading] = useState(false);
   const [guidesError, setGuidesError] = useState('');
   const [guidesFetched, setGuidesFetched] = useState(false);
+  const [aviationBookings, setAviationBookings] = useState([]);
+  const [aviationLoading, setAviationLoading] = useState(false);
+  const [aviationError, setAviationError] = useState('');
 
   useEffect(() => {
     document.title = 'My Bookings | BookingCart';
@@ -245,6 +249,19 @@ export default function MyBookingsPage() {
         .finally(() => setGuidesLoading(false));
     }
   }, [activeTab, guidesFetched, user, getToken]);
+
+  useEffect(() => {
+    if (activeTab !== 'aviation') return;
+    if (!user) {
+      setAviationError('Please sign in to view charter bookings.');
+      return;
+    }
+    setAviationLoading(true);
+    aviationRequest('bookings', { token: getToken() })
+      .then((data) => { setAviationBookings(data.bookings || []); setAviationError(''); })
+      .catch((err) => setAviationError(err.message))
+      .finally(() => setAviationLoading(false));
+  }, [activeTab, user, getToken]);
 
   const handleCancelStay = (id) => {
     setStaysBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' } : b));
@@ -325,6 +342,12 @@ export default function MyBookingsPage() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'guides' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
               >
                 <i className="ph ph-compass text-lg" /> Tour Guides
+              </button>
+              <button
+                onClick={() => setActiveTab('aviation')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'aviation' ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+              >
+                <i className="ph ph-airplane-takeoff text-lg" /> Private Jets
               </button>
               <div className="border-t border-slate-100 dark:border-slate-700 my-2 mx-3" />
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Account</div>
@@ -487,6 +510,28 @@ export default function MyBookingsPage() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'aviation' && (
+            <div>
+              {aviationLoading && <p className="py-16 text-center text-slate-400">Loading charter bookings…</p>}
+              {aviationError && <p className="rounded-2xl bg-rose-50 p-4 text-rose-700">{aviationError}</p>}
+              {!aviationLoading && !aviationError && aviationBookings.length === 0 && (
+                <div className="py-16 text-center">
+                  <h3 className="text-lg font-bold">No private aviation bookings yet</h3>
+                  <a href="/aviation" className="mt-4 inline-flex rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white">Search aircraft</a>
+                </div>
+              )}
+              <div className="space-y-4">
+                {aviationBookings.map((booking) => (
+                  <a key={booking.ref} href={`/aviation/confirmation?ref=${booking.ref}`} className="block rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="font-black">{booking.ref}</p>
+                    <p className="text-sm text-slate-500">{booking.origin?.code} → {booking.destination?.code} · {booking.departDate}</p>
+                    <p className="mt-1 text-sm font-semibold">{booking.aircraftName} · {money(booking.quote?.price)} · {booking.status}</p>
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </main>

@@ -53,6 +53,17 @@ const HotelOnboardingPage = lazy(() => import('./pages/HotelOnboardingPage.jsx')
 const EventOnboardingPage = lazy(() => import('./pages/EventOnboardingPage.jsx'));
 const EventConfirmationPage = lazy(() => import('./pages/EventConfirmationPage.jsx'));
 const HotelDashboardPage = lazy(() => import('./pages/HotelDashboardPage.jsx'));
+const AviationPage = lazy(() => import('./pages/AviationPage.jsx'));
+const AviationResultsPage = lazy(() => import('./pages/AviationResultsPage.jsx'));
+const AviationDetailsPage = lazy(() => import('./pages/AviationDetailsPage.jsx'));
+const AviationCheckoutPage = lazy(() => import('./pages/AviationCheckoutPage.jsx'));
+const AviationConfirmationPage = lazy(() => import('./pages/AviationConfirmationPage.jsx'));
+const AviationCharterPage = lazy(() => import('./pages/AviationCharterPage.jsx'));
+const AviationAirportsPage = lazy(() => import('./pages/AviationAirportsPage.jsx'));
+const AviationItineraryPage = lazy(() => import('./pages/AviationItineraryPage.jsx'));
+const AviationOnboardingPage = lazy(() => import('./pages/AviationOnboardingPage.jsx'));
+const AviationDashboardPage = lazy(() => import('./pages/AviationDashboardPage.jsx'));
+const AviationAdminPage = lazy(() => import('./pages/AviationAdminPage.jsx'));
 
 export default function App() {
   return (
@@ -89,6 +100,17 @@ export default function App() {
           <Route path="/list-your-hotel" element={<HotelOnboardingPage />} />
           <Route path="/list-your-hotel/:step" element={<HotelOnboardingPage />} />
           <Route path="/hotel-dashboard" element={<HotelDashboardPage />} />
+          <Route path="/aviation" element={<AviationPage />} />
+          <Route path="/aviation/results" element={<AviationResultsPage />} />
+          <Route path="/aviation/aircraft/:id" element={<AviationDetailsPage />} />
+          <Route path="/aviation/checkout" element={<AviationCheckoutPage />} />
+          <Route path="/aviation/confirmation" element={<AviationConfirmationPage />} />
+          <Route path="/aviation/charter" element={<AviationCharterPage />} />
+          <Route path="/aviation/airports" element={<AviationAirportsPage />} />
+          <Route path="/aviation/itinerary" element={<AviationItineraryPage />} />
+          <Route path="/aviation/operators/join" element={<AviationOnboardingPage />} />
+          <Route path="/aviation/dashboard" element={<AviationDashboardPage />} />
+          <Route path="/admin/aviation" element={<AviationAdminPage />} />
           <Route path="/list-your-event" element={<EventOnboardingPage />} />
           <Route path="/list-your-event/:step" element={<EventOnboardingPage />} />
           <Route path="/event-confirmation" element={<EventConfirmationPage />} />

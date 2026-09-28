@@ -70,6 +70,14 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             <div className="h-5 w-px bg-slate-200 transition-colors dark:bg-slate-800" />
 
             <a
+              href="/aviation"
+              className={`flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold transition-colors ${activeNav === 'aviation' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'}`}
+            >
+              <i className="ph ph-airplane-takeoff text-emerald-700 text-base" />
+              <span className="hidden lg:inline">Private Jets</span>
+            </a>
+
+            <a
               href="/support"
               className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white"
             >
@@ -94,6 +102,16 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               >
                 <i className="ph ph-buildings text-base" />
                 <span>List Your Property</span>
+              </a>
+            )}
+
+            {activeNav === 'aviation' && (
+              <a
+                href="/aviation/operators/join"
+                className="flex h-10 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800"
+              >
+                <i className="ph ph-airplane-takeoff text-base" />
+                <span>List your aircraft</span>
               </a>
             )}
 
@@ -155,6 +173,14 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                   </a>
                 );
               })}
+              <a
+                href="/aviation"
+                onClick={() => setMobileOpen(false)}
+                className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+              >
+                <i className="ph ph-airplane-takeoff text-lg text-emerald-700" />
+                Private Jets
+              </a>
               <a
                 href="/support"
                 onClick={() => setMobileOpen(false)}

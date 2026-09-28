@@ -156,6 +156,11 @@ export function FlightFooter() {
                   </a>
                 </li>
               ))}
+              <li>
+                <a href="/aviation" className="text-sm text-slate-500 hover:text-green-600 transition-colors">
+                  Private jets & charters
+                </a>
+              </li>
             </ul>
           </div>
 
