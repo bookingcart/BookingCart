@@ -213,6 +213,23 @@ function AttractionsHomeContent() {
         </div>
       </div>
 
+      {/* ── LOCAL EVENTS ── */}
+      {featuredEvents.length > 0 && (
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Local events &amp; experiences</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Book tickets directly for these verified events</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {featuredEvents.map(event => (
+              <LocalEventCard key={event.id} item={event} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── EXPLORE MORE DESTINATIONS ── */}
       <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
         <div className="flex items-end justify-between mb-5">
@@ -269,24 +286,6 @@ function AttractionsHomeContent() {
           ))}
         </div>
       </div>
-
-
-      {/* ── LOCAL EVENTS ── */}
-      {featuredEvents.length > 0 && (
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
-          <div className="flex items-end justify-between mb-5">
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Local events &amp; experiences</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Book tickets directly for these verified events</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {featuredEvents.map(event => (
-              <LocalEventCard key={event.id} item={event} />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── WHY BOOK WITH US ── */}
       <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
