@@ -55,6 +55,7 @@ const eventProfilesHandler = require('./api-routes/event-profiles');
 const aviationHandler = require('./api-routes/aviation');
 const stripeConnectHandler = require('./api-routes/stripe-connect');
 const uploadHandler = require('./api-routes/upload');
+const attractionProfilesHandler = require('./api-routes/attraction-profiles');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -216,6 +217,10 @@ app.all('/api/aviation/:action', apiLimiter, run(aviationHandler));
 app.all('/api/stripe/connect', apiLimiter, run(stripeConnectHandler));
 app.all('/api/upload', apiLimiter, run(uploadHandler));
 app.get('/api/upload/:id', apiLimiter, run(uploadHandler));
+
+// Attraction Profile (client-owned listings) routes
+app.get('/api/attraction-profiles', apiLimiter, run(attractionProfilesHandler));
+app.post('/api/attraction-profiles', apiLimiter, run(attractionProfilesHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>
