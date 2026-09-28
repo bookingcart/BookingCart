@@ -12,29 +12,28 @@ const CATEGORIES = [
 
 const STATUS_CONFIG = {
   draft:     { label: 'Draft',     color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',        dot: 'bg-slate-400' },
-  pending:   { label: 'Pending',   color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',         dot: 'bg-amber-400' },
-  published: { label: 'Published', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300', dot: 'bg-emerald-400' },
-  rejected:  { label: 'Rejected',  color: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',             dot: 'bg-rose-400' },
+  pending:   { label: 'Pending',   color: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',         dot: 'bg-amber-500' },
+  published: { label: 'Published', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300', dot: 'bg-emerald-500' },
+  rejected:  { label: 'Rejected',  color: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300',             dot: 'bg-rose-500' },
 };
 
 const MENU_ITEMS = [
   { id: 'overview',      label: 'Overview',       icon: 'ph-squares-four' },
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
-  { id: 'create',        label: 'Create New',      icon: 'ph-plus-circle' },
+  { id: 'create',        label: 'Create New',      icon: 'ph-ticket' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
   { id: 'notifications', label: 'Notifications',   icon: 'ph-bell' },
   { id: 'settings',      label: 'Profile Settings',icon: 'ph-gear' },
 ];
 
-// Colour theme
-const ACCENT = 'violet';
-const ACCENT_BG   = 'bg-violet-600';
-const ACCENT_HOVER= 'hover:bg-violet-700';
-const ACCENT_TEXT = 'text-violet-600';
-const ACCENT_LIGHT= 'bg-violet-50 dark:bg-violet-950/40';
-const ACCENT_RING = 'focus:ring-violet-500';
-const ACCENT_SHADOW = 'shadow-violet-600/20';
-const SIDEBAR_ACTIVE = `bg-violet-600 text-white shadow-md shadow-violet-600/20`;
+// Site Theme Design Tokens (Matching Homepage & Navbar Attractions styling)
+const ACCENT_BG     = 'bg-amber-500';
+const ACCENT_HOVER  = 'hover:bg-amber-600';
+const ACCENT_TEXT   = 'text-amber-600 dark:text-amber-400';
+const ACCENT_LIGHT  = 'bg-amber-50 dark:bg-amber-950/40';
+const ACCENT_RING   = 'focus:ring-amber-500';
+const ACCENT_SHADOW = 'shadow-sm shadow-amber-500/25';
+const SIDEBAR_ACTIVE = 'bg-amber-500 text-white shadow-md shadow-amber-500/25';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -54,31 +53,37 @@ function StatusBadge({ status }) {
   );
 }
 
-function ProgressBar({ value, color = 'bg-violet-500' }) {
+function ProgressBar({ value, color = 'bg-amber-500' }) {
   return (
     <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-      <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(100, value || 0)}%` }} />
+      <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }} />
     </div>
   );
 }
 
-// Simple sparkline chart using SVG
-function Sparkline({ data = [], color = '#7c3aed', height = 48 }) {
-  if (!data.length) return null;
+// Sparkline chart using SVG
+function Sparkline({ data = [], color = '#f59e0b', height = 48 }) {
+  if (!data.length || data.every(v => v === 0)) {
+    return (
+      <div style={{ height }} className="w-full flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+        <span className="text-[11px] text-slate-400 font-semibold">No data points recorded yet</span>
+      </div>
+    );
+  }
   const max = Math.max(...data, 1);
   const min = Math.min(...data, 0);
   const range = max - min || 1;
   const w = 200;
   const h = height;
   const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
+    const x = (i / Math.max(1, data.length - 1)) * w;
     const y = h - ((v - min) / range) * h;
     return `${x},${y}`;
   });
   const pathD = `M ${pts.join(' L ')}`;
-  const areaD = `M ${pts[0]} L ${pts.join(' L ')} L ${(data.length - 1) / (data.length - 1) * w},${h} L 0,${h} Z`;
+  const areaD = `M ${pts[0]} L ${pts.join(' L ')} L ${w},${h} L 0,${h} Z`;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full overflow-visible" preserveAspectRatio="none">
       <defs>
         <linearGradient id={`grad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
@@ -103,11 +108,14 @@ function Modal({ open, onClose, title, children, wide = false }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className={`relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[90vh] overflow-y-auto`}
+        className={`relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-xl'} max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800`}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 rounded-t-3xl">
-          <h3 className="font-black text-lg text-slate-900 dark:text-white">{title}</h3>
+          <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
+            <i className="ph ph-ticket text-amber-500" />
+            {title}
+          </h3>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-colors">
             <i className="ph ph-x text-sm" />
           </button>
@@ -133,9 +141,23 @@ function Field({ label, required, children, hint }) {
 
 const inputCls = `w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl
   px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400
-  focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-colors`;
+  focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors`;
 
 const textareaCls = `${inputCls} resize-none`;
+
+// Homepage-Consistent "List your event or attraction" CTA Button
+function ListAttractionButton({ onClick, label = "List your event or attraction", className = "" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-all shadow-sm shadow-amber-500/25 ${className}`}
+    >
+      <i className="ph ph-ticket text-base" />
+      <span>{label}</span>
+    </button>
+  );
+}
 
 // ─── Attraction Form (create/edit) ────────────────────────────────────────────
 function AttractionForm({ initial = {}, onSubmit, loading, submitLabel = 'Save Attraction' }) {
@@ -175,7 +197,7 @@ function AttractionForm({ initial = {}, onSubmit, loading, submitLabel = 'Save A
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Attraction Name" required>
-          <input required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Victoria Falls" className={inputCls} />
+          <input required value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Victoria Falls Safari" className={inputCls} />
         </Field>
         <Field label="Category" required>
           <select required value={form.category} onChange={e => set('category', e.target.value)} className={inputCls}>
@@ -193,7 +215,7 @@ function AttractionForm({ initial = {}, onSubmit, loading, submitLabel = 'Save A
         </Field>
       </div>
       <Field label="Description" required hint="Minimum 50 characters for a complete profile">
-        <textarea required rows={4} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe your attraction in detail…" className={textareaCls} />
+        <textarea required rows={4} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe your attraction or event in detail…" className={textareaCls} />
       </Field>
       <Field label="Featured Image URL" hint="Direct link to your main attraction photo">
         <input type="url" value={form.featured_image} onChange={e => set('featured_image', e.target.value)} placeholder="https://…" className={inputCls} />
@@ -233,8 +255,8 @@ function AttractionForm({ initial = {}, onSubmit, loading, submitLabel = 'Save A
 
       <div className="pt-2 flex gap-3 justify-end">
         <button type="submit" disabled={loading}
-          className={`px-6 py-3 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-sm rounded-xl transition-all shadow-lg ${ACCENT_SHADOW} flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}>
-          {loading ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-floppy-disk" /> {submitLabel}</>}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+          {loading ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-ticket" /> {submitLabel}</>}
         </button>
       </div>
     </form>
@@ -255,12 +277,12 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group flex flex-col">
       {/* Featured Image */}
-      <div className="relative h-40 bg-gradient-to-br from-violet-100 to-indigo-100 dark:from-violet-950/50 dark:to-indigo-950/50 overflow-hidden flex-shrink-0">
+      <div className="relative h-40 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/40 dark:to-orange-950/40 overflow-hidden flex-shrink-0">
         {a.featured_image ? (
           <img src={a.featured_image} alt={a.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={e => { e.target.style.display='none'; }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <i className="ph ph-image text-4xl text-violet-300 dark:text-violet-700" />
+            <i className="ph ph-image text-4xl text-amber-300 dark:text-amber-700" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -287,8 +309,8 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
                 <i className="ph ph-eye text-slate-400" /> Preview
               </button>
               {(a.status === 'draft' || a.status === 'rejected') && (
-                <button onClick={() => { onSubmit(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors">
-                  <i className="ph ph-paper-plane-tilt text-violet-500" /> Submit for Review
+                <button onClick={() => { onSubmit(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
+                  <i className="ph ph-paper-plane-tilt text-amber-500" /> Submit for Review
                 </button>
               )}
               <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
@@ -304,24 +326,24 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
         <div>
           <h3 className="font-black text-sm text-slate-900 dark:text-white line-clamp-1">{a.name || 'Unnamed Attraction'}</h3>
           <div className="flex items-center gap-1 mt-0.5 text-[11px] text-slate-500">
-            <i className="ph ph-map-pin text-violet-400 flex-shrink-0" />
+            <i className="ph ph-map-pin text-amber-500 flex-shrink-0" />
             <span className="line-clamp-1">{a.city}{a.country ? `, ${a.country}` : ''}</span>
           </div>
         </div>
 
         {a.category && (
-          <span className="self-start px-2 py-0.5 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 text-[10px] font-bold rounded-full border border-violet-200 dark:border-violet-800">
+          <span className="self-start px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[10px] font-bold rounded-full border border-amber-200 dark:border-amber-800">
             {a.category}
           </span>
         )}
 
         <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 text-[10px] text-slate-500 font-semibold">
-            <span className="flex items-center gap-1"><i className="ph ph-eye" /> {a.views || 0}</span>
+            <span className="flex items-center gap-1"><i className="ph ph-eye text-amber-500" /> {a.views || 0}</span>
             <span className="flex items-center gap-1"><i className="ph ph-calendar-blank" /> {fmtDate(a.created_at)}</span>
           </div>
           {a.price > 0 && (
-            <span className="text-xs font-black text-violet-600">{a.currency} {parseFloat(a.price).toFixed(0)}</span>
+            <span className="text-xs font-black text-amber-600">{a.currency} {parseFloat(a.price).toFixed(0)}</span>
           )}
         </div>
       </div>
@@ -329,30 +351,16 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
   );
 }
 
-// ─── DEMO notifications ───────────────────────────────────────────────────────
-const DEMO_NOTIFS = [
-  { id: 1, icon: 'ph-check-circle', color: 'text-emerald-500', title: 'Listing Approved', body: 'Your attraction "Safari Wildlife Walk" has been approved and is now live.', time: '2 hours ago', read: false },
-  { id: 2, icon: 'ph-star', color: 'text-amber-500', title: 'New Inquiry', body: 'You have a new booking inquiry for "Sunset Boat Tour".', time: '5 hours ago', read: false },
-  { id: 3, icon: 'ph-warning', color: 'text-rose-500', title: 'Listing Rejected', body: 'Your submission "Night Market Tour" requires revision. Please update the description.', time: 'Yesterday', read: true },
-  { id: 4, icon: 'ph-bell', color: 'text-violet-500', title: 'System Update', body: 'New analytics features have been added to your dashboard.', time: '3 days ago', read: true },
-  { id: 5, icon: 'ph-users', color: 'text-blue-500', title: 'Profile View Milestone', body: 'Your attractions have received 1,000+ total views this month!', time: '4 days ago', read: true },
-];
-
-// Demo analytics data
-function generateWeekData(base = 10, variance = 8) {
-  return Array.from({ length: 12 }, (_, i) => Math.max(0, base + Math.round((Math.sin(i * 0.8) * variance) + (Math.random() * variance * 0.5))));
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function AttractionDashboardPage() {
-  const { user, getToken, authHeaders } = useAuth();
+  const { user, authHeaders } = useAuth();
   const navigate = useNavigate();
   const { tab: tabParam } = useParams();
 
   const [activeTab, setActiveTab] = useState(tabParam || 'overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Data
+  // Client Data (No dummy fallback)
   const [attractions, setAttractions] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -372,32 +380,25 @@ export default function AttractionDashboardPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
 
-  // Notifications
-  const [notifs, setNotifs] = useState(DEMO_NOTIFS);
+  // Authentic notifications state (starts empty until real notifications exist)
+  const [notifs, setNotifs] = useState([]);
 
   // Profile settings
   const [profileForm, setProfileForm] = useState({ name: '', email: '', businessName: '', phone: '', website: '', bio: '' });
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Analytics
-  const [analyticsData] = useState({
-    viewsData: generateWeekData(45, 20),
-    inquiriesData: generateWeekData(8, 5),
-    months: ['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],
-  });
-
-  // ── Load ────────────────────────────────────────────────────────────────────
+  // ── Load Client Attractions ──────────────────────────────────────────────
   const loadAttractions = useCallback(async (pg = 1, reset = false) => {
     if (!user) return;
     try {
-      reset ? setLoading(true) : null;
+      if (reset) setLoading(true);
       const params = new URLSearchParams({ page: pg, limit: LIMIT });
       if (statusFilter) params.set('status', statusFilter);
       if (search) params.set('search', search);
       const res = await fetch(`/api/attraction-profiles?${params}`, { headers: authHeaders() });
       const data = await res.json();
       if (data.ok) {
-        setAttractions(prev => reset || pg === 1 ? data.attractions : [...prev, ...data.attractions]);
+        setAttractions(prev => reset || pg === 1 ? (data.attractions || []) : [...prev, ...(data.attractions || [])]);
         setTotal(data.total || 0);
         setPage(pg);
       } else {
@@ -425,22 +426,22 @@ export default function AttractionDashboardPage() {
       bio: user.bio || '',
     });
     loadAttractions(1, true);
-  }, [user, navigate]);
+  }, [user, navigate, loadAttractions]);
 
   // Re-fetch on filter change
   useEffect(() => {
     if (user) loadAttractions(1, true);
-  }, [statusFilter, search]);
+  }, [statusFilter, search, loadAttractions, user]);
 
   // ── Sorted list ─────────────────────────────────────────────────────────────
   const sortedAttractions = [...attractions].sort((a, b) => {
     if (sortBy === 'views') return (b.views || 0) - (a.views || 0);
     if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
     if (sortBy === 'status') return (a.status || '').localeCompare(b.status || '');
-    return new Date(b.created_at) - new Date(a.created_at); // newest
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
 
-  // ── Stats ───────────────────────────────────────────────────────────────────
+  // ── Stats (Derived exclusively from client data) ───────────────────────────
   const stats = {
     total: total,
     published: attractions.filter(a => a.status === 'published').length,
@@ -568,12 +569,12 @@ export default function AttractionDashboardPage() {
       <div>
         {/* Logo */}
         <div className="hidden md:flex items-center gap-3 mb-8">
-          <div className={`w-10 h-10 rounded-2xl ${ACCENT_BG} text-white flex items-center justify-center font-black text-xl shadow-lg ${ACCENT_SHADOW}`}>
-            <i className="ph-fill ph-map-trifold" />
+          <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black text-xl shadow-sm shadow-amber-500/25">
+            <i className="ph ph-ticket" />
           </div>
           <div>
             <div className="font-black text-base text-slate-900 dark:text-white leading-none">Attraction Portal</div>
-            <div className={`text-[10px] font-extrabold ${ACCENT_TEXT} uppercase tracking-wider mt-1`}>Owner Dashboard</div>
+            <div className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-1">Owner Dashboard</div>
           </div>
         </div>
 
@@ -602,63 +603,54 @@ export default function AttractionDashboardPage() {
         </nav>
       </div>
 
-      {/* Footer */}
+      {/* Footer CTA matching homepage */}
       <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
-        <button
+        <ListAttractionButton
           onClick={() => { setShowCreate(true); setMobileMenuOpen(false); }}
-          className={`w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all`}
-        >
-          <i className="ph ph-plus-circle text-base" /> Add Attraction
-        </button>
-        <div className="text-[11px] text-slate-400 text-center font-semibold">
+          className="w-full"
+        />
+        <div className="text-[11px] text-slate-400 text-center font-semibold truncate">
           {user?.name || user?.email}
         </div>
       </div>
     </aside>
   );
 
-  // ─── Tabs ────────────────────────────────────────────────────────────────────
-
   // ── OVERVIEW ──────────────────────────────────────────────────────────────
   const OverviewTab = () => (
     <div className="space-y-8">
       {/* Welcome Banner */}
-      <div className="relative bg-gradient-to-r from-slate-900 via-violet-950 to-indigo-950 text-white rounded-3xl p-6 sm:p-10 shadow-2xl overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-800 overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
-          <span className="inline-block bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest mb-4">
-            Dashboard Overview
+          <span className="inline-block bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest mb-4">
+            Attraction Dashboard
           </span>
           <h1 className="text-2xl sm:text-4xl font-black mb-2 leading-tight">
             Welcome back, {user?.name?.split(' ')[0] || 'Owner'}! 👋
           </h1>
           <p className="text-slate-300 text-sm font-medium mb-6">
-            Manage your attraction listings, track performance, and grow your audience on BookingCart.
+            Manage your attraction listings, view authentic analytics, and expand your reach on BookingCart.
           </p>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => setShowCreate(true)}
-              className={`px-5 py-2.5 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-xs rounded-xl transition-all shadow-lg ${ACCENT_SHADOW} flex items-center gap-1.5`}>
-              <i className="ph ph-plus-circle" /> Create Attraction
-            </button>
+            <ListAttractionButton onClick={() => setShowCreate(true)} />
             <button onClick={() => setActiveTab('attractions')}
               className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs rounded-xl backdrop-blur-md transition-all flex items-center gap-1.5">
-              <i className="ph ph-map-trifold" /> View All Listings
+              <i className="ph ph-map-trifold text-base" /> View All Listings
             </button>
           </div>
         </div>
       </div>
 
-      {/* Metric Cards */}
+      {/* Metric Cards (Real stats from user attractions) */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
-          { label: 'Total', value: stats.total, icon: 'ph-map-trifold', color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800', iconColor: 'text-violet-500' },
+          { label: 'Total', value: stats.total, icon: 'ph-map-trifold', color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800', iconColor: 'text-amber-500' },
           { label: 'Published', value: stats.published, icon: 'ph-check-circle', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', iconColor: 'text-emerald-500' },
           { label: 'Pending', value: stats.pending, icon: 'ph-clock', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/40', iconColor: 'text-amber-500' },
           { label: 'Drafts', value: stats.draft, icon: 'ph-pencil-line', color: 'text-slate-600', bg: 'bg-slate-50 dark:bg-slate-800/50', iconColor: 'text-slate-400' },
-          { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-violet-600', bg: ACCENT_LIGHT, iconColor: ACCENT_TEXT },
-          { label: 'Inquiries', value: stats.bookings.toLocaleString(), icon: 'ph-envelope', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-950/40', iconColor: 'text-indigo-500' },
+          { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-amber-600', bg: ACCENT_LIGHT, iconColor: 'text-amber-500' },
+          { label: 'Inquiries', value: stats.bookings.toLocaleString(), icon: 'ph-envelope', color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/40', iconColor: 'text-blue-500' },
         ].map(({ label, value, icon, color, bg, iconColor }) => (
           <div key={label} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
             <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center mb-3`}>
@@ -676,31 +668,31 @@ export default function AttractionDashboardPage() {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-black text-base text-slate-900 dark:text-white">Recent Attractions</h3>
-            <button onClick={() => setActiveTab('attractions')} className={`text-xs font-bold ${ACCENT_TEXT} hover:underline`}>View All →</button>
+            <button onClick={() => setActiveTab('attractions')} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">View All →</button>
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <i className="ph ph-spinner-gap text-3xl text-violet-500 animate-spin" />
+              <i className="ph ph-spinner-gap text-3xl text-amber-500 animate-spin" />
             </div>
           ) : attractions.length === 0 ? (
             <div className="text-center py-10">
-              <i className="ph ph-map-trifold text-5xl text-slate-200 dark:text-slate-700 mb-3" />
+              <i className="ph ph-ticket text-5xl text-slate-200 dark:text-slate-700 mb-3" />
               <p className="font-bold text-slate-600 dark:text-slate-400">You haven't created any attractions yet.</p>
-              <button onClick={() => setShowCreate(true)}
-                className={`mt-4 px-5 py-2.5 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-xs rounded-xl transition-all shadow-md`}>
-                Create Your First Attraction
-              </button>
+              <ListAttractionButton
+                onClick={() => setShowCreate(true)}
+                className="mt-4 inline-flex"
+              />
             </div>
           ) : (
             <div className="space-y-3">
               {attractions.slice(0, 5).map(a => (
-                <div key={a.id} className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-800 transition-colors">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-violet-100 dark:bg-violet-950/40">
+                <div key={a.id} className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-amber-100 dark:bg-amber-950/40">
                     {a.featured_image ? (
                       <img src={a.featured_image} alt={a.name} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <i className="ph ph-image text-violet-300 dark:text-violet-700" />
+                        <i className="ph ph-image text-amber-300 dark:text-amber-700" />
                       </div>
                     )}
                   </div>
@@ -715,23 +707,19 @@ export default function AttractionDashboardPage() {
           )}
         </div>
 
-        {/* Quick Actions + Activity Feed */}
+        {/* Quick Actions + Notifications preview */}
         <div className="space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
             <h3 className="font-black text-sm text-slate-900 dark:text-white mb-4">Quick Actions</h3>
             <div className="space-y-2">
+              <ListAttractionButton onClick={() => setShowCreate(true)} className="w-full justify-start" />
               {[
-                { label: 'Create Attraction', icon: 'ph-plus-circle', onClick: () => setShowCreate(true), primary: true },
                 { label: 'View Analytics', icon: 'ph-chart-line-up', onClick: () => setActiveTab('analytics') },
                 { label: 'Check Notifications', icon: 'ph-bell', onClick: () => setActiveTab('notifications') },
                 { label: 'Edit Profile', icon: 'ph-gear', onClick: () => setActiveTab('settings') },
-              ].map(({ label, icon, onClick, primary }) => (
+              ].map(({ label, icon, onClick }) => (
                 <button key={label} onClick={onClick}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
-                    primary
-                      ? `${ACCENT_BG} ${ACCENT_HOVER} text-white shadow-md ${ACCENT_SHADOW}`
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}>
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
                   <i className={`ph ${icon} text-base`} />
                   {label}
                 </button>
@@ -739,13 +727,18 @@ export default function AttractionDashboardPage() {
             </div>
           </div>
 
-          {/* Notifications preview */}
-          {unreadCount > 0 && (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-black text-sm text-slate-900 dark:text-white">Notifications</h3>
-                <span className="bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{unreadCount} new</span>
+          {/* Notifications preview (Real notifications) */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-sm text-slate-900 dark:text-white">Notifications</h3>
+              {unreadCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{unreadCount} new</span>}
+            </div>
+            {notifs.length === 0 ? (
+              <div className="text-center py-4">
+                <i className="ph ph-bell-slash text-2xl text-slate-300 dark:text-slate-600 mb-1 block" />
+                <p className="text-xs text-slate-500">No active notifications</p>
               </div>
+            ) : (
               <div className="space-y-3">
                 {notifs.filter(n => !n.read).slice(0, 2).map(n => (
                   <div key={n.id} className="flex gap-3">
@@ -757,11 +750,11 @@ export default function AttractionDashboardPage() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => setActiveTab('notifications')} className={`mt-3 text-xs font-bold ${ACCENT_TEXT} hover:underline`}>
-                View all notifications →
-              </button>
-            </div>
-          )}
+            )}
+            <button onClick={() => setActiveTab('notifications')} className="mt-3 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
+              View all notifications →
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -776,10 +769,7 @@ export default function AttractionDashboardPage() {
           <h2 className="text-2xl font-black text-slate-900 dark:text-white">My Attractions</h2>
           <p className="text-xs text-slate-500 mt-0.5">{total} listing{total !== 1 ? 's' : ''} in your portfolio</p>
         </div>
-        <button onClick={() => setShowCreate(true)}
-          className={`flex items-center gap-2 px-5 py-2.5 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-xs rounded-xl shadow-md ${ACCENT_SHADOW} transition-all`}>
-          <i className="ph ph-plus-circle" /> Add Attraction
-        </button>
+        <ListAttractionButton onClick={() => setShowCreate(true)} />
       </div>
 
       {/* Search / Filter / Sort */}
@@ -810,15 +800,15 @@ export default function AttractionDashboardPage() {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <i className="ph ph-spinner-gap text-4xl text-violet-500 animate-spin" />
+          <i className="ph ph-spinner-gap text-4xl text-amber-500 animate-spin" />
         </div>
       )}
 
       {/* Empty State */}
       {!loading && sortedAttractions.length === 0 && (
         <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-          <div className="w-20 h-20 bg-violet-50 dark:bg-violet-950/40 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ph ph-map-trifold text-4xl text-violet-300 dark:text-violet-600" />
+          <div className="w-20 h-20 bg-amber-50 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i className="ph ph-ticket text-4xl text-amber-500" />
           </div>
           <h3 className="font-black text-xl text-slate-800 dark:text-slate-200 mb-2">
             {search || statusFilter ? 'No attractions found' : "You haven't created any attractions yet."}
@@ -826,14 +816,10 @@ export default function AttractionDashboardPage() {
           <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
             {search || statusFilter
               ? 'Try adjusting your search or filters.'
-              : 'Start by creating your first attraction listing. It only takes a few minutes!'}
+              : 'Start by creating your first attraction listing to publish it on BookingCart!'}
           </p>
           {!search && !statusFilter && (
-            <button onClick={() => setShowCreate(true)}
-              className={`px-6 py-3 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-sm rounded-xl shadow-lg ${ACCENT_SHADOW} transition-all`}>
-              <i className="ph ph-plus-circle mr-2" />
-              Create Your First Attraction
-            </button>
+            <ListAttractionButton onClick={() => setShowCreate(true)} className="inline-flex" />
           )}
         </div>
       )}
@@ -874,118 +860,73 @@ export default function AttractionDashboardPage() {
     </div>
   );
 
-  // ── ANALYTICS ─────────────────────────────────────────────────────────────
-  const AnalyticsTab = () => (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Analytics</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Track performance across all your attraction listings.</p>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Views (30d)', value: '1,847', change: '+12%', up: true, color: 'text-violet-600' },
-          { label: 'Unique Visitors', value: '1,023', change: '+8%', up: true, color: 'text-indigo-600' },
-          { label: 'Inquiries', value: '48', change: '+3%', up: true, color: 'text-emerald-600' },
-          { label: 'Avg. View Time', value: '2m 18s', change: '-5%', up: false, color: 'text-slate-900 dark:text-white' },
-        ].map(({ label, value, change, up, color }) => (
-          <div key={label} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</div>
-            <div className={`text-3xl font-black ${color}`}>{value}</div>
-            <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 ${up ? 'text-emerald-600' : 'text-rose-500'}`}>
-              <i className={`ph ${up ? 'ph-trend-up' : 'ph-trend-down'} text-sm`} /> {change} vs last month
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Views chart */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Views Over Time</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">Last 12 months</p>
-            </div>
-            <span className="text-2xl font-black text-violet-600">{analyticsData.viewsData.reduce((a, b) => a + b, 0).toLocaleString()}</span>
-          </div>
-          <Sparkline data={analyticsData.viewsData} color="#7c3aed" height={64} />
-          <div className="flex justify-between mt-2">
-            {analyticsData.months.map((m, i) => (
-              <span key={m} className="text-[8px] text-slate-400">{m}</span>
-            ))}
-          </div>
+  // ── ANALYTICS (Driven strictly by client data) ────────────────────────────
+  const AnalyticsTab = () => {
+    const hasData = attractions.length > 0;
+    return (
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white">Analytics</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Real-time stats across all your attraction listings.</p>
         </div>
 
-        {/* Inquiries chart */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Inquiries / Bookings</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">Last 12 months</p>
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-amber-600' },
+            { label: 'Total Listings', value: stats.total.toString(), icon: 'ph-ticket', color: 'text-emerald-600' },
+            { label: 'Published', value: stats.published.toString(), icon: 'ph-check-circle', color: 'text-blue-600' },
+            { label: 'Inquiries', value: stats.bookings.toString(), icon: 'ph-envelope', color: 'text-purple-600' },
+          ].map(({ label, value, icon, color }) => (
+            <div key={label} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-slate-400 text-xs font-bold">
+                <i className={`ph ${icon} text-base`} />
+                <span className="uppercase tracking-wider text-[10px]">{label}</span>
+              </div>
+              <div className={`text-3xl font-black ${color}`}>{value}</div>
             </div>
-            <span className="text-2xl font-black text-indigo-600">{analyticsData.inquiriesData.reduce((a, b) => a + b, 0)}</span>
-          </div>
-          <Sparkline data={analyticsData.inquiriesData} color="#4f46e5" height={64} />
-          <div className="flex justify-between mt-2">
-            {analyticsData.months.map(m => (
-              <span key={m} className="text-[8px] text-slate-400">{m}</span>
-            ))}
-          </div>
+          ))}
+        </div>
+
+        {/* Top Attractions Performance */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h3 className="font-black text-sm text-slate-900 dark:text-white mb-5">Most Viewed Attractions</h3>
+          {!hasData ? (
+            <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+              <i className="ph ph-chart-line-up text-4xl text-slate-300 dark:text-slate-600 mb-2 block" />
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-400">No performance data yet</p>
+              <p className="text-xs text-slate-400 mt-1 mb-4">Create and publish attraction listings to start recording visitor analytics.</p>
+              <ListAttractionButton onClick={() => setShowCreate(true)} className="inline-flex" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {[...attractions].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5).map((a, i) => {
+                const maxViews = Math.max(...attractions.map(x => x.views || 0), 1);
+                const pct = ((a.views || 0) / maxViews) * 100;
+                return (
+                  <div key={a.id} className="flex items-center gap-4">
+                    <span className="text-xs font-black text-slate-400 w-4 flex-shrink-0">#{i + 1}</span>
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-amber-100 dark:bg-amber-950/40">
+                      {a.featured_image ? (
+                        <img src={a.featured_image} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><i className="ph ph-image text-amber-300" /></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{a.name}</div>
+                      <ProgressBar value={pct} color="bg-amber-500" />
+                    </div>
+                    <span className="text-xs font-black text-amber-600 flex-shrink-0">{a.views || 0} views</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Top Attractions */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <h3 className="font-black text-sm text-slate-900 dark:text-white mb-5">Most Viewed Attractions</h3>
-        {attractions.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8">No attraction data yet. Create your first listing!</p>
-        ) : (
-          <div className="space-y-4">
-            {[...attractions].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5).map((a, i) => {
-              const maxViews = Math.max(...attractions.map(x => x.views || 0), 1);
-              const pct = ((a.views || 0) / maxViews) * 100;
-              return (
-                <div key={a.id} className="flex items-center gap-4">
-                  <span className="text-xs font-black text-slate-300 dark:text-slate-600 w-4 flex-shrink-0">#{i + 1}</span>
-                  <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-violet-100 dark:bg-violet-950/40">
-                    {a.featured_image ? (
-                      <img src={a.featured_image} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><i className="ph ph-image text-violet-300" /></div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{a.name}</div>
-                    <ProgressBar value={pct} />
-                  </div>
-                  <span className="text-xs font-black text-violet-600 flex-shrink-0">{a.views || 0} views</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Visitor stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Desktop', pct: 58, color: 'bg-violet-500', icon: 'ph-desktop' },
-          { label: 'Mobile', pct: 37, color: 'bg-indigo-500', icon: 'ph-device-mobile' },
-          { label: 'Tablet', pct: 5, color: 'bg-slate-400', icon: 'ph-device-tablet' },
-        ].map(({ label, pct, color, icon }) => (
-          <div key={label} className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
-            <i className={`ph ${icon} text-3xl text-slate-400 dark:text-slate-600 mb-2`} />
-            <div className="text-2xl font-black text-slate-900 dark:text-white">{pct}%</div>
-            <div className="text-xs font-bold text-slate-400 mb-3">{label}</div>
-            <ProgressBar value={pct} color={color} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+    );
+  };
 
   // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
   const NotificationsTab = () => (
@@ -998,39 +939,51 @@ export default function AttractionDashboardPage() {
         {unreadCount > 0 && (
           <button
             onClick={() => setNotifs(prev => prev.map(n => ({ ...n, read: true })))}
-            className="text-xs font-bold text-violet-600 hover:underline"
+            className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
           >
             Mark all as read
           </button>
         )}
       </div>
 
-      <div className="space-y-3">
-        {notifs.map(n => (
-          <div key={n.id}
-            className={`bg-white dark:bg-slate-900 rounded-3xl border p-5 shadow-sm flex items-start gap-4 transition-all ${
-              n.read ? 'border-slate-200 dark:border-slate-800' : 'border-violet-200 dark:border-violet-800 ring-1 ring-violet-200 dark:ring-violet-800/40'
-            }`}>
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${n.read ? 'bg-slate-100 dark:bg-slate-800' : ACCENT_LIGHT}`}>
-              <i className={`ph ${n.icon} text-lg ${n.color}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className={`text-sm font-black ${n.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</span>
-                {!n.read && <span className="w-2 h-2 bg-violet-500 rounded-full flex-shrink-0" />}
-              </div>
-              <p className="text-xs text-slate-500 mt-1">{n.body}</p>
-              <p className="text-[10px] text-slate-400 mt-2 font-semibold">{n.time}</p>
-            </div>
-            <button
-              onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
-              className="text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
-            >
-              <i className="ph ph-x text-sm" />
-            </button>
+      {notifs.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
+          <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto mb-3">
+            <i className="ph ph-bell text-3xl text-amber-500" />
           </div>
-        ))}
-      </div>
+          <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1">No notifications yet</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            You will receive updates here when your listings are reviewed by admins or when travelers make inquiries.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {notifs.map(n => (
+            <div key={n.id}
+              className={`bg-white dark:bg-slate-900 rounded-3xl border p-5 shadow-sm flex items-start gap-4 transition-all ${
+                n.read ? 'border-slate-200 dark:border-slate-800' : 'border-amber-200 dark:border-amber-800 ring-1 ring-amber-200 dark:ring-amber-800/40'
+              }`}>
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${n.read ? 'bg-slate-100 dark:bg-slate-800' : ACCENT_LIGHT}`}>
+                <i className={`ph ${n.icon} text-lg ${n.color}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-sm font-black ${n.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-white'}`}>{n.title}</span>
+                  {!n.read && <span className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0" />}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">{n.body}</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-semibold">{n.time}</p>
+              </div>
+              <button
+                onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
+                className="text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
+              >
+                <i className="ph ph-x text-sm" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -1046,15 +999,15 @@ export default function AttractionDashboardPage() {
       setProfileForm(localForm);
       setTimeout(() => {
         setSavingProfile(false);
-        alert('✅ Profile saved successfully!');
-      }, 800);
+        alert('Profile saved successfully!');
+      }, 600);
     }
 
     return (
       <div className="space-y-6 max-w-2xl">
         <div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white">Profile Settings</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Manage your account, business details, and security.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Manage your business details and contact information.</p>
         </div>
 
         {/* Section tabs */}
@@ -1069,9 +1022,8 @@ export default function AttractionDashboardPage() {
 
         {section === 'business' && (
           <form onSubmit={handleSave} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-            {/* Logo placeholder */}
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center text-3xl text-violet-300 dark:text-violet-600 border-2 border-dashed border-violet-200 dark:border-violet-800">
+              <div className="w-20 h-20 rounded-2xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-3xl text-amber-500 border-2 border-dashed border-amber-200 dark:border-amber-800">
                 {localForm.name ? localForm.name.charAt(0).toUpperCase() : <i className="ph ph-building" />}
               </div>
               <div>
@@ -1092,7 +1044,7 @@ export default function AttractionDashboardPage() {
             </div>
 
             <Field label="Bio" hint="Describe your business to visitors">
-              <textarea rows={3} value={localForm.bio} onChange={e => setLocalForm(f => ({ ...f, bio: e.target.value }))} placeholder="We specialize in…" className={textareaCls} />
+              <textarea rows={3} value={localForm.bio} onChange={e => setLocalForm(f => ({ ...f, bio: e.target.value }))} placeholder="We offer unique experiences…" className={textareaCls} />
             </Field>
 
             <Field label="Website">
@@ -1101,7 +1053,7 @@ export default function AttractionDashboardPage() {
 
             <div className="flex justify-end">
               <button type="submit" disabled={savingProfile}
-                className={`px-6 py-3 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-sm rounded-xl transition-all shadow-md ${ACCENT_SHADOW} flex items-center gap-2 disabled:opacity-50`}>
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50">
                 {savingProfile ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-floppy-disk" /> Save Changes</>}
               </button>
             </div>
@@ -1112,14 +1064,14 @@ export default function AttractionDashboardPage() {
           <form onSubmit={handleSave} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
             <Field label="Email Address">
               <input type="email" value={localForm.email} disabled className={`${inputCls} opacity-60 cursor-not-allowed`} />
-              <p className="text-[10px] text-slate-400 mt-1">Email cannot be changed. Contact support if needed.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Email cannot be changed directly.</p>
             </Field>
             <Field label="Phone Number">
               <input value={localForm.phone} onChange={e => setLocalForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 555 000 0000" className={inputCls} />
             </Field>
             <div className="flex justify-end">
               <button type="submit" disabled={savingProfile}
-                className={`px-6 py-3 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-sm rounded-xl transition-all shadow-md ${ACCENT_SHADOW} flex items-center gap-2 disabled:opacity-50`}>
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50">
                 {savingProfile ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-floppy-disk" /> Save Changes</>}
               </button>
             </div>
@@ -1144,9 +1096,9 @@ export default function AttractionDashboardPage() {
                   onClick={() => {
                     if (!pwForm.current || !pwForm.newPw) return alert('Fill in all password fields.');
                     if (pwForm.newPw !== pwForm.confirm) return alert('Passwords do not match.');
-                    alert('Password change coming soon — use Account Settings for now.');
+                    alert('Password update requires current session re-authentication.');
                   }}
-                  className={`px-6 py-3 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-extrabold text-sm rounded-xl transition-all shadow-md`}>
+                  className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm rounded-xl transition-all shadow-sm shadow-amber-500/25">
                   Update Password
                 </button>
               </div>
@@ -1168,7 +1120,7 @@ export default function AttractionDashboardPage() {
       {/* Mobile Header */}
       <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-2 font-black text-slate-900 dark:text-white">
-          <i className="ph-fill ph-map-trifold text-violet-600 text-2xl" />
+          <i className="ph ph-ticket text-amber-500 text-2xl" />
           <span className="text-base">Attraction Portal</span>
         </div>
         <div className="flex items-center gap-2">
@@ -1208,7 +1160,7 @@ export default function AttractionDashboardPage() {
           <div className="space-y-6 max-w-2xl mx-auto">
             <div>
               <h2 className="text-2xl font-black text-slate-900 dark:text-white">Create New Attraction</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Fill in the details below to add a new attraction to your portfolio.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Fill in the details below to add a new attraction or event to your portfolio.</p>
             </div>
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
               <AttractionForm onSubmit={handleCreate} loading={createLoading} submitLabel="Create Attraction" />
@@ -1222,7 +1174,7 @@ export default function AttractionDashboardPage() {
 
       {/* ── Modals ── */}
 
-      {/* Create modal (triggered from overview/sidebar) */}
+      {/* Create modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create New Attraction" wide>
         <AttractionForm onSubmit={handleCreate} loading={createLoading} submitLabel="Create Attraction" />
       </Modal>
@@ -1244,12 +1196,12 @@ export default function AttractionDashboardPage() {
         {previewTarget && (
           <div className="space-y-5">
             {/* Cover */}
-            <div className="h-52 rounded-2xl overflow-hidden bg-violet-100 dark:bg-violet-950/40 relative">
+            <div className="h-52 rounded-2xl overflow-hidden bg-amber-100 dark:bg-amber-950/40 relative">
               {previewTarget.featured_image ? (
                 <img src={previewTarget.featured_image} alt={previewTarget.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <i className="ph ph-image text-6xl text-violet-200 dark:text-violet-800" />
+                  <i className="ph ph-image text-6xl text-amber-300 dark:text-amber-800" />
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -1274,7 +1226,7 @@ export default function AttractionDashboardPage() {
               ].map(({ label, value, icon }) => (
                 <div key={label} className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                    <i className={`ph ${icon} text-violet-400`} /> {label}
+                    <i className={`ph ${icon} text-amber-500`} /> {label}
                   </div>
                   <div className="text-sm font-black text-slate-900 dark:text-white">{value}</div>
                 </div>
@@ -1294,7 +1246,7 @@ export default function AttractionDashboardPage() {
                 <ul className="space-y-1.5">
                   {previewTarget.highlights.map((h, i) => (
                     <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                      <i className="ph-fill ph-check-circle text-violet-500" /> {h}
+                      <i className="ph-fill ph-check-circle text-amber-500" /> {h}
                     </li>
                   ))}
                 </ul>
@@ -1308,7 +1260,7 @@ export default function AttractionDashboardPage() {
               </button>
               {(previewTarget.status === 'draft' || previewTarget.status === 'rejected') && (
                 <button onClick={() => { handleSubmit(previewTarget.id); setPreviewTarget(null); }}
-                  className={`px-5 py-2.5 ${ACCENT_BG} ${ACCENT_HOVER} text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5`}>
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm shadow-amber-500/25">
                   <i className="ph ph-paper-plane-tilt" /> Submit for Review
                 </button>
               )}
@@ -1323,7 +1275,7 @@ export default function AttractionDashboardPage() {
           const active = activeTab === item.id;
           return (
             <button key={item.id} onClick={() => setActiveTab(item.id)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${active ? ACCENT_TEXT : 'text-slate-400'}`}>
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${active ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-400'}`}>
               <i className={`ph ${item.icon} text-xl`} />
               <span className="text-[9px] font-bold">{item.label.split(' ')[0]}</span>
             </button>
