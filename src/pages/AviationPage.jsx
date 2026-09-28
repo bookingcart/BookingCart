@@ -36,7 +36,7 @@ const HELICOPTER_TYPES = [
 ];
 
 const TOP_MODES = [
-  { id: "private_jet", label: "Private Jets", icon: "ph-airplane-takeoff", color: "text-emerald-700", bg: "bg-emerald-700", types: PRIVATE_JET_TYPES },
+  { id: "private_jet", label: "Private Jets", icon: "ph-airplane-takeoff", color: "text-green-600", bg: "bg-green-600", types: PRIVATE_JET_TYPES },
   { id: "air_charter", label: "Air Charters", icon: "ph-path", color: "text-amber-600", bg: "bg-amber-600", types: AIR_CHARTER_TYPES },
   { id: "helicopter", label: "Helicopters", icon: "ph-fan", color: "text-sky-600", bg: "bg-sky-600", types: HELICOPTER_TYPES },
 ];
@@ -111,22 +111,22 @@ export default function AviationPage() {
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-slate-900/70 to-emerald-950/60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-900/80 to-green-950/70" />
 
         {/* Floating ambient orbs */}
-        <div className="absolute top-1/4 right-1/4 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 left-1/3 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 right-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 left-1/3 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_.9fr] lg:py-24 w-full">
           {/* Left copy */}
           <div className="text-white">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-emerald-300 backdrop-blur-sm mb-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-green-400/30 bg-green-500/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-green-300 backdrop-blur-sm mb-4">
               <i className="ph ph-crown text-sm" />
               Luxury Aviation Marketplace
             </div>
             <h1 className="mt-3 max-w-xl text-4xl font-black tracking-tight sm:text-6xl leading-[1.05]">
               Private jets,{" "}
-              <span className="bg-gradient-to-r from-emerald-300 to-emerald-100 bg-clip-text text-transparent">charters</span>{" "}
+              <span className="bg-gradient-to-r from-green-300 via-emerald-200 to-green-100 bg-clip-text text-transparent">charters</span>{" "}
               &amp; helicopters.
             </h1>
             <p className="mt-5 max-w-lg text-base text-slate-200 leading-relaxed">
@@ -144,7 +144,7 @@ export default function AviationPage() {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3 text-sm font-semibold">
-              <a href="/aviation/charter" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-slate-900 hover:bg-slate-100 transition-colors shadow-lg">
+              <a href="/aviation/charter" className="inline-flex items-center gap-2 rounded-full bg-green-600 hover:bg-green-700 px-5 py-2.5 text-white transition-colors shadow-lg shadow-green-600/30">
                 <i className="ph ph-paper-plane-tilt text-base" />
                 Request a charter
               </a>
@@ -213,9 +213,9 @@ export default function AviationPage() {
                   key={type}
                   type="button"
                   onClick={() => update("tripType", type)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
                     form.tripType === type
-                      ? "bg-emerald-700 text-white"
+                      ? "bg-green-600 text-white shadow-sm"
                       : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                   }`}
                 >
@@ -246,7 +246,7 @@ export default function AviationPage() {
               <datalist id="aviation-airports">
                 {airports.map((a) => <option key={a.code} value={a.code}>{a.city} — {a.name}</option>)}
               </datalist>
-              <button type="submit" className="sm:col-span-2 mt-1 w-full rounded-2xl bg-emerald-700 py-3 text-sm font-black text-white hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/30">
+              <button type="submit" className="sm:col-span-2 mt-1 w-full rounded-2xl bg-green-600 py-3 text-sm font-black text-white hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-600/30">
                 <i className="ph ph-magnifying-glass text-base" />
                 Search {activeMode?.label}
               </button>
@@ -259,17 +259,17 @@ export default function AviationPage() {
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <div className="flex items-end justify-between gap-4 mb-8">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Browse by category</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600 dark:text-green-400">Browse by category</p>
             <h2 className="mt-1 text-3xl font-black">All aviation services</h2>
           </div>
-          <a href="/aviation/results" className="text-sm font-bold text-emerald-800 hover:underline">View all aircraft →</a>
+          <a href="/aviation/results" className="text-sm font-bold text-green-600 hover:underline dark:text-green-400">View all aircraft →</a>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {TOP_MODES.map((mode) => (
             <a
               key={mode.id}
               href={`/aviation/results?category=${mode.id}`}
-              className="group rounded-3xl border border-slate-200 bg-white p-6 hover:border-transparent hover:shadow-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-transparent"
+              className="group rounded-3xl border border-slate-200 bg-white p-6 hover:border-green-500/30 hover:shadow-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-green-500/30"
             >
               <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${mode.bg} text-white shadow-lg mb-4`}>
                 <i className={`ph ${mode.icon} text-xl`} />
@@ -287,7 +287,7 @@ export default function AviationPage() {
                   </span>
                 )}
               </div>
-              <p className="mt-3 text-sm text-emerald-700 font-bold group-hover:underline">Explore {mode.label} →</p>
+              <p className="mt-3 text-sm text-green-600 font-bold group-hover:underline dark:text-green-400">Explore {mode.label} →</p>
             </a>
           ))}
         </div>
@@ -301,7 +301,7 @@ export default function AviationPage() {
             {AMENITIES.map((a) => (
               <div key={a.label} className="flex flex-col items-center gap-2 text-center">
                 <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <i className={`ph ${a.icon} text-lg text-emerald-300`} />
+                  <i className={`ph ${a.icon} text-lg text-green-400`} />
                 </div>
                 <p className="text-[10px] font-semibold text-slate-300 leading-tight">{a.label}</p>
               </div>
@@ -314,10 +314,10 @@ export default function AviationPage() {
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <div className="flex items-end justify-between gap-4 mb-8">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Entebbe to Murchison Falls</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600 dark:text-green-400">Entebbe to Murchison Falls</p>
             <h2 className="mt-1 text-3xl font-black">Available for a safari departure</h2>
           </div>
-          <a href="/aviation/airports" className="text-sm font-bold text-emerald-800 hover:underline">Airport directory</a>
+          <a href="/aviation/airports" className="text-sm font-bold text-green-600 hover:underline dark:text-green-400">Airport directory</a>
         </div>
         <div className="grid gap-5 md:grid-cols-3">
           {featured.length === 0 ? (
@@ -338,12 +338,12 @@ export default function AviationPage() {
 
       {/* ── INTEGRATED LUXURY PACKAGE CTA ── */}
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 mb-10">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-slate-900 to-slate-950 p-8 sm:p-12 text-white">
-          <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-950 via-slate-900 to-slate-950 p-8 sm:p-12 text-white">
+          <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-green-500/20 blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
           <div className="relative grid gap-8 lg:grid-cols-2 lg:gap-16 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-300 mb-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-green-400/30 bg-green-400/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-green-300 mb-4">
                 <i className="ph ph-package text-sm" />
                 All-in-one luxury itinerary
               </div>
@@ -351,17 +351,17 @@ export default function AviationPage() {
               <p className="mt-4 text-slate-300 text-sm leading-relaxed">
                 Combine a private jet from Kampala, a helicopter scenic tour, luxury lodge reservation, national park entry, and safari van — all managed under one booking with a unified travel itinerary.
               </p>
-              <a href="/aviation/itinerary" className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-black text-slate-900 hover:bg-slate-100 transition-colors shadow-lg">
+              <a href="/aviation/itinerary" className="mt-6 inline-flex items-center gap-2 rounded-full bg-green-600 hover:bg-green-700 px-5 py-2.5 text-sm font-black text-white transition-colors shadow-lg shadow-green-600/30">
                 <i className="ph ph-map-trifold text-base" />
                 Build your itinerary
               </a>
             </div>
             <div className="space-y-3">
               {[
-                { icon: "ph-airplane-takeoff", label: "Private Jet · Kampala → Murchison", color: "text-emerald-400" },
+                { icon: "ph-airplane-takeoff", label: "Private Jet · Kampala → Murchison", color: "text-green-400" },
                 { icon: "ph-fan", label: "Helicopter · Scenic Falls Tour", color: "text-sky-400" },
                 { icon: "ph-house-simple", label: "Luxury Lodge Reservation", color: "text-amber-400" },
-                { icon: "ph-paw-print", label: "National Park Entry Tickets", color: "text-green-400" },
+                { icon: "ph-paw-print", label: "National Park Entry Tickets", color: "text-emerald-400" },
                 { icon: "ph-van", label: "Safari Van Transfer", color: "text-orange-400" },
               ].map((step, i) => (
                 <div key={step.label} className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
@@ -378,16 +378,16 @@ export default function AviationPage() {
       </section>
 
       {/* ── LIST YOUR AIRCRAFT CTA ── */}
-      <section className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 py-14">
+      <section className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 grid gap-8 lg:grid-cols-2 items-center">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700 mb-2">For operators</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600 dark:text-green-400 mb-2">For operators</p>
             <h2 className="text-3xl font-black">List your aircraft. Reach qualified clients.</h2>
             <p className="mt-4 text-slate-500 text-sm leading-relaxed">
               Join 80+ verified operators. Manage your fleet, receive charter requests, negotiate terms, and track revenue — all in one operator dashboard.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="/aviation/operators/join" className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-800 transition-colors shadow-lg shadow-emerald-700/20">
+              <a href="/aviation/operators/join" className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-black text-white hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
                 <i className="ph ph-airplane-tilt text-base" />
                 Register as operator
               </a>
@@ -404,8 +404,8 @@ export default function AviationPage() {
               { icon: "ph-chart-line-up", label: "Revenue analytics", desc: "Track flights, revenue, satisfaction" },
               { icon: "ph-shield-check", label: "Compliance tools", desc: "AOC, insurance, pilot records" },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl bg-white p-4 border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
-                <i className={`ph ${item.icon} text-xl text-emerald-700`} />
+              <div key={item.label} className="rounded-2xl bg-slate-50 p-4 border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+                <i className={`ph ${item.icon} text-xl text-green-600 dark:text-green-400`} />
                 <p className="mt-2 text-sm font-black">{item.label}</p>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.desc}</p>
               </div>
@@ -414,7 +414,7 @@ export default function AviationPage() {
         </div>
       </section>
 
-      <style>{`.field{width:100%;border-radius:0.875rem;border:1px solid #e2e8f0;background:#fff;padding:.65rem 1rem;font-size:.875rem;font-weight:600;transition:border-color .15s}.field:focus{outline:none;border-color:#059669}.dark .field{background:#0f172a;border-color:#1e293b;color:#f1f5f9}.field:disabled{opacity:.45;cursor:not-allowed}`}</style>
+      <style>{`.field{width:100%;border-radius:0.875rem;border:1px solid #e2e8f0;background:#fff;padding:.65rem 1rem;font-size:.875rem;font-weight:600;transition:border-color .15s}.field:focus{outline:none;border-color:#16a34a}.dark .field{background:#0f172a;border-color:#1e293b;color:#f1f5f9}.field:disabled{opacity:.45;cursor:not-allowed}`}</style>
     </AviationLayout>
   );
 }

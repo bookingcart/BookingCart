@@ -572,15 +572,6 @@ export default function HomePage() {
                 <span className="hidden sm:inline">Attractions</span>
                 <span className="sm:hidden">Events</span>
               </a>
-              <a
-                href="/aviation"
-                id="mode-aviation-btn"
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
-              >
-                <i className="ph ph-airplane-takeoff text-base text-emerald-700 shrink-0"></i>
-                <span className="hidden sm:inline">Private Jets</span>
-                <span className="sm:hidden">Jets</span>
-              </a>
             </div>
 
             <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">
@@ -600,6 +591,13 @@ export default function HomePage() {
                       aria-selected="false" data-trip="oneway">
                       <i className="ph ph-arrow-right text-base"></i> One-Way Trip
                     </button>
+                    <a
+                      href="/aviation"
+                      id="flight-private-jet-btn"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/60 sm:text-sm sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2"
+                    >
+                      <i className="ph ph-airplane-takeoff text-base text-emerald-600 dark:text-emerald-400"></i> Private Jet
+                    </a>
                   </div>
 
                   <div className="relative z-10 max-w-7xl w-full mx-auto px-0">

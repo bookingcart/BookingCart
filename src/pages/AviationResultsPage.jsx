@@ -79,7 +79,7 @@ export default function AviationResultsPage() {
       <div className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+            <p className="text-xs font-bold uppercase tracking-wide text-green-600 dark:text-green-400">
               {route ? `${route.origin.city} → ${route.destination.city}` : "Aviation search"}
             </p>
             <h1 className="text-2xl font-black mt-0.5">
@@ -189,19 +189,19 @@ export default function AviationResultsPage() {
           <FilterSection label="Advanced filters">
             <div className="space-y-2">
               <label className="flex items-center gap-2.5 text-sm font-semibold cursor-pointer">
-                <input type="checkbox" checked={filters.petFriendly === "true"} onChange={(e) => update("petFriendly", e.target.checked ? "true" : "")} className="h-4 w-4 rounded" />
+                <input type="checkbox" checked={filters.petFriendly === "true"} onChange={(e) => update("petFriendly", e.target.checked ? "true" : "")} className="h-4 w-4 rounded accent-green-600" />
                 <i className="ph ph-paw-print text-base text-slate-400" />
                 Pet friendly
               </label>
               <label className="flex items-center gap-2.5 text-sm font-semibold cursor-pointer">
-                <input type="checkbox" checked={filters.smoking === "true"} onChange={(e) => update("smoking", e.target.checked ? "true" : "")} className="h-4 w-4 rounded" />
+                <input type="checkbox" checked={filters.smoking === "true"} onChange={(e) => update("smoking", e.target.checked ? "true" : "")} className="h-4 w-4 rounded accent-green-600" />
                 <i className="ph ph-cigarette text-base text-slate-400" />
                 Smoking allowed
               </label>
             </div>
           </FilterSection>
 
-          <button className="w-full rounded-2xl bg-emerald-700 py-2.5 text-sm font-black text-white hover:bg-emerald-800 transition-colors shadow-md shadow-emerald-700/20">
+          <button className="w-full rounded-2xl bg-green-600 py-2.5 text-sm font-black text-white hover:bg-green-700 transition-colors shadow-md shadow-green-600/20">
             Apply filters
           </button>
         </form>
@@ -214,7 +214,7 @@ export default function AviationResultsPage() {
               <button
                 key={cat || "all"}
                 onClick={() => { update("category", cat); setParams(cat ? { ...Object.fromEntries(params.entries()), category: cat } : Object.fromEntries([...params.entries()].filter(([k]) => k !== "category"))); }}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all ${filters.category === cat ? "bg-emerald-700 text-white" : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"}`}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all ${filters.category === cat ? "bg-green-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:border-green-300 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"}`}
               >
                 {cat ? (CATEGORY_LABELS[cat] || cat) : "All aircraft"}
               </button>
@@ -241,7 +241,7 @@ export default function AviationResultsPage() {
               <i className="ph ph-airplane-tilt text-4xl text-slate-300" />
               <p className="mt-3 text-lg font-black">No compliant aircraft match this route.</p>
               <p className="mt-2 text-sm text-slate-500">Try adjusting filters or request a custom charter quote.</p>
-              <a href={`/aviation/charter${search}`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-black text-white">
+              <a href={`/aviation/charter${search}`} className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-black text-white hover:bg-green-700 transition-colors shadow-sm">
                 <i className="ph ph-paper-plane-tilt text-base" />
                 Request a custom charter
               </a>
@@ -257,13 +257,13 @@ export default function AviationResultsPage() {
           )}
 
           {!loading && results.length > 0 && (
-            <div className="mt-8 rounded-3xl border border-emerald-100 bg-emerald-50 p-5 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+            <div className="mt-8 rounded-3xl border border-green-100 bg-green-50 p-5 dark:border-green-900/30 dark:bg-green-950/20">
               <div className="flex items-start gap-3">
-                <i className="ph ph-paper-plane-tilt text-xl text-emerald-700 mt-0.5" />
+                <i className="ph ph-paper-plane-tilt text-xl text-green-600 dark:text-green-400 mt-0.5" />
                 <div>
-                  <p className="font-black text-emerald-900 dark:text-emerald-300">Can't find the right aircraft?</p>
-                  <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">Submit a custom charter request. Verified operators will quote within 2 hours with alternative aircraft options.</p>
-                  <a href={`/aviation/charter${search}`} className="mt-3 inline-flex items-center gap-1.5 text-sm font-black text-emerald-800 hover:underline dark:text-emerald-300">
+                  <p className="font-black text-green-900 dark:text-green-300">Can't find the right aircraft?</p>
+                  <p className="mt-1 text-sm text-green-700 dark:text-green-400">Submit a custom charter request. Verified operators will quote within 2 hours with alternative aircraft options.</p>
+                  <a href={`/aviation/charter${search}`} className="mt-3 inline-flex items-center gap-1.5 text-sm font-black text-green-600 hover:underline dark:text-green-400">
                     Request a charter quote →
                   </a>
                 </div>

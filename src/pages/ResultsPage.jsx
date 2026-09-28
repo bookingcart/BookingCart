@@ -22,6 +22,13 @@ export default function ResultsPage(){
               <input type="radio" name="tripType" value="oneway" className="accent-green-600 w-4 h-4 cursor-pointer" />
               <span>One-way</span>
             </label>
+            <a
+              href="/aviation"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs transition-colors"
+            >
+              <i className="ph ph-airplane-takeoff text-sm text-emerald-600 dark:text-emerald-400"></i>
+              <span>Private Jet</span>
+            </a>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input type="radio" name="tripType" value="multi" disabled className="w-4 h-4 cursor-not-allowed" />
               <span className="text-slate-400">Multi-city</span>
