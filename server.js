@@ -52,6 +52,7 @@ const guideWalletsHandler = require('./api-routes/guide-wallets');
 const notificationsHandler = require('./api-routes/notifications');
 const hotelProfilesHandler = require('./api-routes/hotel-profiles');
 const eventProfilesHandler = require('./api-routes/event-profiles');
+const eventBookingsHandler = require('./api-routes/event-bookings');
 const aviationHandler = require('./api-routes/aviation');
 const stripeConnectHandler = require('./api-routes/stripe-connect');
 const uploadHandler = require('./api-routes/upload');
@@ -211,6 +212,7 @@ app.all('/api/guide-wallets', apiLimiter, run(guideWalletsHandler));
 // Hotel Owner routes
 app.all('/api/hotel-profiles', apiLimiter, run(hotelProfilesHandler));
 app.all('/api/event-profiles', apiLimiter, run(eventProfilesHandler));
+app.all('/api/event-bookings', apiLimiter, run(eventBookingsHandler));
 app.all('/api/aviation', apiLimiter, run(aviationHandler));
 app.all('/api/aviation/:action', apiLimiter, run(aviationHandler));
 app.all('/api/stripe/connect', apiLimiter, run(stripeConnectHandler));

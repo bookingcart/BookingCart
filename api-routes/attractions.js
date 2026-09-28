@@ -78,7 +78,7 @@ module.exports = async function attractionsHandler(req, res) {
     if (req.method === 'GET' && action === 'detail') {
       const source = cleanText(req.params?.source, 30);
       const id = cleanText(req.params?.id, 220);
-      if (!['geoapify', 'wikimedia', 'getyourguide'].includes(source) || !id) return res.status(400).json({ ok: false, error: 'Invalid attraction identifier' });
+      if (!['geoapify', 'wikimedia', 'getyourguide', 'local_event'].includes(source) || !id) return res.status(400).json({ ok: false, error: 'Invalid attraction identifier' });
       const attraction = await getAttraction(source, id, { currency: String(req.query.currency || 'USD').toUpperCase(), language: cleanText(req.query.language, 3) || 'en' });
       if (!attraction) return res.status(404).json({ ok: false, error: 'Attraction not found' });
       return res.json({ ok: true, attraction });

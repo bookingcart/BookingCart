@@ -52,6 +52,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
 const HotelOnboardingPage = lazy(() => import('./pages/HotelOnboardingPage.jsx'));
 const EventOnboardingPage = lazy(() => import('./pages/EventOnboardingPage.jsx'));
 const EventConfirmationPage = lazy(() => import('./pages/EventConfirmationPage.jsx'));
+const EventCheckoutPage = lazy(() => import('./pages/EventCheckoutPage.jsx'));
 const HotelDashboardPage = lazy(() => import('./pages/HotelDashboardPage.jsx'));
 const AviationPage = lazy(() => import('./pages/AviationPage.jsx'));
 const AviationResultsPage = lazy(() => import('./pages/AviationResultsPage.jsx'));
@@ -113,6 +114,8 @@ export default function App() {
           <Route path="/admin/aviation" element={<AviationAdminPage />} />
           <Route path="/list-your-event" element={<EventOnboardingPage />} />
           <Route path="/list-your-event/:step" element={<EventOnboardingPage />} />
+          <Route path="/events/:eventId" element={<AttractionDetailsPage />} />
+          <Route path="/events/:eventId/checkout" element={<EventCheckoutPage />} />
           <Route path="/event-confirmation" element={<EventConfirmationPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/visa" element={<Navigate to="/visa/new" replace />} />
