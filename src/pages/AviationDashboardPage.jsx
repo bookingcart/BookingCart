@@ -4,7 +4,7 @@ import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import { CATEGORY_LABELS, aviationRequest, money } from "../lib/aviationClient.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const TABS = ["overview", "fleet", "charters", "operations"];
+const TABS = ["overview", "profile", "fleet", "charters", "operations"];
 
 const EMPTY_AIRCRAFT = {
   name: "", category: "light_jet", manufacturer: "", model: "", year: 2020, registration: "",
@@ -42,10 +42,25 @@ export default function AviationDashboardPage() {
   const [crew, setCrew] = useState({ bookingRef: "", name: "", role: "Captain", certification: "ATPL" });
   const [doc, setDoc] = useState({ aircraftId: "", name: "Insurance certificate", url: "" });
   const [notice, setNotice] = useState("");
+  const [profileForm, setProfileForm] = useState({
+    companyName: "", contactName: "", phone: "", baseAirport: "", aoc: "", insurance: "", regulatoryStatus: "pending"
+  });
 
   async function load() {
     const data = await aviationRequest("operator-get", { token: getToken() });
     setPortal(data.portal);
+    if (data.portal?.operator) {
+      const op = data.portal.operator;
+      setProfileForm({
+        companyName: op.companyName || "",
+        contactName: op.contactName || "",
+        phone: op.phone || "",
+        baseAirport: op.baseAirport || "",
+        aoc: op.aoc || op.compliance?.aoc || "",
+        insurance: op.insurance || op.compliance?.insurance || "",
+        regulatoryStatus: op.regulatoryStatus || op.compliance?.regulatoryStatus || "pending",
+      });
+    }
   }
 
   useEffect(() => {
@@ -53,6 +68,18 @@ export default function AviationDashboardPage() {
     if (!user) { navigate("/auth?redirect=/aviation/dashboard"); return; }
     load().catch((err) => setError(err.message)).finally(() => setLoading(false));
   }, [user]);
+
+  async function saveOperatorProfile(e) {
+    if (e) e.preventDefault();
+    setNotice(""); setError("");
+    try {
+      await aviationRequest("operator-save", { method: "POST", token: getToken(), body: profileForm });
+      setNotice("Operator profile & compliance details updated successfully.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function saveAircraft(submit) {
     setNotice(""); setError("");
@@ -129,6 +156,27 @@ export default function AviationDashboardPage() {
         {/* ── OVERVIEW ── */}
         {tab === "overview" && (
           <div className="space-y-6">
+            {(!profileForm.aoc || !profileForm.insurance) && (
+              <div className="rounded-3xl bg-amber-50 border border-amber-200 p-5 dark:bg-amber-950/20 dark:border-amber-800/60 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-amber-100 p-2.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 shrink-0">
+                    <i className="ph ph-warning-circle text-2xl" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-amber-900 dark:text-amber-200 text-sm">Action Required: Submit AOC &amp; Insurance Info</h3>
+                    <p className="text-xs text-amber-700 dark:text-amber-300/80 mt-0.5">
+                      Please submit your Air Operator Certificate (AOC) and Insurance coverage details through your profile dashboard so your account file is complete.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTab("profile")}
+                  className="rounded-full bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800 transition-colors shrink-0"
+                >
+                  Submit Missing Info →
+                </button>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { label: "Charter revenue", value: money(analytics.totalCharterRevenue), icon: "ph-money", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" },
@@ -195,6 +243,109 @@ export default function AviationDashboardPage() {
               </a>
             </div>
           </div>
+        )}
+
+        {/* ── PROFILE & COMPLIANCE ── */}
+        {tab === "profile" && (
+          <form onSubmit={saveOperatorProfile} className="rounded-3xl bg-white border border-slate-100 p-6 dark:bg-slate-900 dark:border-slate-800 space-y-6">
+            <div>
+              <h2 className="text-xl font-black">Operator Profile &amp; Safety Compliance</h2>
+              <p className="text-xs text-slate-500 mt-1">Submit or update your company registration, Air Operator Certificate (AOC), and insurance coverage info.</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Company Name *</label>
+                <input
+                  value={profileForm.companyName}
+                  onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                  placeholder="e.g. Lake Air Charters"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Contact Person Name</label>
+                <input
+                  value={profileForm.contactName}
+                  onChange={(e) => setProfileForm({ ...profileForm, contactName: e.target.value })}
+                  placeholder="e.g. John Doe"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Phone Number</label>
+                <input
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  placeholder="+256 700 000 000"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Base Airport (IATA Code)</label>
+                <input
+                  value={profileForm.baseAirport}
+                  onChange={(e) => setProfileForm({ ...profileForm, baseAirport: e.target.value.toUpperCase() })}
+                  placeholder="e.g. EBB"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
+              <h3 className="font-black text-sm mb-3">Required Compliance Files</h3>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Air Operator Certificate (AOC) *</label>
+                  <input
+                    value={profileForm.aoc}
+                    onChange={(e) => setProfileForm({ ...profileForm, aoc: e.target.value })}
+                    placeholder="e.g. UG-AOC-999 or AOC Certificate Link"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Provide your active AOC license number or document ref.</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Insurance Coverage Details *</label>
+                  <input
+                    value={profileForm.insurance}
+                    onChange={(e) => setProfileForm({ ...profileForm, insurance: e.target.value })}
+                    placeholder="e.g. Lloyd's Aviation Liability Policy #8841"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Provide insurer name, coverage type, or policy number.</p>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Regulatory Compliance Status</label>
+                  <select
+                    value={profileForm.regulatoryStatus}
+                    onChange={(e) => setProfileForm({ ...profileForm, regulatoryStatus: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <option value="compliant">Compliant</option>
+                    <option value="pending">Pending Audit</option>
+                    <option value="under_review">Under Review</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                className="rounded-2xl bg-emerald-700 px-6 py-2.5 text-sm font-black text-white hover:bg-emerald-800 transition-colors shadow-sm"
+              >
+                Save Profile &amp; Compliance Details
+              </button>
+            </div>
+          </form>
         )}
 
         {/* ── FLEET MANAGEMENT ── */}

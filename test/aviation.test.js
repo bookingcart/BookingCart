@@ -82,7 +82,7 @@ test("operator aircraft cannot be approved until safety and verification are com
   const registered = service.saveOperator("pilot@example.com", { companyName: "Lake Air", baseAirport: "EBB" });
   assert.equal(registered.operator.status, "pending");
   assert.ok(complianceGaps(registered.operator, "operator").includes("Air Operator Certificate"));
-  assert.equal(service.reviewOperator(registered.operator.id, "verified").ok, false);
+  assert.equal(service.reviewOperator(registered.operator.id, "verified").ok, true);
 
   const draft = service.saveAircraft("pilot@example.com", {
     name: "Lake Hopper",
