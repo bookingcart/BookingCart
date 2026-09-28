@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ALL_FEATURES = [
@@ -242,6 +243,7 @@ function CompletenessBar({ score }) {
 export default function EventOnboardingPage() {
   const navigate = useNavigate();
   const { step: stepParam } = useParams();
+  const { user, getToken } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(parseInt(stepParam) || 1);
   const [saving, setSaving] = useState(false);
@@ -256,7 +258,10 @@ export default function EventOnboardingPage() {
   // Draft state
   const [draft, setDraft] = useState(() => loadDraft() || {
     // Step 1 – Registration
-    fullName: '', email: '', phone: '', password: '',
+    fullName: user?.name || user?.fullName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    password: '',
 
     // Step 2 – Event Info
     eventName: '', eventType: '', duration: '', description: '', totalCapacity: '',
@@ -280,7 +285,7 @@ export default function EventOnboardingPage() {
     ageRestriction: '', accessibilityInfo: '',
 
     // Step 8 – Contact
-    bookingEmail: '', phone2: '', whatsapp: '', website: '', facebook: '',
+    bookingEmail: user?.email || '', phone2: user?.phone || '', whatsapp: '', website: '', facebook: '',
   });
 
   useEffect(() => { saveDraft(draft); }, [draft]);
@@ -288,6 +293,19 @@ export default function EventOnboardingPage() {
   useEffect(() => {
     document.title = 'BookingCart — List Your Event or Attraction';
   }, []);
+
+  // Pre-fill user details if logged in
+  useEffect(() => {
+    if (user) {
+      setDraft(prev => ({
+        ...prev,
+        fullName: prev.fullName || user.name || user.fullName || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || user.phone || '',
+        bookingEmail: prev.bookingEmail || user.email || '',
+      }));
+    }
+  }, [user]);
 
   function set(field, value) {
     setDraft(prev => ({ ...prev, [field]: value }));
@@ -335,7 +353,9 @@ export default function EventOnboardingPage() {
     if (step === 1) {
       if (!draft.fullName.trim()) errs.fullName = 'Full name is required';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) errs.email = 'Valid email required';
-      if (draft.password.length < 8) errs.password = 'Password must be at least 8 characters';
+      if (!user?.email && !authToken && draft.password.length < 8) {
+        errs.password = 'Password must be at least 8 characters';
+      }
     }
     if (step === 2) {
       if (!draft.eventName.trim()) errs.eventName = 'Event/Attraction name is required';
@@ -361,12 +381,16 @@ export default function EventOnboardingPage() {
     if (!validateStep(currentStep)) return;
     setSaving(true);
 
-    // Step 1: Registration API call
+    // Step 1: Registration / Account Connection API call
     if (currentStep === 1) {
       try {
+        const activeToken = authToken || (await getToken?.()) || '';
         const res = await fetch('/api/event-profiles', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+          },
           body: JSON.stringify({
             action: 'register',
             fullName: draft.fullName,
@@ -377,7 +401,7 @@ export default function EventOnboardingPage() {
         });
         const data = await res.json();
         if (!data.ok) {
-          setErrors({ email: data.error || 'Registration failed' });
+          setErrors({ email: data.error || 'Account setup failed' });
           setSaving(false);
           return;
         }
@@ -409,7 +433,6 @@ export default function EventOnboardingPage() {
         policies: { startTime: draft.startTime, endTime: draft.endTime, cancellationPolicy: draft.cancellationPolicy, ageRestriction: draft.ageRestriction, accessibilityInfo: draft.accessibilityInfo },
         contact: { bookingEmail: draft.bookingEmail, phone: draft.phone2, whatsapp: draft.whatsapp, website: draft.website, facebook: draft.facebook },
       };
-      // Save to backend if authenticated
       await saveStep(stepKey, dataMap[stepKey]);
     }
 
@@ -596,6 +619,18 @@ export default function EventOnboardingPage() {
                 </div>
               </div>
 
+              {user?.email && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 font-bold">
+                    <i className="ph ph-user-check text-xl" />
+                  </div>
+                  <div>
+                    <p className="text-emerald-900 dark:text-emerald-200 text-xs font-black">Logged in as {user.email}</p>
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400">Your attraction listing will be automatically attached to your logged-in account.</p>
+                  </div>
+                </div>
+              )}
+
               <FieldGroup label="Your Full Name" required error={errors.fullName}>
                 <TextInput id="fullName" value={draft.fullName} onChange={v => set('fullName', v)} placeholder="e.g. James Mukasa" required />
               </FieldGroup>
@@ -605,15 +640,17 @@ export default function EventOnboardingPage() {
               <FieldGroup label="Phone Number" error={errors.phone}>
                 <TextInput id="phone" type="tel" value={draft.phone} onChange={v => set('phone', v)} placeholder="+1 (555) 000-0000" />
               </FieldGroup>
-              <FieldGroup label="Password" required error={errors.password}>
-                <TextInput id="password" type="password" value={draft.password} onChange={v => set('password', v)} placeholder="Min 8 characters" required />
-                <p className="text-xs text-slate-400 mt-1">Use at least 8 characters for security.</p>
-              </FieldGroup>
+              {!user?.email && !authToken && (
+                <FieldGroup label="Password" required error={errors.password}>
+                  <TextInput id="password" type="password" value={draft.password} onChange={v => set('password', v)} placeholder="Min 8 characters" required />
+                  <p className="text-xs text-slate-400 mt-1">If you already have a BookingCart account, enter your account password to verify.</p>
+                </FieldGroup>
+              )}
 
               <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mt-2">
                 <p className="text-blue-800 dark:text-blue-300 text-xs font-semibold flex items-start gap-2">
                   <i className="ph ph-info text-blue-600 text-base shrink-0 mt-0.5" />
-                  Already have a BookingCart account? You can use the same email — we'll link your accounts automatically.
+                  Existing user? Your listing will automatically connect to your account seamlessly.
                 </p>
               </div>
             </div>

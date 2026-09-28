@@ -150,100 +150,127 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const { action } = body;
 
-  // ── REGISTER — create user + draft profile ────────────────────────────────
+  // ── REGISTER / CONNECT — create user + draft profile ─────────────────────
   if (action === 'register') {
+    const auth = await verifyRequestBearer(req);
     const { fullName, email, phone, password } = body;
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ ok: false, error: 'Name, email, and password are required.' });
+    const reqEmail = (auth.ok && auth.email) ? auth.email.toLowerCase().trim() : (email || '').toLowerCase().trim();
+    const nameTrimmed = String(fullName || auth.name || reqEmail.split('@')[0] || 'User').trim();
+
+    if (!reqEmail) {
+      return res.status(400).json({ ok: false, error: 'Email is required.' });
     }
-    const emailLower = email.toLowerCase().trim();
-    const nameTrimmed = String(fullName).trim();
-    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+
     let userId = null;
+    let token = null;
 
     if (dbReady) {
-      const existingProfile = await query(
-        `SELECT id FROM bc_event_profiles WHERE email = $1 LIMIT 1`, [emailLower]
-      );
-      if (existingProfile.rows.length > 0) {
-        return res.status(409).json({
-          ok: false,
-          error: 'An event organizer account with this email already exists. Please log in instead.'
-        });
-      }
-
-      const existing = await query('SELECT id FROM bc_users WHERE email = $1', [emailLower]);
-      if (existing.rows.length > 0) {
-        userId = existing.rows[0].id;
+      const existingUser = await query('SELECT id, password_hash FROM bc_users WHERE email = $1', [reqEmail]);
+      if (existingUser.rows.length > 0) {
+        userId = existingUser.rows[0].id;
+        // Verify password if not already authenticated via Bearer token
+        if (!auth.ok) {
+          if (!password) {
+            return res.status(400).json({ ok: false, error: 'An account with this email exists. Please enter your password to continue.' });
+          }
+          const valid = await bcrypt.compare(password, existingUser.rows[0].password_hash || '');
+          if (!valid) {
+            return res.status(401).json({ ok: false, error: 'Incorrect password for existing account. Please log in or enter the correct password.' });
+          }
+        }
         await query(
-          `UPDATE bc_users SET name = $1, role = 'event_organizer', phone = $2, updated_at = NOW() WHERE id = $3`,
+          `UPDATE bc_users SET name = COALESCE(NULLIF($1, ''), name), role = 'event_organizer', phone = COALESCE(NULLIF($2, ''), phone), updated_at = NOW() WHERE id = $3`,
           [nameTrimmed, phone || '', userId]
         );
       } else {
+        if (!password && !auth.ok) {
+          return res.status(400).json({ ok: false, error: 'Password is required to create a new account.' });
+        }
+        const hash = password ? await bcrypt.hash(password, SALT_ROUNDS) : '';
         const r = await query(
           `INSERT INTO bc_users (email, name, phone, password_hash, auth_method, role, profile, state, created_at, updated_at)
            VALUES ($1,$2,$3,$4,'email','event_organizer',$5,$6,NOW(),NOW()) RETURNING id`,
-          [emailLower, nameTrimmed, phone || '', hash,
-           JSON.stringify({ email: emailLower, name: nameTrimmed }),
-           JSON.stringify({ name: nameTrimmed, email: emailLower, signedUpAt: new Date().toISOString() })]
+          [reqEmail, nameTrimmed, phone || '', hash,
+           JSON.stringify({ email: reqEmail, name: nameTrimmed }),
+           JSON.stringify({ name: nameTrimmed, email: reqEmail, signedUpAt: new Date().toISOString() })]
         );
         userId = r.rows[0].id;
       }
 
-      const pr = await query(
-        `INSERT INTO bc_event_profiles (user_id, email, step_event_info, current_step, status, created_at, updated_at)
-         VALUES ($1, $2, $3, 1, 'draft', NOW(), NOW()) RETURNING id`,
-        [userId, emailLower, JSON.stringify({ organizerName: nameTrimmed, phone, email: emailLower })]
+      // Reuse active draft profile or create a new one
+      const existingDraft = await query(
+        `SELECT id FROM bc_event_profiles WHERE email = $1 AND status = 'draft' ORDER BY created_at DESC LIMIT 1`,
+        [reqEmail]
       );
-      const profileId = pr.rows[0].id;
+      let profileId;
+      if (existingDraft.rows.length > 0) {
+        profileId = existingDraft.rows[0].id;
+      } else {
+        const pr = await query(
+          `INSERT INTO bc_event_profiles (user_id, email, step_event_info, current_step, status, created_at, updated_at)
+           VALUES ($1, $2, $3, 1, 'draft', NOW(), NOW()) RETURNING id`,
+          [userId, reqEmail, JSON.stringify({ organizerName: nameTrimmed, phone, email: reqEmail })]
+        );
+        profileId = pr.rows[0].id;
+      }
 
-      const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId },
+      token = signBookingCartJwt(
+        { sub: String(userId), userId, email: reqEmail, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId },
         { expiresIn: '30d' }
       );
-      return res.status(201).json({
+
+      return res.status(200).json({
         ok: true, token, profileId,
-        user: { email: emailLower, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId }
+        user: { email: reqEmail, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId }
       });
     } else {
-      // In-memory fallback
+      // Memory fallback
       const memUsers = getMemUsers();
       const store = getMemProfiles();
+      let memUser = memUsers.get(reqEmail);
 
-      for (const [, p] of store) {
-        if (p.email === emailLower) {
-          return res.status(409).json({
-            ok: false,
-            error: 'An event organizer account with this email already exists. Please log in instead.'
-          });
-        }
-      }
-
-      let memUser = memUsers.get(emailLower);
       if (memUser) {
         userId = memUser.id;
+        if (!auth.ok && password) {
+          const valid = await bcrypt.compare(password, memUser.passwordHash || '');
+          if (!valid) {
+            return res.status(401).json({ ok: false, error: 'Incorrect password for existing account.' });
+          }
+        }
         memUser.role = 'event_organizer';
-        memUser.name = nameTrimmed;
       } else {
         userId = nextMemId('u');
-        memUser = { id: userId, email: emailLower, name: nameTrimmed, phone: phone || '', passwordHash: hash, role: 'event_organizer' };
-        memUsers.set(emailLower, memUser);
+        const hash = password ? await bcrypt.hash(password, SALT_ROUNDS) : '';
+        memUser = { id: userId, email: reqEmail, name: nameTrimmed, phone: phone || '', passwordHash: hash, role: 'event_organizer' };
+        memUsers.set(reqEmail, memUser);
       }
-      const profileId = nextMemId('ep');
-      store.set(profileId, {
-        id: profileId, user_id: userId, email: emailLower, status: 'draft', current_step: 1,
-        step_event_info: { organizerName: nameTrimmed, phone, email: emailLower },
-        step_location: {}, step_features: {}, step_tickets: {}, step_gallery: [],
-        step_policies: {}, step_contact: {}, completeness: 0,
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-      });
-      const token = signBookingCartJwt(
-        { sub: String(userId), userId, email: emailLower, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId },
+
+      let profileId;
+      for (const [id, p] of store) {
+        if (p.email === reqEmail && p.status === 'draft') {
+          profileId = id;
+          break;
+        }
+      }
+      if (!profileId) {
+        profileId = nextMemId('ep');
+        store.set(profileId, {
+          id: profileId, user_id: userId, email: reqEmail, status: 'draft', current_step: 1,
+          step_event_info: { organizerName: nameTrimmed, phone, email: reqEmail },
+          step_location: {}, step_features: {}, step_tickets: {}, step_gallery: [],
+          step_policies: {}, step_contact: {}, completeness: 0,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+        });
+      }
+
+      token = signBookingCartJwt(
+        { sub: String(userId), userId, email: reqEmail, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId },
         { expiresIn: '30d' }
       );
-      return res.status(201).json({
+
+      return res.status(200).json({
         ok: true, token, profileId,
-        user: { email: emailLower, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId }
+        user: { email: reqEmail, name: nameTrimmed, role: 'event_organizer', isEventOrganizer: true, eventProfileId: profileId }
       });
     }
   }
