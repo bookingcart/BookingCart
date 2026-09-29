@@ -18,6 +18,39 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
   const isAdmin = user && adminEmails.includes(user.email?.toLowerCase());
   const isGuide = !!user && (user.isGuide || user.role === 'guide' || user.role === 'guide_applicant' || !!user.guideId || !!user.guideProfileId);
+  const [hasUserAttractions, setHasUserAttractions] = useState(() => localStorage.getItem('bc_has_attractions') === 'true');
+
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem('bookingcart_google_id_token') || localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bc_jwt') || '';
+    if (!token) return;
+
+    Promise.all([
+      fetch('/api/attraction-profiles?limit=1', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/event-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
+    ]).then(([attrRes, evRes]) => {
+      const hasAttr = (attrRes.ok && Array.isArray(attrRes.attractions) && attrRes.attractions.length > 0) || (evRes.ok && !!evRes.profile);
+      if (hasAttr) {
+        setHasUserAttractions(true);
+        localStorage.setItem('bc_has_attractions', 'true');
+      }
+    });
+  }, [user]);
+
+  const isAttractionOwner = !!user && (
+    user.role === 'event_organizer' ||
+    user.role === 'attraction_host' ||
+    user.role === 'attraction_owner' ||
+    user.role === 'organizer' ||
+    user.role === 'host' ||
+    isAdmin ||
+    !!user.isEventOrganizer ||
+    !!user.isAttractionHost ||
+    !!user.hasAttractions ||
+    !!user.eventProfileId ||
+    hasUserAttractions ||
+    !!localStorage.getItem('bc_event_profile_id')
+  );
 
   useEffect(() => {
     function onDocClick(e) {
@@ -107,14 +140,19 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
         >
           <i className="ph ph-suitcase-rolling text-xl text-slate-400"></i> Bookings & Trips
         </a>
-        <a
-          href="/attraction-dashboard"
-          role="menuitem"
-          className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-          onClick={() => setOpen(false)}
-        >
-          <i className="ph ph-map-trifold text-xl text-violet-500"></i> Attraction Dashboard
-        </a>
+        {isAttractionOwner && (
+          <a
+            href="/attraction-dashboard"
+            role="menuitem"
+            className="flex items-center justify-between px-5 py-3 text-sm font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/70 border-b border-amber-100 dark:border-amber-800/40 transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <span className="flex items-center gap-2.5">
+              <i className="ph ph-ticket text-xl text-amber-600"></i> Attraction Dashboard
+            </span>
+            <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100 rounded">Host</span>
+          </a>
+        )}
         {user?.isOperator && (
           <a
             href="/aviation/dashboard"
