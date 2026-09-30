@@ -578,20 +578,35 @@ export default function EventOnboardingPage() {
       <main className="flex-1 min-h-screen overflow-y-auto">
 
         {/* Mobile header */}
-        <div className="lg:hidden sticky top-16 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(true)} className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-            <i className="ph ph-list text-slate-700 dark:text-slate-200" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-blue-600">Step {currentStep} of 10</p>
-            <p className="text-sm font-black text-slate-900 dark:text-white truncate">
-              {STEP_CONFIG.find(s => s.id === currentStep)?.title}
-            </p>
+        <div className="lg:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <button onClick={() => setSidebarOpen(true)} className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+              <i className="ph ph-list text-slate-700 dark:text-slate-200" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Step {currentStep} of 10</p>
+              <p className="text-sm font-black text-slate-900 dark:text-white truncate">
+                {STEP_CONFIG.find(s => s.id === currentStep)?.title}
+              </p>
+            </div>
+            <span className={`text-xs font-black px-2 py-1 rounded-lg flex-shrink-0 ${
+              completeness >= 80 ? 'bg-emerald-100 text-emerald-700' :
+              completeness >= 60 ? 'bg-amber-100 text-amber-700' :
+              'bg-slate-100 text-slate-500'
+            }`}>{completeness}%</span>
           </div>
-          <span className="text-xs font-bold text-slate-500 shrink-0">{completeness}%</span>
+          {/* Thin progress bar under header */}
+          <div className="h-0.5 bg-slate-100 dark:bg-slate-800">
+            <div
+              className={`h-full transition-all duration-500 ${
+                completeness >= 80 ? 'bg-emerald-500' : completeness >= 60 ? 'bg-amber-500' : 'bg-blue-500'
+              }`}
+              style={{ width: `${(currentStep / 10) * 100}%` }}
+            />
+          </div>
         </div>
 
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 lg:py-12">
 
           {/* ══════════════════════════════════════════════════════════════════ */}
           {/* STEP 1: REGISTRATION */}
@@ -601,19 +616,19 @@ export default function EventOnboardingPage() {
               <StepHeader step={1} />
 
               {/* Welcome Banner */}
-              <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-700 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-5 text-white overflow-hidden relative shadow-lg shadow-amber-900/20 border border-amber-400/30">
+              <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-700 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 text-white overflow-hidden relative shadow-lg shadow-amber-900/20 border border-amber-400/30">
                 <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10" />
-                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 text-3xl">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 text-2xl">
                   🎟️
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="bg-amber-400/30 text-white font-black text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-amber-300/40">
                       Free to List
                     </span>
                   </div>
-                  <h3 className="font-black text-xl">List Your Event or Attraction on BookingCart</h3>
-                  <p className="text-amber-100 text-xs sm:text-sm mt-1">
+                  <h3 className="font-black text-lg sm:text-xl">List Your Event or Attraction on BookingCart</h3>
+                  <p className="text-amber-100 text-xs mt-1">
                     Reach thousands of travelers worldwide. Your listing is free — we earn only when you earn.
                   </p>
                 </div>
@@ -1174,15 +1189,9 @@ export default function EventOnboardingPage() {
 
           {/* ── Navigation Buttons ─────────────────────────────────────────── */}
           {submitState !== 'success' && currentStep !== 10 && (
-            <div className="flex items-center justify-between mt-10 pt-6 border-t border-slate-200 dark:border-slate-800">
-              <button
-                onClick={handleBack}
-                disabled={currentStep === 1}
-                className="px-6 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 transition-all flex items-center gap-2"
-              >
-                <i className="ph ph-arrow-left" /> Back
-              </button>
-              <div className="flex items-center gap-2">
+            <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
+              {/* Step dots — hidden on tiny screens to avoid overflow */}
+              <div className="hidden sm:flex items-center justify-center gap-1.5 mb-5">
                 {STEP_CONFIG.map(s => (
                   <div
                     key={s.id}
@@ -1194,13 +1203,26 @@ export default function EventOnboardingPage() {
                   />
                 ))}
               </div>
-              <button
-                onClick={handleNext}
-                disabled={saving}
-                className="px-6 py-3 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/25 disabled:opacity-60 transition-all flex items-center gap-2"
-              >
-                {saving ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <>Continue <i className="ph ph-arrow-right" /></>}
-              </button>
+              {/* Mobile: just show step text */}
+              <p className="sm:hidden text-center text-xs font-bold text-slate-400 mb-4">
+                Step {currentStep} of 10
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  onClick={handleBack}
+                  disabled={currentStep === 1}
+                  className="flex-1 sm:flex-none px-5 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+                >
+                  <i className="ph ph-arrow-left" /> Back
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={saving}
+                  className="flex-1 sm:flex-none px-5 py-3 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/25 disabled:opacity-60 transition-all flex items-center justify-center gap-2"
+                >
+                  {saving ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <>Continue <i className="ph ph-arrow-right" /></>}
+                </button>
+              </div>
             </div>
           )}
 
