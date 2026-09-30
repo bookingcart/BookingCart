@@ -12,7 +12,7 @@ import NotificationBell from './NotificationBell.jsx';
  */
 export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const isGuide = user?.role === 'guide' || user?.role === 'guide_applicant' || !!user?.isGuide;
   const isHotelOwner = user?.role === 'hotel_owner' || !!user?.isHotelOwner;
 
@@ -22,6 +22,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
     <header className="bookingcart-navbar sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors duration-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between gap-4">
+          {/* Logo */}
           <a
             href="/"
             className="bookingcart-logo flex shrink-0 items-center gap-2.5 rounded-xl px-1 py-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
@@ -36,6 +37,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             </span>
           </a>
 
+          {/* Desktop nav links */}
           <nav
             className="bookingcart-nav hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
             aria-label="Primary"
@@ -61,6 +63,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             })}
           </nav>
 
+          {/* Desktop-only utility tools (currency, support, CTAs) */}
           <div className="bookingcart-header-tools hidden shrink-0 items-center gap-2 md:flex">
             <div className="bookingcart-currency flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">
               <i className="ph ph-globe text-green-600 text-base" />
@@ -129,20 +132,31 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
             {rightSlot}
             {user && (isGuide || user?.role === 'admin') && <NotificationBell />}
-            <HeaderAuthCluster />
           </div>
 
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900 md:hidden"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((open) => !open)}
-          >
-            <i className={`ph ${mobileOpen ? 'ph-x' : 'ph-list'} text-xl`} />
-          </button>
+          {/* Auth cluster — always visible on ALL screen sizes (profile avatar / Get Started) */}
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Notification bell on mobile for guides/admins */}
+            {user && (isGuide || user?.role === 'admin') && (
+              <span className="md:hidden">
+                <NotificationBell />
+              </span>
+            )}
+            <HeaderAuthCluster />
+            {/* Mobile hamburger */}
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900 md:hidden"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((open) => !open)}
+            >
+              <i className={`ph ${mobileOpen ? 'ph-x' : 'ph-list'} text-xl`} />
+            </button>
+          </div>
         </div>
 
+        {/* Mobile drawer */}
         {mobileOpen && (
           <div className="bookingcart-mobile-menu border-t border-slate-100 py-3 dark:border-slate-800 md:hidden">
             <nav className="grid gap-1" aria-label="Mobile primary">
@@ -165,6 +179,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                   </a>
                 );
               })}
+
               <a
                 href="/support"
                 onClick={() => setMobileOpen(false)}
@@ -173,14 +188,8 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <i className="ph ph-headset text-lg text-green-600" />
                 Support
               </a>
-              <a
-                href="/auth"
-                onClick={() => setMobileOpen(false)}
-                className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-bold text-white transition-colors hover:bg-green-700"
-              >
-                <i className="ph ph-rocket-launch text-base" />
-                Get Started
-              </a>
+
+              {/* Context-specific CTAs */}
               {!isGuide && activeNav === 'guides' && (
                 <a
                   href="/become-a-guide"
@@ -219,6 +228,56 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 >
                   <i className="ph ph-buildings text-base" />
                   Property Portal
+                </a>
+              )}
+
+              {/* Auth-aware mobile footer */}
+              {user ? (
+                <>
+                  <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
+                  <a
+                    href="/account-settings"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+                  >
+                    <i className="ph ph-user-circle text-lg text-slate-400" />
+                    My Account
+                  </a>
+                  <a
+                    href="/my-bookings"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
+                  >
+                    <i className="ph ph-suitcase-rolling text-lg text-slate-400" />
+                    Bookings &amp; Trips
+                  </a>
+                  {isGuide && (
+                    <a
+                      href="/guide-dashboard"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors hover:bg-emerald-100"
+                    >
+                      <i className="ph ph-squares-four text-lg text-emerald-600" />
+                      Guide Dashboard
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={async () => { setMobileOpen(false); await logout(); }}
+                    className="mt-1 flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 text-left"
+                  >
+                    <i className="ph ph-sign-out text-lg" />
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <a
+                  href="/auth"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-bold text-white transition-colors hover:bg-green-700"
+                >
+                  <i className="ph ph-rocket-launch text-base" />
+                  Get Started
                 </a>
               )}
             </nav>

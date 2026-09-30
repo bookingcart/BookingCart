@@ -14,10 +14,10 @@ export function HeaderAuthCluster({ className = '' }) {
       {!user && (
         <Link
           to="/auth"
-          className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-bold text-white transition-all duration-150 shadow-md shadow-green-600/25 hover:shadow-green-600/40"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-sm font-bold text-white transition-all duration-150 shadow-md shadow-green-600/25 hover:shadow-green-600/40"
         >
           <i className="ph ph-rocket-launch text-base" />
-          Get Started
+          <span className="hidden sm:inline">Get Started</span>
         </Link>
       )}
       {user && <HeaderProfileDropdown />}
