@@ -210,6 +210,14 @@ export default function AccountSettingsPage() {
   const profile = state.profile;
   const navCls = ({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`;
   const progressPct = Math.min(100, state.rewards.nextThreshold > 0 ? (state.rewards.points / state.rewards.nextThreshold) * 100 : 0);
+  const SECTION_ICONS = {
+    profile: 'ph-user-circle',
+    security: 'ph-shield-check',
+    payments: 'ph-credit-card',
+    preferences: 'ph-airplane',
+    notifications: 'ph-bell',
+    rewards: 'ph-star',
+  };
 
   async function persist(nextState, message = 'Saved') {
     if (!isAuthenticated || !accountEmail) {
@@ -320,8 +328,9 @@ export default function AccountSettingsPage() {
   }
 
   const sidebar = (
-    <aside className="w-60 flex-shrink-0 lg:sticky lg:top-[80px]">
-      <div className="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
+    <aside className="w-full lg:w-60 flex-shrink-0 lg:sticky lg:top-[80px]">
+      {/* Desktop sidebar card */}
+      <div className="hidden lg:block bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
         <div className="flex items-center gap-3 px-3 py-3 mb-2 border-b border-slate-100">
           <img src={avatarUrl(profile)} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" alt="" />
           <div className="overflow-hidden">
@@ -335,7 +344,7 @@ export default function AccountSettingsPage() {
         <nav className="space-y-1">
           {ACCOUNT_SECTIONS.map((section) => (
             <NavLink key={section} to={accountPath(section)} end={section === 'profile'} className={navCls}>
-              <i className={`ph ph-${section === 'profile' ? 'user-circle' : section === 'security' ? 'shield-check' : section === 'payments' ? 'credit-card' : section === 'preferences' ? 'airplane' : section === 'notifications' ? 'bell' : 'star'}`} />
+              <i className={`ph ${SECTION_ICONS[section]}`} />
               {SECTION_TITLE[section]}
             </NavLink>
           ))}
@@ -357,6 +366,51 @@ export default function AccountSettingsPage() {
         <div className="mt-3 pt-3 border-t border-slate-100">
           <a href="/" className="sidebar-link text-slate-400"><i className="ph ph-arrow-left" /> Back to Home</a>
         </div>
+      </div>
+
+      {/* Mobile: user header + horizontal tab strip */}
+      <div className="lg:hidden">
+        {/* Mobile user strip */}
+        <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm mb-3">
+          <img src={avatarUrl(profile)} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm shrink-0" alt="" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-extrabold text-slate-900 truncate">{displayName(profile)}</div>
+            <div className="text-xs text-slate-400 truncate">{profile.email}</div>
+          </div>
+          <a href="/" className="text-xs font-semibold text-slate-400 hover:text-slate-700 flex items-center gap-1 shrink-0">
+            <i className="ph ph-arrow-left text-sm" /> Home
+          </a>
+        </div>
+        {/* Mobile horizontal scroll tab bar */}
+        <nav className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-0.5">
+          {ACCOUNT_SECTIONS.map((section) => {
+            const isActive = activeSection === section;
+            return (
+              <NavLink
+                key={section}
+                to={accountPath(section)}
+                end={section === 'profile'}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  isActive
+                    ? 'bg-green-600 text-white shadow-sm shadow-green-600/30'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:border-green-300 hover:text-green-700'
+                }`}
+              >
+                <i className={`ph ${SECTION_ICONS[section]} text-sm`} />
+                {SECTION_TITLE[section]}
+              </NavLink>
+            );
+          })}
+          {isGuide && (
+            <a
+              href="/guide-dashboard"
+              className="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+            >
+              <i className="ph ph-squares-four text-sm" />
+              Guide
+            </a>
+          )}
+        </nav>
       </div>
     </aside>
   );
@@ -381,9 +435,9 @@ export default function AccountSettingsPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8 flex gap-6 items-start bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start bg-slate-50 min-h-screen">
         {sidebar}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 w-full">
           {status && (
             <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${/success|saved|changed|updated/i.test(status) ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
               {status}

@@ -22,7 +22,79 @@ module.exports = async (req, res) => {
       return res.status(500).json({ ok: false, error: 'Database is required for Stripe Connect.' });
     }
 
+    if (role === 'attraction') {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ ok: false, error: 'Missing email' });
+
+      // Look up the attraction owner by email in event organizer profiles table
+      const r = await query(
+        `SELECT id, payload FROM bc_event_organizer_profiles WHERE email = $1 LIMIT 1`,
+        [email]
+      );
+      if (r.rows.length === 0) {
+        // Fallback: return a generic connect link without persisting account ID
+        const account = await stripe.accounts.create({
+          type: 'express',
+          email,
+          capabilities: { transfers: { requested: true } },
+        });
+        const origin = req.headers.origin || 'http://localhost:3000';
+        const accountLink = await stripe.accountLinks.create({
+          account: account.id,
+          refresh_url: `${origin}/attraction-dashboard#wallet`,
+          return_url: `${origin}/attraction-dashboard#wallet`,
+          type: 'account_onboarding',
+        });
+        return res.json({ ok: true, url: accountLink.url });
+      }
+
+      const record = r.rows[0];
+      const profile = record.payload || {};
+      let accountId = profile.stripe_account_id;
+
+      if (action === 'create-account-link') {
+        if (!accountId) {
+          const account = await stripe.accounts.create({
+            type: 'express',
+            email: profile.email || email,
+            capabilities: { transfers: { requested: true } },
+          });
+          accountId = account.id;
+          profile.stripe_account_id = accountId;
+          await query(`UPDATE bc_event_organizer_profiles SET payload = $1 WHERE id = $2`, [JSON.stringify(profile), record.id]);
+        }
+        const origin = req.headers.origin || 'http://localhost:3000';
+        const accountLink = await stripe.accountLinks.create({
+          account: accountId,
+          refresh_url: `${origin}/attraction-dashboard#wallet`,
+          return_url: `${origin}/attraction-dashboard#wallet`,
+          type: 'account_onboarding',
+        });
+        return res.json({ ok: true, url: accountLink.url });
+      }
+
+      if (action === 'check-status') {
+        if (!accountId) return res.json({ ok: true, connected: false });
+        const account = await stripe.accounts.retrieve(accountId);
+        const isComplete = account.charges_enabled && account.payouts_enabled;
+        if (isComplete !== profile.stripe_onboarding_complete) {
+          profile.stripe_onboarding_complete = isComplete;
+          await query(`UPDATE bc_event_organizer_profiles SET payload = $1 WHERE id = $2`, [JSON.stringify(profile), record.id]);
+        }
+        return res.json({ ok: true, connected: isComplete });
+      }
+
+      if (action === 'create-login-link') {
+        if (!accountId) return res.status(400).json({ ok: false, error: 'Stripe account not connected.' });
+        const loginLink = await stripe.accounts.createLoginLink(accountId);
+        return res.json({ ok: true, url: loginLink.url });
+      }
+
+      return res.status(400).json({ ok: false, error: 'Unknown action for attraction' });
+    }
+
     if (role === 'operator') {
+
       if (!operatorId) return res.status(400).json({ ok: false, error: 'Missing operatorId' });
       const r = await query(`SELECT id, payload FROM bc_aviation_records WHERE kind = 'operator' AND id = $1 LIMIT 1`, [operatorId]);
       if (r.rows.length === 0) return res.status(404).json({ ok: false, error: 'Operator not found.' });

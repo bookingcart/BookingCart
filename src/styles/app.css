@@ -230,8 +230,7 @@ details.filter-chip[open] > summary .filter-chip-caret {
 }
 
 @media (max-width: 480px) {
-  .bookingcart-navbar .bookingcart-currency,
-  .bookingcart-navbar .bc-header-auth {
+  .bookingcart-navbar .bookingcart-currency {
     display: none;
   }
 }
@@ -317,6 +316,13 @@ details.filter-chip[open] > summary .filter-chip-caret {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.03);
   margin-bottom: 1.5rem;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+@media (max-width: 767px) {
+  .settings-card {
+    padding: 1.25rem;
+    border-radius: 1rem;
+  }
 }
 
 .settings-card:hover {

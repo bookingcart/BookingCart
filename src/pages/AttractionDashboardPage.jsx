@@ -22,6 +22,7 @@ const MENU_ITEMS = [
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
   { id: 'create',        label: 'Create New',      icon: 'ph-ticket', route: '/list-your-event' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
+  { id: 'wallet',        label: 'Wallet',          icon: 'ph-wallet' },
   { id: 'notifications', label: 'Notifications',   icon: 'ph-bell' },
   { id: 'settings',      label: 'Profile Settings',icon: 'ph-gear' },
 ];
@@ -327,6 +328,14 @@ export default function AttractionDashboardPage() {
   const [page, setPage] = useState(1);
   const LIMIT = 12;
 
+  // Wallet / Stripe
+  const [wallet, setWallet] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [withdrawAmt, setWithdrawAmt] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
+
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -368,6 +377,26 @@ export default function AttractionDashboardPage() {
     }
   }, [user, authHeaders, statusFilter, search]);
 
+  // Load wallet balance from attraction-wallets API
+  const loadWallet = useCallback(async () => {
+    if (!user) return;
+    setWalletLoading(true);
+    try {
+      const res = await fetch('/api/attraction-wallets', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'get-wallet' }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setWallet(data.wallet);
+        setStripeConnected(!!data.wallet?.stripe_connected);
+      }
+    } catch { /* silent */ } finally {
+      setWalletLoading(false);
+    }
+  }, [user, authHeaders]);
+
   useEffect(() => {
     document.title = 'Attraction Owner Dashboard | BookingCart';
     if (!user) {
@@ -383,7 +412,8 @@ export default function AttractionDashboardPage() {
       bio: user.bio || '',
     });
     loadAttractions(1, true);
-  }, [user, navigate, loadAttractions]);
+    loadWallet();
+  }, [user, navigate, loadAttractions, loadWallet]);
 
   useEffect(() => {
     if (user) loadAttractions(1, true);
@@ -499,6 +529,53 @@ export default function AttractionDashboardPage() {
   }
 
   const unreadCount = notifs.filter(n => !n.read).length;
+
+  // ── Stripe Connect for attractions ──────────────────────────────────────────
+  async function handleConnectStripe() {
+    setConnectingStripe(true);
+    try {
+      const res = await fetch('/api/stripe/connect', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create-account-link', role: 'attraction', email: user?.email }),
+      });
+      const data = await res.json();
+      if (data.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Failed to initiate Stripe connection.');
+      }
+    } catch {
+      alert('Network error initiating Stripe connection.');
+    } finally {
+      setConnectingStripe(false);
+    }
+  }
+
+  async function handleRequestPayout() {
+    const amt = parseFloat(withdrawAmt);
+    if (!amt || amt <= 0 || (wallet && amt > wallet.available)) return alert('Invalid amount.');
+    setWithdrawing(true);
+    try {
+      const res = await fetch('/api/attraction-wallets', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'request-payout', amount: amt }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`✅ Payout of $${amt.toFixed(2)} requested successfully!`);
+        setWithdrawAmt('');
+        setWallet(prev => prev ? { ...prev, available: prev.available - amt, withdrawn: (prev.withdrawn || 0) + amt } : prev);
+      } else {
+        alert(data.error || 'Payout request failed.');
+      }
+    } catch {
+      alert('Network error.');
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   // ── Sidebar ─────────────────────────────────────────────────────────────────
   const Sidebar = () => (
@@ -1016,6 +1093,143 @@ export default function AttractionDashboardPage() {
     );
   };
 
+  // ── WALLET ────────────────────────────────────────────────────────────────
+  const WalletTab = () => (
+    <div className="space-y-6 max-w-3xl">
+      <div>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Wallet & Payouts</h2>
+        <p className="text-xs text-slate-500 mt-0.5">Manage your earnings, connect Stripe, and request payouts.</p>
+      </div>
+
+      {/* Stripe Connect Banner */}
+      {!stripeConnected ? (
+        <div className="relative bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 text-white rounded-3xl p-6 shadow-xl overflow-hidden">
+          <div className="absolute -top-8 -right-8 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-3xl flex-shrink-0">
+              <i className="ph ph-stripe-logo" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-black text-lg">Connect with Stripe to receive payouts</h3>
+              <p className="text-sm text-indigo-100 mt-1">Set up your Stripe Express account to receive automated payouts directly to your bank account. Fast, secure, and instant.</p>
+            </div>
+            <button
+              onClick={handleConnectStripe}
+              disabled={connectingStripe}
+              className="flex-shrink-0 flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-extrabold text-sm rounded-2xl hover:bg-indigo-50 transition-all shadow-lg disabled:opacity-60"
+            >
+              <i className="ph ph-stripe-logo text-xl" />
+              {connectingStripe ? 'Redirecting…' : 'Connect with Stripe'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-5 py-4">
+          <i className="ph-fill ph-check-circle text-2xl text-emerald-500" />
+          <span className="font-bold text-sm text-emerald-800 dark:text-emerald-300">Stripe Connected</span>
+          <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-1">Your payouts will be sent directly to your bank account.</span>
+        </div>
+      )}
+
+      {/* Balance Cards */}
+      {walletLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <i className="ph ph-spinner-gap text-4xl text-amber-500 animate-spin" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Available', value: wallet?.available ?? 0, icon: 'ph-money', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', iconColor: 'text-emerald-500' },
+              { label: 'Pending', value: wallet?.pending ?? 0, icon: 'ph-clock', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/40', iconColor: 'text-amber-500' },
+              { label: 'Withdrawn', value: wallet?.withdrawn ?? 0, icon: 'ph-arrow-circle-up', color: 'text-slate-700 dark:text-slate-300', bg: 'bg-slate-50 dark:bg-slate-800', iconColor: 'text-slate-400' },
+              { label: 'Lifetime', value: wallet?.lifetime ?? 0, icon: 'ph-trophy', color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/40', iconColor: 'text-violet-500' },
+            ].map(({ label, value, icon, color, bg, iconColor }) => (
+              <div key={label} className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className={`w-10 h-10 rounded-2xl ${bg} flex items-center justify-center mb-3`}>
+                  <i className={`ph ${icon} text-xl ${iconColor}`} />
+                </div>
+                <div className={`text-2xl sm:text-3xl font-black ${color}`}>${parseFloat(value).toFixed(2)}</div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Payout Request */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-black text-base text-slate-900 dark:text-white mb-5 flex items-center gap-2">
+              <i className="ph ph-paper-plane-tilt text-amber-500" />
+              Request Payout
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">Amount (USD)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                  <input
+                    type="number" min="1" step="0.01"
+                    max={wallet?.available || 0}
+                    value={withdrawAmt}
+                    onChange={e => setWithdrawAmt(e.target.value)}
+                    placeholder="0.00"
+                    className={`${inputCls} pl-8`}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Available: <span className="font-bold text-emerald-600">${parseFloat(wallet?.available ?? 0).toFixed(2)}</span></p>
+              </div>
+              <div className="flex gap-2">
+                {[10, 25, 50, 100].map(v => (
+                  <button key={v} type="button" onClick={() => setWithdrawAmt(String(Math.min(v, wallet?.available || 0)))}
+                    className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:border-amber-400 hover:text-amber-600 transition-all">
+                    ${v}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleRequestPayout}
+                disabled={withdrawing || !withdrawAmt || parseFloat(withdrawAmt) <= 0 || parseFloat(withdrawAmt) > (wallet?.available || 0)}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {withdrawing ? <><i className="ph ph-spinner-gap animate-spin" /> Processing…</> : <><i className="ph ph-paper-plane-tilt" /> Request Payout</>}
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Transactions */}
+          {wallet?.transactions?.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <h3 className="font-black text-base text-slate-900 dark:text-white mb-5">Recent Transactions</h3>
+              <div className="space-y-3">
+                {wallet.transactions.slice(0, 10).map((tx, i) => (
+                  <div key={i} className="flex items-center gap-4 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'credit' ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-slate-50 dark:bg-slate-800'}`}>
+                      <i className={`ph ${tx.type === 'credit' ? 'ph-arrow-circle-down text-emerald-500' : 'ph-arrow-circle-up text-slate-400'} text-lg`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{tx.description || (tx.type === 'credit' ? 'Booking Payment' : 'Payout')}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{fmtDate(tx.created_at)}</div>
+                    </div>
+                    <span className={`text-sm font-black flex-shrink-0 ${tx.type === 'credit' ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-400'}`}>
+                      {tx.type === 'credit' ? '+' : '-'}${parseFloat(tx.amount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(!wallet || (wallet?.transactions?.length === 0)) && (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-dashed border-slate-200 dark:border-slate-800 text-center">
+              <i className="ph ph-receipt text-4xl text-slate-200 dark:text-slate-700 mb-3 block" />
+              <p className="text-sm font-bold text-slate-500">No transactions yet</p>
+              <p className="text-xs text-slate-400 mt-1">Earnings from bookings will appear here once your attractions receive payments.</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   // ─── Main Render ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row pb-20 md:pb-0">
@@ -1059,6 +1273,7 @@ export default function AttractionDashboardPage() {
         {activeTab === 'overview'      && <OverviewTab />}
         {activeTab === 'attractions'   && <AttractionsTab />}
         {activeTab === 'analytics'     && <AnalyticsTab />}
+        {activeTab === 'wallet'        && <WalletTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'settings'      && <SettingsTab />}
       </main>
@@ -1154,8 +1369,10 @@ export default function AttractionDashboardPage() {
       </Modal>
 
       {/* Mobile bottom nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex items-center px-2 py-2 gap-0.5">
-        {MENU_ITEMS.slice(0, 5).map(item => {
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex items-center px-1 py-2 gap-0">
+        {['overview','attractions','create','analytics','wallet','notifications'].map(id => {
+          const item = MENU_ITEMS.find(m => m.id === id);
+          if (!item) return null;
           const active = activeTab === item.id;
           return (
             <button key={item.id} onClick={() => item.route ? navigate(item.route) : setActiveTab(item.id)}
