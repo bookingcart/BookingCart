@@ -17,13 +17,19 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
   const isHotelOwner  = user?.role === 'hotel_owner' || !!user?.isHotelOwner;
   const isAttractionOwner = user?.role === 'attraction_owner' || !!user?.isAttractionOwner;
   const isAdmin       = user?.role === 'admin';
+  const isAviationOperator = !!user && (
+    user.role === 'operator' ||
+    user.isOperator ||
+    isAdmin ||
+    localStorage.getItem('bc_is_operator') === 'true'
+  );
 
   // All main nav sections shown in the mobile drawer
   const NAV_SECTIONS = [
     { key: 'flights',    href: '/',             icon: 'ph-airplane-tilt',  label: 'Flights' },
     { key: 'stays',      href: '/stays',         icon: 'ph-buildings',      label: 'Stays' },
     { key: 'guides',     href: '/tour-guides',   icon: 'ph-compass',        label: 'Tour Guides' },
-    { key: 'attractions',href: '/attractions/results', icon: 'ph-ticket',  label: 'Attractions' },
+    { key: 'attractions',href: '/?mode=attractions', icon: 'ph-ticket',  label: 'Attractions' },
     { key: 'aviation',   href: '/aviation',      icon: 'ph-airplane-takeoff', label: 'Aviation' },
   ];
 
@@ -240,6 +246,12 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                       <a href="/attraction-dashboard" onClick={closeMobile}
                         className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 transition-colors hover:bg-amber-100">
                         <i className="ph ph-ticket text-lg text-amber-600" /> Attraction Portal
+                      </a>
+                    )}
+                    {isAviationOperator && (
+                      <a href="/aviation/dashboard" onClick={closeMobile}
+                        className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 transition-colors hover:bg-sky-100">
+                        <i className="ph ph-airplane-tilt text-lg text-sky-600" /> Operator Portal
                       </a>
                     )}
                     {isAdmin && (

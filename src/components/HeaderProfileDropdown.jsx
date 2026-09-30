@@ -19,6 +19,7 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
   const isAdmin = user && adminEmails.includes(user.email?.toLowerCase());
   const isGuide = !!user && (user.isGuide || user.role === 'guide' || user.role === 'guide_applicant' || !!user.guideId || !!user.guideProfileId);
   const [hasUserAttractions, setHasUserAttractions] = useState(() => localStorage.getItem('bc_has_attractions') === 'true');
+  const [hasUserAircrafts, setHasUserAircrafts] = useState(() => localStorage.getItem('bc_is_operator') === 'true');
 
   useEffect(() => {
     if (!user) return;
@@ -27,12 +28,17 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
 
     Promise.all([
       fetch('/api/attraction-profiles?limit=1', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
-      fetch('/api/event-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
-    ]).then(([attrRes, evRes]) => {
+      fetch('/api/event-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/aviation?action=operator-get', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
+    ]).then(([attrRes, evRes, avRes]) => {
       const hasAttr = (attrRes.ok && Array.isArray(attrRes.attractions) && attrRes.attractions.length > 0) || (evRes.ok && !!evRes.profile);
       if (hasAttr) {
         setHasUserAttractions(true);
         localStorage.setItem('bc_has_attractions', 'true');
+      }
+      if (avRes.ok && avRes.portal?.operator) {
+        setHasUserAircrafts(true);
+        localStorage.setItem('bc_is_operator', 'true');
       }
     });
   }, [user]);
@@ -50,6 +56,13 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
     !!user.eventProfileId ||
     hasUserAttractions ||
     !!localStorage.getItem('bc_event_profile_id')
+  );
+
+  const isAviationOperator = !!user && (
+    user.isOperator ||
+    user.role === 'operator' ||
+    isAdmin ||
+    hasUserAircrafts
   );
 
   useEffect(() => {
@@ -153,14 +166,17 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
             <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100 rounded">Host</span>
           </a>
         )}
-        {user?.isOperator && (
+        {isAviationOperator && (
           <a
             href="/aviation/dashboard"
             role="menuitem"
-            className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            className="flex items-center justify-between px-5 py-3 text-sm font-bold text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/70 border-b border-sky-100 dark:border-sky-800/40 transition-colors"
             onClick={() => setOpen(false)}
           >
-            <i className="ph ph-airplane-tilt text-xl text-slate-400"></i> Operator Portal
+            <span className="flex items-center gap-2.5">
+              <i className="ph ph-airplane-tilt text-xl text-sky-600"></i> Operator Portal
+            </span>
+            <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-sky-200 text-sky-900 dark:bg-sky-800 dark:text-sky-100 rounded">Aviation</span>
           </a>
         )}
         <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
