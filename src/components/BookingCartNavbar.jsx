@@ -25,7 +25,6 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
     { key: 'guides',     href: '/tour-guides',   icon: 'ph-compass',        label: 'Tour Guides' },
     { key: 'attractions',href: '/attractions/results', icon: 'ph-ticket',  label: 'Attractions' },
     { key: 'aviation',   href: '/aviation',      icon: 'ph-airplane-takeoff', label: 'Aviation' },
-    { key: 'explore',    href: '/explore',       icon: 'ph-globe-hemisphere-east', label: 'Explore' },
   ];
 
   const closeMobile = () => setMobileOpen(false);
