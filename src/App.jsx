@@ -66,6 +66,7 @@ const AviationOnboardingPage = lazy(() => import('./pages/AviationOnboardingPage
 const AviationDashboardPage = lazy(() => import('./pages/AviationDashboardPage.jsx'));
 const AviationAdminPage = lazy(() => import('./pages/AviationAdminPage.jsx'));
 const AttractionDashboardPage = lazy(() => import('./pages/AttractionDashboardPage.jsx'));
+const PMSDashboardPage = lazy(() => import('./pages/PMSDashboardPage.jsx'));
 
 export default function App() {
   return (
@@ -140,6 +141,9 @@ export default function App() {
           <Route path="/attractions/:source/:id" element={<AttractionDetailsPage />} />
           <Route path="/attraction-dashboard" element={<AttractionDashboardPage />} />
           <Route path="/attraction-dashboard/:tab" element={<AttractionDashboardPage />} />
+          <Route path="/pms" element={<PMSDashboardPage />} />
+          <Route path="/pms/:tab" element={<PMSDashboardPage />} />
+          <Route path="/pms-dashboard" element={<PMSDashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
         </Routes>

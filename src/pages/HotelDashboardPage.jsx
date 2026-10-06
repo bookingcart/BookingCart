@@ -29,6 +29,7 @@ const STATUS_BADGE = {
 
 const MENU_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',     icon: 'ph-squares-four' },
+  { id: 'pms',          label: 'PMS Manager',   icon: 'ph-bed', badge: 'PMS' },
   { id: 'my-hotel',     label: 'My Hotel',      icon: 'ph-buildings' },
   { id: 'edit-listing', label: 'Edit Listing',  icon: 'ph-pencil-line' },
   { id: 'reservations', label: 'Reservations',  icon: 'ph-receipt' },
@@ -168,15 +169,29 @@ export default function HotelDashboardPage() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }}
-                  className={`w-full px-4 py-3 rounded-2xl font-bold text-xs flex items-center gap-3 transition-all ${
+                  onClick={() => {
+                    if (item.id === 'pms') {
+                      navigate('/pms');
+                    } else {
+                      setActiveTab(item.id);
+                    }
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-2xl font-bold text-xs flex items-center justify-between transition-all ${
                     active
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <i className={`ph ${item.icon} text-lg`} />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <i className={`ph ${item.icon} text-lg`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-indigo-500 text-white">
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
