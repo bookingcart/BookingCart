@@ -20,17 +20,19 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
   const isGuide = !!user && (user.isGuide || user.role === 'guide' || user.role === 'guide_applicant' || !!user.guideId || !!user.guideProfileId);
   const [hasUserAttractions, setHasUserAttractions] = useState(() => localStorage.getItem('bc_has_attractions') === 'true');
   const [hasUserAircrafts, setHasUserAircrafts] = useState(() => localStorage.getItem('bc_is_operator') === 'true');
+  const [hasUserHotel, setHasUserHotel] = useState(() => localStorage.getItem('bc_is_hotel_owner') === 'true' || !!localStorage.getItem('bc_hotel_profile_id'));
 
   useEffect(() => {
     if (!user) return;
-    const token = localStorage.getItem('bookingcart_google_id_token') || localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bc_jwt') || '';
+    const token = localStorage.getItem('bookingcart_google_id_token') || localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bc_jwt') || localStorage.getItem('bc_hotel_token') || '';
     if (!token) return;
 
     Promise.all([
       fetch('/api/attraction-profiles?limit=1', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
       fetch('/api/event-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
-      fetch('/api/aviation?action=operator-get', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
-    ]).then(([attrRes, evRes, avRes]) => {
+      fetch('/api/aviation?action=operator-get', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/hotel-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
+    ]).then(([attrRes, evRes, avRes, hotelRes]) => {
       const hasAttr = (attrRes.ok && Array.isArray(attrRes.attractions) && attrRes.attractions.length > 0) || (evRes.ok && !!evRes.profile);
       if (hasAttr) {
         setHasUserAttractions(true);
@@ -40,8 +42,25 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
         setHasUserAircrafts(true);
         localStorage.setItem('bc_is_operator', 'true');
       }
+      if (hotelRes.ok && (hotelRes.profile || (Array.isArray(hotelRes.profiles) && hotelRes.profiles.length > 0))) {
+        setHasUserHotel(true);
+        localStorage.setItem('bc_is_hotel_owner', 'true');
+      }
     });
   }, [user]);
+
+  const isHotelOwner = !!user && (
+    user.role === 'hotel_owner' ||
+    user.role === 'property_owner' ||
+    user.role === 'hotel' ||
+    isAdmin ||
+    !!user.isHotelOwner ||
+    !!user.isPropertyOwner ||
+    !!user.hotelProfileId ||
+    hasUserHotel ||
+    !!localStorage.getItem('bc_hotel_profile_id') ||
+    localStorage.getItem('bc_is_hotel_owner') === 'true'
+  );
 
   const isAttractionOwner = !!user && (
     user.role === 'event_organizer' ||
@@ -153,6 +172,19 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
         >
           <i className="ph ph-suitcase-rolling text-xl text-slate-400"></i> Bookings & Trips
         </a>
+        {isHotelOwner && (
+          <a
+            href="/hotel-dashboard"
+            role="menuitem"
+            className="flex items-center justify-between px-5 py-3 text-sm font-bold text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/70 border-b border-blue-100 dark:border-blue-800/40 transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <span className="flex items-center gap-2.5">
+              <i className="ph ph-buildings text-xl text-blue-600"></i> Property Portal (Hotel & PMS)
+            </span>
+            <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100 rounded">Stays</span>
+          </a>
+        )}
         {isAttractionOwner && (
           <a
             href="/attraction-dashboard"

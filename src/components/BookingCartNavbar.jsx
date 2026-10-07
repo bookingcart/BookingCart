@@ -14,7 +14,17 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
   const isGuide       = user?.role === 'guide' || user?.role === 'guide_applicant' || !!user?.isGuide;
-  const isHotelOwner  = user?.role === 'hotel_owner' || !!user?.isHotelOwner;
+  const isHotelOwner = !!user && (
+    user?.role === 'hotel_owner' ||
+    user?.role === 'property_owner' ||
+    user?.role === 'hotel' ||
+    !!user?.isHotelOwner ||
+    !!user?.isPropertyOwner ||
+    !!user?.hotelProfileId ||
+    user?.role === 'admin' ||
+    localStorage.getItem('bc_is_hotel_owner') === 'true' ||
+    !!localStorage.getItem('bc_hotel_profile_id')
+  );
   const isAttractionOwner = user?.role === 'attraction_owner' || !!user?.isAttractionOwner;
   const isAdmin       = user?.role === 'admin';
   const isAviationOperator = !!user && (
