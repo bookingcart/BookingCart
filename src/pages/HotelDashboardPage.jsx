@@ -38,20 +38,6 @@ const MENU_ITEMS = [
   { id: 'settings',     label: 'Settings',      icon: 'ph-gear' },
 ];
 
-// ─── Mock data for demo ───────────────────────────────────────────────────────
-const DEMO_RESERVATIONS = [
-  { ref: 'HTL-2841', guestName: 'Sarah & James Okonkwo', checkIn: '2026-09-25', checkOut: '2026-09-28', guests: 2, room: 'Deluxe King', total: 450, status: 'confirmed' },
-  { ref: 'HTL-2842', guestName: 'Amara Diallo', checkIn: '2026-10-02', checkOut: '2026-10-05', guests: 1, room: 'Standard Queen', total: 240, status: 'pending' },
-  { ref: 'HTL-2839', guestName: 'Chen Wei', checkIn: '2026-09-20', checkOut: '2026-09-22', guests: 2, room: 'Suite', total: 680, status: 'completed' },
-  { ref: 'HTL-2835', guestName: 'Fatima Nkrumah', checkIn: '2026-09-15', checkOut: '2026-09-18', guests: 3, room: 'Family Room', total: 520, status: 'completed' },
-];
-
-const DEMO_REVIEWS = [
-  { id: 1, guestName: 'Sarah O.', rating: 5, text: 'Absolutely stunning location. The staff were incredibly welcoming and the rooms were spotless. Will definitely return!', date: '2026-09-19', room: 'Deluxe King' },
-  { id: 2, guestName: 'Luca M.', rating: 4, text: 'Beautiful property with great amenities. The pool area was a bit crowded during peak hours but overall a wonderful stay.', date: '2026-09-14', room: 'Suite' },
-  { id: 3, guestName: 'Amara K.', rating: 5, text: 'Perfect in every way. The breakfast was exceptional and the views were breathtaking. Best hotel I\'ve stayed in Africa!', date: '2026-09-08', room: 'Standard Queen' },
-];
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HotelDashboardPage() {
   const { user, getToken } = useAuth();
@@ -62,14 +48,16 @@ export default function HotelDashboardPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reservations, setReservations] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [reservationFilter, setReservationFilter] = useState('all');
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
-  // Demo wallet
-  const wallet = { available: 1840.00, pending: 450.00, withdrawn: 5200.00, lifetime: 7490.00 };
+  // Real or 0 wallet
+  const wallet = { available: 0.00, pending: 0.00, withdrawn: 0.00, lifetime: 0.00 };
 
   useEffect(() => {
     document.title = 'Property Portal & Dashboard | BookingCart';
@@ -78,29 +66,37 @@ export default function HotelDashboardPage() {
       return;
     }
 
-    async function loadProfile() {
+    async function loadData() {
       try {
         const token = getToken();
-        const res = await fetch('/api/hotel-profiles', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-        const data = await res.json();
-        if (data.ok && data.profile) setProfile(data.profile);
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const [profRes, bkRes] = await Promise.all([
+          fetch('/api/hotel-profiles', { headers }),
+          fetch('/api/pms?action=list-bookings', { headers })
+        ]);
+
+        const profData = await profRes.json();
+        if (profData.ok && profData.profile) setProfile(profData.profile);
+
+        const bkData = await bkRes.json();
+        if (bkData.ok && Array.isArray(bkData.bookings)) setReservations(bkData.bookings);
+
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     }
-    loadProfile();
-  }, [user, navigate]);
+    loadData();
+  }, [user, navigate, getToken]);
 
-  const filteredReservations = DEMO_RESERVATIONS.filter(r => {
+  const filteredReservations = reservations.filter(r => {
     if (reservationFilter === 'all') return true;
-    return r.status === reservationFilter;
+    return (r.booking_status || r.status) === reservationFilter;
   });
 
-  const avgRating = (DEMO_REVIEWS.reduce((a, r) => a + r.rating, 0) / DEMO_REVIEWS.length).toFixed(1);
+  const avgRating = reviews.length > 0 ? (reviews.reduce((a, r) => a + (r.rating || 5), 0) / reviews.length).toFixed(1) : '5.0';
 
   // Completeness
   function calcCompleteness() {
@@ -247,7 +243,7 @@ export default function HotelDashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { label: 'Avg. Rating', value: avgRating, sub: <StarRow rating={parseFloat(avgRating)} />, color: 'text-slate-900 dark:text-white' },
-                { label: 'Reservations', value: DEMO_RESERVATIONS.length, sub: <span className="text-[10px] font-extrabold text-blue-600">Active</span>, color: 'text-slate-900 dark:text-white' },
+                { label: 'Reservations', value: reservations.length, sub: <span className="text-[10px] font-extrabold text-blue-600">Active</span>, color: 'text-slate-900 dark:text-white' },
                 { label: 'Available Payout', value: money(wallet.available), sub: <button onClick={() => setShowWithdrawModal(true)} className="text-[10px] font-bold text-blue-600 underline">Request Payout</button>, color: 'text-blue-600' },
                 { label: 'Profile Complete', value: `${completenessScore}%`, sub: <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden"><div className="bg-blue-500 h-full rounded-full" style={{ width: `${completenessScore}%` }} /></div>, color: 'text-slate-900 dark:text-white' },
               ].map(({ label, value, sub, color }) => (
@@ -266,17 +262,24 @@ export default function HotelDashboardPage() {
                   <h3 className="font-black text-base text-slate-900 dark:text-white">Recent Reservations</h3>
                   <button onClick={() => setActiveTab('reservations')} className="text-xs font-bold text-blue-600 hover:underline">View All</button>
                 </div>
-                {DEMO_RESERVATIONS.slice(0, 3).map(b => (
-                  <div key={b.ref} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-xs text-slate-900 dark:text-white">{b.guestName}</div>
-                      <div className="text-[11px] text-slate-400">{b.checkIn} · {b.room}</div>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${STATUS_BADGE[b.status] || STATUS_BADGE.pending}`}>
-                      {b.status}
-                    </span>
+                {reservations.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 text-xs">
+                    <i className="ph ph-receipt text-3xl mb-1 text-slate-300 block" />
+                    No reservations yet
                   </div>
-                ))}
+                ) : (
+                  reservations.slice(0, 3).map(b => (
+                    <div key={b.ref || b.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-xs text-slate-900 dark:text-white">{b.guest_name || b.guestName}</div>
+                        <div className="text-[11px] text-slate-400">{b.check_in || b.checkIn} · {b.room_number ? `Room ${b.room_number}` : (b.room || 'Stay')}</div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${STATUS_BADGE[b.booking_status || b.status] || STATUS_BADGE.pending}`}>
+                        {b.booking_status || b.status}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -284,15 +287,22 @@ export default function HotelDashboardPage() {
                   <h3 className="font-black text-base text-slate-900 dark:text-white">Recent Guest Reviews</h3>
                   <button onClick={() => setActiveTab('reviews')} className="text-xs font-bold text-blue-600 hover:underline">View All</button>
                 </div>
-                {DEMO_REVIEWS.slice(0, 2).map(r => (
-                  <div key={r.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-slate-900 dark:text-white">{r.guestName}</span>
-                      <StarRow rating={r.rating} />
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{r.text}</p>
+                {reviews.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 text-xs">
+                    <i className="ph ph-star text-3xl mb-1 text-slate-300 block" />
+                    No reviews yet
                   </div>
-                ))}
+                ) : (
+                  reviews.slice(0, 2).map(r => (
+                    <div key={r.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white">{r.guestName}</span>
+                        <StarRow rating={r.rating} />
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{r.text}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

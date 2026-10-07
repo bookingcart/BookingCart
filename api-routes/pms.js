@@ -140,6 +140,10 @@ function genRef() {
 
 // ─── Demo Seed Data Generator ────────────────────────────────────────────────
 async function seedDemoRoomsIfNeeded(dbReady, hotelId) {
+  // Only seed demo rooms if explicitly requesting demo mode
+  const isDemoProperty = String(hotelId) === 'demo' || String(hotelId) === 'demo_hotel';
+  if (!isDemoProperty) return;
+
   let existingCount = 0;
   if (dbReady) {
     const r = await query(`SELECT COUNT(*) as cnt FROM bc_pms_rooms WHERE hotel_profile_id = $1`, [hotelId]);

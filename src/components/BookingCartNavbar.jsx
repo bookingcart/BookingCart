@@ -240,34 +240,49 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                     </a>
 
                     {/* Role-specific dashboards */}
-                    {isGuide && (
-                      <a href="/guide-dashboard" onClick={closeMobile}
-                        className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 transition-colors hover:bg-emerald-100">
-                        <i className="ph ph-squares-four text-lg text-emerald-600" /> Guide Dashboard
-                      </a>
-                    )}
                     {isHotelOwner && (
                       <a href="/hotel-dashboard" onClick={closeMobile}
-                        className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 transition-colors hover:bg-blue-100">
-                        <i className="ph ph-buildings text-lg text-blue-600" /> Property Portal
+                        className="flex h-11 items-center justify-between rounded-xl px-3 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                        <span className="flex items-center gap-3">
+                          <i className="ph-fill ph-buildings text-lg text-blue-600 dark:text-blue-400" /> Property &amp; PMS Portal
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">Stays</span>
+                      </a>
+                    )}
+                    {isGuide && (
+                      <a href="/guide-dashboard" onClick={closeMobile}
+                        className="flex h-11 items-center justify-between rounded-xl px-3 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                        <span className="flex items-center gap-3">
+                          <i className="ph-fill ph-compass text-lg text-emerald-600 dark:text-emerald-400" /> Guide Dashboard
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Guide</span>
                       </a>
                     )}
                     {isAttractionOwner && (
                       <a href="/attraction-dashboard" onClick={closeMobile}
-                        className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 transition-colors hover:bg-amber-100">
-                        <i className="ph ph-ticket text-lg text-amber-600" /> Attraction Portal
+                        className="flex h-11 items-center justify-between rounded-xl px-3 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                        <span className="flex items-center gap-3">
+                          <i className="ph-fill ph-ticket text-lg text-amber-600 dark:text-amber-400" /> Attraction Portal
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Events</span>
                       </a>
                     )}
                     {isAviationOperator && (
                       <a href="/aviation/dashboard" onClick={closeMobile}
-                        className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 transition-colors hover:bg-sky-100">
-                        <i className="ph ph-airplane-tilt text-lg text-sky-600" /> Operator Portal
+                        className="flex h-11 items-center justify-between rounded-xl px-3 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                        <span className="flex items-center gap-3">
+                          <i className="ph-fill ph-airplane-tilt text-lg text-sky-600 dark:text-sky-400" /> Operator Portal
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">Aviation</span>
                       </a>
                     )}
                     {isAdmin && (
                       <a href="/admin" onClick={closeMobile}
-                        className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 transition-colors hover:bg-rose-100">
-                        <i className="ph ph-shield-check text-lg text-rose-500" /> Admin Panel
+                        className="flex h-11 items-center justify-between rounded-xl px-3 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                        <span className="flex items-center gap-3">
+                          <i className="ph-fill ph-shield-check text-lg text-purple-600 dark:text-purple-400" /> Admin Control
+                        </span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">Admin</span>
                       </a>
                     )}
 

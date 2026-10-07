@@ -250,15 +250,15 @@ export default function PMSDashboardPage() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Data state (start with sample data, override with real data when API works)
-  const [floors, setFloors] = useState(SAMPLE_FLOORS);
-  const [rooms, setRooms] = useState(SAMPLE_ROOMS);
-  const [bookings, setBookings] = useState(SAMPLE_BOOKINGS);
+  // Data state (starts clean for real property owners)
+  const [floors, setFloors] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [stats, setStats] = useState({
-    total_rooms: 8, available_rooms: 3, occupied_rooms: 1, total_bookings: 4,
-    pending_bookings: 1, confirmed_bookings: 2, todays_checkins: 1, todays_checkouts: 0,
-    revenue_total: 1810, revenue_month: 1810,
+    total_rooms: 0, available_rooms: 0, occupied_rooms: 0, total_bookings: 0,
+    pending_bookings: 0, confirmed_bookings: 0, todays_checkins: 0, todays_checkouts: 0,
+    revenue_total: 0, revenue_month: 0,
   });
 
   // Calendar
@@ -326,12 +326,16 @@ export default function PMSDashboardPage() {
           pmsApi('list-bookings'),
           pmsApi('dashboard-stats'),
         ]);
-        if (fRes.ok && fRes.floors.length > 0) setFloors(fRes.floors);
-        if (rRes.ok && rRes.rooms.length > 0) setRooms(rRes.rooms);
-        if (bRes.ok && bRes.bookings.length > 0) setBookings(bRes.bookings);
-        if (stRes.ok) setStats(stRes.stats);
+        if (fRes.ok) setFloors(fRes.floors || []);
+        if (rRes.ok) setRooms(rRes.rooms || []);
+        if (bRes.ok) setBookings(bRes.bookings || []);
+        if (stRes.ok) setStats(stRes.stats || {
+          total_rooms: 0, available_rooms: 0, occupied_rooms: 0, total_bookings: 0,
+          pending_bookings: 0, confirmed_bookings: 0, todays_checkins: 0, todays_checkouts: 0,
+          revenue_total: 0, revenue_month: 0,
+        });
       } catch {
-        // Keep sample data on error
+        // Clean empty state on network error
       } finally { setLoading(false); }
     }
     loadData();
