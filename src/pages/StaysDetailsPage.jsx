@@ -4,6 +4,7 @@ import { FlightFooter } from '../components/FlightFooter.jsx';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import InteractiveRoomMap from '../components/InteractiveRoomMap.jsx';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -177,6 +178,8 @@ export default function StaysDetailsPage() {
       .finally(() => setReviewsLoading(false));
   }, [accommodationId]);
 
+  const [selectedVisualRoom, setSelectedVisualRoom] = useState(null);
+
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
   useEffect(() => {
@@ -184,18 +187,20 @@ export default function StaysDetailsPage() {
     else document.title = 'Hotel Details | BookingCart';
   }, [hotel]);
 
-  const handleBook = async () => {
+  const handleBook = async (overrideRoom = null) => {
+    const activeRoom = overrideRoom || selectedVisualRoom;
     const existingQuoteId = searchParams.get('quote_id');
     const searchResultId = searchParams.get('search_result_id');
+    const roomQs = activeRoom ? `&room_id=${encodeURIComponent(activeRoom.id)}&room_number=${encodeURIComponent(activeRoom.room_number)}` : '';
     
     if (existingQuoteId && existingQuoteId !== 'quo_pending') {
-      navigate(`/stays/checkout?quote_id=${existingQuoteId}&accommodation_id=${accommodationId}`);
+      navigate(`/stays/checkout?quote_id=${existingQuoteId}&accommodation_id=${accommodationId}${roomQs}`);
       return;
     }
 
     if (!searchResultId) {
       // fallback if user visited directly without search params
-      navigate(`/stays/checkout?quote_id=quo_pending&accommodation_id=${accommodationId}`);
+      navigate(`/stays/checkout?quote_id=quo_pending&accommodation_id=${accommodationId}${roomQs}`);
       return;
     }
 
@@ -228,14 +233,14 @@ export default function StaysDetailsPage() {
       const quoteData = await quoteRes.json();
       
       if (quoteData.ok && quoteData.quote?.id) {
-        navigate(`/stays/checkout?quote_id=${quoteData.quote.id}&accommodation_id=${accommodationId}`);
+        navigate(`/stays/checkout?quote_id=${quoteData.quote.id}&accommodation_id=${accommodationId}${roomQs}`);
       } else {
         throw new Error('Failed to create quote');
       }
     } catch (err) {
       console.error('Booking quote error:', err);
       // fallback
-      navigate(`/stays/checkout?quote_id=quo_pending&accommodation_id=${accommodationId}`);
+      navigate(`/stays/checkout?quote_id=quo_pending&accommodation_id=${accommodationId}${roomQs}`);
     } finally {
       setBookingLoading(false);
     }
@@ -271,16 +276,19 @@ export default function StaysDetailsPage() {
       <div className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <div className="flex gap-6 h-full">
-            {['Overview', 'Prices', 'Amenities', 'Reviews', 'Location'].map((item, idx) => (
-              <a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                onClick={() => setActiveSection(item.toLowerCase())}
-                className={`flex items-center text-sm font-bold border-b-2 transition-colors ${activeSection === item.toLowerCase() ? 'border-green-600 text-green-700 dark:text-green-400' : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                {item}
-              </a>
-            ))}
+            {['Overview', 'Pick Room', 'Prices', 'Amenities', 'Reviews', 'Location'].map((item, idx) => {
+              const secId = item.toLowerCase().replace(' ', '-');
+              return (
+                <a
+                  key={item}
+                  href={`#${secId}`}
+                  onClick={() => setActiveSection(secId)}
+                  className={`flex items-center text-sm font-bold border-b-2 transition-colors ${activeSection === secId ? 'border-green-600 text-green-700 dark:text-green-400' : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  {item}
+                </a>
+              );
+            })}
           </div>
           <div className="flex items-center gap-4">
             {hotel && (
@@ -414,6 +422,25 @@ export default function StaysDetailsPage() {
                   </div>
                 ))}
               </div>
+            </section>
+
+            <div className="border-t border-slate-200 dark:border-slate-700 my-8" />
+
+            {/* Visual Room Selection Engine Section */}
+            <section id="pick-room" className="mb-12 scroll-mt-20">
+              <InteractiveRoomMap
+                hotelId={accommodationId || '1'}
+                checkIn={searchParams.get('check_in') || new Date().toISOString().split('T')[0]}
+                checkOut={searchParams.get('check_out') || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                guests={Number(searchParams.get('guests')) || 2}
+                selectedRoom={selectedVisualRoom}
+                onRoomSelect={(room, sid) => {
+                  setSelectedVisualRoom(room);
+                  if (room) {
+                    // Quick scroll to confirm or reserve
+                  }
+                }}
+              />
             </section>
 
             <div className="border-t border-slate-200 dark:border-slate-700 my-8" />

@@ -1,7 +1,7 @@
 // api-routes/pms.js
 // Property Management System (PMS) for Hotel Dashboard
-// Manages: floors, rooms, bookings, availability, blocking, reports
-// All actions use: POST { action, ...params } with Bearer token auth
+// Manages: floors, rooms, layout coordinates, room holds, bookings, availability, blocking, visual room map, analytics
+// All actions use: POST or GET { action, ...params }
 
 const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
@@ -18,7 +18,7 @@ function nextId() {
 }
 function nowIso() { return new Date().toISOString(); }
 
-// ─── DB Table Creation ────────────────────────────────────────────────────────
+// ─── DB Table Creation & Migrations ───────────────────────────────────────────
 async function ensureTables() {
   // Floors
   await query(`
@@ -50,10 +50,28 @@ async function ensureTables() {
       description TEXT DEFAULT '',
       status TEXT DEFAULT 'available',
       size_sqm INTEGER,
+      pos_x INTEGER DEFAULT 0,
+      pos_y INTEGER DEFAULT 0,
+      grid_w INTEGER DEFAULT 1,
+      grid_h INTEGER DEFAULT 1,
+      wing_section TEXT DEFAULT 'Main Wing',
+      view_type TEXT DEFAULT 'City View',
+      has_balcony BOOLEAN DEFAULT FALSE,
+      is_accessible BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )
   `).catch(() => {});
+
+  // Migrations for existing DB tables
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS pos_x INTEGER DEFAULT 0`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS pos_y INTEGER DEFAULT 0`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS grid_w INTEGER DEFAULT 1`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS grid_h INTEGER DEFAULT 1`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS wing_section TEXT DEFAULT 'Main Wing'`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS view_type TEXT DEFAULT 'City View'`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS has_balcony BOOLEAN DEFAULT FALSE`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS is_accessible BOOLEAN DEFAULT FALSE`).catch(() => {});
 
   // Bookings (PMS-native stays bookings)
   await query(`
@@ -96,6 +114,20 @@ async function ensureTables() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     )
   `).catch(() => {});
+
+  // Temporary Room Holds (10-minute hold lock during checkout)
+  await query(`
+    CREATE TABLE IF NOT EXISTS bc_pms_holds (
+      id SERIAL PRIMARY KEY,
+      hotel_profile_id INTEGER NOT NULL,
+      room_id INTEGER NOT NULL,
+      session_id TEXT NOT NULL,
+      check_in DATE NOT NULL,
+      check_out DATE NOT NULL,
+      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `).catch(() => {});
 }
 
 // ─── Booking Reference Generator ─────────────────────────────────────────────
@@ -106,9 +138,90 @@ function genRef() {
   return r;
 }
 
+// ─── Demo Seed Data Generator ────────────────────────────────────────────────
+async function seedDemoRoomsIfNeeded(dbReady, hotelId) {
+  let existingCount = 0;
+  if (dbReady) {
+    const r = await query(`SELECT COUNT(*) as cnt FROM bc_pms_rooms WHERE hotel_profile_id = $1`, [hotelId]);
+    existingCount = parseInt(r.rows[0]?.cnt || 0);
+  } else {
+    for (const [, r] of memStore('rooms')) {
+      if (String(r.hotel_profile_id) === String(hotelId)) existingCount++;
+    }
+  }
+
+  if (existingCount > 0) return; // Already populated
+
+  // Create default floors
+  const floorDefs = [
+    { name: 'Ground Floor', sort_order: 1 },
+    { name: 'First Floor', sort_order: 2 },
+    { name: 'Second Floor', sort_order: 3 },
+    { name: 'Executive Penthouse', sort_order: 4 }
+  ];
+
+  const floorIds = {};
+  for (const f of floorDefs) {
+    if (dbReady) {
+      const ins = await query(`INSERT INTO bc_pms_floors (hotel_profile_id, name, sort_order) VALUES ($1,$2,$3) RETURNING id`, [hotelId, f.name, f.sort_order]);
+      floorIds[f.name] = ins.rows[0].id;
+    } else {
+      const fid = nextId();
+      memStore('floors').set(fid, { id: fid, hotel_profile_id: hotelId, name: f.name, sort_order: f.sort_order, created_at: nowIso(), updated_at: nowIso() });
+      floorIds[f.name] = fid;
+    }
+  }
+
+  const roomSeeds = [
+    // Ground Floor
+    { floorName: 'Ground Floor', room_number: 'G01', room_type: 'Standard King', bed_type: 'King', capacity: 2, base_price: 120, pos_x: 0, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Garden Wing', view_type: 'Garden View', has_balcony: true, is_accessible: true, amenities: ['Free WiFi', 'Garden Access', 'Accessibility Ramp', 'Air Conditioning'] },
+    { floorName: 'Ground Floor', room_number: 'G02', room_type: 'Standard Queen', bed_type: 'Queen', capacity: 2, base_price: 110, pos_x: 1, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Garden Wing', view_type: 'Garden View', has_balcony: false, is_accessible: true, amenities: ['Free WiFi', 'Air Conditioning', 'Smart TV'] },
+    { floorName: 'Ground Floor', room_number: 'G03', room_type: 'Deluxe Twin', bed_type: '2 Twin', capacity: 3, base_price: 135, pos_x: 2, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Courtyard Wing', view_type: 'Pool View', has_balcony: true, is_accessible: false, amenities: ['Free WiFi', 'Pool View', 'Mini Bar'] },
+    { floorName: 'Ground Floor', room_number: 'G04', room_type: 'Family Suite', bed_type: '1 King + 2 Twin', capacity: 4, base_price: 190, pos_x: 0, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Garden Wing', view_type: 'Garden View', has_balcony: true, is_accessible: true, amenities: ['Free WiFi', 'Kitchenette', 'Garden View', 'Espresso Machine'] },
+    { floorName: 'Ground Floor', room_number: 'G05', room_type: 'Poolside Villa', bed_type: 'Super King', capacity: 2, base_price: 240, pos_x: 2, pos_y: 1, grid_w: 1, grid_h: 1, wing_section: 'Courtyard Wing', view_type: 'Pool View', has_balcony: true, is_accessible: false, amenities: ['Direct Pool Access', 'Private Terrace', 'Free WiFi', 'Jacuzzi'] },
+    
+    // First Floor
+    { floorName: 'First Floor', room_number: '101', room_type: 'Executive King', bed_type: 'King', capacity: 2, base_price: 155, pos_x: 0, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Main Building', view_type: 'City View', has_balcony: true, is_accessible: false, amenities: ['Free WiFi', 'City View Balcony', 'Work Desk', 'Nespresso'] },
+    { floorName: 'First Floor', room_number: '102', room_type: 'Executive Queen', bed_type: 'Queen', capacity: 2, base_price: 145, pos_x: 1, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Main Building', view_type: 'City View', has_balcony: false, is_accessible: false, amenities: ['Free WiFi', 'AC', 'Work Desk'] },
+    { floorName: 'First Floor', room_number: '103', room_type: 'Ocean Deluxe', bed_type: 'King', capacity: 2, base_price: 175, pos_x: 2, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Panoramic Sea View', 'Private Balcony', 'Free WiFi', 'Rain Shower'] },
+    { floorName: 'First Floor', room_number: '104', room_type: 'Ocean Deluxe Twin', bed_type: '2 Queen', capacity: 4, base_price: 185, pos_x: 3, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Sea View', 'Balcony', 'Free WiFi', 'Safe'] },
+    { floorName: 'First Floor', room_number: '105', room_type: 'Corner Suite', bed_type: 'King', capacity: 3, base_price: 220, pos_x: 0, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Main Building', view_type: 'City View', has_balcony: true, is_accessible: false, amenities: ['Wrap-around Balcony', 'Living Room', 'Free WiFi', 'Smart TV'] },
+    { floorName: 'First Floor', room_number: '106', room_type: 'Junior Suite', bed_type: 'King', capacity: 2, base_price: 210, pos_x: 2, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Full Sea View', 'Lounge Area', 'Free WiFi', 'Soaking Tub'] },
+
+    // Second Floor
+    { floorName: 'Second Floor', room_number: '201', room_type: 'Luxury Ocean King', bed_type: 'King', capacity: 2, base_price: 210, pos_x: 0, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Ocean Balcony', 'Soundproof Windows', 'Free WiFi', 'Minibar'] },
+    { floorName: 'Second Floor', room_number: '202', room_type: 'Luxury Ocean Queen', bed_type: 'Queen', capacity: 2, base_price: 195, pos_x: 1, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Ocean Balcony', 'Free WiFi', 'Nespresso'] },
+    { floorName: 'Second Floor', room_number: '203', room_type: 'Horizon Suite', bed_type: 'King', capacity: 2, base_price: 260, pos_x: 2, pos_y: 0, grid_w: 2, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Top-floor Sea View', 'Jacuzzi Suite', 'Free WiFi', 'Butler Service'] },
+    { floorName: 'Second Floor', room_number: '204', room_type: 'Grand Sunset Suite', bed_type: 'Super King', capacity: 3, base_price: 290, pos_x: 0, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sunset View', has_balcony: true, is_accessible: false, amenities: ['Sunset Terrace', 'Free Champagne', 'Free WiFi', 'Fireplace'] },
+
+    // Executive Penthouse
+    { floorName: 'Executive Penthouse', room_number: 'P01', room_type: 'Royal Penthouse Suite', bed_type: 'Emperor King', capacity: 4, base_price: 450, pos_x: 0, pos_y: 0, grid_w: 2, grid_h: 2, wing_section: 'Penthouse Level', view_type: '360 Panoramic View', has_balcony: true, is_accessible: true, amenities: ['360 Terrace', 'Private Heated Plunge Pool', 'Butler Service', 'VIP Elevator', 'Free Airport Transfer'] },
+    { floorName: 'Executive Penthouse', room_number: 'P02', room_type: 'Presidential Suite', bed_type: 'Emperor King', capacity: 4, base_price: 520, pos_x: 2, pos_y: 0, grid_w: 2, grid_h: 2, wing_section: 'Penthouse Level', view_type: '360 Panoramic View', has_balcony: true, is_accessible: true, amenities: ['Penthouse Spa Bath', 'Private Cinema Lounge', 'Wine Cellar Bar', 'Dedicated Concierge'] }
+  ];
+
+  for (const s of roomSeeds) {
+    const fid = floorIds[s.floorName] || null;
+    const images = ['https://images.unsplash.com/photo-1590490359683-658d3d23f972?auto=format&fit=crop&w=800&q=80'];
+    if (dbReady) {
+      await query(
+        `INSERT INTO bc_pms_rooms (hotel_profile_id, floor_id, room_number, room_type, bed_type, capacity, base_price, currency, amenities, images, description, status, pos_x, pos_y, grid_w, grid_h, wing_section, view_type, has_balcony, is_accessible)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'USD',$8,$9,$10,'available',$11,$12,$13,$14,$15,$16,$17,$18)`,
+        [hotelId, fid, s.room_number, s.room_type, s.bed_type, s.capacity, s.base_price, JSON.stringify(s.amenities), JSON.stringify(images), `${s.room_type} with ${s.view_type}`, s.pos_x, s.pos_y, s.grid_w, s.grid_h, s.wing_section, s.view_type, s.has_balcony, s.is_accessible]
+      );
+    } else {
+      const rid = nextId();
+      memStore('rooms').set(rid, {
+        id: rid, hotel_profile_id: hotelId, floor_id: fid, room_number: s.room_number, room_type: s.room_type, bed_type: s.bed_type, capacity: s.capacity, base_price: s.base_price, currency: 'USD', amenities: s.amenities, images, description: `${s.room_type} with ${s.view_type}`, status: 'available', pos_x: s.pos_x, pos_y: s.pos_y, grid_w: s.grid_w, grid_h: s.grid_h, wing_section: s.wing_section, view_type: s.view_type, has_balcony: s.has_balcony, is_accessible: s.is_accessible, created_at: nowIso(), updated_at: nowIso()
+      });
+    }
+  }
+}
+
 // ─── Availability Checker ─────────────────────────────────────────────────────
-async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, excludeBookingId = null) {
-  // Check bookings
+async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, excludeBookingId = null, currentSessionId = null) {
+  const ci = new Date(checkIn), co = new Date(checkOut);
+
+  // 1. Check bookings
   if (dbReady) {
     let q = `
       SELECT id FROM bc_pms_bookings
@@ -131,10 +244,26 @@ async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, exclude
       WHERE room_id = $1 AND from_date < $3 AND to_date > $2
     `, [roomId, checkIn, checkOut]);
     if (b.rows.length > 0) return { available: false, reason: 'blocked' };
+
+    // Check active holds
+    let holdQ = `
+      SELECT session_id, expires_at FROM bc_pms_holds
+      WHERE room_id = $1 AND expires_at > NOW() AND check_in < $3 AND check_out > $2
+    `;
+    const hParams = [roomId, checkIn, checkOut];
+    if (currentSessionId) {
+      holdQ += ` AND session_id != $4`;
+      hParams.push(currentSessionId);
+    }
+    const h = await query(holdQ, hParams);
+    if (h.rows.length > 0) {
+      return { available: false, reason: 'held', expires_at: h.rows[0].expires_at };
+    }
   } else {
     const bookings = memStore('bookings');
     const blocks = memStore('blocks');
-    const ci = new Date(checkIn), co = new Date(checkOut);
+    const holds = memStore('holds');
+
     for (const [, b] of bookings) {
       if (String(b.room_id) !== String(roomId)) continue;
       if (['cancelled', 'checked_out', 'no_show'].includes(b.booking_status)) continue;
@@ -147,11 +276,19 @@ async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, exclude
       const fd = new Date(bl.from_date), td = new Date(bl.to_date);
       if (ci < td && co > fd) return { available: false, reason: 'blocked' };
     }
+    const now = new Date();
+    for (const [, hd] of holds) {
+      if (String(hd.room_id) !== String(roomId)) continue;
+      if (new Date(hd.expires_at) <= now) continue; // Expired hold
+      if (currentSessionId && hd.session_id === currentSessionId) continue;
+      const hci = new Date(hd.check_in), hco = new Date(hd.check_out);
+      if (ci < hco && co > hci) return { available: false, reason: 'held', expires_at: hd.expires_at };
+    }
   }
   return { available: true };
 }
 
-// ─── Auth helper — get hotel_profile_id for current user ─────────────────────
+// ─── Auth helper ──────────────────────────────────────────────────────────────
 async function getHotelProfileId(dbReady, auth) {
   if (dbReady) {
     const r = await query(
@@ -160,7 +297,6 @@ async function getHotelProfileId(dbReady, auth) {
     );
     return r.rows.length ? r.rows[0].id : null;
   }
-  // In-memory: just use email as key
   return auth.email;
 }
 
@@ -185,21 +321,219 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
-  // Auth
-  const auth = await verifyRequestBearer(req);
-  if (!auth.ok) return res.status(401).json({ ok: false, error: 'Authentication required' });
-
-  const hotelId = await getHotelProfileId(dbReady, auth);
-  if (!hotelId) return res.status(404).json({ ok: false, error: 'No hotel profile found. Please complete onboarding first.' });
-
   const body = req.method === 'GET' ? req.query : (req.body || {});
   const { action } = body;
+
+  // Public actions (used by guests browsing Stays) do not require property owner login bearer token
+  const PUBLIC_ACTIONS = ['public-room-map', 'hold-room', 'release-hold', 'public-create-booking', 'check-availability'];
+
+  let hotelId = null;
+  if (!PUBLIC_ACTIONS.includes(action)) {
+    // Auth required for owner actions
+    const auth = await verifyRequestBearer(req);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Authentication required' });
+    hotelId = await getHotelProfileId(dbReady, auth);
+    if (!hotelId) return res.status(404).json({ ok: false, error: 'No hotel profile found. Please complete onboarding first.' });
+  } else {
+    // Public actions use hotel_id from params, fallback to 1 or demo
+    hotelId = body.hotel_id || body.hotel_profile_id || 1;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // PUBLIC VISUAL ROOM MAP & SEAT-SELECTION ENGINE
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  if (action === 'public-room-map') {
+    const checkIn = body.check_in || new Date().toISOString().split('T')[0];
+    const checkOut = body.check_out || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const sessionId = body.session_id || 'guest_anon';
+
+    // Auto-seed demo rooms if hotel currently has 0 rooms
+    await seedDemoRoomsIfNeeded(dbReady, hotelId);
+
+    // Fetch floors & rooms
+    let floors = [], rawRooms = [], activeBookings = [], activeBlocks = [], activeHolds = [];
+    if (dbReady) {
+      const fl = await query(`SELECT * FROM bc_pms_floors WHERE hotel_profile_id = $1 ORDER BY sort_order, id`, [hotelId]);
+      floors = fl.rows;
+      const rm = await query(`SELECT r.*, f.name as floor_name FROM bc_pms_rooms r LEFT JOIN bc_pms_floors f ON f.id = r.floor_id WHERE r.hotel_profile_id = $1 ORDER BY f.sort_order NULLS LAST, r.pos_y, r.pos_x, r.room_number`, [hotelId]);
+      rawRooms = rm.rows;
+      const bk = await query(`SELECT room_id, booking_status FROM bc_pms_bookings WHERE hotel_profile_id = $1 AND booking_status NOT IN ('cancelled','checked_out','no_show') AND check_in < $3 AND check_out > $2`, [hotelId, checkIn, checkOut]);
+      activeBookings = bk.rows;
+      const bl = await query(`SELECT room_id, reason FROM bc_pms_blocks WHERE hotel_profile_id = $1 AND from_date < $3 AND to_date > $2`, [hotelId, checkIn, checkOut]);
+      activeBlocks = bl.rows;
+      const hd = await query(`SELECT room_id, session_id, expires_at FROM bc_pms_holds WHERE hotel_profile_id = $1 AND expires_at > NOW() AND check_in < $3 AND check_out > $2`, [hotelId, checkIn, checkOut]);
+      activeHolds = hd.rows;
+    } else {
+      const flStore = memStore('floors');
+      const rmStore = memStore('rooms');
+      const bkStore = memStore('bookings');
+      const blStore = memStore('blocks');
+      const hdStore = memStore('holds');
+
+      for (const [, f] of flStore) {
+        if (String(f.hotel_profile_id) === String(hotelId)) floors.push(f);
+      }
+      floors.sort((a, b) => a.sort_order - b.sort_order);
+
+      for (const [, r] of rmStore) {
+        if (String(r.hotel_profile_id) === String(hotelId)) {
+          const flName = r.floor_id ? flStore.get(r.floor_id)?.name : null;
+          rawRooms.push({ ...r, floor_name: flName });
+        }
+      }
+
+      const ci = new Date(checkIn), co = new Date(checkOut);
+      for (const [, b] of bkStore) {
+        if (String(b.hotel_profile_id) !== String(hotelId)) continue;
+        if (['cancelled','checked_out','no_show'].includes(b.booking_status)) continue;
+        if (ci < new Date(b.check_out) && co > new Date(b.check_in)) activeBookings.push(b);
+      }
+      for (const [, bl] of blStore) {
+        if (String(bl.hotel_profile_id) !== String(hotelId)) continue;
+        if (ci < new Date(bl.to_date) && co > new Date(bl.from_date)) activeBlocks.push(bl);
+      }
+      const now = new Date();
+      for (const [, hd] of hdStore) {
+        if (String(hd.hotel_profile_id) !== String(hotelId)) continue;
+        if (new Date(hd.expires_at) <= now) continue;
+        if (ci < new Date(hd.check_out) && co > new Date(hd.check_in)) activeHolds.push(hd);
+      }
+    }
+
+    // Process room statuses
+    const rooms = rawRooms.map(room => {
+      let liveStatus = room.status || 'available'; // owner status (maintenance, blocked, etc)
+
+      // If owner manually marked maintenance/blocked
+      if (liveStatus === 'maintenance' || liveStatus === 'out_of_service') {
+        liveStatus = 'maintenance';
+      } else if (liveStatus === 'blocked') {
+        liveStatus = 'blocked';
+      } else {
+        // Check blocks
+        const isBlocked = activeBlocks.some(b => String(b.room_id) === String(room.id));
+        if (isBlocked) {
+          liveStatus = 'blocked';
+        } else {
+          // Check bookings
+          const booking = activeBookings.find(b => String(b.room_id) === String(room.id));
+          if (booking) {
+            liveStatus = booking.booking_status === 'checked_in' ? 'occupied' : 'booked';
+          } else {
+            // Check holds
+            const hold = activeHolds.find(h => String(h.room_id) === String(room.id));
+            if (hold) {
+              if (hold.session_id === sessionId) {
+                liveStatus = 'selected'; // held by current guest!
+              } else {
+                liveStatus = 'held'; // held by another guest
+              }
+            } else if (liveStatus === 'occupied') {
+              liveStatus = 'occupied';
+            } else {
+              liveStatus = 'available';
+            }
+          }
+        }
+      }
+
+      return {
+        ...room,
+        live_status: liveStatus,
+        is_held_by_me: activeHolds.some(h => String(h.room_id) === String(room.id) && h.session_id === sessionId)
+      };
+    });
+
+    const myHold = activeHolds.find(h => h.session_id === sessionId);
+
+    return res.json({
+      ok: true,
+      check_in: checkIn,
+      check_out: checkOut,
+      session_id: sessionId,
+      floors,
+      rooms,
+      selected_room_id: myHold ? myHold.room_id : null,
+      hold_expires_at: myHold ? myHold.expires_at : null
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TEMPORARY ROOM HOLD / UNLOCK ENGINE
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  if (action === 'hold-room') {
+    const { room_id, session_id, check_in, check_out } = body;
+    if (!room_id || !session_id || !check_in || !check_out) {
+      return res.status(400).json({ ok: false, error: 'room_id, session_id, check_in, check_out are required' });
+    }
+
+    // Check availability
+    const avail = await checkRoomAvailability(dbReady, room_id, check_in, check_out, null, session_id);
+    if (!avail.available) {
+      return res.status(409).json({ ok: false, error: `Room is currently unavailable (${avail.reason})`, reason: avail.reason });
+    }
+
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minute hold timer
+
+    if (dbReady) {
+      // Delete existing hold for session
+      await query(`DELETE FROM bc_pms_holds WHERE session_id = $1`, [session_id]);
+      // Insert new hold
+      await query(
+        `INSERT INTO bc_pms_holds (hotel_profile_id, room_id, session_id, check_in, check_out, expires_at)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [hotelId, room_id, session_id, check_in, check_out, expiresAt]
+      );
+    } else {
+      const hdStore = memStore('holds');
+      for (const [id, h] of hdStore) {
+        if (h.session_id === session_id) hdStore.delete(id);
+      }
+      const hid = nextId();
+      hdStore.set(hid, {
+        id: hid, hotel_profile_id: hotelId, room_id, session_id, check_in, check_out, expires_at: expiresAt, created_at: nowIso()
+      });
+    }
+
+    return res.json({
+      ok: true,
+      room_id,
+      session_id,
+      expires_at: expiresAt,
+      remaining_seconds: 600,
+      message: `Room ${room_id} reserved for 10 minutes.`
+    });
+  }
+
+  if (action === 'release-hold') {
+    const { session_id, room_id } = body;
+    if (!session_id) return res.status(400).json({ ok: false, error: 'session_id required' });
+
+    if (dbReady) {
+      let q = `DELETE FROM bc_pms_holds WHERE session_id = $1`;
+      const params = [session_id];
+      if (room_id) { q += ` AND room_id = $2`; params.push(room_id); }
+      await query(q, params);
+    } else {
+      const hdStore = memStore('holds');
+      for (const [id, h] of hdStore) {
+        if (h.session_id === session_id && (!room_id || String(h.room_id) === String(room_id))) {
+          hdStore.delete(id);
+        }
+      }
+    }
+
+    return res.json({ ok: true, released: true });
+  }
 
   // ══════════════════════════════════════════════════════════════════════════════
   // FLOOR ACTIONS
   // ══════════════════════════════════════════════════════════════════════════════
 
   if (action === 'list-floors') {
+    await seedDemoRoomsIfNeeded(dbReady, hotelId);
     if (dbReady) {
       const r = await query(
         `SELECT f.*, COUNT(rm.id) as room_count
@@ -268,7 +602,6 @@ module.exports = async (req, res) => {
     const { floor_id } = body;
     if (!floor_id) return res.status(400).json({ ok: false, error: 'floor_id required' });
     if (dbReady) {
-      // Move rooms to null floor
       await query(`UPDATE bc_pms_rooms SET floor_id = NULL WHERE floor_id = $1 AND hotel_profile_id = $2`, [floor_id, hotelId]);
       await query(`DELETE FROM bc_pms_floors WHERE id = $1 AND hotel_profile_id = $2`, [floor_id, hotelId]);
     } else {
@@ -285,11 +618,12 @@ module.exports = async (req, res) => {
   // ══════════════════════════════════════════════════════════════════════════════
 
   if (action === 'list-rooms') {
+    await seedDemoRoomsIfNeeded(dbReady, hotelId);
     if (dbReady) {
       const r = await query(
         `SELECT r.*, f.name as floor_name FROM bc_pms_rooms r
          LEFT JOIN bc_pms_floors f ON f.id = r.floor_id
-         WHERE r.hotel_profile_id = $1 ORDER BY f.sort_order NULLS LAST, r.room_number`,
+         WHERE r.hotel_profile_id = $1 ORDER BY f.sort_order NULLS LAST, r.pos_y, r.pos_x, r.room_number`,
         [hotelId]
       );
       return res.json({ ok: true, rooms: r.rows });
@@ -307,29 +641,30 @@ module.exports = async (req, res) => {
   }
 
   if (action === 'add-room') {
-    const { floor_id, room_number, room_type, bed_type, capacity, base_price, seasonal_price, currency, amenities, images, description, size_sqm } = body;
+    const { floor_id, room_number, room_type, bed_type, capacity, base_price, seasonal_price, currency, amenities, images, description, size_sqm, pos_x = 0, pos_y = 0, grid_w = 1, grid_h = 1, wing_section = 'Main Wing', view_type = 'City View', has_balcony = false, is_accessible = false } = body;
     if (!room_number) return res.status(400).json({ ok: false, error: 'room_number required' });
     if (dbReady) {
       const r = await query(
-        `INSERT INTO bc_pms_rooms (hotel_profile_id, floor_id, room_number, room_type, bed_type, capacity, base_price, seasonal_price, currency, amenities, images, description, size_sqm)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        `INSERT INTO bc_pms_rooms (hotel_profile_id, floor_id, room_number, room_type, bed_type, capacity, base_price, seasonal_price, currency, amenities, images, description, size_sqm, pos_x, pos_y, grid_w, grid_h, wing_section, view_type, has_balcony, is_accessible)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *`,
         [hotelId, floor_id || null, room_number, room_type || 'Standard', bed_type || 'Queen',
          capacity || 2, base_price || 0, seasonal_price || null, currency || 'USD',
-         JSON.stringify(amenities || []), JSON.stringify(images || []), description || '', size_sqm || null]
+         JSON.stringify(amenities || []), JSON.stringify(images || []), description || '', size_sqm || null,
+         pos_x, pos_y, grid_w, grid_h, wing_section, view_type, has_balcony, is_accessible]
       );
       return res.json({ ok: true, room: r.rows[0] });
     } else {
       const id = nextId();
-      const room = { id, hotel_profile_id: hotelId, floor_id: floor_id || null, room_number, room_type: room_type || 'Standard', bed_type: bed_type || 'Queen', capacity: capacity || 2, base_price: base_price || 0, seasonal_price: seasonal_price || null, currency: currency || 'USD', amenities: amenities || [], images: images || [], description: description || '', size_sqm: size_sqm || null, status: 'available', created_at: nowIso(), updated_at: nowIso() };
+      const room = { id, hotel_profile_id: hotelId, floor_id: floor_id || null, room_number, room_type: room_type || 'Standard', bed_type: bed_type || 'Queen', capacity: capacity || 2, base_price: base_price || 0, seasonal_price: seasonal_price || null, currency: currency || 'USD', amenities: amenities || [], images: images || [], description: description || '', size_sqm: size_sqm || null, status: 'available', pos_x, pos_y, grid_w, grid_h, wing_section, view_type, has_balcony, is_accessible, created_at: nowIso(), updated_at: nowIso() };
       memStore('rooms').set(id, room);
       return res.json({ ok: true, room });
     }
   }
 
-  if (action === 'edit-room') {
+  if (action === 'edit-room' || action === 'update-room-layout') {
     const { room_id, ...updates } = body;
     if (!room_id) return res.status(400).json({ ok: false, error: 'room_id required' });
-    const allowed = ['floor_id', 'room_number', 'room_type', 'bed_type', 'capacity', 'base_price', 'seasonal_price', 'currency', 'amenities', 'images', 'description', 'status', 'size_sqm'];
+    const allowed = ['floor_id', 'room_number', 'room_type', 'bed_type', 'capacity', 'base_price', 'seasonal_price', 'currency', 'amenities', 'images', 'description', 'status', 'size_sqm', 'pos_x', 'pos_y', 'grid_w', 'grid_h', 'wing_section', 'view_type', 'has_balcony', 'is_accessible'];
     if (dbReady) {
       const cols = [], params = [];
       for (const key of allowed) {
@@ -370,20 +705,8 @@ module.exports = async (req, res) => {
     return res.json({ ok: true });
   }
 
-  if (action === 'move-room-floor') {
-    const { room_id, new_floor_id } = body;
-    if (!room_id) return res.status(400).json({ ok: false, error: 'room_id required' });
-    if (dbReady) {
-      await query(`UPDATE bc_pms_rooms SET floor_id = $1, updated_at = NOW() WHERE id = $2 AND hotel_profile_id = $3`, [new_floor_id || null, room_id, hotelId]);
-    } else {
-      const room = memStore('rooms').get(room_id);
-      if (room) { room.floor_id = new_floor_id || null; room.updated_at = nowIso(); }
-    }
-    return res.json({ ok: true });
-  }
-
   // ══════════════════════════════════════════════════════════════════════════════
-  // BOOKING ACTIONS
+  // BOOKING & ANALYTICS ACTIONS
   // ══════════════════════════════════════════════════════════════════════════════
 
   if (action === 'list-bookings') {
@@ -417,13 +740,13 @@ module.exports = async (req, res) => {
     }
   }
 
-  if (action === 'create-booking') {
-    const { room_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, total_amount, special_requests, source } = body;
+  if (action === 'create-booking' || action === 'public-create-booking') {
+    const { room_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, total_amount, special_requests, source, session_id } = body;
     if (!room_id || !guest_name || !guest_email || !check_in || !check_out) {
       return res.status(400).json({ ok: false, error: 'room_id, guest_name, guest_email, check_in, check_out are required' });
     }
 
-    const avail = await checkRoomAvailability(dbReady, room_id, check_in, check_out);
+    const avail = await checkRoomAvailability(dbReady, room_id, check_in, check_out, null, session_id);
     if (!avail.available) {
       return res.status(409).json({ ok: false, error: `Room is unavailable for selected dates (${avail.reason})`, reason: avail.reason });
     }
@@ -437,21 +760,31 @@ module.exports = async (req, res) => {
       floor_id = memStore('rooms').get(room_id)?.floor_id || null;
     }
 
-    const nights = Math.max(1, Math.round((new Date(check_out) - new Date(check_in)) / 86400000));
     const total = total_amount || 0;
     const remaining = total;
 
     if (dbReady) {
       const r = await query(
         `INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, floor_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, remaining_balance, special_requests, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending','pending',$11,$12,$13,$14) RETURNING *`,
-        [ref, hotelId, room_id, floor_id, guest_name, guest_email, guest_phone || '', check_in, check_out, num_guests || 1, total, remaining, special_requests || '', source || 'direct']
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'confirmed','paid',$11,0,$12,$13) RETURNING *`,
+        [ref, hotelId, room_id, floor_id, guest_name, guest_email, guest_phone || '', check_in, check_out, num_guests || 1, total, special_requests || '', source || 'stays_app']
       );
+      // Remove temporary hold
+      if (session_id) {
+        await query(`DELETE FROM bc_pms_holds WHERE session_id = $1`, [session_id]);
+      }
       return res.json({ ok: true, booking: r.rows[0], ref });
     } else {
       const id = nextId();
-      const booking = { id, ref, hotel_profile_id: hotelId, room_id, floor_id, guest_name, guest_email, guest_phone: guest_phone || '', check_in, check_out, num_guests: num_guests || 1, booking_status: 'pending', payment_status: 'pending', amount_paid: 0, total_amount: total, remaining_balance: remaining, special_requests: special_requests || '', source: source || 'direct', confirmation_sent: false, created_at: nowIso(), updated_at: nowIso() };
+      const booking = { id, ref, hotel_profile_id: hotelId, room_id, floor_id, guest_name, guest_email, guest_phone: guest_phone || '', check_in, check_out, num_guests: num_guests || 1, booking_status: 'confirmed', payment_status: 'paid', amount_paid: total, total_amount: total, remaining_balance: 0, special_requests: special_requests || '', source: source || 'stays_app', confirmation_sent: true, created_at: nowIso(), updated_at: nowIso() };
       memStore('bookings').set(id, booking);
+
+      if (session_id) {
+        const hdStore = memStore('holds');
+        for (const [hid, h] of hdStore) {
+          if (h.session_id === session_id) hdStore.delete(hid);
+        }
+      }
       return res.json({ ok: true, booking, ref });
     }
   }
@@ -459,12 +792,6 @@ module.exports = async (req, res) => {
   if (action === 'update-booking-status') {
     const { booking_id, booking_status, payment_status, amount_paid, notes } = body;
     if (!booking_id) return res.status(400).json({ ok: false, error: 'booking_id required' });
-
-    const validBookingStatuses = ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show'];
-    const validPaymentStatuses = ['pending', 'partially_paid', 'paid', 'refunded'];
-    if (booking_status && !validBookingStatuses.includes(booking_status)) {
-      return res.status(400).json({ ok: false, error: `Invalid booking_status: ${booking_status}` });
-    }
 
     if (dbReady) {
       const cols = [], params = [];
@@ -501,33 +828,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  if (action === 'get-booking') {
-    const { booking_id, ref } = body;
-    let booking = null;
-    if (dbReady) {
-      let r;
-      if (booking_id) {
-        r = await query(`SELECT b.*, r.room_number, r.room_type, r.base_price, f.name as floor_name FROM bc_pms_bookings b LEFT JOIN bc_pms_rooms r ON r.id = b.room_id LEFT JOIN bc_pms_floors f ON f.id = b.floor_id WHERE b.id = $1 AND b.hotel_profile_id = $2`, [booking_id, hotelId]);
-      } else if (ref) {
-        r = await query(`SELECT b.*, r.room_number, r.room_type, r.base_price, f.name as floor_name FROM bc_pms_bookings b LEFT JOIN bc_pms_rooms r ON r.id = b.room_id LEFT JOIN bc_pms_floors f ON f.id = b.floor_id WHERE b.ref = $1 AND b.hotel_profile_id = $2`, [ref, hotelId]);
-      }
-      booking = r?.rows[0] || null;
-    } else {
-      for (const [, b] of memStore('bookings')) {
-        if (String(b.hotel_profile_id) !== String(hotelId)) continue;
-        if ((booking_id && String(b.id) === String(booking_id)) || (ref && b.ref === ref)) {
-          booking = b; break;
-        }
-      }
-    }
-    if (!booking) return res.status(404).json({ ok: false, error: 'Booking not found' });
-    return res.json({ ok: true, booking });
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // ROOM BLOCKING
-  // ══════════════════════════════════════════════════════════════════════════════
-
   if (action === 'block-room') {
     const { room_id, from_date, to_date, reason, notes } = body;
     if (!room_id || !from_date || !to_date) return res.status(400).json({ ok: false, error: 'room_id, from_date, to_date required' });
@@ -545,19 +845,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  if (action === 'list-blocks') {
-    if (dbReady) {
-      const r = await query(`SELECT bl.*, r.room_number FROM bc_pms_blocks bl LEFT JOIN bc_pms_rooms r ON r.id = bl.room_id WHERE bl.hotel_profile_id = $1 ORDER BY bl.from_date DESC`, [hotelId]);
-      return res.json({ ok: true, blocks: r.rows });
-    } else {
-      const blocks = [];
-      for (const [, b] of memStore('blocks')) {
-        if (String(b.hotel_profile_id) === String(hotelId)) blocks.push(b);
-      }
-      return res.json({ ok: true, blocks });
-    }
-  }
-
   if (action === 'delete-block') {
     const { block_id } = body;
     if (!block_id) return res.status(400).json({ ok: false, error: 'block_id required' });
@@ -569,104 +856,85 @@ module.exports = async (req, res) => {
     return res.json({ ok: true });
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
-  // AVAILABILITY CHECK
-  // ══════════════════════════════════════════════════════════════════════════════
-
   if (action === 'check-availability') {
-    const { room_id, check_in, check_out } = body;
+    const { room_id, check_in, check_out, session_id } = body;
     if (!room_id || !check_in || !check_out) return res.status(400).json({ ok: false, error: 'room_id, check_in, check_out required' });
-    const result = await checkRoomAvailability(dbReady, room_id, check_in, check_out);
+    const result = await checkRoomAvailability(dbReady, room_id, check_in, check_out, null, session_id);
     return res.json({ ok: true, ...result });
   }
 
-  // Bulk availability for calendar
-  if (action === 'calendar-data') {
-    const { month, year } = body;
-    const m = parseInt(month) || new Date().getMonth() + 1;
-    const y = parseInt(year) || new Date().getFullYear();
-    const from = `${y}-${String(m).padStart(2,'0')}-01`;
-    const to = `${y}-${String(m + 1 > 12 ? 1 : m + 1).padStart(2,'0')}-01`;
-
-    let rooms = [], bookings = [], blocks = [];
-    if (dbReady) {
-      const rr = await query(`SELECT r.*, f.name as floor_name FROM bc_pms_rooms r LEFT JOIN bc_pms_floors f ON f.id = r.floor_id WHERE r.hotel_profile_id = $1 ORDER BY f.sort_order NULLS LAST, r.room_number`, [hotelId]);
-      rooms = rr.rows;
-      const rb = await query(`SELECT * FROM bc_pms_bookings WHERE hotel_profile_id = $1 AND booking_status NOT IN ('cancelled','no_show') AND check_in < $2 AND check_out > $3`, [hotelId, to, from]);
-      bookings = rb.rows;
-      const bl = await query(`SELECT * FROM bc_pms_blocks WHERE hotel_profile_id = $1 AND from_date < $2 AND to_date > $3`, [hotelId, to, from]);
-      blocks = bl.rows;
-    } else {
-      for (const [, r] of memStore('rooms')) {
-        if (String(r.hotel_profile_id) === String(hotelId)) rooms.push(r);
-      }
-      for (const [, b] of memStore('bookings')) {
-        if (String(b.hotel_profile_id) !== String(hotelId)) continue;
-        if (['cancelled','no_show'].includes(b.booking_status)) continue;
-        if (b.check_in < to && b.check_out > from) bookings.push(b);
-      }
-      for (const [, bl] of memStore('blocks')) {
-        if (String(bl.hotel_profile_id) === String(hotelId) && bl.from_date < to && bl.to_date > from) blocks.push(bl);
-      }
-    }
-    return res.json({ ok: true, rooms, bookings, blocks, month: m, year: y });
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // DASHBOARD STATS
-  // ══════════════════════════════════════════════════════════════════════════════
-
-  if (action === 'dashboard-stats') {
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-    let stats = { total_rooms: 0, available_rooms: 0, occupied_rooms: 0, total_bookings: 0, pending_bookings: 0, confirmed_bookings: 0, todays_checkins: 0, todays_checkouts: 0, revenue_total: 0, revenue_month: 0 };
+  if (action === 'room-analytics' || action === 'dashboard-stats') {
+    await seedDemoRoomsIfNeeded(dbReady, hotelId);
+    let stats = { total_rooms: 0, available_rooms: 0, occupied_rooms: 0, total_bookings: 0, pending_bookings: 0, confirmed_bookings: 0, revenue_total: 0, floor_occupancy: [], top_rooms: [] };
 
     if (dbReady) {
-      const [rooms, bookings, revenue] = await Promise.all([
-        query(`SELECT status, COUNT(*) as count FROM bc_pms_rooms WHERE hotel_profile_id = $1 GROUP BY status`, [hotelId]),
-        query(`SELECT booking_status, COUNT(*) as count FROM bc_pms_bookings WHERE hotel_profile_id = $1 GROUP BY booking_status`, [hotelId]),
-        query(`SELECT SUM(amount_paid) as total, SUM(CASE WHEN created_at >= DATE_TRUNC('month', NOW()) THEN amount_paid ELSE 0 END) as month FROM bc_pms_bookings WHERE hotel_profile_id = $1 AND booking_status NOT IN ('cancelled','no_show')`, [hotelId]),
+      const [rooms, bookings, floors] = await Promise.all([
+        query(`SELECT r.*, f.name as floor_name FROM bc_pms_rooms r LEFT JOIN bc_pms_floors f ON f.id = r.floor_id WHERE r.hotel_profile_id = $1`, [hotelId]),
+        query(`SELECT b.*, r.room_number FROM bc_pms_bookings b LEFT JOIN bc_pms_rooms r ON r.id = b.room_id WHERE b.hotel_profile_id = $1 AND b.booking_status NOT IN ('cancelled','no_show')`, [hotelId]),
+        query(`SELECT * FROM bc_pms_floors WHERE hotel_profile_id = $1`, [hotelId])
       ]);
-      for (const r of rooms.rows) {
-        stats.total_rooms += parseInt(r.count);
-        if (r.status === 'available') stats.available_rooms = parseInt(r.count);
-        if (r.status === 'occupied') stats.occupied_rooms = parseInt(r.count);
-      }
-      for (const r of bookings.rows) {
-        stats.total_bookings += parseInt(r.count);
-        if (r.booking_status === 'pending') stats.pending_bookings = parseInt(r.count);
-        if (r.booking_status === 'confirmed') stats.confirmed_bookings = parseInt(r.count);
-      }
-      stats.revenue_total = parseFloat(revenue.rows[0]?.total || 0);
-      stats.revenue_month = parseFloat(revenue.rows[0]?.month || 0);
 
-      const ci = await query(`SELECT COUNT(*) as count FROM bc_pms_bookings WHERE hotel_profile_id = $1 AND check_in = $2 AND booking_status IN ('confirmed','pending')`, [hotelId, today]);
-      const co = await query(`SELECT COUNT(*) as count FROM bc_pms_bookings WHERE hotel_profile_id = $1 AND check_out = $2 AND booking_status = 'checked_in'`, [hotelId, today]);
-      stats.todays_checkins = parseInt(ci.rows[0]?.count || 0);
-      stats.todays_checkouts = parseInt(co.rows[0]?.count || 0);
-    } else {
-      for (const [, r] of memStore('rooms')) {
-        if (String(r.hotel_profile_id) !== String(hotelId)) continue;
-        stats.total_rooms++;
-        if (r.status === 'available') stats.available_rooms++;
-        if (r.status === 'occupied') stats.occupied_rooms++;
-      }
-      for (const [, b] of memStore('bookings')) {
-        if (String(b.hotel_profile_id) !== String(hotelId)) continue;
+      const roomList = rooms.rows;
+      const bookingList = bookings.rows;
+      stats.total_rooms = roomList.length;
+
+      const roomBookingCounts = {};
+      bookingList.forEach(b => {
         stats.total_bookings++;
-        if (b.booking_status === 'pending') stats.pending_bookings++;
-        if (b.booking_status === 'confirmed') stats.confirmed_bookings++;
-        if (b.check_in === today && ['confirmed','pending'].includes(b.booking_status)) stats.todays_checkins++;
-        if (b.check_out === today && b.booking_status === 'checked_in') stats.todays_checkouts++;
-        if (!['cancelled','no_show'].includes(b.booking_status)) stats.revenue_total += parseFloat(b.amount_paid || 0);
-      }
+        stats.revenue_total += parseFloat(b.total_amount || 0);
+        roomBookingCounts[b.room_id] = (roomBookingCounts[b.room_id] || 0) + 1;
+      });
+
+      stats.top_rooms = roomList.map(r => ({
+        id: r.id,
+        room_number: r.room_number,
+        room_type: r.room_type,
+        bookings_count: roomBookingCounts[r.id] || 0,
+        revenue: (roomBookingCounts[r.id] || 0) * (parseFloat(r.base_price) || 100)
+      })).sort((a,b) => b.bookings_count - a.bookings_count);
+
+      stats.floor_occupancy = floors.rows.map(f => {
+        const fRooms = roomList.filter(r => String(r.floor_id) === String(f.id));
+        const occCount = fRooms.filter(r => roomBookingCounts[r.id] > 0 || r.status === 'occupied').length;
+        const rate = fRooms.length ? Math.round((occCount / fRooms.length) * 100) : 0;
+        return { floor_id: f.id, floor_name: f.name, total: fRooms.length, occupied: occCount, rate };
+      });
+    } else {
+      const rmStore = memStore('rooms');
+      const bkStore = memStore('bookings');
+      const flStore = memStore('floors');
+
+      const roomList = [], bookingList = [], floorList = [];
+      for (const [, r] of rmStore) if (String(r.hotel_profile_id) === String(hotelId)) roomList.push(r);
+      for (const [, b] of bkStore) if (String(b.hotel_profile_id) === String(hotelId) && !['cancelled','no_show'].includes(b.booking_status)) bookingList.push(b);
+      for (const [, f] of flStore) if (String(f.hotel_profile_id) === String(hotelId)) floorList.push(f);
+
+      stats.total_rooms = roomList.length;
+      const roomBookingCounts = {};
+      bookingList.forEach(b => {
+        stats.total_bookings++;
+        stats.revenue_total += parseFloat(b.total_amount || 0);
+        roomBookingCounts[b.room_id] = (roomBookingCounts[b.room_id] || 0) + 1;
+      });
+
+      stats.top_rooms = roomList.map(r => ({
+        id: r.id,
+        room_number: r.room_number,
+        room_type: r.room_type,
+        bookings_count: roomBookingCounts[r.id] || 0,
+        revenue: (roomBookingCounts[r.id] || 0) * (parseFloat(r.base_price) || 100)
+      })).sort((a,b) => b.bookings_count - a.bookings_count);
+
+      stats.floor_occupancy = floorList.map(f => {
+        const fRooms = roomList.filter(r => String(r.floor_id) === String(f.id));
+        const occCount = fRooms.filter(r => roomBookingCounts[r.id] > 0 || r.status === 'occupied').length;
+        const rate = fRooms.length ? Math.round((occCount / fRooms.length) * 100) : 0;
+        return { floor_id: f.id, floor_name: f.name, total: fRooms.length, occupied: occCount, rate };
+      });
     }
+
     return res.json({ ok: true, stats });
   }
-
-  // ══════════════════════════════════════════════════════════════════════════════
-  // CONFIRMATION LETTER DATA
-  // ══════════════════════════════════════════════════════════════════════════════
 
   if (action === 'get-confirmation') {
     const { booking_id, ref } = body;
@@ -694,11 +962,9 @@ module.exports = async (req, res) => {
     }
     if (!booking) return res.status(404).json({ ok: false, error: 'Booking not found' });
 
-    // Mark confirmation as sent
     if (dbReady) {
       await query(`UPDATE bc_pms_bookings SET confirmation_sent = TRUE WHERE id = $1`, [booking.id || booking_id]);
     }
-
     return res.json({ ok: true, booking });
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import VisualFloorPlanBuilder from '../components/VisualFloorPlanBuilder.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ROOM_STATUSES = [
@@ -57,13 +58,14 @@ function calcNights(ci, co) {
 function getRoomStatus(key) { return ROOM_STATUSES.find(s => s.key === key) || ROOM_STATUSES[0]; }
 
 const MENU_ITEMS = [
-  { id: 'dashboard',    label: 'Dashboard',      icon: 'ph-squares-four' },
-  { id: 'floors',       label: 'Floor Manager',  icon: 'ph-stack' },
-  { id: 'rooms',        label: 'Room Inventory', icon: 'ph-bed' },
-  { id: 'calendar',     label: 'Calendar',       icon: 'ph-calendar-dots' },
-  { id: 'bookings',     label: 'Bookings',       icon: 'ph-receipt' },
-  { id: 'blocking',     label: 'Room Blocking',  icon: 'ph-prohibit' },
-  { id: 'reports',      label: 'Reports',        icon: 'ph-chart-bar' },
+  { id: 'dashboard',      label: 'Dashboard',            icon: 'ph-squares-four' },
+  { id: 'visual-builder', label: 'Visual Floor Builder', icon: 'ph-blueprint', badge: 'Interactive' },
+  { id: 'floors',         label: 'Floor Manager',        icon: 'ph-stack' },
+  { id: 'rooms',          label: 'Room Inventory',       icon: 'ph-bed' },
+  { id: 'calendar',       label: 'Calendar',             icon: 'ph-calendar-dots' },
+  { id: 'bookings',       label: 'Bookings',             icon: 'ph-receipt' },
+  { id: 'blocking',       label: 'Room Blocking',        icon: 'ph-prohibit' },
+  { id: 'reports',        label: 'Reports',              icon: 'ph-chart-bar' },
 ];
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
@@ -556,10 +558,17 @@ export default function PMSDashboardPage() {
                 <button
                   key={item.id}
                   onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }}
-                  className={`w-full px-3 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-3 transition-all ${active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                  className={`w-full px-3 py-2.5 rounded-2xl font-bold text-xs flex items-center justify-between transition-all ${active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
-                  <i className={`ph ${item.icon} text-base`} />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <i className={`ph ${item.icon} text-base`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-indigo-500 text-white">
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -574,6 +583,14 @@ export default function PMSDashboardPage() {
 
       {/* ── MAIN ──────────────────────────────────────────────────────────────── */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+
+        {/* ══════════════════════════════════════════ VISUAL FLOOR BUILDER ═══ */}
+        {activeTab === 'visual-builder' && (
+          <VisualFloorPlanBuilder
+            token={getToken ? getToken() : localStorage.getItem('bc_jwt')}
+            onRoomsUpdated={() => pmsApi('list-rooms')}
+          />
+        )}
 
         {/* ═══════════════════════════════════════════ DASHBOARD ═══════════════ */}
         {activeTab === 'dashboard' && (

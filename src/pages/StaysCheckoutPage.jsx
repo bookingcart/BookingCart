@@ -357,6 +357,15 @@ export default function StaysCheckoutPage() {
                 <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
                   <img src={quote.accommodation?.photos?.[0]?.url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80'} alt={quote.accommodation?.name} className="w-full h-44 object-cover" />
                   <div className="p-4">
+                    {searchParams.get('room_number') && (
+                      <div className="mb-3 p-3 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl border border-blue-500/40 shadow-sm flex items-center gap-2.5">
+                        <i className="ph-fill ph-check-circle text-emerald-400 text-xl" />
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wider font-black text-blue-300">Seat-Style Selection</div>
+                          <div className="text-xs font-black text-white">Room {searchParams.get('room_number')} Held</div>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex text-yellow-500 text-xs mb-1">
                       <i className="ph-fill ph-star" /><i className="ph-fill ph-star" /><i className="ph-fill ph-star" /><i className="ph-fill ph-star" /><i className="ph-fill ph-star" />
                     </div>
