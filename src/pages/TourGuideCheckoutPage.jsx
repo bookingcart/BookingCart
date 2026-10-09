@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function TourGuideCheckoutPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const params = new URLSearchParams(location.search);
 
   const guideId = params.get('guideId') || '';
@@ -18,10 +20,10 @@ export default function TourGuideCheckoutPage() {
   const currency = params.get('currency') || 'USD';
   const ref = params.get('ref') || `GUIDE-${Date.now()}`;
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [firstName, setFirstName] = useState(user?.name ? user.name.split(' ')[0] : '');
+  const [lastName, setLastName] = useState(user?.name ? user.name.split(' ').slice(1).join(' ') : '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -39,6 +41,11 @@ export default function TourGuideCheckoutPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!user && !isAuthenticated) {
+      alert('You must be signed in to book a tour guide. Redirecting to sign in page…');
+      navigate(`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`);
+      return;
+    }
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length) return;

@@ -219,6 +219,11 @@ export default function StaysCheckoutPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      alert('You must be signed in to complete a hotel booking. Redirecting to sign in page…');
+      window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return;
+    }
     if (!firstName || !lastName || !email || !phone) {
       alert('Please fill out all required fields.');
       return;

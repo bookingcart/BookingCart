@@ -101,7 +101,20 @@ module.exports = async function eventBookingsHandler(req, res) {
 
   if (req.method === 'GET') {
     const ref = clean(req.query?.ref, 80);
-    if (!ref) return res.status(400).json({ ok: false, error: 'Booking reference is required' });
+    const email = clean(req.query?.email, 200).toLowerCase();
+
+    if (email) {
+      let rows = [];
+      if (dbReady) {
+        const result = await query(`SELECT * FROM bc_event_bookings WHERE LOWER(guest_email) = $1 ORDER BY created_at DESC`, [email]);
+        rows = result.rows;
+      } else {
+        rows = Array.from(bookingStore().values()).filter((b) => (b.guest_email || b.guestEmail || b.email || '').toLowerCase() === email);
+      }
+      return res.json({ ok: true, bookings: rows.map(publicBooking) });
+    }
+
+    if (!ref) return res.status(400).json({ ok: false, error: 'Booking reference or email is required' });
     let booking = null;
     if (dbReady) {
       const result = await query(`SELECT * FROM bc_event_bookings WHERE booking_ref = $1 LIMIT 1`, [ref]);

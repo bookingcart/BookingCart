@@ -21,6 +21,11 @@ export default function AviationCheckoutPage() {
 
   async function book(method) {
     if (!quote) return;
+    if (!user) {
+      alert("You must be signed in to complete a charter booking. Redirecting to sign in page…");
+      window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return;
+    }
     setBusy(true);
     setError("");
     try {

@@ -181,9 +181,52 @@ function GuideBookingCard({ booking, onCancel, onConfirm }) {
   );
 }
 
+function EventBookingCard({ booking }) {
+  const navigate = useNavigate();
+  const statusKey = (booking.status || 'pending').toLowerCase();
+  const isConfirmed = statusKey === 'confirmed';
+  const total = booking.total ? `${booking.currency || '$'}${booking.total}` : '—';
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+          <i className="ph ph-ticket text-emerald-600 text-xl" />
+        </div>
+        <div>
+          <div className="font-bold text-slate-900 dark:text-slate-100 text-base">{booking.eventName || 'Attraction / Event'}</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            Ref: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{booking.bookingRef}</span>
+            {booking.ticketNo && <span className="ml-2">· Ticket No: <span className="font-mono font-bold text-emerald-600">{booking.ticketNo}</span></span>}
+          </div>
+          <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-slate-600 dark:text-slate-400">
+            <span className="flex items-center gap-1"><i className="ph ph-map-pin text-emerald-500" />{booking.location || booking.venueName || 'Venue'}</span>
+            <span className="flex items-center gap-1"><i className="ph ph-tag" />{booking.ticketName} ({booking.quantity}x)</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end shrink-0 gap-3 mt-2 md:mt-0">
+        <div className="text-right">
+          <div className="font-black text-slate-900 dark:text-white text-lg">{total}</div>
+          <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${STATUS_BADGE[statusKey] || STATUS_BADGE.pending}`}>
+            {isConfirmed ? 'Confirmed & Valid' : 'Pending Payment'}
+          </span>
+        </div>
+        <button
+          onClick={() => navigate(`/event-confirmation?ref=${encodeURIComponent(booking.bookingRef)}`)}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm shadow-emerald-600/20"
+        >
+          <i className="ph ph-qr-code text-sm" /> View Digital Ticket
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MyBookingsPage() {
   const { user, getToken } = useAuth();
-  const [activeTab, setActiveTab] = useState('flights');
+  const [activeTab, setActiveTab] = useState('events');
   const [flightEmail, setFlightEmail] = useState('');
   const [staysBookings, setStaysBookings] = useState([]);
   const [staysLoading, setStaysLoading] = useState(false);
@@ -194,6 +237,12 @@ export default function MyBookingsPage() {
   const [guidesLoading, setGuidesLoading] = useState(false);
   const [guidesError, setGuidesError] = useState('');
   const [guidesFetched, setGuidesFetched] = useState(false);
+
+  const [eventsBookings, setEventsBookings] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState('');
+  const [eventsFetched, setEventsFetched] = useState(false);
+
   const [aviationBookings, setAviationBookings] = useState([]);
   const [aviationLoading, setAviationLoading] = useState(false);
   const [aviationError, setAviationError] = useState('');
@@ -201,6 +250,30 @@ export default function MyBookingsPage() {
   useEffect(() => {
     document.title = 'My Bookings | BookingCart';
   }, []);
+
+  // Load event ticket bookings
+  useEffect(() => {
+    if (activeTab === 'events' && !eventsFetched) {
+      if (!user) {
+        setEventsError('Please sign in to view your ticket bookings.');
+        return;
+      }
+      setEventsLoading(true);
+      setEventsError('');
+      fetch(`/api/event-bookings?email=${encodeURIComponent(user.email)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            setEventsBookings(data.bookings || []);
+          } else {
+            setEventsError(data.error || 'Failed to load event tickets.');
+          }
+          setEventsFetched(true);
+        })
+        .catch(() => setEventsError('Network error loading ticket bookings.'))
+        .finally(() => setEventsLoading(false));
+    }
+  }, [activeTab, eventsFetched, user]);
 
   // Load stays bookings
   useEffect(() => {
@@ -317,14 +390,20 @@ export default function MyBookingsPage() {
                   <i className="ph ph-user text-green-600 text-xl" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-900 dark:text-slate-100">My Account</div>
-                  <div className="text-xs text-slate-400">Your bookings</div>
+                  <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{user?.name || 'My Account'}</div>
+                  <div className="text-xs text-slate-400">{user?.email || 'Your bookings'}</div>
                 </div>
               </div>
             </div>
 
             <nav className="p-3">
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-2">My Bookings</div>
+              <button
+                onClick={() => setActiveTab('events')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'events' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+              >
+                <i className="ph ph-ticket text-lg" /> Event Tickets
+              </button>
               <button
                 onClick={() => setActiveTab('flights')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'flights' ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
@@ -349,44 +428,85 @@ export default function MyBookingsPage() {
               >
                 <i className="ph ph-airplane-takeoff text-lg" /> Private Jets
               </button>
-              <div className="border-t border-slate-100 dark:border-slate-700 my-2 mx-3" />
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Account</div>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-                <i className="ph ph-heart text-lg" /> Saved
-              </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-                <i className="ph ph-bell text-lg" /> Price Alerts
-              </button>
             </nav>
           </div>
         </aside>
 
-        {/* Main */}
+        {/* Main Content Area */}
         <main className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">My Bookings</h1>
             {/* Mobile tab switcher */}
-            <div className="flex gap-2 lg:hidden">
+            <div className="flex gap-2 lg:hidden overflow-x-auto no-scrollbar py-1">
+              <button
+                onClick={() => setActiveTab('events')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'events' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+              >
+                <i className="ph ph-ticket mr-1" /> Tickets
+              </button>
               <button
                 onClick={() => setActiveTab('flights')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'flights' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'flights' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
               >
                 <i className="ph ph-airplane mr-1" /> Flights
               </button>
               <button
                 onClick={() => setActiveTab('stays')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stays' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'stays' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
               >
                 <i className="ph ph-buildings mr-1" /> Hotels
               </button>
               <button
                 onClick={() => setActiveTab('guides')}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'guides' ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'guides' ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
               >
                 <i className="ph ph-compass mr-1" /> Guides
               </button>
             </div>
           </div>
+
+          {/* ─── EVENTS / TICKETS TAB ─── */}
+          {activeTab === 'events' && (
+            <div>
+              {eventsLoading && (
+                <div className="flex items-center justify-center py-20 text-slate-400">
+                  <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mr-3" />
+                  Loading ticket bookings…
+                </div>
+              )}
+
+              {!eventsLoading && eventsError && (
+                <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl p-6 text-center">
+                  <i className="ph ph-warning text-3xl text-rose-400 mb-2 block" />
+                  <p className="text-rose-600 dark:text-rose-300 font-medium">{eventsError}</p>
+                  <button onClick={() => setEventsFetched(false)} className="mt-3 text-sm font-bold text-emerald-600 hover:underline">
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!eventsLoading && !eventsError && eventsBookings.length === 0 && (
+                <div className="text-center py-16 bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-8">
+                  <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                    <i className="ph ph-ticket text-4xl text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">No ticket bookings found</h3>
+                  <p className="text-sm text-slate-400 mb-6">Any attraction or event tickets you purchase will appear here for easy access and QR scanning.</p>
+                  <a href="/events" className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-md shadow-emerald-600/20">
+                    <i className="ph ph-compass" /> Browse Attractions & Events
+                  </a>
+                </div>
+              )}
+
+              {!eventsLoading && eventsBookings.length > 0 && (
+                <div className="space-y-4">
+                  {eventsBookings.map((booking) => (
+                    <EventBookingCard key={booking.bookingRef} booking={booking} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ─── FLIGHTS TAB ─── */}
           {activeTab === 'flights' && (

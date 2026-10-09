@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function EventCheckoutPage() {
   const { eventId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
   const [event, setEvent] = useState(location.state?.event || null);
   const [loading, setLoading] = useState(!event);
@@ -12,8 +14,23 @@ export default function EventCheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [ticketId, setTicketId] = useState(location.state?.ticketId || location.state?.event?.ticketOptions?.[0]?.id || '');
   const [quantity, setQuantity] = useState(location.state?.quantity || 1);
-  const [guest, setGuest] = useState({ name: '', email: '', phone: '' });
+  const [guest, setGuest] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+  });
   const [paymentMethod, setPaymentMethod] = useState('card');
+
+  // Keep guest details updated when user object finishes loading
+  useEffect(() => {
+    if (user?.email) {
+      setGuest((curr) => ({
+        name: curr.name || user.name || '',
+        email: curr.email || user.email || '',
+        phone: curr.phone || user.phone || '',
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     document.title = 'Event Checkout | BookingCart';
@@ -46,6 +63,14 @@ export default function EventCheckoutPage() {
   async function submit(eventSubmit) {
     eventSubmit.preventDefault();
     setError('');
+
+    if (!user && !isAuthenticated) {
+      setError('You must be signed in to purchase tickets. Redirecting to sign in…');
+      setTimeout(() => {
+        navigate(`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`);
+      }, 1200);
+      return;
+    }
 
     if (!guest.name.trim() || !guest.email.trim()) {
       setError('Please provide your full name and valid email address.');
@@ -181,6 +206,26 @@ export default function EventCheckoutPage() {
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           {/* Checkout Form */}
           <form onSubmit={submit} className="space-y-6">
+            {!isAuthenticated && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                    <i className="ph ph-lock-key" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-white">Sign In Required</h3>
+                    <p className="text-xs text-slate-300">You must be logged in to complete ticket bookings and view your issued tickets in My Bookings.</p>
+                  </div>
+                </div>
+                <Link
+                  to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl shrink-0 transition-colors text-center"
+                >
+                  Sign In / Register
+                </Link>
+              </div>
+            )}
+
             {/* Step 1: Ticket Options */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
