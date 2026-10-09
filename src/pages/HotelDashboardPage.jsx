@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import TicketValidationPanel from '../components/TicketValidationPanel.jsx';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function money(val, currency = 'USD') {
@@ -33,6 +34,7 @@ const MENU_ITEMS = [
   { id: 'my-hotel',     label: 'My Hotel',      icon: 'ph-buildings' },
   { id: 'edit-listing', label: 'Edit Listing',  icon: 'ph-pencil-line' },
   { id: 'reservations', label: 'Reservations',  icon: 'ph-receipt' },
+  { id: 'validate',     label: 'Ticket Validation', icon: 'ph-qr-code' },
   { id: 'reviews',      label: 'Reviews',       icon: 'ph-star' },
   { id: 'earnings',     label: 'Earnings',      icon: 'ph-wallet' },
   { id: 'settings',     label: 'Settings',      icon: 'ph-gear' },
@@ -623,6 +625,13 @@ export default function HotelDashboardPage() {
                 </a>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════ TICKET VALIDATION TAB ═══ */}
+        {activeTab === 'validate' && (
+          <div className="space-y-6">
+            <TicketValidationPanel operatorType="stay" />
           </div>
         )}
 

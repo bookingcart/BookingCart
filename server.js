@@ -58,6 +58,7 @@ const aviationHandler = require('./api-routes/aviation');
 const stripeConnectHandler = require('./api-routes/stripe-connect');
 const uploadHandler = require('./api-routes/upload');
 const attractionProfilesHandler = require('./api-routes/attraction-profiles');
+const ticketValidationHandler = require('./api-routes/ticket-validation');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -177,6 +178,7 @@ app.all('/api/support', apiLimiter, run(supportHandler));
 app.post('/api/duffel-client-key', searchLimiter, run(duffelClientKeyHandler));
 app.get('/api/ticket-download', apiLimiter, run(ticketDownloadHandler));
 app.post('/api/price-alert', apiLimiter, run(priceAlertHandler));
+app.all('/api/ticket-validation', apiLimiter, run(ticketValidationHandler));
 
 // Stays routes
 app.post('/api/stays-search', searchLimiter, run(duffelStaysSearchHandler));

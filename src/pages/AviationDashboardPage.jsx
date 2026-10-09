@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import { CATEGORY_LABELS, aviationRequest, money } from "../lib/aviationClient.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import TicketValidationPanel from "../components/TicketValidationPanel.jsx";
 
-const TABS = ["overview", "profile", "fleet", "charters", "operations", "wallet"];
+const TABS = ["overview", "profile", "fleet", "charters", "operations", "wallet", "validate"];
 
 const EMPTY_AIRCRAFT = {
   name: "", category: "light_jet", manufacturer: "", model: "", year: 2020, registration: "",
@@ -240,6 +241,7 @@ export default function AviationDashboardPage() {
               {item === 'charters' && <i className="ph ph-paper-plane-tilt text-lg" />}
               {item === 'operations' && <i className="ph ph-clipboard-text text-lg" />}
               {item === 'wallet' && <i className="ph ph-wallet text-lg" />}
+              {item === 'validate' && <i className="ph ph-qr-code text-lg" />}
               {item}
             </button>
           ))}
@@ -829,6 +831,13 @@ export default function AviationDashboardPage() {
                 </li>
               </ul>
             </div>
+          </div>
+        )}
+
+        {/* ── TICKET VALIDATION ── */}
+        {tab === "validate" && (
+          <div className="mt-6">
+            <TicketValidationPanel operatorType="aviation" />
           </div>
         )}
       </div>

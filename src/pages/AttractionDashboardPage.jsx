@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import TicketValidationPanel from '../components/TicketValidationPanel.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -21,6 +22,7 @@ const MENU_ITEMS = [
   { id: 'overview',      label: 'Overview',       icon: 'ph-squares-four' },
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
   { id: 'create',        label: 'Create New',      icon: 'ph-ticket', route: '/list-your-event' },
+  { id: 'validate',      label: 'Ticket Validation', icon: 'ph-qr-code' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
   { id: 'wallet',        label: 'Wallet',          icon: 'ph-wallet' },
   { id: 'notifications', label: 'Notifications',   icon: 'ph-bell' },
@@ -1276,6 +1278,7 @@ export default function AttractionDashboardPage() {
         {activeTab === 'wallet'        && <WalletTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'settings'      && <SettingsTab />}
+        {activeTab === 'validate'      && <TicketValidationPanel operatorType="attraction" />}
       </main>
 
       {/* ── Modals ── */}
@@ -1370,7 +1373,7 @@ export default function AttractionDashboardPage() {
 
       {/* Mobile bottom nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex items-center px-1 py-2 gap-0">
-        {['overview','attractions','create','analytics','wallet','notifications'].map(id => {
+        {['overview','attractions','create','validate','analytics','wallet','notifications'].map(id => {
           const item = MENU_ITEMS.find(m => m.id === id);
           if (!item) return null;
           const active = activeTab === item.id;

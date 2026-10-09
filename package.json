@@ -36,6 +36,7 @@
     "express-rate-limit": "^7.5.1",
     "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
+    "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",
     "node-cron": "^4.2.1",
