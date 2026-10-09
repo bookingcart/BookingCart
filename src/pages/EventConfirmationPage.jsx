@@ -32,6 +32,7 @@ function QRCode({ value, size = 120 }) {
 }
 
 // ─── The Ticket Component ─────────────────────────────────────────────────────
+// ─── The Ticket Component ─────────────────────────────────────────────────────
 function EventTicket({ booking, ticketBannerImage }) {
   const {
     bookingRef,
@@ -45,34 +46,129 @@ function EventTicket({ booking, ticketBannerImage }) {
     ticketType,
   } = booking;
 
-  const bannerImg = ticketBannerImage || booking.bannerImage;
+  const [imgSrc, setImgSrc] = useState(
+    ticketBannerImage || booking.bannerImage || 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=85'
+  );
+
+  useEffect(() => {
+    setImgSrc(ticketBannerImage || booking.bannerImage || 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=85');
+  }, [ticketBannerImage, booking.bannerImage]);
+
   const effectiveTicketNo = ticketNo || bookingRef;
-  const effectiveIssueDate = issueDate || new Date(booking.createdAt || Date.now()).toLocaleDateString('en-US', { weekday: 'long', month: '2-digit', day: '2-digit', year: 'numeric' }).replace(',', '.');
+  const effectiveIssueDate = issueDate || new Date(booking.createdAt || Date.now()).toLocaleDateString('en-US', { weekday: 'short', month: '2-digit', day: '2-digit', year: 'numeric' });
   const qrData = JSON.stringify({ ref: bookingRef, ticket: effectiveTicketNo, event: eventName });
 
-  return <div id="event-ticket" className="relative mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] bg-white shadow-2xl" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
-    <header className="flex h-[92px] flex-col items-center justify-center bg-[#292b28] px-8">
-      <img src="/images/logo%20.png" alt="BookingCart" className="h-auto w-[245px] brightness-0 invert" />
-      <p className="mt-1 text-[10px] font-medium tracking-[0.34em] text-white/75">Compare. Book. instant</p>
-    </header>
-    <section className="relative h-[246px] overflow-hidden bg-slate-800">
-      {bannerImg ? <img src={bannerImg} alt={eventName} className="absolute inset-0 h-full w-full object-cover" /> : <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=85" alt="Event venue" className="absolute inset-0 h-full w-full object-cover" />}
-      <div className="absolute inset-0 bg-black/35" />
-      <p className="absolute right-7 top-5 text-[18px] font-black tracking-wide text-white">{bookingRef}</p>
-      <div className="absolute bottom-10 left-9 max-w-[66%]">
-        <p className="text-[12px] font-bold text-[#00d454]">Venue</p>
-        <h2 className="mt-0.5 text-[31px] font-black leading-[0.98] text-white">{venueName || eventName}</h2>
-      </div>
-      {location ? <div className="absolute bottom-11 right-6 max-w-[38%]"><p className="text-[12px] font-bold text-[#00d454]">Location</p><p className="text-[12px] leading-tight text-white">{location}</p></div> : null}
-    </section>
-    <div className="relative border-t-2 border-dashed border-[#00c94f] bg-[#ededed] px-12 pb-5 pt-8 before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]">
-      <div className="grid grid-cols-2 gap-8 text-[#292b28]"><div><p className="text-[12px]">Ticket No:</p><p className="text-[15px] font-black tracking-wide">{effectiveTicketNo}</p></div><div><p className="text-[12px]">Issue Date:</p><p className="text-[15px] font-black">{effectiveIssueDate}</p></div></div>
-      <div className="mt-5 flex min-h-[142px] items-center justify-between gap-5 rounded-[18px] bg-[#292b28] px-7 py-5">
-        <div className="min-w-0 flex-1"><p className="text-[12px] font-bold text-[#00d454]">Clients Name</p><p className="mt-1 text-[20px] leading-[1.05] text-white">{clientName}</p><p className="mt-4 text-[12px] font-bold text-[#00d454]">Entrance</p><p className="mt-1 text-[18px] leading-[1.05] text-white">{entrance || ticketType || 'Main Entrance Gate'}</p></div>
-        <QRCode value={qrData} size={112} />
+  return (
+    <div
+      id="event-ticket"
+      className="relative mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] bg-white shadow-2xl border border-slate-200"
+      style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}
+    >
+      {/* Printable CSS override */}
+      <style>{`
+        @media print {
+          @page {
+            size: portrait;
+            margin: 0;
+          }
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #event-ticket, #event-ticket * {
+            visibility: visible !important;
+          }
+          #event-ticket {
+            position: fixed !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+            width: 420px !important;
+            max-width: 420px !important;
+            box-shadow: none !important;
+            border: 2px solid #e2e8f0 !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      `}</style>
+
+      {/* Ticket Header */}
+      <header className="flex flex-col items-center justify-center bg-slate-900 py-3.5 px-6 text-center">
+        <img
+          src="/images/logo%20.png"
+          alt="BookingCart"
+          className="h-7 w-auto object-contain brightness-0 invert"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+        <p className="mt-1 text-[10px] font-bold tracking-[0.28em] text-emerald-400 uppercase">COMPARE · BOOK · INSTANT</p>
+      </header>
+
+      {/* Image Banner Container */}
+      <section className="relative min-h-[210px] w-full overflow-hidden bg-slate-900 flex flex-col justify-between p-6">
+        <img
+          src={imgSrc}
+          alt={eventName}
+          crossOrigin="anonymous"
+          onError={() => setImgSrc('https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=85')}
+          className="absolute inset-0 h-full w-full object-cover opacity-60"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-black/40" />
+
+        {/* Top bar over banner */}
+        <div className="relative z-10 flex items-center justify-between gap-2">
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-md">
+            Verified Pass
+          </span>
+          <span className="font-mono text-xs font-bold text-white bg-black/60 px-3 py-1 rounded-full border border-slate-700 backdrop-blur-md">
+            {bookingRef}
+          </span>
+        </div>
+
+        {/* Bottom text over banner */}
+        <div className="relative z-10 mt-6 space-y-1">
+          <p className="text-[10px] font-extrabold tracking-wider text-emerald-400 uppercase">VENUE & EVENT</p>
+          <h2 className="text-xl font-black leading-tight text-white drop-shadow-md">
+            {venueName || eventName}
+          </h2>
+          {location && (
+            <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 mt-1 pt-1.5 border-t border-white/20">
+              <i className="ph ph-map-pin text-emerald-400 text-sm shrink-0" />
+              <span className="line-clamp-2">{location}</span>
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Dashed Tear-off Divider */}
+      <div className="relative border-t-2 border-dashed border-emerald-500 bg-slate-100 px-6 pb-6 pt-5 before:absolute before:-left-4 before:-top-4 before:h-8 before:w-8 before:rounded-full before:bg-slate-950 after:absolute after:-right-4 after:-top-4 after:h-8 after:w-8 after:rounded-full after:bg-slate-950">
+        <div className="grid grid-cols-2 gap-4 text-slate-800">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ticket No.</p>
+            <p className="text-xs sm:text-sm font-mono font-black text-slate-900 tracking-tight">{effectiveTicketNo}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Issue Date</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-900">{effectiveIssueDate}</p>
+          </div>
+        </div>
+
+        {/* Guest & QR Code Card */}
+        <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl bg-slate-900 p-4 text-white">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">Guest Name</p>
+            <p className="mt-0.5 text-base font-extrabold text-white truncate">{clientName}</p>
+            <p className="mt-2.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">Entrance / Gate</p>
+            <p className="mt-0.5 text-xs font-bold text-slate-200 truncate">{entrance || ticketType || 'Main Entrance Gate'}</p>
+          </div>
+          <QRCode value={qrData} size={96} />
+        </div>
       </div>
     </div>
-  </div>;
+  );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -128,9 +224,9 @@ export default function EventConfirmationPage() {
         });
       }
       const el = document.getElementById('event-ticket');
-      const canvas = await window.html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null });
+      const canvas = await window.html2canvas(el, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: null });
       const link = document.createElement('a');
-      link.download = `ticket-${b.bookingRef || 'booking'}.png`;
+      link.download = `ticket-${booking?.bookingRef || 'booking'}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
