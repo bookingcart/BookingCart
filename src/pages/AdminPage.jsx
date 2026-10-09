@@ -1798,7 +1798,7 @@ export default function AdminPage() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #0f172a 100%)',
+        background: 'linear-gradient(135deg, #0a1628 0%, #0d2217 40%, #0a1628 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1806,96 +1806,95 @@ export default function AdminPage() {
         position: 'relative',
         overflow: 'hidden',
       }}>
-        {/* Animated blobs */}
+        {/* Animated blobs — site green palette */}
         <div style={{
           position: 'absolute', top: '10%', left: '15%',
-          width: '340px', height: '340px',
-          background: 'radial-gradient(circle, rgba(239,68,68,0.18) 0%, transparent 70%)',
+          width: '380px', height: '380px',
+          background: 'radial-gradient(circle, rgba(22,163,74,0.18) 0%, transparent 70%)',
           borderRadius: '50%',
-          filter: 'blur(40px)',
+          filter: 'blur(48px)',
           animation: 'bc-blob1 8s ease-in-out infinite alternate',
         }} />
         <div style={{
           position: 'absolute', bottom: '10%', right: '12%',
-          width: '280px', height: '280px',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.20) 0%, transparent 70%)',
+          width: '300px', height: '300px',
+          background: 'radial-gradient(circle, rgba(16,185,129,0.14) 0%, transparent 70%)',
           borderRadius: '50%',
           filter: 'blur(40px)',
           animation: 'bc-blob2 10s ease-in-out infinite alternate',
         }} />
         <div style={{
           position: 'absolute', top: '50%', left: '55%',
-          width: '200px', height: '200px',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.12) 0%, transparent 70%)',
+          width: '220px', height: '220px',
+          background: 'radial-gradient(circle, rgba(22,163,74,0.10) 0%, transparent 70%)',
           borderRadius: '50%',
-          filter: 'blur(30px)',
+          filter: 'blur(32px)',
           animation: 'bc-blob1 12s ease-in-out infinite alternate-reverse',
         }} />
 
         <style>{`
           @keyframes bc-blob1 { from { transform: translate(0,0) scale(1); } to { transform: translate(30px, -20px) scale(1.12); } }
           @keyframes bc-blob2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-25px, 20px) scale(1.08); } }
-          @keyframes bc-lock-pulse { 0%,100% { transform: scale(1) rotate(-4deg); } 50% { transform: scale(1.07) rotate(4deg); } }
+          @keyframes bc-lock-pulse { 0%,100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.07) rotate(3deg); } }
           @keyframes bc-badge-fade { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
           @keyframes bc-card-in { from { opacity:0; transform: translateY(32px) scale(0.96); } to { opacity:1; transform: translateY(0) scale(1); } }
-          .bc-access-btn { transition: all 0.22s cubic-bezier(.4,0,.2,1); }
-          .bc-access-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(99,102,241,0.35); }
-          .bc-home-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255,255,255,0.10); }
+          .bc-home-btn { transition: all 0.22s cubic-bezier(.4,0,.2,1) !important; }
+          .bc-home-btn:hover { transform: translateY(-2px) !important; box-shadow: 0 12px 32px rgba(22,163,74,0.40) !important; }
         `}</style>
 
         {/* Glass card */}
         <div style={{
           position: 'relative', zIndex: 10,
-          background: 'rgba(255,255,255,0.04)',
+          background: 'rgba(255,255,255,0.03)',
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.10)',
+          border: '1px solid rgba(22,163,74,0.15)',
           borderRadius: '28px',
           padding: '3rem 2.5rem',
           maxWidth: '440px', width: '100%',
           textAlign: 'center',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)',
           animation: 'bc-card-in 0.6s cubic-bezier(.4,0,.2,1) both',
         }}>
 
-          {/* Lock icon ring */}
+          {/* Lock icon ring — brand green outer, red lock (communicates danger clearly) */}
           <div style={{
             width: '88px', height: '88px',
             margin: '0 auto 1.75rem',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(239,68,68,0.25) 0%, rgba(220,38,38,0.12) 100%)',
-            border: '1.5px solid rgba(239,68,68,0.35)',
+            background: 'linear-gradient(135deg, rgba(22,163,74,0.18) 0%, rgba(15,118,56,0.08) 100%)',
+            border: '1.5px solid rgba(22,163,74,0.30)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 40px rgba(239,68,68,0.18), 0 0 0 8px rgba(239,68,68,0.07)',
+            boxShadow: '0 0 40px rgba(22,163,74,0.15), 0 0 0 8px rgba(22,163,74,0.06)',
             animation: 'bc-lock-pulse 3.5s ease-in-out infinite',
           }}>
-            <i className="ph-fill ph-lock-key" style={{ fontSize: '38px', color: '#f87171' }} />
+            <i className="ph-fill ph-lock-key" style={{ fontSize: '38px', color: '#ef4444' }} />
           </div>
 
           {/* Badge */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: 'rgba(239,68,68,0.12)',
-            border: '1px solid rgba(239,68,68,0.25)',
+            background: 'rgba(22,163,74,0.10)',
+            border: '1px solid rgba(22,163,74,0.22)',
             borderRadius: '100px',
             padding: '4px 14px',
             marginBottom: '1rem',
             animation: 'bc-badge-fade 0.5s 0.2s both',
           }}>
-            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f87171', display: 'inline-block', boxShadow: '0 0 6px #f87171' }} />
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#fca5a5', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Restricted Area</span>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#16a34a', display: 'inline-block', boxShadow: '0 0 6px #16a34a' }} />
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#4ade80', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Restricted Area</span>
           </div>
 
           <h1 style={{
             fontSize: '2rem', fontWeight: 900,
-            background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #d1fae5 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             marginBottom: '0.75rem', lineHeight: 1.15,
           }}>
             Access Denied
           </h1>
 
-          <p style={{ color: 'rgba(148,163,184,1)', fontSize: '0.95rem', lineHeight: 1.65, marginBottom: '2rem', maxWidth: '320px', margin: '0 auto 2rem' }}>
+          <p style={{ color: 'rgba(148,163,184,1)', fontSize: '0.95rem', lineHeight: 1.65, maxWidth: '320px', margin: '0 auto 2rem' }}>
             This dashboard is reserved for BookingCart administrators. Please sign in with an authorised account to continue.
           </p>
 
@@ -1905,39 +1904,42 @@ export default function AdminPage() {
                 <HeaderAuthCluster />
               </div>
               <p style={{ fontSize: '12px', color: 'rgba(100,116,139,1)', marginTop: '4px' }}>
-                Not an admin? <a href="/" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>Return home ↗</a>
+                Not an admin? <a href="/" style={{ color: '#4ade80', textDecoration: 'none', fontWeight: 600 }}>Return home ↗</a>
               </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
               <div style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(22,163,74,0.08)',
+                border: '1px solid rgba(22,163,74,0.18)',
                 borderRadius: '14px',
                 padding: '10px 16px',
                 display: 'flex', alignItems: 'center', gap: '10px',
                 marginBottom: '8px',
+                width: '100%',
               }}>
                 <div style={{
-                  width: '32px', height: '32px', borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #818cf8, #6366f1)',
+                  width: '34px', height: '34px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
+                  boxShadow: '0 0 12px rgba(22,163,74,0.35)',
                 }}>
                   <i className="ph-fill ph-user" style={{ fontSize: '16px', color: '#fff' }} />
                 </div>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '11px', color: 'rgba(100,116,139,1)', fontWeight: 600 }}>Signed in as</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(74,222,128,0.7)', fontWeight: 600 }}>Signed in as</div>
                   <div style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: 700 }}>{user.email}</div>
                 </div>
               </div>
               <a href="/" className="bc-home-btn" style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
-                background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
                 color: '#fff', padding: '12px 28px',
                 borderRadius: '12px', fontWeight: 700, fontSize: '0.9rem',
                 textDecoration: 'none',
-                boxShadow: '0 4px 16px rgba(99,102,241,0.30)',
+                boxShadow: '0 4px 16px rgba(22,163,74,0.35)',
+                width: '100%', justifyContent: 'center',
               }}>
                 <i className="ph-bold ph-house" style={{ fontSize: '16px' }} />
                 Return to Home
@@ -1946,9 +1948,9 @@ export default function AdminPage() {
           )}
 
           {/* Bottom divider hint */}
-          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <p style={{ fontSize: '12px', color: 'rgba(71,85,105,1)' }}>
-              <i className="ph ph-shield-check" style={{ marginRight: '5px' }} />
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(22,163,74,0.10)' }}>
+            <p style={{ fontSize: '12px', color: 'rgba(71,85,105,1)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <i className="ph ph-shield-check" style={{ color: '#16a34a', fontSize: '14px' }} />
               BookingCart Admin Dashboard · Restricted Access
             </p>
           </div>
