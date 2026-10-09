@@ -122,11 +122,31 @@ module.exports = async (req, res) => {
     console.warn('[event-profiles] DB unavailable, using memory fallback:', err.message);
   }
 
-  // ── GET — load profile for authenticated user ─────────────────────────────
+  // ── GET — load profile(s) for authenticated user ─────────────────────────
   if (req.method === 'GET') {
     const auth = await verifyRequestBearer(req);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Authentication required' });
 
+    // ?action=list — return ALL non-deleted profiles for this user
+    if (req.query.action === 'list') {
+      let profiles = [];
+      if (dbReady) {
+        const r = await query(
+          `SELECT * FROM bc_event_profiles WHERE email = $1 ORDER BY created_at DESC LIMIT 100`,
+          [auth.email]
+        );
+        profiles = r.rows;
+      } else {
+        const store = getMemProfiles();
+        for (const [, p] of store) {
+          if (p.email === auth.email) profiles.push(p);
+        }
+        profiles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      }
+      return res.json({ ok: true, profiles });
+    }
+
+    // Default: return the most-recent single profile (backward compat)
     let profile = null;
     if (dbReady) {
       const r = await query(

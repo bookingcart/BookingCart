@@ -260,25 +260,39 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
             <i className="ph ph-dots-three-vertical text-base" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-10 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 overflow-hidden py-1">
-              <button onClick={() => { onEdit(a); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <i className="ph ph-pencil text-slate-400" /> Edit
-              </button>
-              <button onClick={() => { onDuplicate(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <i className="ph ph-copy text-slate-400" /> Duplicate
-              </button>
-              <button onClick={() => { onPreview(a); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <i className="ph ph-eye text-slate-400" /> Preview
-              </button>
-              {(a.status === 'draft' || a.status === 'rejected') && (
-                <button onClick={() => { onSubmit(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
-                  <i className="ph ph-paper-plane-tilt text-amber-500" /> Submit for Review
-                </button>
+            <div className="absolute right-0 top-10 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-20 overflow-hidden py-1">
+              {a._source === 'event' ? (
+                /* Event-profile listings live in a different API — link back to the wizard */
+                <>
+                  <button onClick={() => { window.location.href = '/list-your-event'; setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
+                    <i className="ph ph-pencil-ruler text-amber-500" /> Continue Wizard
+                  </button>
+                  <button onClick={() => { onPreview(a); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i className="ph ph-eye text-slate-400" /> Preview
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => { onEdit(a); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i className="ph ph-pencil text-slate-400" /> Edit
+                  </button>
+                  <button onClick={() => { onDuplicate(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i className="ph ph-copy text-slate-400" /> Duplicate
+                  </button>
+                  <button onClick={() => { onPreview(a); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i className="ph ph-eye text-slate-400" /> Preview
+                  </button>
+                  {(a.status === 'draft' || a.status === 'rejected') && (
+                    <button onClick={() => { onSubmit(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
+                      <i className="ph ph-paper-plane-tilt text-amber-500" /> Submit for Review
+                    </button>
+                  )}
+                  <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                  <button onClick={() => { onDelete(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors">
+                    <i className="ph ph-trash text-rose-500" /> Delete
+                  </button>
+                </>
               )}
-              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-              <button onClick={() => { onDelete(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors">
-                <i className="ph ph-trash text-rose-500" /> Delete
-              </button>
             </div>
           )}
         </div>
@@ -355,23 +369,91 @@ export default function AttractionDashboardPage() {
   const [profileForm, setProfileForm] = useState({ name: '', email: '', businessName: '', phone: '', website: '', bio: '' });
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // ── Load Client Attractions ──────────────────────────────────────────────
+  // ── Load Client Attractions (merged from attraction-profiles + event-profiles) ─
   const loadAttractions = useCallback(async (pg = 1, reset = false) => {
     if (!user) return;
     try {
       if (reset) setLoading(true);
+
+      // Fetch from attraction-profiles (direct-create)
       const params = new URLSearchParams({ page: pg, limit: LIMIT });
       if (statusFilter) params.set('status', statusFilter);
       if (search) params.set('search', search);
-      const res = await fetch(`/api/attraction-profiles?${params}`, { headers: authHeaders() });
-      const data = await res.json();
-      if (data.ok) {
-        setAttractions(prev => reset || pg === 1 ? (data.attractions || []) : [...prev, ...(data.attractions || [])]);
-        setTotal(data.total || 0);
-        setPage(pg);
-      } else {
-        setError(data.error || 'Failed to load attractions');
+
+      const [attrRes, eventRes] = await Promise.allSettled([
+        fetch(`/api/attraction-profiles?${params}`, { headers: authHeaders() }),
+        fetch('/api/event-profiles?action=list', { headers: authHeaders() }),
+      ]);
+
+      let attrList = [];
+      let attrTotal = 0;
+      if (attrRes.status === 'fulfilled') {
+        const d = await attrRes.value.json();
+        if (d.ok) { attrList = d.attractions || []; attrTotal = d.total || 0; }
       }
+
+      // Normalize event-profiles to attraction-profile shape
+      let eventList = [];
+      if (eventRes.status === 'fulfilled') {
+        const d = await eventRes.value.json();
+        if (d.ok && Array.isArray(d.profiles)) {
+          eventList = d.profiles.map(ep => {
+            const info    = ep.step_event_info  || {};
+            const loc     = ep.step_location    || {};
+            const tickets = ep.step_tickets     || {};
+            const gallery = Array.isArray(ep.step_gallery) ? ep.step_gallery : [];
+            const contact = ep.step_contact     || {};
+            const ticketList = Array.isArray(tickets.list) ? tickets.list : [];
+            const firstPrice = ticketList[0] ? parseFloat(ticketList[0].price) || 0 : 0;
+            const name = info.eventName || '';
+            // Apply client-side filters to match server-side attraction-profiles filtering
+            if (statusFilter) {
+              const mappedStatus = ep.status === 'approved' ? 'published' : (ep.status || 'draft');
+              if (mappedStatus !== statusFilter) return null;
+            }
+            if (search) {
+              const q = search.toLowerCase();
+              if (!name.toLowerCase().includes(q) &&
+                  !(info.eventType || '').toLowerCase().includes(q) &&
+                  !(loc.city || '').toLowerCase().includes(q)) return null;
+            }
+            return {
+              _source: 'event',
+              id: `ep_${ep.id}`,
+              name,
+              category:       info.eventType || '',
+              location:       loc.address || '',
+              country:        loc.country || '',
+              city:           loc.city || '',
+              description:    info.description || '',
+              featured_image: gallery[0]?.url || '',
+              gallery:        gallery.map(g => g.url || g),
+              price:          firstPrice,
+              currency:       ticketList[0]?.currency || 'USD',
+              duration:       info.duration || '',
+              status:         ep.status === 'approved' ? 'published' : (ep.status || 'draft'),
+              admin_note:     ep.admin_note || '',
+              views:          0,
+              bookings:       0,
+              completeness:   ep.completeness || 0,
+              contact:        { email: contact.bookingEmail || '', phone: contact.phone || '' },
+              created_at:     ep.created_at,
+              updated_at:     ep.updated_at,
+            };
+          }).filter(Boolean);
+        }
+      }
+
+      // Merge: de-duplicate by name (avoid double-counting if same listing appears in both tables)
+      const attrNames = new Set(attrList.map(a => (a.name || '').toLowerCase().trim()));
+      const uniqueEventList = eventList.filter(e => !attrNames.has((e.name || '').toLowerCase().trim()));
+
+      const merged = [...attrList, ...uniqueEventList];
+      const mergedTotal = attrTotal + uniqueEventList.length;
+
+      setAttractions(prev => reset || pg === 1 ? merged : [...prev, ...merged]);
+      setTotal(mergedTotal);
+      setPage(pg);
     } catch {
       setError('Network error. Please try again.');
     } finally {
