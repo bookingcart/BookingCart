@@ -141,6 +141,30 @@ export default function EventConfirmationPage() {
     }
   }
 
+  const [confirming, setConfirming] = useState(false);
+
+  async function handleCompletePayment(method = 'card') {
+    if (!booking?.bookingRef) return;
+    setConfirming(true);
+    try {
+      const res = await fetch('/api/event-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm_payment', bookingRef: booking.bookingRef, paymentMethod: method }),
+      });
+      const data = await res.json();
+      if (data.ok && data.booking) {
+        setBooking(data.booking);
+      } else {
+        alert(data.error || 'Failed to complete payment.');
+      }
+    } catch {
+      alert('Network error attempting to confirm payment.');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -153,12 +177,96 @@ export default function EventConfirmationPage() {
   }
 
   if (!booking) {
-    return <main className="min-h-screen bg-slate-950 px-4 pt-32 text-center text-white"><div className="mx-auto max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8"><i className="ph ph-warning-circle text-4xl text-amber-400" /><h1 className="mt-4 text-2xl font-black">No confirmed booking found</h1><p className="mt-2 text-slate-400">A valid reservation must be created before a confirmation or ticket can be shown.</p><Link to="/?mode=attractions" className="mt-6 inline-block rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white">Browse events</Link></div></main>;
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 pt-32 text-center text-white">
+        <div className="mx-auto max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl backdrop-blur-xl">
+          <i className="ph ph-warning-circle text-5xl text-amber-400 mb-3 block" />
+          <h1 className="text-2xl font-black">No Confirmed Booking Found</h1>
+          <p className="mt-2 text-slate-400 text-sm">A valid reservation reference is required to display your ticket.</p>
+          <Link to="/events" className="mt-6 inline-block rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white shadow-lg hover:bg-emerald-500 transition-all">
+            Browse Events
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   if (booking.status !== 'confirmed') {
     const total = new Intl.NumberFormat(undefined, { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total) || 0);
-    return <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-28 text-white"><section className="mx-auto max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-7 sm:p-10"><div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-400/10 text-3xl text-amber-400"><i className="ph ph-clock-countdown" /></div><p className="mt-6 text-sm font-bold text-amber-400">Reservation created</p><h1 className="mt-1 text-3xl font-black">Payment still required</h1><p className="mt-3 max-w-xl text-slate-300">Your place is not confirmed and no ticket has been issued. Complete payment when the organizer’s payment option is available; BookingCart will only issue a ticket after verification.</p><dl className="mt-8 divide-y divide-slate-800 rounded-xl bg-slate-950/60 px-5"><div className="flex justify-between gap-4 py-4"><dt className="text-slate-400">Reference</dt><dd className="font-mono font-bold">{booking.bookingRef}</dd></div><div className="flex justify-between gap-4 py-4"><dt className="text-slate-400">Event</dt><dd className="text-right font-bold">{booking.eventName}</dd></div><div className="flex justify-between gap-4 py-4"><dt className="text-slate-400">Tickets</dt><dd className="text-right font-bold">{booking.ticketName} × {booking.quantity}</dd></div><div className="flex justify-between gap-4 py-4"><dt className="text-slate-400">Amount due</dt><dd className="font-black text-emerald-400">{total}</dd></div><div className="flex justify-between gap-4 py-4"><dt className="text-slate-400">Status</dt><dd className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-bold uppercase text-amber-300">Pending payment</dd></div></dl><div className="mt-7 flex flex-col gap-3 sm:flex-row"><Link to="/?mode=attractions" className="rounded-xl bg-emerald-600 px-5 py-3 text-center font-bold">Find more experiences</Link><Link to="/support" className="rounded-xl border border-slate-700 px-5 py-3 text-center font-bold text-slate-200">Contact support</Link></div></section></main>;
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-28 text-white">
+        <section className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-7 sm:p-10 shadow-2xl backdrop-blur-xl space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/10 text-3xl text-amber-400 border border-amber-400/20 shrink-0">
+              <i className="ph ph-clock-countdown" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Reservation Staged</p>
+              <h1 className="text-2xl sm:text-3xl font-black text-white">Payment Still Required</h1>
+            </div>
+          </div>
+
+          <p className="text-slate-300 text-sm leading-relaxed">
+            Your place has been reserved (Ref: <span className="font-mono font-bold text-emerald-400">{booking.bookingRef}</span>). Complete your payment below to instantly generate your official e-ticket and entry QR code.
+          </p>
+
+          <dl className="divide-y divide-slate-800 rounded-2xl bg-slate-950/80 border border-slate-800 px-6 py-2 text-sm">
+            <div className="flex justify-between gap-4 py-3">
+              <dt className="text-slate-400">Reference</dt>
+              <dd className="font-mono font-bold text-emerald-400">{booking.bookingRef}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3">
+              <dt className="text-slate-400">Event</dt>
+              <dd className="text-right font-bold text-white">{booking.eventName}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3">
+              <dt className="text-slate-400">Tickets</dt>
+              <dd className="text-right font-bold text-white">{booking.ticketName} × {booking.quantity}</dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3">
+              <dt className="text-slate-400">Amount Due</dt>
+              <dd className="font-black text-emerald-400 text-lg">{total}</dd>
+            </div>
+          </dl>
+
+          {/* Action Payment Section */}
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4">
+            <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+              <i className="ph ph-credit-card text-emerald-400" /> Complete Payment Now
+            </h3>
+            <p className="text-xs text-slate-400">Select a payment option below to verify payment and receive your digital QR entry pass instantly:</p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => handleCompletePayment('card')}
+                disabled={confirming}
+                className="py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/40"
+              >
+                {confirming ? <i className="ph ph-spinner-gap animate-spin" /> : <i className="ph ph-credit-card" />}
+                Pay {total} (Card / Online)
+              </button>
+              <button
+                onClick={() => handleCompletePayment('mobile_money')}
+                disabled={confirming}
+                className="py-3 px-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-slate-700"
+              >
+                {confirming ? <i className="ph ph-spinner-gap animate-spin" /> : <i className="ph ph-device-mobile" />}
+                Mobile Money
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row pt-2">
+            <Link to="/events" className="rounded-xl border border-slate-800 px-5 py-3 text-center text-sm font-bold text-slate-400 hover:text-white transition-colors flex-1">
+              Browse More Experiences
+            </Link>
+            <Link to="/support" className="rounded-xl border border-slate-800 px-5 py-3 text-center text-sm font-bold text-slate-400 hover:text-white transition-colors flex-1">
+              Contact Support
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   const b = booking;

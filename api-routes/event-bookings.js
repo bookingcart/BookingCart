@@ -31,11 +31,15 @@ async function ensureTable() {
       guest_email TEXT NOT NULL,
       guest_phone TEXT DEFAULT '',
       status TEXT NOT NULL DEFAULT 'pending_payment',
+      ticket_no TEXT DEFAULT '',
+      payment_method TEXT DEFAULT '',
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS banner_image TEXT DEFAULT ''`);
+  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS banner_image TEXT DEFAULT ''`).catch(() => {});
+  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS ticket_no TEXT DEFAULT ''`).catch(() => {});
+  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT ''`).catch(() => {});
 }
 
 async function loadEventProfile(eventId, dbReady) {
@@ -55,8 +59,12 @@ async function loadEventProfile(eventId, dbReady) {
 }
 
 function publicBooking(row) {
+  const isConfirmed = (row.status || '').toLowerCase() === 'confirmed';
+  const bookingRef = row.booking_ref || row.bookingRef;
+  const ticketNo = row.ticket_no || row.ticketNo || (isConfirmed ? `TKT-${bookingRef}` : undefined);
   return {
-    bookingRef: row.booking_ref || row.bookingRef,
+    bookingRef,
+    ticketNo,
     eventId: String(row.event_profile_id || row.eventId),
     eventName: row.event_name || row.eventName,
     venueName: row.venue_name || row.venueName,
@@ -71,6 +79,7 @@ function publicBooking(row) {
     email: row.guest_email || row.email,
     phone: row.guest_phone || row.phone,
     status: row.status,
+    paymentMethod: row.payment_method || row.paymentMethod || '',
     createdAt: row.created_at || row.createdAt,
   };
 }
@@ -104,6 +113,43 @@ module.exports = async function eventBookingsHandler(req, res) {
     return res.json({ ok: true, booking: publicBooking(booking) });
   }
 
+  // Handle PATCH or POST with action === 'confirm_payment' or 'confirm'
+  const action = clean(req.body?.action || req.query?.action, 40).toLowerCase();
+  if (req.method === 'PATCH' || (req.method === 'POST' && (action === 'confirm_payment' || action === 'confirm'))) {
+    const ref = clean(req.body?.bookingRef || req.query?.ref, 80);
+    const paymentMethod = clean(req.body?.paymentMethod, 40) || 'card';
+    if (!ref) return res.status(400).json({ ok: false, error: 'Booking reference is required' });
+
+    let booking = null;
+    if (dbReady) {
+      const result = await query(`SELECT * FROM bc_event_bookings WHERE booking_ref = $1 LIMIT 1`, [ref]);
+      booking = result.rows[0] || null;
+    } else {
+      booking = bookingStore().get(ref) || null;
+    }
+
+    if (!booking) return res.status(404).json({ ok: false, error: 'Reservation not found' });
+
+    const generatedTicketNo = booking.ticket_no || booking.ticketNo || `TKT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+    if (dbReady) {
+      await query(
+        `UPDATE bc_event_bookings SET status = 'confirmed', ticket_no = $1, payment_method = $2, updated_at = NOW() WHERE booking_ref = $3`,
+        [generatedTicketNo, paymentMethod, ref]
+      );
+      booking.status = 'confirmed';
+      booking.ticket_no = generatedTicketNo;
+      booking.payment_method = paymentMethod;
+    } else {
+      booking.status = 'confirmed';
+      booking.ticketNo = generatedTicketNo;
+      booking.paymentMethod = paymentMethod;
+      bookingStore().set(ref, booking);
+    }
+
+    return res.json({ ok: true, booking: publicBooking(booking) });
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
   const eventId = clean(req.body?.eventId, 80);
@@ -111,6 +157,8 @@ module.exports = async function eventBookingsHandler(req, res) {
   const guestName = clean(req.body?.guestName, 140);
   const guestEmail = clean(req.body?.guestEmail, 200).toLowerCase();
   const guestPhone = clean(req.body?.guestPhone, 60);
+  const paymentMethod = clean(req.body?.paymentMethod, 40);
+  const autoConfirm = Boolean(req.body?.autoConfirm || paymentMethod);
   const quantity = Math.min(10, Math.max(1, Number.parseInt(req.body?.quantity, 10) || 1));
   if (!eventId || !ticketId || guestName.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
     return res.status(400).json({ ok: false, error: 'Choose a ticket and provide a valid guest name and email.' });
@@ -127,8 +175,13 @@ module.exports = async function eventBookingsHandler(req, res) {
   const bookingRef = `EVT-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
   const info = profile.step_event_info || {};
   const location = profile.step_location || {};
+
+  const status = autoConfirm ? 'confirmed' : 'pending_payment';
+  const ticketNo = autoConfirm ? `TKT-${crypto.randomBytes(4).toString('hex').toUpperCase()}` : '';
+
   const record = {
     bookingRef,
+    ticketNo,
     eventId,
     eventName: clean(info.eventName, 160) || 'Local event',
     venueName: clean(info.eventName, 160) || 'Local event',
@@ -142,15 +195,16 @@ module.exports = async function eventBookingsHandler(req, res) {
     clientName: guestName,
     email: guestEmail,
     phone: guestPhone,
-    status: 'pending_payment',
+    status,
+    paymentMethod: paymentMethod || (autoConfirm ? 'instant' : ''),
     createdAt: new Date().toISOString(),
   };
 
   if (dbReady) {
     await query(
-      `INSERT INTO bc_event_bookings (booking_ref, event_profile_id, event_name, venue_name, location, banner_image, ticket_id, ticket_name, quantity, unit_amount, total_amount, currency, guest_name, guest_email, guest_phone, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'pending_payment')`,
-      [bookingRef, eventId, record.eventName, record.venueName, record.location, record.bannerImage, ticketId, record.ticketName, quantity, unitAmount, record.total, currency, guestName, guestEmail, guestPhone]
+      `INSERT INTO bc_event_bookings (booking_ref, event_profile_id, event_name, venue_name, location, banner_image, ticket_id, ticket_name, quantity, unit_amount, total_amount, currency, guest_name, guest_email, guest_phone, status, ticket_no, payment_method)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+      [bookingRef, eventId, record.eventName, record.venueName, record.location, record.bannerImage, ticketId, record.ticketName, quantity, unitAmount, record.total, currency, guestName, guestEmail, guestPhone, status, ticketNo, record.paymentMethod]
     );
   } else {
     bookingStore().set(bookingRef, record);
