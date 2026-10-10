@@ -1785,6 +1785,412 @@ function GuidesPanel({ getToken }) {
   );
 }
 
+/* ─── Stays Panel ────────────────────────────────────────────────── */
+function StaysPanel({ getToken }) {
+  const [subTab, setSubTab] = useState('bookings'); // 'bookings' | 'hotels' | 'pms'
+  const [duffelBookings, setDuffelBookings] = useState([]);
+  const [pmsBookings, setPmsBookings] = useState([]);
+  const [hotelProfiles, setHotelProfiles] = useState([]);
+  const [hotelFilter, setHotelFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected'
+  const [loading, setLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState('');
+  const [error, setError] = useState('');
+
+  const authHeaders = () => {
+    const token = getToken ? getToken() : (localStorage.getItem('bookingcart_jwt_token') || localStorage.getItem('bookingcart_google_id_token'));
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // 1. Fetch Duffel Stays Bookings
+      const resDuffel = await fetch('/api/stays-booking', {
+        headers: getToken ? { 'Authorization': `Bearer ${getToken()}` } : {}
+      }).catch(() => null);
+      if (resDuffel && resDuffel.ok) {
+        const data = await resDuffel.json();
+        if (data.ok && Array.isArray(data.bookings)) {
+          setDuffelBookings(data.bookings);
+        }
+      }
+
+      // 2. Fetch PMS Bookings
+      const resPms = await fetch('/api/pms', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'list-bookings' })
+      }).catch(() => null);
+      if (resPms && resPms.ok) {
+        const data = await resPms.json();
+        if (data.ok && Array.isArray(data.bookings)) {
+          setPmsBookings(data.bookings);
+        }
+      }
+
+      // 3. Fetch Hotel Profiles (Owner Listings)
+      const resHotels = await fetch('/api/hotel-profiles', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'admin-list', statusFilter: hotelFilter })
+      }).catch(() => null);
+      if (resHotels && resHotels.ok) {
+        const data = await resHotels.json();
+        if (data.ok && Array.isArray(data.profiles)) {
+          setHotelProfiles(data.profiles);
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load stays data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [hotelFilter]);
+
+  const handleCancelDuffelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this Stays booking?')) return;
+    try {
+      const res = await fetch('/api/stays-booking', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'cancel', booking_id: bookingId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Booking ${bookingId} successfully cancelled.`);
+        loadData();
+      } else {
+        alert(data.error || 'Failed to cancel booking.');
+      }
+    } catch (err) {
+      alert('Network error while cancelling booking.');
+    }
+  };
+
+  const handleReviewHotel = async (profileId, newStatus, note = '') => {
+    if (!window.confirm(`Mark this hotel listing as ${newStatus}?`)) return;
+    try {
+      const res = await fetch('/api/hotel-profiles', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'admin-review', profileId, status: newStatus, note })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Hotel listing marked as ${newStatus}`);
+        loadData();
+      } else {
+        alert(data.error || 'Failed to review hotel listing.');
+      }
+    } catch (err) {
+      alert('Network error while reviewing hotel listing.');
+    }
+  };
+
+  // Calculate metrics
+  const totalBookingsCount = duffelBookings.length + pmsBookings.length;
+  const confirmedCount = duffelBookings.filter(b => b.status === 'confirmed').length + pmsBookings.filter(b => ['confirmed', 'checked_in', 'paid'].includes(b.booking_status)).length;
+  const totalRevenue = duffelBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0) + pmsBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+  const pendingHotelsCount = hotelProfiles.filter(h => h.status === 'pending').length;
+
+  return (
+    <div className="space-y-6">
+      {actionMsg && (
+        <div className="rounded-xl bg-indigo-50 border border-indigo-200 px-4 py-3 text-indigo-700 text-sm font-medium flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <i className="ph ph-check-circle text-indigo-600 text-lg" />
+            <span>{actionMsg}</span>
+          </div>
+          <button onClick={() => setActionMsg('')} className="text-indigo-400 hover:text-indigo-600">&times;</button>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-rose-700 text-sm font-medium">
+          <i className="ph ph-warning-circle mr-2" />{error}
+        </div>
+      )}
+
+      {/* Top Metrics Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Stays Bookings', value: totalBookingsCount, icon: 'ph-bed', color: 'text-indigo-600' },
+          { label: 'Confirmed Stays', value: confirmedCount, icon: 'ph-check-circle', color: 'text-emerald-600' },
+          { label: 'Total Stays Revenue', value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(totalRevenue), icon: 'ph-currency-dollar', color: 'text-amber-600' },
+          { label: 'Pending Hotel Listings', value: pendingHotelsCount, icon: 'ph-buildings', color: 'text-blue-600' },
+        ].map(({ label, value, icon, color }) => (
+          <div key={label} className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <i className={`ph ${icon} ${color} text-lg`} />
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+            </div>
+            <p className={`text-3xl font-black ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Sub-tab Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-px">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSubTab('bookings')}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${subTab === 'bookings' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+          >
+            <i className="ph ph-bed" /> Duffel Stays Bookings ({duffelBookings.length})
+          </button>
+          <button
+            onClick={() => setSubTab('hotels')}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${subTab === 'hotels' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+          >
+            <i className="ph ph-buildings" /> Hotel Partner Listings ({hotelProfiles.length})
+          </button>
+          <button
+            onClick={() => setSubTab('pms')}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${subTab === 'pms' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+          >
+            <i className="ph ph-house-line" /> Direct PMS Bookings ({pmsBookings.length})
+          </button>
+        </div>
+        <button onClick={loadData} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+          <i className="ph ph-arrows-clockwise" /> Refresh
+        </button>
+      </div>
+
+      {/* ── Sub-Tab 1: Duffel Stays Bookings ── */}
+      {subTab === 'bookings' && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">
+              <i className="ph ph-spinner-gap text-3xl animate-spin mb-2" />
+              <p className="text-sm font-medium">Loading Stays bookings…</p>
+            </div>
+          ) : duffelBookings.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              <i className="ph ph-bed text-4xl mb-2 block" />
+              <p className="text-sm font-medium">No Duffel Stays bookings found.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Ref / ID</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Accommodation</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Dates</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Guests</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Total Price</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
+                    <th className="text-right px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {duffelBookings.map(b => (
+                    <tr key={b.id || b.reference} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-indigo-600 dark:text-indigo-400 font-bold">
+                        {b.reference || b.id}
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-slate-900 dark:text-slate-100">{b.accommodation?.name || 'Hotel Accommodation'}</p>
+                        <p className="text-xs text-slate-400">{b.accommodation?.location?.city || b.email || '—'}</p>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
+                        {b.check_in_date || '—'} <i className="ph ph-arrow-right mx-1 text-slate-300" /> {b.check_out_date || '—'}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
+                        {Array.isArray(b.guests) ? `${b.guests.length} guest(s)` : (b.email || '1 guest')}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-indigo-600 dark:text-indigo-400">
+                        {b.total_amount ? `$${Number(b.total_amount).toLocaleString()}` : (b.total_currency ? `${b.total_currency} ${b.total_amount}` : '—')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                          b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
+                          b.status === 'cancelled' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                        }`}>
+                          {b.status || 'confirmed'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {b.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleCancelDuffelBooking(b.id)}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 rounded-lg text-xs font-bold transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Sub-Tab 2: Hotel Partner Listings (Onboarding Reviews) ── */}
+      {subTab === 'hotels' && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+            <div className="flex items-center gap-2">
+              <i className="ph ph-buildings text-indigo-600 text-xl" />
+              <h3 className="font-extrabold text-slate-900 dark:text-slate-100">Hotel Partner Onboarding Submissions</h3>
+            </div>
+            <div className="flex gap-2">
+              {['pending', 'approved', 'rejected', 'revision'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setHotelFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                    hotelFilter === f ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-slate-400"><i className="ph ph-spinner-gap text-3xl animate-spin" /></div>
+          ) : hotelProfiles.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              <i className="ph ph-buildings text-4xl mb-2" />
+              <p className="text-sm font-medium">No {hotelFilter} hotel listings found.</p>
+            </div>
+          ) : (
+            <div className="p-6 grid gap-6">
+              {hotelProfiles.map(p => {
+                const info = p.step_property_info || {};
+                const loc = p.step_location || {};
+                const rooms = p.step_rooms?.list || [];
+                const gallery = Array.isArray(p.step_gallery) ? p.step_gallery : [];
+                const banner = gallery[0]?.url || gallery[0];
+                return (
+                  <div key={p.id} className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 relative">
+                    <div className="flex flex-col lg:flex-row gap-6">
+                      {banner ? (
+                        <img src={banner} className="w-full lg:w-48 h-32 object-cover rounded-xl" alt="Hotel Banner" />
+                      ) : (
+                        <div className="w-full lg:w-48 h-32 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 text-xs">
+                          No Images Uploaded
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="text-xl font-black text-slate-900 dark:text-white">{info.hotelName || 'Unnamed Hotel Property'}</h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{loc.city}{loc.country ? `, ${loc.country}` : ''}</p>
+                            <p className="text-xs text-slate-400 mt-1"><span className="font-bold">Owner:</span> {info.ownerName || p.email}</p>
+                          </div>
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase ${
+                            p.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            p.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                          }`}>
+                            {p.status}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex gap-3 text-xs">
+                          <div className="bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl">
+                            <span className="text-slate-400 block mb-0.5">Room Types</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{rooms.length} Defined</span>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl">
+                            <span className="text-slate-400 block mb-0.5">Completeness</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{p.completeness || 0}%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 shrink-0">
+                        {p.status !== 'approved' && (
+                          <button onClick={() => handleReviewHotel(p.id, 'approved')} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors text-left w-full sm:w-auto">
+                            <i className="ph ph-check-circle mr-1" /> Approve Listing
+                          </button>
+                        )}
+                        {p.status !== 'rejected' && (
+                          <button onClick={() => handleReviewHotel(p.id, 'rejected')} className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl transition-colors text-left w-full sm:w-auto">
+                            <i className="ph ph-x-circle mr-1" /> Reject Listing
+                          </button>
+                        )}
+                        <a href={`mailto:${p.email}`} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 text-left w-full sm:w-auto">
+                          <i className="ph ph-envelope mr-1" /> Contact Owner
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Sub-Tab 3: Direct PMS Bookings ── */}
+      {subTab === 'pms' && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400"><i className="ph ph-spinner-gap text-3xl animate-spin mb-2" /><p className="text-sm font-medium">Loading PMS bookings…</p></div>
+          ) : pmsBookings.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              <i className="ph ph-house-line text-4xl mb-2 block" />
+              <p className="text-sm font-medium">No direct PMS bookings recorded yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Ref</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Guest</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Room / Floor</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Check In / Out</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Amount</th>
+                    <th className="text-left px-6 py-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {pmsBookings.map(b => (
+                    <tr key={b.id || b.ref} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-indigo-600 dark:text-indigo-400 font-bold">{b.ref}</td>
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-slate-900 dark:text-slate-100">{b.guest_name}</p>
+                        <p className="text-xs text-slate-400">{b.guest_email}</p>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
+                        {b.room_number ? `Room ${b.room_number} (${b.room_type || 'Standard'})` : 'Standard Room'}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-600 dark:text-slate-300">
+                        {b.check_in} <i className="ph ph-arrow-right mx-1 text-slate-300" /> {b.check_out}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-emerald-600">
+                        ${Number(b.total_amount || 0).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-block px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 capitalize">
+                          {b.booking_status || 'confirmed'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   useEffect(() => { document.title = 'BookingCart — Admin'; }, []);
   useLegacyScripts(SCRIPTS, 'admin');
@@ -2026,6 +2432,11 @@ export default function AdminPage() {
                     ${adminTab === 'bookings' ? 'bg-slate-900 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-airplane" /> Bookings
                 </button>
+                <button onClick={() => setAdminTab('stays')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'stays' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-bed" /> Stays & Hotels
+                </button>
                 <button onClick={() => setAdminTab('support')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
                     ${adminTab === 'support' ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
@@ -2058,6 +2469,7 @@ export default function AdminPage() {
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
+              {adminTab === 'stays' && <StaysPanel getToken={getToken} />}
               {adminTab === 'aviation' && <PrivateJetsPanel getToken={getToken} />}
               {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'guides' && <GuidesPanel getToken={getToken} />}
