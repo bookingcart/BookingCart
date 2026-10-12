@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -92,6 +92,49 @@ export default function StaysDetailsPage() {
   // Rate conditions and cancellation timeline from the rates API
   const [rateConditions, setRateConditions] = useState('');
   const [ratesCancellationTimeline, setRatesCancellationTimeline] = useState(null);
+  const [availableRates, setAvailableRates] = useState([]);
+  const [selectedVisualRoom, setSelectedVisualRoom] = useState(null);
+  const [roomSessionId, setRoomSessionId] = useState(null);
+
+  // Dates and calculated nights
+  const checkIn = searchParams.get('stays-checkin') || searchParams.get('checkin') || searchParams.get('check_in') || new Date().toISOString().split('T')[0];
+  const checkOut = searchParams.get('stays-checkout') || searchParams.get('checkout') || searchParams.get('check_out') || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const nights = useMemo(() => {
+    try {
+      const d1 = new Date(checkIn);
+      const d2 = new Date(checkOut);
+      const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+      return Math.max(1, isNaN(diff) ? 1 : diff);
+    } catch {
+      return 1;
+    }
+  }, [checkIn, checkOut]);
+
+  // Derived price display reflecting room selection immediately
+  const displayedPrice = useMemo(() => {
+    const currency = hotel?.cheapest_rate_currency || '$';
+    if (selectedVisualRoom) {
+      const nightly = Number(selectedVisualRoom.base_price) || 0;
+      const total = nightly * nights;
+      return {
+        nightly,
+        total,
+        currency,
+        isRoomSelected: true,
+        roomNumber: selectedVisualRoom.room_number,
+        roomType: selectedVisualRoom.room_type || 'Selected Room',
+      };
+    }
+    const cheapest = Number(hotel?.cheapest_rate_total_amount) || 0;
+    return {
+      nightly: cheapest,
+      total: cheapest * nights,
+      currency,
+      isRoomSelected: false,
+      roomNumber: null,
+      roomType: null,
+    };
+  }, [selectedVisualRoom, hotel, nights]);
 
   const DUMMY_ACCOMMODATIONS = {
     h1: { name: 'Kimpton Clocktower Hotel', description: 'An iconic 5-star hotel in the heart of Manchester, blending historic architecture with modern luxury. Enjoy stunning city views, a world-class spa, and award-winning dining.', address: { line_one: 'Oxford Street', city: 'Manchester', country_code: 'GB' }, star_rating: 5, rating: 8.8, review_count: 5032, photos: [{ url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80' }], amenities: [{name:'Free WiFi'},{name:'Pool'},{name:'Spa'},{name:'Restaurant'},{name:'Bar'},{name:'Gym'},{name:'Parking'},{name:'Breakfast'}], check_in_information: { check_in_after_time: '3:00 PM', check_out_before_time: '11:00 AM' }, cheapest_rate_total_amount: '154', cheapest_rate_currency: '$', location: { latitude: 53.4745, longitude: -2.2415 } },
@@ -142,13 +185,14 @@ export default function StaysDetailsPage() {
       .finally(() => setLoading(false));
 
     // Also fetch rates so we can display real rate conditions + cancellation timeline
-    const searchResultId = searchParams.get('search_result_id');
+    const searchResultId = searchParams.get('search_result_id') || accommodationId;
     if (searchResultId) {
       fetch(`/api/stays-rates?search_result_id=${encodeURIComponent(searchResultId)}`)
         .then(r => r.json())
         .then(data => {
           const allRates = data.rates || [];
           if (!allRates.length) return;
+          setAvailableRates(allRates);
           // Prefer a refundable rate with cancellation_timeline
           const refundableRate = allRates.find(r =>
             r.cancellation_timeline?.cancel_by ||
@@ -182,8 +226,6 @@ export default function StaysDetailsPage() {
       .finally(() => setReviewsLoading(false));
   }, [accommodationId]);
 
-  const [selectedVisualRoom, setSelectedVisualRoom] = useState(null);
-
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
   useEffect(() => {
@@ -193,57 +235,124 @@ export default function StaysDetailsPage() {
 
   const handleBook = async (overrideRoom = null) => {
     const activeRoom = overrideRoom || selectedVisualRoom;
-    const existingQuoteId = searchParams.get('quote_id');
-    const searchResultId = searchParams.get('search_result_id');
-    const roomQs = activeRoom ? `&room_id=${encodeURIComponent(activeRoom.id)}&room_number=${encodeURIComponent(activeRoom.room_number)}` : '';
-    
-    if (existingQuoteId && existingQuoteId !== 'quo_pending') {
-      navigate(`/stays/checkout?quote_id=${existingQuoteId}&accommodation_id=${accommodationId}${roomQs}`);
-      return;
+    const searchResultId = searchParams.get('search_result_id') || accommodationId;
+    const nightlyPrice = activeRoom
+      ? (Number(activeRoom.base_price) || 0)
+      : (Number(hotel?.cheapest_rate_total_amount) || 0);
+    const totalPrice = nightlyPrice * nights;
+    const qsParts = [];
+    if (activeRoom?.id && String(activeRoom.id) !== 'undefined') {
+      qsParts.push(`room_id=${encodeURIComponent(activeRoom.id)}`);
     }
-
-    if (!searchResultId) {
-      // fallback if user visited directly without search params
-      navigate(`/stays/checkout?quote_id=quo_pending&accommodation_id=${accommodationId}${roomQs}`);
-      return;
+    if (activeRoom?.room_number && String(activeRoom.room_number) !== 'undefined') {
+      qsParts.push(`room_number=${encodeURIComponent(activeRoom.room_number)}`);
     }
+    if (activeRoom?.room_type && String(activeRoom.room_type) !== 'undefined') {
+      qsParts.push(`room_type=${encodeURIComponent(activeRoom.room_type)}`);
+    }
+    if (nightlyPrice > 0) {
+      qsParts.push(`room_price=${encodeURIComponent(nightlyPrice)}`);
+    }
+    if (totalPrice > 0) {
+      qsParts.push(`total_price=${encodeURIComponent(totalPrice)}`);
+    }
+    if (nights > 0) {
+      qsParts.push(`nights=${encodeURIComponent(nights)}`);
+    }
+    const roomQs = qsParts.length ? `&${qsParts.join('&')}` : '';
 
     try {
       setBookingLoading(true);
       // 1. Get rates for search result
-      const ratesRes = await fetch(`/api/stays-rates?search_result_id=${encodeURIComponent(searchResultId)}`);
-      const ratesData = await ratesRes.json();
-      const allRates = ratesData.rates || [];
+      let rates = availableRates;
+      if (!rates.length && searchResultId) {
+        try {
+          const ratesRes = await fetch(`/api/stays-rates?search_result_id=${encodeURIComponent(searchResultId)}`);
+          const ratesData = await ratesRes.json();
+          rates = ratesData.rates || [];
+        } catch (e) {
+          console.warn('Booking rates fetch warning:', e);
+        }
+      }
 
-      if (!allRates.length) throw new Error('No rates found');
+      // Match rate against activeRoom
+      let selectedRate = null;
+      if (activeRoom && rates.length > 0) {
+        selectedRate = rates.find(r =>
+          (activeRoom.room_type && r.room_name && r.room_name.trim().toLowerCase() === activeRoom.room_type.trim().toLowerCase()) ||
+          String(r.id).endsWith(`_${activeRoom.id}`) ||
+          Math.abs(Number(r.base_amount || r.total_amount) - nightlyPrice) < 0.01
+        );
+      }
+      if (!selectedRate && rates.length > 0) {
+        const refundableRate = rates.find(r =>
+          r.cancellation_timeline?.cancel_by ||
+          r.refundable === true ||
+          (r.conditions && r.conditions.toLowerCase().includes('refund'))
+        );
+        selectedRate = refundableRate || rates[0];
+      }
 
-      // Prefer a refundable rate (has cancellation_timeline with a cancel_by date)
-      const refundableRate = allRates.find(r =>
-        r.cancellation_timeline?.cancel_by ||
-        r.refundable === true ||
-        (r.conditions && r.conditions.toLowerCase().includes('refund'))
-      );
-      const selectedRate = refundableRate || allRates[0];
+      if (selectedRate) {
+        selectedRate = {
+          ...selectedRate,
+          base_amount: String(nightlyPrice),
+          total_amount: String(totalPrice),
+          room_name: activeRoom?.room_type || selectedRate.room_name || 'Standard Room',
+        };
+      } else {
+        selectedRate = {
+          id: `rate_local_${hotelProfileId}_${activeRoom?.id || 'sel'}`,
+          base_amount: String(nightlyPrice),
+          total_amount: String(totalPrice),
+          currency: hotel?.cheapest_rate_currency || '$',
+          room_name: activeRoom?.room_type || 'Standard Room',
+          conditions: rateConditions || 'Free cancellation up to 48 hours before check-in',
+          refundable: true,
+        };
+      }
 
-      // Store selected rate data so checkout page can show tax/fee/conditions/cancellation
+      // Store selected rate data so checkout page can show accurate price, tax/fee, conditions
       sessionStorage.setItem('stays_selected_rate', JSON.stringify(selectedRate));
+
+      // Also store updated hotel summary
+      const currentStoredHotel = (() => {
+        try { return JSON.parse(sessionStorage.getItem('stays_selected_hotel') || '{}'); } catch { return {}; }
+      })();
+      sessionStorage.setItem('stays_selected_hotel', JSON.stringify({
+        ...currentStoredHotel,
+        id: accommodationId,
+        name: hotel?.name || currentStoredHotel?.name,
+        price: String(totalPrice),
+        nightly_price: String(nightlyPrice),
+        currency: hotel?.cheapest_rate_currency || '$',
+        checkin: checkIn,
+        checkout: checkOut,
+        nights: nights,
+        image: hotel?.photos?.[0]?.url || hotel?.photos?.[0] || currentStoredHotel?.image,
+        address: [hotel?.address?.line_one, hotel?.address?.city, hotel?.address?.city_name, hotel?.address?.country_code].filter(Boolean).join(', ') || hotel?.address || currentStoredHotel?.address || '',
+        room_name: activeRoom?.room_type || 'Standard Room',
+        room_number: activeRoom?.room_number || null,
+      }));
 
       // 2. Create quote
       const quoteRes = await fetch('/api/stays-quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rate_id: selectedRate.id })
+        body: JSON.stringify({
+          rate_id: selectedRate.id,
+          nights: nights
+        })
       });
       const quoteData = await quoteRes.json();
-      
+
       if (quoteData.ok && quoteData.quote?.id) {
         navigate(`/stays/checkout?quote_id=${quoteData.quote.id}&accommodation_id=${accommodationId}${roomQs}`);
       } else {
-        throw new Error('Failed to create quote');
+        navigate(`/stays/checkout?quote_id=quo_${selectedRate.id}_n${nights}&accommodation_id=${accommodationId}${roomQs}`);
       }
     } catch (err) {
       console.error('Booking quote error:', err);
-      // fallback
       navigate(`/stays/checkout?quote_id=quo_pending&accommodation_id=${accommodationId}${roomQs}`);
     } finally {
       setBookingLoading(false);
@@ -297,18 +406,35 @@ export default function StaysDetailsPage() {
           <div className="flex items-center gap-4">
             {hotel && (
               <div className="text-right hidden sm:block">
-                <div className="text-lg font-black text-slate-900 dark:text-white">
-                  {hotel.cheapest_rate_total_amount
-                    ? `${hotel.cheapest_rate_currency || '$'}${hotel.cheapest_rate_total_amount}`
-                    : 'View rates'}
+                <div className="text-lg font-black text-slate-900 dark:text-white flex items-baseline justify-end gap-1.5">
+                  <span>{displayedPrice.currency}{displayedPrice.total.toFixed(0)}</span>
+                  {nights > 1 && (
+                    <span className="text-xs font-normal text-slate-500">
+                      ({displayedPrice.currency}{displayedPrice.nightly.toFixed(0)}/nt)
+                    </span>
+                  )}
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  {rating ? `${Number(rating).toFixed(1)}` : ''}{rating && reviewCount > 0 ? ` · ` : ''}{reviewCount > 0 ? `${reviewCount} reviews` : rating ? '' : 'View rates'}
+                  {displayedPrice.isRoomSelected ? (
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      Room {selectedVisualRoom.room_number} · {nights} {nights === 1 ? 'night' : 'nights'}
+                    </span>
+                  ) : (
+                    <span>
+                      {nights} {nights === 1 ? 'night' : 'nights'}
+                      {rating ? ` · ${Number(rating).toFixed(1)}` : ''}
+                      {reviewCount > 0 ? ` (${reviewCount} reviews)` : ''}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
-            <button disabled={bookingLoading} onClick={handleBook} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition-colors disabled:opacity-70">
-              {bookingLoading ? 'Reserving...' : 'Reserve'}
+            <button
+              disabled={bookingLoading}
+              onClick={() => handleBook(selectedVisualRoom)}
+              className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition-colors disabled:opacity-70 whitespace-nowrap"
+            >
+              {bookingLoading ? 'Reserving...' : displayedPrice.isRoomSelected ? `Reserve Room ${selectedVisualRoom.room_number}` : 'Reserve'}
             </button>
           </div>
         </div>
@@ -436,14 +562,18 @@ export default function StaysDetailsPage() {
             <section id="pick-room" className="mb-12 scroll-mt-20">
               <InteractiveRoomMap
                 hotelId={hotelProfileId}
-                checkIn={searchParams.get('stays-checkin') || searchParams.get('checkin') || searchParams.get('check_in') || new Date().toISOString().split('T')[0]}
-                checkOut={searchParams.get('stays-checkout') || searchParams.get('checkout') || searchParams.get('check_out') || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                checkIn={checkIn}
+                checkOut={checkOut}
                 guests={Number(searchParams.get('guests')) || 2}
                 currency={hotel?.cheapest_rate_currency || '$'}
                 selectedRoom={selectedVisualRoom}
-                onRoomSelect={(room, sid) => {
+                onRoomSelect={(room, sid, expiresAt, shouldProceed) => {
                   setSelectedVisualRoom(room);
                   if (sid) setRoomSessionId(sid);
+                  // When user clicks "Confirm Selection" in the sticky bottom bar
+                  if (shouldProceed && room) {
+                    handleBook(room);
+                  }
                 }}
               />
             </section>
@@ -454,6 +584,21 @@ export default function StaysDetailsPage() {
             <section id="prices" className="mb-12">
               <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Book Your Stay at {hotel.name}</h2>
               <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                {/* Room selection banner */}
+                {displayedPrice.isRoomSelected && (
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-700 px-6 py-3 flex items-center gap-2">
+                    <i className="ph-fill ph-check-circle text-emerald-600 dark:text-emerald-400 text-lg" />
+                    <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                      Room {displayedPrice.roomNumber} — {displayedPrice.roomType} selected
+                    </span>
+                    <button
+                      onClick={() => setSelectedVisualRoom(null)}
+                      className="ml-auto text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                    >
+                      Change room
+                    </button>
+                  </div>
+                )}
                 <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div>
                     <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">{hotel.name}</h3>
@@ -462,21 +607,29 @@ export default function StaysDetailsPage() {
                         Check-in: {hotel.check_in_information.check_in_after_time || '3:00 PM'} · Check-out: {hotel.check_in_information.check_out_before_time || '12:00 PM'}
                       </div>
                     )}
-                    <div className="text-xs text-slate-500 mt-1">Best available rate</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {displayedPrice.isRoomSelected ? `${displayedPrice.roomType} · ${nights} ${nights === 1 ? 'night' : 'nights'}` : 'Best available rate'}
+                    </div>
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      {hotel.cheapest_rate_total_amount ? (
-                        <>
-                          <div className="text-2xl font-black text-slate-900 dark:text-white">{hotel.cheapest_rate_currency || '$'}{hotel.cheapest_rate_total_amount}</div>
-                          <div className="text-[10px] text-slate-500">Total before taxes</div>
-                        </>
-                      ) : (
-                        <div className="text-base font-semibold text-slate-500">Check availability</div>
-                      )}
+                      <div className="text-2xl font-black text-slate-900 dark:text-white">
+                        {displayedPrice.currency}{displayedPrice.total.toFixed(0)}
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        {displayedPrice.currency}{displayedPrice.nightly.toFixed(0)}/night · {nights} {nights === 1 ? 'night' : 'nights'} total
+                      </div>
                     </div>
-                    <button disabled={bookingLoading} onClick={handleBook} className="px-6 py-3 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition-colors shadow-sm disabled:opacity-70">
-                      {bookingLoading ? 'Reserving...' : 'Reserve your stay'}
+                    <button
+                      disabled={bookingLoading}
+                      onClick={() => handleBook(selectedVisualRoom)}
+                      className="px-6 py-3 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition-colors shadow-sm disabled:opacity-70 whitespace-nowrap"
+                    >
+                      {bookingLoading
+                        ? 'Reserving...'
+                        : displayedPrice.isRoomSelected
+                          ? `Reserve Room ${displayedPrice.roomNumber}`
+                          : 'Reserve your stay'}
                     </button>
                   </div>
                 </div>

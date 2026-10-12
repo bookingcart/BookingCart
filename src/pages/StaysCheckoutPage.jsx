@@ -9,7 +9,7 @@ export default function StaysCheckoutPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const quoteId = searchParams.get('quote_id') || 'quo_dummy_12345';
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [firstName, setFirstName] = useState('Cart');
   const [lastName, setLastName] = useState('Booking');
@@ -27,6 +27,25 @@ export default function StaysCheckoutPage() {
   const [travelWork, setTravelWork] = useState(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    if (user) {
+      if (user.name) {
+        const parts = String(user.name).trim().split(/\s+/);
+        if (parts.length > 1) {
+          setFirstName(parts.slice(0, -1).join(' '));
+          setLastName(parts[parts.length - 1]);
+        } else {
+          setFirstName(user.name);
+        }
+      } else {
+        if (user.given_name) setFirstName(user.given_name);
+        if (user.family_name) setLastName(user.family_name);
+      }
+      if (user.email) setEmail(user.email);
+      if (user.phone) setPhone(user.phone);
+    }
+  }, [user]);
 
   // Duffel card payment state
   const [clientKey, setClientKey] = useState(null);
@@ -95,6 +114,15 @@ export default function StaysCheckoutPage() {
     try { return JSON.parse(sessionStorage.getItem('stays_selected_rate') || 'null'); } catch { return null; }
   })();
 
+  // Pull room/price data from URL params (passed by StaysDetailsPage)
+  const rawRoomNumber = searchParams.get('room_number');
+  const urlRoomNumber = (rawRoomNumber && rawRoomNumber !== 'undefined' && rawRoomNumber !== 'null') ? rawRoomNumber : (selectedHotel?.room_number || null);
+  const rawRoomType   = searchParams.get('room_type');
+  const urlRoomType   = (rawRoomType && rawRoomType !== 'undefined' && rawRoomType !== 'null') ? rawRoomType : (selectedHotel?.room_name || null);
+  const urlRoomPrice  = Number(searchParams.get('room_price'))  || Number(selectedRate?.base_amount) || null;
+  const urlTotalPrice = Number(searchParams.get('total_price')) || Number(selectedRate?.total_amount) || null;
+  const urlNights     = Number(searchParams.get('nights'))      || selectedHotel?.nights || 1;
+
   // Build a display quote from sessionStorage hotel + rate data so the sidebar always shows correct hotel
   const buildQuoteFromHotel = (hotel) => {
     if (!hotel) return null;
@@ -107,12 +135,15 @@ export default function StaysCheckoutPage() {
     const dueAtCurrency = rate.due_at_accommodation_currency || hotel.currency || 'USD';
     const conditions = rate.conditions || rate.conditions_text || '';
     const cancellationTimeline = rate.cancellation_timeline || null;
+    // Use exact price from URL params if available, then sessionStorage hotel.price, then rate total
+    const totalAmount = urlTotalPrice || Number(hotel.price) || Number(rate.total_amount) || 0;
+    const roomName = urlRoomType || rate.room_name || acc.rooms?.[0]?.name || 'Standard Room';
     return {
       id: quoteId,
-      total_amount: hotel.price ? String(Number(hotel.price)) : '0',
+      total_amount: String(totalAmount),
       tax_amount: taxAmount,
       fee_amount: feeAmount,
-      currency: hotel.currency || 'USD',
+      currency: hotel.currency || selectedRate?.currency || 'USD',
       check_in_date: hotel.checkin,
       check_out_date: hotel.checkout,
       cancellation_timeline: cancellationTimeline,
@@ -126,7 +157,7 @@ export default function StaysCheckoutPage() {
         key_collection: acc.key_collection,
         check_in_information: acc.check_in_information,
       },
-      rooms: [{ name: acc.rooms?.[0]?.name || 'Standard Room', rates: [{ due_at_accommodation_amount: dueAtAccommodation, due_at_accommodation_currency: dueAtCurrency, conditions }] }],
+      rooms: [{ name: roomName, rates: [{ due_at_accommodation_amount: dueAtAccommodation, due_at_accommodation_currency: dueAtCurrency, conditions }] }],
       guests: [{ type: 'adult' }],
     };
   };
@@ -153,8 +184,12 @@ export default function StaysCheckoutPage() {
             // missing tax/fee/conditions/cancellation from the stored rate when the API
             // doesn't break them out separately.
             const rate = selectedRate || {};
+            // Override total_amount with the exact price from URL params if available
+            const exactTotal = urlTotalPrice || Number(data.quote.total_amount) || 0;
+            const roomName = urlRoomType || rate.room_name || data.quote.room_name || data.quote.rooms?.[0]?.name || 'Standard Room';
             const mergedQuote = {
               ...data.quote,
+              total_amount: String(exactTotal),
               // Fill nullish tax/fee from rate object
               tax_amount: data.quote.tax_amount ?? rate.tax_amount ?? null,
               fee_amount: data.quote.fee_amount ?? rate.fee_amount ?? null,
@@ -162,6 +197,7 @@ export default function StaysCheckoutPage() {
               rooms: data.quote.rooms?.length
                 ? data.quote.rooms.map((room, ri) => ({
                     ...room,
+                    name: ri === 0 ? roomName : room.name,
                     rates: room.rates?.length
                       ? room.rates.map((rr, rri) => ({
                           ...rr,
@@ -170,7 +206,7 @@ export default function StaysCheckoutPage() {
                         }))
                       : [{ conditions: rate.conditions || '', due_at_accommodation_amount: rate.due_at_accommodation_amount ?? null, due_at_accommodation_currency: rate.due_at_accommodation_currency || data.quote.currency }]
                   }))
-                : [{ name: 'Standard Room', rates: [{ conditions: rate.conditions || '', due_at_accommodation_amount: rate.due_at_accommodation_amount ?? null, due_at_accommodation_currency: rate.due_at_accommodation_currency || data.quote.currency }] }],
+                : [{ name: roomName, rates: [{ conditions: rate.conditions || '', due_at_accommodation_amount: rate.due_at_accommodation_amount ?? null, due_at_accommodation_currency: rate.due_at_accommodation_currency || data.quote.currency }] }],
             };
             setQuote(mergedQuote);
             if (data.quote.payment_instruction_allowed) {
@@ -197,6 +233,7 @@ export default function StaysCheckoutPage() {
   }, [quoteId]);
 
   const calculateNights = (inDate, outDate) => {
+    if (urlNights && urlNights > 1) return urlNights;
     try {
       const start = new Date(inDate);
       const end = new Date(outDate);
@@ -216,6 +253,17 @@ export default function StaysCheckoutPage() {
   // Determine if this is a pay-at-property rate (no upfront card payment needed)
   const dueAtAccAmount = quote?.rooms?.[0]?.rates?.[0]?.due_at_accommodation_amount;
   const isPayAtProperty = dueAtAccAmount != null && Number(dueAtAccAmount) > 0;
+  // Local/demo quote IDs never go through Duffel card payment
+  const isLocalQuote = String(quoteId).includes('local') ||
+    String(quoteId).includes('pending') ||
+    String(quoteId).startsWith('quo_dummy');
+
+  // Skip card tokenisation when:
+  //   a) this is a B2B payment_instruction (lodged card) flow, OR
+  //   b) this is a pay-at-property rate (guest pays on arrival), OR
+  //   c) this is a local platform quote (handled directly), OR
+  //   d) clientKey hasn't loaded yet
+  const needsCardPayment = !paymentInstructionAllowed && !isPayAtProperty && !isLocalQuote && Boolean(clientKey);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -234,7 +282,13 @@ export default function StaysCheckoutPage() {
         quote_id: quoteId,
         guests: [{ given_name: firstName, family_name: lastName }],
         email,
-        phone_number: `${phoneCode}${phone}`
+        phone_number: `${phoneCode}${phone}`,
+        accommodation: quote?.accommodation,
+        check_in_date: quote?.check_in_date,
+        check_out_date: quote?.check_out_date,
+        total_amount: String(finalPrice),
+        currency: quote?.currency || 'USD',
+        rooms: quote?.rooms,
       };
       sessionStorage.setItem('stays_booking_data', JSON.stringify(bookingData));
 
@@ -243,12 +297,6 @@ export default function StaysCheckoutPage() {
       if (quote) {
         sessionStorage.setItem('stays_checkout_quote', JSON.stringify(quote));
       }
-
-      // Skip card tokenisation when:
-      //   a) this is a B2B payment_instruction (lodged card) flow, OR
-      //   b) this is a pay-at-property rate (guest pays on arrival), OR
-      //   c) clientKey hasn't loaded yet (avoids blocking the flow)
-      const needsCardPayment = !paymentInstructionAllowed && !isPayAtProperty && clientKey;
 
       if (needsCardPayment) {
         setProcessingMessage('Tokenizing card...');
@@ -278,8 +326,7 @@ export default function StaysCheckoutPage() {
           three_d_secure_session_id: session.id
         };
       } else {
-        // Pay-at-property / payment_instruction / no clientKey yet —
-        // the API or property will handle payment; proceed directly.
+        // Pay-at-property / local quote / payment_instruction
         setProcessingMessage('Confirming your stay...');
       }
 
@@ -298,6 +345,12 @@ export default function StaysCheckoutPage() {
       // Merge quote display data into the booking result for the confirmation page
       const enrichedBooking = {
         ...bookingJson.booking,
+        accommodation: bookingJson.booking?.accommodation || quote?.accommodation,
+        check_in_date: bookingJson.booking?.check_in_date || quote?.check_in_date,
+        check_out_date: bookingJson.booking?.check_out_date || quote?.check_out_date,
+        total_amount: bookingJson.booking?.total_amount || quote?.total_amount || String(finalPrice),
+        currency: bookingJson.booking?.currency || quote?.currency || 'USD',
+        rooms: bookingJson.booking?.rooms || quote?.rooms,
         // Attach quote-level display fields if missing from booking response
         _checkoutQuote: quote || null,
       };
@@ -319,7 +372,7 @@ export default function StaysCheckoutPage() {
         setPaymentInstructionLoading(false);
       }
 
-      window.location.href = `/stays/confirmation?quote_id=${quoteId}&direct=1`;
+      window.location.href = `/stays/confirmation?quote_id=${encodeURIComponent(quoteId)}&direct=1`;
     } catch (err) {
       alert(err.message);
       setProcessingMessage('');
@@ -362,12 +415,19 @@ export default function StaysCheckoutPage() {
                 <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
                   <img src={quote.accommodation?.photos?.[0]?.url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80'} alt={quote.accommodation?.name} className="w-full h-44 object-cover" />
                   <div className="p-4">
-                    {searchParams.get('room_number') && (
-                      <div className="mb-3 p-3 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl border border-blue-500/40 shadow-sm flex items-center gap-2.5">
-                        <i className="ph-fill ph-check-circle text-emerald-400 text-xl" />
+                    {urlRoomNumber && (
+                      <div className="mb-3 p-3 bg-gradient-to-r from-emerald-700 to-green-700 text-white rounded-xl border border-emerald-500/40 shadow-sm flex items-center gap-2.5">
+                        <i className="ph-fill ph-check-circle text-white text-xl" />
                         <div>
-                          <div className="text-[9px] uppercase tracking-wider font-black text-blue-300">Seat-Style Selection</div>
-                          <div className="text-xs font-black text-white">Room {searchParams.get('room_number')} Held</div>
+                          <div className="text-[9px] uppercase tracking-wider font-black text-emerald-200">Room Selected</div>
+                          <div className="text-xs font-black text-white">
+                            Room {urlRoomNumber}{urlRoomType ? ` — ${urlRoomType}` : ''}
+                          </div>
+                          {urlRoomPrice && (
+                            <div className="text-[10px] text-emerald-200 font-medium">
+                              {quote.currency || '$'}{urlRoomPrice.toFixed(0)}/night
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -412,8 +472,13 @@ export default function StaysCheckoutPage() {
                   </div>
                   <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
                     <div className="text-[10px] font-bold text-slate-500 uppercase mb-1">You selected</div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">{calculateNights(quote.check_in_date, quote.check_out_date)} nights, {quote.rooms?.length || 1} room(s) for {quote.guests?.length || 1} guest(s)</div>
-                    <div className="text-xs text-slate-500 mt-1">{quote.rooms?.[0]?.name || 'Standard Room'}</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">
+                      {calculateNights(quote.check_in_date, quote.check_out_date)} night{calculateNights(quote.check_in_date, quote.check_out_date) !== 1 ? 's' : ''}, {quote.rooms?.length || 1} room(s) for {quote.guests?.length || 1} guest(s)
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1 font-medium">
+                      {quote.rooms?.[0]?.name || urlRoomType || 'Standard Room'}
+                      {urlRoomPrice ? ` · ${quote.currency || '$'}${urlRoomPrice.toFixed(0)}/night` : ''}
+                    </div>
                   </div>
                 </div>
 
@@ -751,6 +816,22 @@ export default function StaysCheckoutPage() {
                       The card must be a lodged card (multi_use: true) via the Duffel Cards API.
                     </p>
                   </div>
+                ) : !needsCardPayment ? (
+                  <div className="border-t border-slate-100 dark:border-slate-700 pt-6 mb-6">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-start gap-3">
+                      <i className="ph-fill ph-shield-check text-emerald-600 dark:text-emerald-400 text-2xl shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                          {isPayAtProperty ? 'Pay at property' : 'Guaranteed Reservation'}
+                        </h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                          {isPayAtProperty
+                            ? 'No upfront payment is required today. You will pay the property directly during check-in.'
+                            : 'No upfront card payment required. Your reservation is confirmed immediately and secured in the hotel system.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="border-t border-slate-100 dark:border-slate-700 pt-6 mb-6">
                     <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
@@ -821,7 +902,7 @@ export default function StaysCheckoutPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || (!paymentInstructionAllowed && clientKey !== null && !cardValid)}
+                    disabled={loading || (needsCardPayment && !cardValid)}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold px-8 py-3 rounded transition-colors text-sm"
                   >
                     {loading ? 'Processing...' : 'Complete Booking'}

@@ -137,6 +137,14 @@ module.exports = async (req, res) => {
         const mainGuest = (guests && guests[0]) || {};
         const guestName = `${mainGuest.given_name || 'Guest'} ${mainGuest.family_name || ''}`.trim();
         const bookingId = `bcs_${Date.now()}`;
+        const totalAmount = payment?.amount || req.body.total_amount || 0;
+        const checkIn = req.body.check_in_date || new Date().toISOString().split('T')[0];
+        const checkOut = req.body.check_out_date || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        const accommodation = req.body.accommodation || { name: 'Hotel' };
+        const currency = req.body.currency || 'USD';
+        const rooms = req.body.rooms || [];
+        const hotelProfileId = req.body.hotel_profile_id || 1;
+        const roomId = req.body.room_id || 1;
 
         // Attempt to insert into bc_pms_bookings if DB is ready
         try {
@@ -145,11 +153,11 @@ module.exports = async (req, res) => {
               INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, source)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed', 'paid', $10, 'bookingcart_web')
             `, [
-              ref, 1, 1, guestName, email, phone_number,
-              new Date().toISOString().split('T')[0],
-              new Date(Date.now() + 86400000).toISOString().split('T')[0],
+              ref, hotelProfileId, roomId, guestName, email, phone_number,
+              checkIn,
+              checkOut,
               guests.length || 1,
-              payment?.amount || 0
+              totalAmount
             ]).catch(e => console.warn('[Stays PMS booking insert notice]:', e.message));
           }
         } catch {}
@@ -163,6 +171,12 @@ module.exports = async (req, res) => {
             email,
             phone_number,
             guests,
+            accommodation,
+            check_in_date: checkIn,
+            check_out_date: checkOut,
+            total_amount: String(totalAmount),
+            currency,
+            rooms,
             created_at: new Date().toISOString()
           }
         });

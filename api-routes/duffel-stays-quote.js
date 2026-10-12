@@ -20,7 +20,18 @@ module.exports = async (req, res) => {
 
       if (String(quote_id).startsWith('quo_rate_local_') || String(quote_id).startsWith('quo_local_')) {
         const parts = String(quote_id).split('_');
-        const profileId = parts[3] || parts[2] || 1;
+        const isRateLocal = String(quote_id).startsWith('quo_rate_local_');
+        const profileId = isRateLocal ? (parts[3] || 1) : (parts[2] || 1);
+        let roomIdentifier = isRateLocal ? parts.slice(4).join('_') : parts.slice(3).join('_');
+        let nightsCount = Math.max(1, Number(req.query?.nights) || 1);
+
+        // If quote_id ends with _n<number>, extract nights
+        const nightsMatch = roomIdentifier.match(/_n(\d+)$/);
+        if (nightsMatch) {
+          nightsCount = Math.max(1, parseInt(nightsMatch[1], 10));
+          roomIdentifier = roomIdentifier.replace(/_n\d+$/, '');
+        }
+
         let profile = null;
         try {
           if (isDbConfigured()) {
@@ -38,18 +49,28 @@ module.exports = async (req, res) => {
         const loc = profile?.step_location || {};
         const rooms = profile?.step_rooms?.list || [];
         const policies = profile?.step_policies || {};
-        const price = rooms[0]?.pricePerNight || 35;
+
+        const matchedRoom = rooms.find((r, i) =>
+          String(r.id) === String(roomIdentifier) ||
+          String(i) === String(roomIdentifier) ||
+          String(r.name).trim().toLowerCase() === String(roomIdentifier).trim().toLowerCase()
+        );
+        const chosenRoom = matchedRoom || rooms[0] || {};
+        const nightlyPrice = Number(chosenRoom.pricePerNight) || 35;
+        const totalAmount = nightlyPrice * nightsCount;
 
         return res.json({
           ok: true,
           quote: {
             id: quote_id,
-            total_amount: String(price),
+            total_amount: String(totalAmount),
+            base_amount: String(nightlyPrice),
+            nights: nightsCount,
             tax_amount: '0.00',
             fee_amount: '0.00',
-            currency: rooms[0]?.currency || 'USD',
+            currency: chosenRoom.currency || 'USD',
             check_in_date: new Date().toISOString().split('T')[0],
-            check_out_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            check_out_date: new Date(Date.now() + nightsCount * 86400000).toISOString().split('T')[0],
             accommodation: {
               name: prop.hotelName || 'Listed Hotel',
               rating: parseFloat(prop.starRating) || 4,
@@ -64,10 +85,10 @@ module.exports = async (req, res) => {
               photos: [{ url: profile?.step_gallery?.[0]?.url || profile?.step_gallery?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80' }]
             },
             rooms: [{
-              name: rooms[0]?.name || 'Standard Room',
+              name: chosenRoom.name || 'Standard Room',
               rates: [{
                 due_at_accommodation_amount: '0.00',
-                due_at_accommodation_currency: rooms[0]?.currency || 'USD',
+                due_at_accommodation_currency: chosenRoom.currency || 'USD',
                 conditions: policies.cancellationPolicy || 'Free cancellation up to 48 hours before check-in'
               }]
             }]
@@ -102,7 +123,7 @@ module.exports = async (req, res) => {
 
   // ─── POST: Create quote from rate_id ─────────────────────────────────────────
   try {
-    const { rate_id } = req.body || {};
+    const { rate_id, nights } = req.body || {};
 
     if (!rate_id) {
       return res.status(400).json({ ok: false, error: 'Missing rate_id' });
@@ -111,6 +132,8 @@ module.exports = async (req, res) => {
     if (String(rate_id).startsWith('rate_local_')) {
       const parts = String(rate_id).split('_');
       const profileId = parts[2] || 1;
+      const roomIdentifier = parts.slice(3).join('_');
+
       let profile = null;
       try {
         if (isDbConfigured()) {
@@ -120,16 +143,27 @@ module.exports = async (req, res) => {
       } catch {}
 
       const rooms = profile?.step_rooms?.list || [];
-      const price = rooms[0]?.pricePerNight || 35;
+      const matchedRoom = rooms.find((r, i) =>
+        String(r.id) === String(roomIdentifier) ||
+        String(i) === String(roomIdentifier) ||
+        String(r.name).trim().toLowerCase() === String(roomIdentifier).trim().toLowerCase()
+      );
+      const chosenRoom = matchedRoom || rooms[0] || {};
+      const nightlyPrice = Number(chosenRoom.pricePerNight) || 35;
+      const numNights = Math.max(1, Number(nights) || 1);
+      const totalAmount = nightlyPrice * numNights;
 
       return res.json({
         ok: true,
         quote: {
-          id: `quo_${rate_id}`,
-          total_amount: String(price),
+          id: `quo_${rate_id}_n${numNights}`,
+          total_amount: String(totalAmount),
+          base_amount: String(nightlyPrice),
+          nights: numNights,
           tax_amount: '0.00',
           fee_amount: '0.00',
-          currency: rooms[0]?.currency || 'USD'
+          currency: chosenRoom.currency || 'USD',
+          room_name: chosenRoom.name || 'Standard Room'
         }
       });
     }

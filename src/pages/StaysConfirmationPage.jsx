@@ -58,7 +58,7 @@ export default function StaysConfirmationPage() {
     };
 
     confirmBooking();
-  }, [sessionId]);
+  }, [sessionId, isDirect]);
 
   // Helpers
   const formatDate = (d) => {
@@ -151,9 +151,9 @@ export default function StaysConfirmationPage() {
                 <h2 className="font-bold text-lg text-slate-900 dark:text-white mb-4">Stay Details</h2>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
                   {[
-                    { label: 'Accommodation', value: booking.accommodation?.name || 'Hotel' },
-                    { label: 'Check-in',       value: formatDate(booking.check_in_date) },
-                    { label: 'Check-out',      value: formatDate(booking.check_out_date) },
+                    { label: 'Accommodation', value: booking.accommodation?.name || booking._checkoutQuote?.accommodation?.name || 'Hotel' },
+                    { label: 'Check-in',       value: formatDate(booking.check_in_date || booking._checkoutQuote?.check_in_date) },
+                    { label: 'Check-out',      value: formatDate(booking.check_out_date || booking._checkoutQuote?.check_out_date) },
                     {
                       label: 'Guest',
                       value: `${booking.guests?.[0]?.given_name || ''} ${booking.guests?.[0]?.family_name || ''}`.trim() || '—'
@@ -175,7 +175,7 @@ export default function StaysConfirmationPage() {
                   <div className="flex justify-between px-4 py-3 text-sm">
                     <span className="text-slate-500">Total Paid</span>
                     <span className="font-bold text-slate-900 dark:text-white">
-                      {booking.currency} {Number(booking.total_amount || 0).toFixed(2)}
+                      {booking.currency || booking._checkoutQuote?.currency || '$'} {Number(booking.total_amount || booking._checkoutQuote?.total_amount || 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between px-4 py-3 text-sm">

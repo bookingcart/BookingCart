@@ -211,7 +211,7 @@ export default function InteractiveRoomMap({
         });
         setSelectedRoom(null);
         setHoldTimer(0);
-        if (onRoomSelect) onRoomSelect(null);
+        if (onRoomSelect) onRoomSelect(null, sessionId, null, false);
       } else {
         const res = await fetch('/api/pms', {
           method: 'POST',
@@ -668,7 +668,7 @@ export default function InteractiveRoomMap({
 
             <button
               onClick={() => {
-                if (onRoomSelect) onRoomSelect(selectedRoom, sessionId);
+                if (onRoomSelect) onRoomSelect(selectedRoom, sessionId, null, true);
               }}
               className="px-7 py-3 bg-white hover:bg-slate-50 text-green-700 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
             >

@@ -490,25 +490,30 @@ export default function HotelDashboardPage() {
                 <div className="text-3xl font-black text-slate-900 dark:text-white">{avgRating}</div>
                 <div>
                   <StarRow rating={parseFloat(avgRating)} />
-                  <p className="text-xs text-slate-400 mt-0.5">{DEMO_REVIEWS.length} reviews</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              {DEMO_REVIEWS.map(r => (
+              {reviews.length === 0 ? (
+                <div className="text-center py-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+                  <i className="ph ph-star text-4xl text-slate-300 mb-2" />
+                  <p className="text-slate-500 font-medium">No guest reviews yet.</p>
+                  <p className="text-xs text-slate-400 mt-1">Reviews from guests who stay at your property will appear here.</p>
+                </div>
+              ) : reviews.map(r => (
                 <div key={r.id} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white">{r.guestName}</span>
-                        <span className="text-xs text-slate-400">· {r.date} · {r.room}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{r.guestName || r.reviewer_name || 'Guest'}</span>
+                        <span className="text-xs text-slate-400">· {r.date || (r.created_at ? new Date(r.created_at).toLocaleDateString() : '')} · {r.room || ''}</span>
                       </div>
-                      <StarRow rating={r.rating} />
+                      <StarRow rating={r.rating || r.score / 2} />
                     </div>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{r.text}</p>
-
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{r.text || r.review_text || 'No review text.'}</p>
                   {replyingTo === r.id ? (
                     <div className="space-y-2">
                       <textarea
