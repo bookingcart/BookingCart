@@ -138,95 +138,167 @@ function genRef() {
   return r;
 }
 
-// ─── Demo Seed Data Generator ────────────────────────────────────────────────
+// ─── Sync Rooms from Hotel Profile step_rooms ─────────────────────────────────
+// When a hotel has no PMS rooms yet, auto-seed from the owner's onboarding step_rooms data.
+// This bridges the gap between the hotel onboarding form and the visual room map.
+async function syncRoomsFromProfile(dbReady, hotelId) {
+  if (!dbReady) return; // Only works with DB
+
+  const cleanId = parseInt(String(hotelId).replace(/^local_/, ''), 10);
+  if (isNaN(cleanId) || cleanId <= 0) return;
+
+  // Check if PMS rooms already exist for this hotel
+  const existingRes = await query(`SELECT COUNT(*) as cnt FROM bc_pms_rooms WHERE hotel_profile_id = $1`, [cleanId]);
+  const existingCount = parseInt(existingRes.rows[0]?.cnt || 0);
+  if (existingCount > 0) return; // Already has rooms — don't overwrite
+
+  // Load step_rooms from hotel profile
+  const profileRes = await query(
+    `SELECT step_rooms, step_property_info FROM bc_hotel_profiles WHERE id = $1`,
+    [cleanId]
+  );
+  if (!profileRes.rows.length) return;
+
+  const profile = profileRes.rows[0];
+  const stepRooms = profile.step_rooms || {};
+  const roomList = Array.isArray(stepRooms.list) ? stepRooms.list : [];
+  if (!roomList.length) return;
+
+  console.log(`[PMS] Auto-syncing ${roomList.length} room type(s) from profile ${cleanId} into PMS`);
+
+  // Create a single default floor "Ground Floor"
+  const floorRes = await query(
+    `INSERT INTO bc_pms_floors (hotel_profile_id, name, sort_order) VALUES ($1, $2, $3) RETURNING id`,
+    [cleanId, 'Main Floor', 1]
+  );
+  const floorId = floorRes.rows[0].id;
+
+  const curatedImages = [
+    'https://images.unsplash.com/photo-1590490359683-658d3d23f972?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80'
+  ];
+  const defaultAmenities = ['Free WiFi', 'Private Bathroom', 'Air Conditioning', 'Fresh Linens'];
+
+  // For each room type in step_rooms, create individual bookable room entries.
+  let posX = 0;
+  let posY = 0;
+  for (const [typeIndex, roomType] of roomList.entries()) {
+    const name = roomType.name || `Room Type ${typeIndex + 1}`;
+    const bedType = roomType.bedType || 'Queen';
+    const capacity = parseInt(roomType.maxOccupancy) || 2;
+    const price = parseFloat(roomType.pricePerNight) || 0;
+    const currency = roomType.currency || 'USD';
+    const view = roomType.view && roomType.view !== 'Standard' ? roomType.view : 'City View';
+    const description = roomType.description || `${name} — ${bedType} bed, sleeps ${capacity}`;
+
+    const roomImages = (Array.isArray(roomType.images) && roomType.images.length > 0)
+      ? roomType.images
+      : [curatedImages[typeIndex % curatedImages.length]];
+    const roomAmenities = (Array.isArray(roomType.amenities) && roomType.amenities.length > 0)
+      ? roomType.amenities
+      : defaultAmenities;
+
+    // Create a room for this type (one bookable room per type listing)
+    const roomNumber = `${String.fromCharCode(65 + typeIndex)}${String(typeIndex + 1).padStart(2, '0')}`;
+
+    await query(
+      `INSERT INTO bc_pms_rooms
+        (hotel_profile_id, floor_id, room_number, room_type, bed_type, capacity, base_price, currency,
+         amenities, images, description, status, pos_x, pos_y, grid_w, grid_h,
+         wing_section, view_type, has_balcony, is_accessible)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'available',$12,$13,1,1,$14,$15,false,false)`,
+      [
+        cleanId, floorId, roomNumber, name, bedType, capacity, price, currency,
+        JSON.stringify(roomAmenities),
+        JSON.stringify(roomImages),
+        description,
+        posX, posY,
+        'Main Wing', view
+      ]
+    );
+
+    posX++;
+    if (posX > 3) { posX = 0; posY++; }
+  }
+
+  console.log(`[PMS] Created ${roomList.length} PMS room(s) for hotel ${cleanId}`);
+}
+
+// ─── Demo Seed Data Generator (only for explicit demo hotels) ─────────────────
 async function seedDemoRoomsIfNeeded(dbReady, hotelId) {
-  // Only seed demo rooms if explicitly requesting demo mode
   const isDemoProperty = String(hotelId) === 'demo' || String(hotelId) === 'demo_hotel';
   if (!isDemoProperty) return;
 
   let existingCount = 0;
-  if (dbReady) {
-    const r = await query(`SELECT COUNT(*) as cnt FROM bc_pms_rooms WHERE hotel_profile_id = $1`, [hotelId]);
-    existingCount = parseInt(r.rows[0]?.cnt || 0);
-  } else {
-    for (const [, r] of memStore('rooms')) {
-      if (String(r.hotel_profile_id) === String(hotelId)) existingCount++;
-    }
+  for (const [, r] of memStore('rooms')) {
+    if (String(r.hotel_profile_id) === String(hotelId)) existingCount++;
   }
 
   if (existingCount > 0) return; // Already populated
 
-  // Create default floors
   const floorDefs = [
     { name: 'Ground Floor', sort_order: 1 },
     { name: 'First Floor', sort_order: 2 },
-    { name: 'Second Floor', sort_order: 3 },
-    { name: 'Executive Penthouse', sort_order: 4 }
   ];
-
   const floorIds = {};
   for (const f of floorDefs) {
-    if (dbReady) {
-      const ins = await query(`INSERT INTO bc_pms_floors (hotel_profile_id, name, sort_order) VALUES ($1,$2,$3) RETURNING id`, [hotelId, f.name, f.sort_order]);
-      floorIds[f.name] = ins.rows[0].id;
-    } else {
-      const fid = nextId();
-      memStore('floors').set(fid, { id: fid, hotel_profile_id: hotelId, name: f.name, sort_order: f.sort_order, created_at: nowIso(), updated_at: nowIso() });
-      floorIds[f.name] = fid;
-    }
+    const fid = nextId();
+    memStore('floors').set(fid, {
+      id: fid,
+      hotel_profile_id: hotelId,
+      name: f.name,
+      sort_order: f.sort_order,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    });
+    floorIds[f.name] = fid;
   }
-
   const roomSeeds = [
-    // Ground Floor
-    { floorName: 'Ground Floor', room_number: 'G01', room_type: 'Standard King', bed_type: 'King', capacity: 2, base_price: 120, pos_x: 0, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Garden Wing', view_type: 'Garden View', has_balcony: true, is_accessible: true, amenities: ['Free WiFi', 'Garden Access', 'Accessibility Ramp', 'Air Conditioning'] },
-    { floorName: 'Ground Floor', room_number: 'G02', room_type: 'Standard Queen', bed_type: 'Queen', capacity: 2, base_price: 110, pos_x: 1, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Garden Wing', view_type: 'Garden View', has_balcony: false, is_accessible: true, amenities: ['Free WiFi', 'Air Conditioning', 'Smart TV'] },
-    { floorName: 'Ground Floor', room_number: 'G03', room_type: 'Deluxe Twin', bed_type: '2 Twin', capacity: 3, base_price: 135, pos_x: 2, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Courtyard Wing', view_type: 'Pool View', has_balcony: true, is_accessible: false, amenities: ['Free WiFi', 'Pool View', 'Mini Bar'] },
-    { floorName: 'Ground Floor', room_number: 'G04', room_type: 'Family Suite', bed_type: '1 King + 2 Twin', capacity: 4, base_price: 190, pos_x: 0, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Garden Wing', view_type: 'Garden View', has_balcony: true, is_accessible: true, amenities: ['Free WiFi', 'Kitchenette', 'Garden View', 'Espresso Machine'] },
-    { floorName: 'Ground Floor', room_number: 'G05', room_type: 'Poolside Villa', bed_type: 'Super King', capacity: 2, base_price: 240, pos_x: 2, pos_y: 1, grid_w: 1, grid_h: 1, wing_section: 'Courtyard Wing', view_type: 'Pool View', has_balcony: true, is_accessible: false, amenities: ['Direct Pool Access', 'Private Terrace', 'Free WiFi', 'Jacuzzi'] },
-    
-    // First Floor
-    { floorName: 'First Floor', room_number: '101', room_type: 'Executive King', bed_type: 'King', capacity: 2, base_price: 155, pos_x: 0, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Main Building', view_type: 'City View', has_balcony: true, is_accessible: false, amenities: ['Free WiFi', 'City View Balcony', 'Work Desk', 'Nespresso'] },
-    { floorName: 'First Floor', room_number: '102', room_type: 'Executive Queen', bed_type: 'Queen', capacity: 2, base_price: 145, pos_x: 1, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Main Building', view_type: 'City View', has_balcony: false, is_accessible: false, amenities: ['Free WiFi', 'AC', 'Work Desk'] },
-    { floorName: 'First Floor', room_number: '103', room_type: 'Ocean Deluxe', bed_type: 'King', capacity: 2, base_price: 175, pos_x: 2, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Panoramic Sea View', 'Private Balcony', 'Free WiFi', 'Rain Shower'] },
-    { floorName: 'First Floor', room_number: '104', room_type: 'Ocean Deluxe Twin', bed_type: '2 Queen', capacity: 4, base_price: 185, pos_x: 3, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Sea View', 'Balcony', 'Free WiFi', 'Safe'] },
-    { floorName: 'First Floor', room_number: '105', room_type: 'Corner Suite', bed_type: 'King', capacity: 3, base_price: 220, pos_x: 0, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Main Building', view_type: 'City View', has_balcony: true, is_accessible: false, amenities: ['Wrap-around Balcony', 'Living Room', 'Free WiFi', 'Smart TV'] },
-    { floorName: 'First Floor', room_number: '106', room_type: 'Junior Suite', bed_type: 'King', capacity: 2, base_price: 210, pos_x: 2, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Full Sea View', 'Lounge Area', 'Free WiFi', 'Soaking Tub'] },
-
-    // Second Floor
-    { floorName: 'Second Floor', room_number: '201', room_type: 'Luxury Ocean King', bed_type: 'King', capacity: 2, base_price: 210, pos_x: 0, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Ocean Balcony', 'Soundproof Windows', 'Free WiFi', 'Minibar'] },
-    { floorName: 'Second Floor', room_number: '202', room_type: 'Luxury Ocean Queen', bed_type: 'Queen', capacity: 2, base_price: 195, pos_x: 1, pos_y: 0, grid_w: 1, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Ocean Balcony', 'Free WiFi', 'Nespresso'] },
-    { floorName: 'Second Floor', room_number: '203', room_type: 'Horizon Suite', bed_type: 'King', capacity: 2, base_price: 260, pos_x: 2, pos_y: 0, grid_w: 2, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sea View', has_balcony: true, is_accessible: false, amenities: ['Top-floor Sea View', 'Jacuzzi Suite', 'Free WiFi', 'Butler Service'] },
-    { floorName: 'Second Floor', room_number: '204', room_type: 'Grand Sunset Suite', bed_type: 'Super King', capacity: 3, base_price: 290, pos_x: 0, pos_y: 1, grid_w: 2, grid_h: 1, wing_section: 'Ocean Wing', view_type: 'Sunset View', has_balcony: true, is_accessible: false, amenities: ['Sunset Terrace', 'Free Champagne', 'Free WiFi', 'Fireplace'] },
-
-    // Executive Penthouse
-    { floorName: 'Executive Penthouse', room_number: 'P01', room_type: 'Royal Penthouse Suite', bed_type: 'Emperor King', capacity: 4, base_price: 450, pos_x: 0, pos_y: 0, grid_w: 2, grid_h: 2, wing_section: 'Penthouse Level', view_type: '360 Panoramic View', has_balcony: true, is_accessible: true, amenities: ['360 Terrace', 'Private Heated Plunge Pool', 'Butler Service', 'VIP Elevator', 'Free Airport Transfer'] },
-    { floorName: 'Executive Penthouse', room_number: 'P02', room_type: 'Presidential Suite', bed_type: 'Emperor King', capacity: 4, base_price: 520, pos_x: 2, pos_y: 0, grid_w: 2, grid_h: 2, wing_section: 'Penthouse Level', view_type: '360 Panoramic View', has_balcony: true, is_accessible: true, amenities: ['Penthouse Spa Bath', 'Private Cinema Lounge', 'Wine Cellar Bar', 'Dedicated Concierge'] }
+    { floorName: 'Ground Floor', room_number: 'G01', room_type: 'Standard King', bed_type: 'King', capacity: 2, base_price: 120, pos_x: 0, pos_y: 0, wing_section: 'Main Wing', view_type: 'City View', has_balcony: false, is_accessible: false },
+    { floorName: 'Ground Floor', room_number: 'G02', room_type: 'Standard Queen', bed_type: 'Queen', capacity: 2, base_price: 110, pos_x: 1, pos_y: 0, wing_section: 'Main Wing', view_type: 'City View', has_balcony: false, is_accessible: false },
+    { floorName: 'First Floor', room_number: '101', room_type: 'Deluxe King', bed_type: 'King', capacity: 2, base_price: 155, pos_x: 0, pos_y: 0, wing_section: 'Main Wing', view_type: 'City View', has_balcony: true, is_accessible: false },
   ];
-
   for (const s of roomSeeds) {
     const fid = floorIds[s.floorName] || null;
-    const images = ['https://images.unsplash.com/photo-1590490359683-658d3d23f972?auto=format&fit=crop&w=800&q=80'];
-    if (dbReady) {
-      await query(
-        `INSERT INTO bc_pms_rooms (hotel_profile_id, floor_id, room_number, room_type, bed_type, capacity, base_price, currency, amenities, images, description, status, pos_x, pos_y, grid_w, grid_h, wing_section, view_type, has_balcony, is_accessible)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'USD',$8,$9,$10,'available',$11,$12,$13,$14,$15,$16,$17,$18)`,
-        [hotelId, fid, s.room_number, s.room_type, s.bed_type, s.capacity, s.base_price, JSON.stringify(s.amenities), JSON.stringify(images), `${s.room_type} with ${s.view_type}`, s.pos_x, s.pos_y, s.grid_w, s.grid_h, s.wing_section, s.view_type, s.has_balcony, s.is_accessible]
-      );
-    } else {
-      const rid = nextId();
-      memStore('rooms').set(rid, {
-        id: rid, hotel_profile_id: hotelId, floor_id: fid, room_number: s.room_number, room_type: s.room_type, bed_type: s.bed_type, capacity: s.capacity, base_price: s.base_price, currency: 'USD', amenities: s.amenities, images, description: `${s.room_type} with ${s.view_type}`, status: 'available', pos_x: s.pos_x, pos_y: s.pos_y, grid_w: s.grid_w, grid_h: s.grid_h, wing_section: s.wing_section, view_type: s.view_type, has_balcony: s.has_balcony, is_accessible: s.is_accessible, created_at: nowIso(), updated_at: nowIso()
-      });
-    }
+    const rid = nextId();
+    memStore('rooms').set(rid, {
+      id: rid,
+      hotel_profile_id: hotelId,
+      floor_id: fid,
+      room_number: s.room_number,
+      room_type: s.room_type,
+      bed_type: s.bed_type,
+      capacity: s.capacity,
+      base_price: s.base_price,
+      currency: 'USD',
+      amenities: ['Free WiFi', 'Air Conditioning'],
+      images: ['https://images.unsplash.com/photo-1590490359683-658d3d23f972?auto=format&fit=crop&w=800&q=80'],
+      description: `${s.room_type} with ${s.view_type}`,
+      status: 'available',
+      pos_x: s.pos_x,
+      pos_y: s.pos_y,
+      grid_w: 1,
+      grid_h: 1,
+      wing_section: s.wing_section,
+      view_type: s.view_type,
+      has_balcony: s.has_balcony,
+      is_accessible: s.is_accessible,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    });
   }
 }
 
 // ─── Availability Checker ─────────────────────────────────────────────────────
 async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, excludeBookingId = null, currentSessionId = null) {
   const ci = new Date(checkIn), co = new Date(checkOut);
+  const numericRoomId = parseInt(roomId, 10);
+  const isNumericRoom = !isNaN(numericRoomId) && numericRoomId > 0;
 
   // 1. Check bookings
-  if (dbReady) {
+  if (dbReady && isNumericRoom) {
     let q = `
       SELECT id FROM bc_pms_bookings
       WHERE room_id = $1
@@ -234,7 +306,7 @@ async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, exclude
         AND check_in < $3
         AND check_out > $2
     `;
-    const params = [roomId, checkIn, checkOut];
+    const params = [numericRoomId, checkIn, checkOut];
     if (excludeBookingId) {
       q += ` AND id != $4`;
       params.push(excludeBookingId);
@@ -246,7 +318,7 @@ async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, exclude
     const b = await query(`
       SELECT id FROM bc_pms_blocks
       WHERE room_id = $1 AND from_date < $3 AND to_date > $2
-    `, [roomId, checkIn, checkOut]);
+    `, [numericRoomId, checkIn, checkOut]);
     if (b.rows.length > 0) return { available: false, reason: 'blocked' };
 
     // Check active holds
@@ -254,7 +326,7 @@ async function checkRoomAvailability(dbReady, roomId, checkIn, checkOut, exclude
       SELECT session_id, expires_at FROM bc_pms_holds
       WHERE room_id = $1 AND expires_at > NOW() AND check_in < $3 AND check_out > $2
     `;
-    const hParams = [roomId, checkIn, checkOut];
+    const hParams = [numericRoomId, checkIn, checkOut];
     if (currentSessionId) {
       holdQ += ` AND session_id != $4`;
       hParams.push(currentSessionId);
@@ -340,8 +412,13 @@ module.exports = async (req, res) => {
     if (!hotelId) return res.status(404).json({ ok: false, error: 'No hotel profile found. Please complete onboarding first.' });
   } else {
     // Public actions use hotel_id from params, fallback to 1 or demo
-    hotelId = body.hotel_id || body.hotel_profile_id || 1;
+    const rawId = body.hotel_id || body.hotel_profile_id || 1;
+    const cleanId = String(rawId).replace(/^local_/, '');
+    const num = parseInt(cleanId, 10);
+    hotelId = (!isNaN(num) && num > 0) ? num : cleanId;
   }
+
+  const isNumericHotel = typeof hotelId === 'number' && !isNaN(hotelId) && hotelId > 0;
 
   // ══════════════════════════════════════════════════════════════════════════════
   // PUBLIC VISUAL ROOM MAP & SEAT-SELECTION ENGINE
@@ -352,12 +429,16 @@ module.exports = async (req, res) => {
     const checkOut = body.check_out || new Date(Date.now() + 86400000).toISOString().split('T')[0];
     const sessionId = body.session_id || 'guest_anon';
 
-    // Auto-seed demo rooms if hotel currently has 0 rooms
-    await seedDemoRoomsIfNeeded(dbReady, hotelId);
+    // Auto-sync rooms from hotel profile step_rooms if no PMS rooms exist yet
+    if (dbReady && isNumericHotel) {
+      await syncRoomsFromProfile(dbReady, hotelId);
+    } else {
+      await seedDemoRoomsIfNeeded(dbReady, hotelId);
+    }
 
     // Fetch floors & rooms
     let floors = [], rawRooms = [], activeBookings = [], activeBlocks = [], activeHolds = [];
-    if (dbReady) {
+    if (dbReady && isNumericHotel) {
       const fl = await query(`SELECT * FROM bc_pms_floors WHERE hotel_profile_id = $1 ORDER BY sort_order, id`, [hotelId]);
       floors = fl.rows;
       const rm = await query(`SELECT r.*, f.name as floor_name FROM bc_pms_rooms r LEFT JOIN bc_pms_floors f ON f.id = r.floor_id WHERE r.hotel_profile_id = $1 ORDER BY f.sort_order NULLS LAST, r.pos_y, r.pos_x, r.room_number`, [hotelId]);
@@ -481,7 +562,7 @@ module.exports = async (req, res) => {
 
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minute hold timer
 
-    if (dbReady) {
+    if (dbReady && isNumericHotel) {
       // Delete existing hold for session
       await query(`DELETE FROM bc_pms_holds WHERE session_id = $1`, [session_id]);
       // Insert new hold
@@ -515,7 +596,7 @@ module.exports = async (req, res) => {
     const { session_id, room_id } = body;
     if (!session_id) return res.status(400).json({ ok: false, error: 'session_id required' });
 
-    if (dbReady) {
+    if (dbReady && isNumericHotel) {
       let q = `DELETE FROM bc_pms_holds WHERE session_id = $1`;
       const params = [session_id];
       if (room_id) { q += ` AND room_id = $2`; params.push(room_id); }

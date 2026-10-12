@@ -39,8 +39,8 @@ function formatProfileAsAccommodation(profile) {
     description: prop.description || '',
     star_rating: Math.round(starRatingNum),
     rating: starRatingNum,
-    review_score: 8.8,
-    review_count: 14,
+    review_score: null,
+    review_count: 0,
     photos: photos.length > 0 ? photos : [{ url: defaultPhoto }],
     amenities: (amenities.selected || []).map(a => ({ name: a })),
     address: {

@@ -73,6 +73,10 @@ export default function StaysDetailsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const accommodationId = searchParams.get('id') || '';
+  // Strip 'local_' prefix to get the numeric hotel profile ID for the PMS
+  const hotelProfileId = accommodationId.startsWith('local_')
+    ? accommodationId.replace('local_', '')
+    : accommodationId || '1';
 
   const [hotel, setHotel] = useState(null);
   const [brand, setBrand] = useState(null);
@@ -298,7 +302,9 @@ export default function StaysDetailsPage() {
                     ? `${hotel.cheapest_rate_currency || '$'}${hotel.cheapest_rate_total_amount}`
                     : 'View rates'}
                 </div>
-                <div className="text-[10px] text-slate-500">{rating && `${Number(rating).toFixed(1)} · `}{reviewCount} reviews</div>
+                <div className="text-[10px] text-slate-500">
+                  {rating ? `${Number(rating).toFixed(1)}` : ''}{rating && reviewCount > 0 ? ` · ` : ''}{reviewCount > 0 ? `${reviewCount} reviews` : rating ? '' : 'View rates'}
+                </div>
               </div>
             )}
             <button disabled={bookingLoading} onClick={handleBook} className="px-6 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition-colors disabled:opacity-70">
@@ -429,16 +435,15 @@ export default function StaysDetailsPage() {
             {/* Visual Room Selection Engine Section */}
             <section id="pick-room" className="mb-12 scroll-mt-20">
               <InteractiveRoomMap
-                hotelId={accommodationId || '1'}
-                checkIn={searchParams.get('check_in') || new Date().toISOString().split('T')[0]}
-                checkOut={searchParams.get('check_out') || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                hotelId={hotelProfileId}
+                checkIn={searchParams.get('stays-checkin') || searchParams.get('checkin') || searchParams.get('check_in') || new Date().toISOString().split('T')[0]}
+                checkOut={searchParams.get('stays-checkout') || searchParams.get('checkout') || searchParams.get('check_out') || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                 guests={Number(searchParams.get('guests')) || 2}
+                currency={hotel?.cheapest_rate_currency || '$'}
                 selectedRoom={selectedVisualRoom}
                 onRoomSelect={(room, sid) => {
                   setSelectedVisualRoom(room);
-                  if (room) {
-                    // Quick scroll to confirm or reserve
-                  }
+                  if (sid) setRoomSessionId(sid);
                 }}
               />
             </section>

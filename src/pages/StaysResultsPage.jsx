@@ -340,7 +340,7 @@ export default function StaysResultsPage() {
               onMouseLeave={() => setHoveredHotel(null)}
               onClick={() => {
                 sessionStorage.setItem('stays_selected_hotel', JSON.stringify(hotel));
-                navigate(`/stays/details?id=${encodeURIComponent(hotel.id)}&search_result_id=${encodeURIComponent(hotel.duffelResultId)}`);
+                navigate(`/stays/details?id=${encodeURIComponent(hotel.id)}&search_result_id=${encodeURIComponent(hotel.duffelResultId || '')}&checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&guests=${encodeURIComponent(guests || 1)}&rooms=${encodeURIComponent(rooms || 1)}`);
               }}
             >
               {/* Image Section */}
@@ -422,7 +422,7 @@ export default function StaysResultsPage() {
                       mouseout: () => setHoveredHotel(null),
                       click: () => {
                         sessionStorage.setItem('stays_selected_hotel', JSON.stringify(hotel));
-                        navigate(`/stays/details?id=${encodeURIComponent(hotel.id)}&search_result_id=${encodeURIComponent(hotel.duffelResultId)}`);
+                        navigate(`/stays/details?id=${encodeURIComponent(hotel.id)}&search_result_id=${encodeURIComponent(hotel.duffelResultId || '')}&checkin=${encodeURIComponent(checkin)}&checkout=${encodeURIComponent(checkout)}&guests=${encodeURIComponent(guests || 1)}&rooms=${encodeURIComponent(rooms || 1)}`);
                       }
                     }}
                   />

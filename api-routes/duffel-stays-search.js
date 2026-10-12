@@ -141,10 +141,9 @@ function formatProfileToStayResult(profile, nights, destinationCoords, checkin, 
     name: prop.hotelName || 'Listed Hotel',
     description: prop.description || '',
     chain: { name: prop.propertyType ? `${prop.propertyType} • Listed Stay` : 'Listed Stay' },
-    review_score: 8.8,
-    rating: starRatingNum,
-    star_rating: Math.round(starRatingNum),
-    review_count: 14,
+    review_score: null,
+    review_count: 0,
+
     photos: photos.length > 0 ? photos : [{ url: defaultPhoto }],
     location: {
       address: {
