@@ -32,81 +32,7 @@ function MapFlyTo({ center }) {
   return null;
 }
 
-// Dummy data matching the Kayak screenshot
-const DUMMY_HOTELS = [
-  {
-    id: 'h1',
-    name: 'Kimpton Clocktower Hotel',
-    brand: 'By IHG',
-    price: 154,
-    rating: 8.8,
-    reviews: 5032,
-    address: 'Petersfield, Manchester',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
-    lat: 53.4745,
-    lng: -2.2415
-  },
-  {
-    id: 'h2',
-    name: 'The Rex - formerly Hotel Gotham',
-    brand: '',
-    price: 158,
-    rating: 8.9,
-    reviews: 3586,
-    address: 'Central Retail District, Manchester',
-    image: 'https://images.unsplash.com/photo-1551882547-ff40eb591366?auto=format&fit=crop&w=800&q=80',
-    lat: 53.4812,
-    lng: -2.2423
-  },
-  {
-    id: 'h3',
-    name: 'The Edwardian Manchester, A Radisson Collection Hotel',
-    brand: '',
-    price: 184,
-    rating: 8.8,
-    reviews: 3892,
-    address: 'Petersfield, Manchester',
-    image: 'https://images.unsplash.com/photo-1542314831-c6a4d27ce003?auto=format&fit=crop&w=800&q=80',
-    lat: 53.4776,
-    lng: -2.2461
-  },
-  {
-    id: 'h4',
-    name: 'Leonardo Hotel Manchester Central',
-    brand: '',
-    price: 101,
-    rating: 8.3,
-    reviews: 6615,
-    address: 'Petersfield, Manchester',
-    image: 'https://images.unsplash.com/photo-1590490359683-658d3d23f972?auto=format&fit=crop&w=800&q=80',
-    lat: 53.4740,
-    lng: -2.2468
-  },
-  {
-    id: 'h5',
-    name: 'The Lowry Hotel',
-    brand: '',
-    price: 104,
-    rating: 8.7,
-    reviews: 2104,
-    address: 'Salford, Manchester',
-    image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=800&q=80',
-    lat: 53.4831,
-    lng: -2.2519
-  },
-  {
-    id: 'h6',
-    name: 'The Midland',
-    brand: '',
-    price: 90,
-    rating: 8.5,
-    reviews: 4521,
-    address: 'Petersfield, Manchester',
-    image: 'https://images.unsplash.com/photo-1618773928120-2946cd16492b?auto=format&fit=crop&w=800&q=80',
-    lat: 53.4764,
-    lng: -2.2442
-  }
-];
+const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
 
 export default function StaysResultsPage() {
   const [searchParams] = useSearchParams();
@@ -160,18 +86,20 @@ export default function StaysResultsPage() {
         const data = await res.json();
 
         if (data.ok && data.results && data.results.length > 0) {
-          // Map Duffel API results to our display format
+          // Map API results to our display format (handles both local listings & Duffel)
           const mapped = data.results.map((r, i) => {
             const acc = r.accommodation || {};
-            const geo = acc.geographic_coordinates || {};
-            const photoUrl = (acc.photos && acc.photos[0]?.url) 
-              ? acc.photos[0].url 
-              : `https://loremflickr.com/800/500/hotel,luxury?random=${i + 1}`;
+            // Local listings store photos in acc.photos array
+            const photoUrl = (acc.photos && acc.photos[0]?.url)
+              ? acc.photos[0].url
+              : DEFAULT_PHOTO;
             const totalPrice = r.cheapest_rate ? Number(r.cheapest_rate) : 0;
             const pricePerNight = totalPrice ? Math.round(totalPrice / Math.max(1, nights)) : 0;
             return {
               id: acc.id || r.id || `r${i}`,
               duffelResultId: r.id,
+              is_local_listing: !!r.is_local_listing,
+              hotel_profile_id: r.hotel_profile_id,
               name: acc.name || 'Hotel',
               brand: acc.chain?.name || '',
               totalPrice: totalPrice,
@@ -179,54 +107,36 @@ export default function StaysResultsPage() {
               price: totalPrice ? totalPrice.toFixed(0) : '—',
               currency: r.currency || 'USD',
               rating: acc.review_score ? Number(acc.review_score) : Number(acc.rating || 8.0),
-              reviews: acc.review_count || Math.floor(Math.random() * 5000 + 500),
-              address: [acc.location?.address?.line_one, acc.location?.address?.city_name, acc.location?.address?.country_code].filter(Boolean).join(', ') || [acc.city_name, acc.country_code].filter(Boolean).join(', '),
+              reviews: acc.review_count || 0,
+              address: [acc.location?.address?.line_one, acc.location?.address?.city_name, acc.location?.address?.country_code].filter(Boolean).join(', '),
               image: photoUrl,
-              lat: (acc.location?.geographic_coordinates?.latitude) || geo.latitude || 0,
-              lng: (acc.location?.geographic_coordinates?.longitude) || geo.longitude || 0,
-              // Keep full data for checkout page
+              lat: acc.location?.geographic_coordinates?.latitude || 0,
+              lng: acc.location?.geographic_coordinates?.longitude || 0,
               checkin,
               checkout,
               guests,
               rooms,
-              // Full accommodation details for Details/Checkout pages
               fullAccommodation: acc,
             };
           });
           setResults(mapped);
-          // Re-center map: Prioritize the geocoded city center from the API, fallback to first result
           if (data.centerCoordinates) {
             setMapCenter([data.centerCoordinates.latitude, data.centerCoordinates.longitude]);
           } else if (mapped[0]) {
             setMapCenter([mapped[0].lat, mapped[0].lng]);
           }
         } else {
-          // Fall back to dummy data so the page doesn't look empty
-          const dummyMapped = DUMMY_HOTELS.map(h => ({
-            ...h,
-            pricePerNight: h.price,
-            totalPrice: h.price * nights,
-            price: (h.price * nights).toFixed(0),
-          }));
-          setResults(dummyMapped);
-          // If we have center coordinates but no results, still center the map there!
+          // No results — show empty state
+          setResults([]);
           if (data && data.centerCoordinates) {
             setMapCenter([data.centerCoordinates.latitude, data.centerCoordinates.longitude]);
           }
-          if (data.ok && data.results?.length === 0) {
-            setSearchError(`No stays found in "${destination}" for those dates. Showing sample results.`);
-          }
+          setSearchError(`No stays found in "${destination}" for those dates.`);
         }
       } catch (err) {
         console.error('Stays search failed:', err);
-        const dummyMapped = DUMMY_HOTELS.map(h => ({
-          ...h,
-          pricePerNight: h.price,
-          totalPrice: h.price * nights,
-          price: (h.price * nights).toFixed(0),
-        }));
-        setResults(dummyMapped);
-        setSearchError('Could not connect to search. Showing sample results.');
+        setResults([]);
+        setSearchError('Could not connect to search. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -404,11 +314,21 @@ export default function StaysResultsPage() {
             </div>
           )}
 
-          {/* Error / fallback notice */}
-          {!loading && searchError && (
-            <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm font-semibold">
-              <i className="ph ph-warning-circle text-lg shrink-0" />
-              {searchError}
+          {/* Empty state – no results found */}
+          {!loading && results.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+              <div className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <i className="ph ph-bed text-4xl text-slate-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-1">No stays found</h2>
+                <p className="text-slate-500 text-sm max-w-xs">
+                  {searchError || `We couldn't find any available stays in "${destination}" for those dates. Try a different destination or adjust your dates.`}
+                </p>
+              </div>
+              <Link to="/" className="mt-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow-sm text-sm">
+                Search another destination
+              </Link>
             </div>
           )}
 

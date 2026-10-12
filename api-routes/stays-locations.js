@@ -1,49 +1,80 @@
 const fetch = require('node-fetch');
 const { applyCors } = require('../lib/cors');
+const { query, isDbConfigured } = require('../lib/db');
 
 module.exports = async (req, res) => {
   applyCors(req, res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   
-  const query = req.query.q || '';
-  if (!query || query.length < 2) {
+  const qStr = req.query.q || '';
+  if (!qStr || qStr.length < 2) {
     return res.json([]);
   }
 
+  const normalized = qStr.trim().toLowerCase();
+  const unique = [];
+  const seen = new Set();
+
+  // 1. Check listed properties in DB first
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&featuretype=city`;
+    if (isDbConfigured()) {
+      const dbRes = await query(`SELECT * FROM bc_hotel_profiles WHERE status != 'draft' LIMIT 20`);
+      for (const row of (dbRes.rows || [])) {
+        const prop = row.step_property_info || {};
+        const loc = row.step_location || {};
+        const hotelName = prop.hotelName || '';
+        const city = loc.city || '';
+        const country = loc.country || '';
+
+        if (
+          hotelName.toLowerCase().includes(normalized) ||
+          city.toLowerCase().includes(normalized) ||
+          country.toLowerCase().includes(normalized)
+        ) {
+          const displayName = hotelName || city;
+          const full = [hotelName, city, country].filter(Boolean).join(', ');
+          if (!seen.has(displayName.toLowerCase())) {
+            seen.add(displayName.toLowerCase());
+            unique.push({
+              name: displayName,
+              fullName: `${full} (Listed Property)`,
+              lat: parseFloat(loc.latitude) || 0.3177,
+              lon: parseFloat(loc.longitude) || 32.5814
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Stays Locations] DB check notice:', err.message);
+  }
+
+  // 2. Query Nominatim for cities / regions
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(qStr)}&format=json&limit=5&featuretype=city`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'BookingCart/1.0 (bookingcart.business@gmail.com)' }
     });
     
-    if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // Map to a simpler format
-    const suggestions = data.map(item => ({
-      name: item.display_name.split(',')[0],
-      fullName: item.display_name,
-      lat: item.lat,
-      lon: item.lon
-    }));
-
-    // Deduplicate by name
-    const unique = [];
-    const seen = new Set();
-    for (const s of suggestions) {
-      if (!seen.has(s.name)) {
-        seen.add(s.name);
-        unique.push(s);
+    if (response.ok) {
+      const data = await response.json();
+      for (const item of (data || [])) {
+        const name = item.display_name.split(',')[0].trim();
+        if (!seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          unique.push({
+            name,
+            fullName: item.display_name,
+            lat: parseFloat(item.lat),
+            lon: parseFloat(item.lon)
+          });
+        }
       }
     }
-
-    return res.json(unique);
   } catch (err) {
-    console.error('[Stays Locations] error:', err);
-    return res.json([]); // Return empty array on failure
+    console.error('[Stays Locations] error:', err.message);
   }
+
+  return res.json(unique);
 };
