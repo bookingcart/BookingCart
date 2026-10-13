@@ -280,7 +280,8 @@ export default function MyBookingsPage() {
     if (activeTab === 'stays' && !staysFetched) {
       setStaysLoading(true);
       setStaysError('');
-      fetch('/api/stays-booking')
+      const emailParam = user?.email ? `?email=${encodeURIComponent(user.email)}` : '';
+      fetch(`/api/stays-booking${emailParam}`)
         .then(r => r.json())
         .then(data => {
           if (data.ok) {
@@ -293,7 +294,7 @@ export default function MyBookingsPage() {
         .catch(() => setStaysError('Network error loading bookings.'))
         .finally(() => setStaysLoading(false));
     }
-  }, [activeTab, staysFetched]);
+  }, [activeTab, staysFetched, user]);
 
   // Load guide bookings
   useEffect(() => {

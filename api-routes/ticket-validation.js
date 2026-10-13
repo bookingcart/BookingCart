@@ -346,32 +346,42 @@ async function validateStayTicket(dbReady, cleanRef, scope, staffEmail, staffNam
   let booking = null;
 
   if (dbReady) {
-    // 1. Search in bc_pms_bookings (PMS-native stays)
-    const res = await query(`
-      SELECT b.*, r.room_number, r.room_type, r.wing_section, f.name as floor_name, h.name as hotel_profile_name, h.hotel_name
-      FROM bc_pms_bookings b
-      LEFT JOIN bc_pms_rooms r ON r.id = b.room_id
-      LEFT JOIN bc_pms_floors f ON f.id = b.floor_id
-      LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id
-      WHERE UPPER(b.ref) = $1 LIMIT 1
-    `, [cleanRef]).catch(() => ({ rows: [] }));
+    // 1. Search in bc_pms_bookings — simple direct query first (no JOINs to avoid silent failures)
+    const res = await query(`SELECT * FROM bc_pms_bookings WHERE UPPER(ref) = $1 LIMIT 1`, [cleanRef]).catch(() => ({ rows: [] }));
 
     if (res.rows.length > 0) {
       const row = res.rows[0];
+      // Optionally enrich with room/floor/hotel info
+      let roomNumber = 'TBD', roomType = 'Standard Room', floorName = 'Main', propertyName = 'Stay Property';
+      try {
+        if (row.room_id) {
+          const rRes = await query(`SELECT r.room_number, r.room_type, f.name as floor_name FROM bc_pms_rooms r LEFT JOIN bc_pms_floors f ON f.id = r.floor_id WHERE r.id = $1`, [row.room_id]);
+          if (rRes.rows.length > 0) {
+            roomNumber = rRes.rows[0].room_number || 'TBD';
+            roomType = rRes.rows[0].room_type || 'Standard Room';
+            floorName = rRes.rows[0].floor_name || 'Main';
+          }
+        }
+        if (row.hotel_profile_id) {
+          const hRes = await query(`SELECT hotel_name, name FROM bc_hotel_profiles WHERE id = $1`, [row.hotel_profile_id]);
+          if (hRes.rows.length > 0) propertyName = hRes.rows[0].hotel_name || hRes.rows[0].name || 'Stay Property';
+        }
+      } catch { /* enrichment is optional */ }
+
       booking = {
         ref: row.ref,
         hotelProfileId: String(row.hotel_profile_id),
-        propertyName: row.hotel_name || row.hotel_profile_name || 'Property Residence',
-        roomNumber: row.room_number || 'TBD',
-        roomType: row.room_type || 'Standard Room',
-        floorName: row.floor_name || 'Main',
+        propertyName,
+        roomNumber,
+        roomType,
+        floorName,
         guestName: row.guest_name,
         guestEmail: row.guest_email,
         guestPhone: row.guest_phone || '',
         checkInDate: row.check_in,
         checkOutDate: row.check_out,
         numGuests: row.num_guests || 1,
-        bookingStatus: row.booking_status, // 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled'
+        bookingStatus: row.booking_status,
         paymentStatus: row.payment_status || 'paid',
         ticketStatus: row.ticket_status || 'valid',
         totalAmount: row.total_amount,
