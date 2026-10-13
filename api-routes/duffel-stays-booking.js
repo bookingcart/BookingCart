@@ -29,18 +29,50 @@ module.exports = async (req, res) => {
         try {
           if (isDbConfigured()) {
             await initDb();
+            // Ensure columns exist
+            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_name TEXT DEFAULT ''`).catch(() => {});
+            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_image TEXT DEFAULT ''`).catch(() => {});
+            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`).catch(() => {});
+
+            // Background: backfill any rows that are still missing hotel name/image from bc_hotel_profiles
+            query(`
+              UPDATE bc_pms_bookings b
+              SET
+                accommodation_name = COALESCE(NULLIF(b.accommodation_name,''), h.step_property_info->>'hotelName', h.step_property_info->>'name', ''),
+                accommodation_image = COALESCE(NULLIF(b.accommodation_image,''), h.step_gallery->0->>'url', h.step_gallery->0->>'src', '')
+              FROM bc_hotel_profiles h
+              WHERE h.id = b.hotel_profile_id::integer
+                AND (b.accommodation_name = '' OR b.accommodation_image = '' OR b.accommodation_name IS NULL OR b.accommodation_image IS NULL)
+            `).catch(() => {});
+
             // Attempt to get the caller's email from query param for filtering
             const callerEmail = req.query.email || req.query.guest_email || null;
-            let dbQ = `SELECT * FROM bc_pms_bookings ORDER BY created_at DESC LIMIT 100`;
+            // Use LEFT JOIN so we can always fall back to hotel profile name/image
+            let dbQ = `
+              SELECT b.*,
+                COALESCE(NULLIF(b.accommodation_name,''), h.step_property_info->>'hotelName', h.step_property_info->>'name', 'Hotel') AS resolved_name,
+                COALESCE(NULLIF(b.accommodation_image,''), h.step_gallery->0->>'url', h.step_gallery->0->>'src', '') AS resolved_image
+              FROM bc_pms_bookings b
+              LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id::integer
+              ORDER BY b.created_at DESC LIMIT 100
+            `;
             const dbParams = [];
             if (callerEmail) {
-              dbQ = `SELECT * FROM bc_pms_bookings WHERE LOWER(guest_email) = $1 ORDER BY created_at DESC LIMIT 100`;
+              dbQ = `
+                SELECT b.*,
+                  COALESCE(NULLIF(b.accommodation_name,''), h.step_property_info->>'hotelName', h.step_property_info->>'name', 'Hotel') AS resolved_name,
+                  COALESCE(NULLIF(b.accommodation_image,''), h.step_gallery->0->>'url', h.step_gallery->0->>'src', '') AS resolved_image
+                FROM bc_pms_bookings b
+                LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id::integer
+                WHERE LOWER(b.guest_email) = $1
+                ORDER BY b.created_at DESC LIMIT 100
+              `;
               dbParams.push(callerEmail.toLowerCase().trim());
             }
             const dbRes = await query(dbQ, dbParams).catch(() => ({ rows: [] }));
             localBookings = (dbRes.rows || []).map(row => {
-              const accName = row.accommodation_name || row.notes || 'Stay Property';
-              const accImage = row.accommodation_image || null;
+              const accName = row.resolved_name || row.accommodation_name || 'Hotel';
+              const accImage = row.resolved_image || row.accommodation_image || null;
               return {
                 id: `pms_${row.id}`,
                 reference: row.ref,
@@ -64,6 +96,7 @@ module.exports = async (req, res) => {
         } catch (dbErr) {
           console.warn('[stays-booking] Local DB query failed:', dbErr.message);
         }
+
 
         // 2. Fetch from Duffel API if key is configured
         let duffelBookings = [];
