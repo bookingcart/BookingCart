@@ -346,6 +346,7 @@ async function validateStayTicket(dbReady, cleanRef, scope, staffEmail, staffNam
   let booking = null;
 
   if (dbReady) {
+    // 1. Search in bc_pms_bookings (PMS-native stays)
     const res = await query(`
       SELECT b.*, r.room_number, r.room_type, r.wing_section, f.name as floor_name, h.name as hotel_profile_name, h.hotel_name
       FROM bc_pms_bookings b
@@ -353,7 +354,7 @@ async function validateStayTicket(dbReady, cleanRef, scope, staffEmail, staffNam
       LEFT JOIN bc_pms_floors f ON f.id = b.floor_id
       LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id
       WHERE UPPER(b.ref) = $1 LIMIT 1
-    `, [cleanRef]);
+    `, [cleanRef]).catch(() => ({ rows: [] }));
 
     if (res.rows.length > 0) {
       const row = res.rows[0];
@@ -377,6 +378,76 @@ async function validateStayTicket(dbReady, cleanRef, scope, staffEmail, staffNam
         createdAt: row.created_at,
         id: row.id
       };
+    }
+
+    // 2. Fallback: search in bc_bookings (guest-facing stays checkout flow — refs like BCS-XXXXXXX)
+    if (!booking) {
+      const bRes = await query(`
+        SELECT b.*, h.hotel_name, h.name as hotel_profile_name
+        FROM bc_bookings b
+        LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id
+        WHERE UPPER(b.ref) = $1
+          AND (b.type = 'stay' OR b.booking_type = 'stay' OR b.route ILIKE '%stay%' OR b.route ILIKE '%hotel%' OR b.hotel_profile_id IS NOT NULL)
+        LIMIT 1
+      `, [cleanRef]).catch(() => ({ rows: [] }));
+
+      if (bRes.rows.length > 0) {
+        const row = bRes.rows[0];
+        const pax = (row.passengers && row.passengers[0])
+          ? `${row.passengers[0].firstName || ''} ${row.passengers[0].lastName || ''}`.trim()
+          : (row.contact?.name || row.contact_email || 'Guest');
+        booking = {
+          ref: row.ref,
+          hotelProfileId: String(row.hotel_profile_id || '*'),
+          propertyName: row.hotel_name || row.hotel_profile_name || row.route || 'Stay Property',
+          roomNumber: row.room_number || 'TBD',
+          roomType: row.room_type || 'Standard Room',
+          floorName: 'Main',
+          guestName: pax,
+          guestEmail: row.contact_email || row.contact?.email || '',
+          guestPhone: row.contact?.phone || '',
+          checkInDate: row.check_in || row.dates?.split(' → ')[0] || null,
+          checkOutDate: row.check_out || row.dates?.split(' → ')[1] || null,
+          numGuests: Array.isArray(row.passengers) ? Math.max(1, row.passengers.length) : (row.num_guests || 1),
+          bookingStatus: row.status === 'confirmed' ? 'confirmed' : (row.status === 'cancelled' ? 'cancelled' : 'confirmed'),
+          paymentStatus: row.payment ? 'paid' : 'paid',
+          ticketStatus: row.status === 'cancelled' ? 'cancelled' : 'valid',
+          totalAmount: row.total || row.total_amount || 0,
+          createdAt: row.created_at,
+          id: row.ref
+        };
+      }
+    }
+
+    // 3. Broadest fallback: try any booking ref in bc_bookings regardless of type
+    if (!booking) {
+      const bRes2 = await query(`SELECT * FROM bc_bookings WHERE UPPER(ref) = $1 LIMIT 1`, [cleanRef]).catch(() => ({ rows: [] }));
+      if (bRes2.rows.length > 0) {
+        const row = bRes2.rows[0];
+        const pax = (row.passengers && row.passengers[0])
+          ? `${row.passengers[0].firstName || ''} ${row.passengers[0].lastName || ''}`.trim()
+          : (row.contact?.name || row.contact_email || 'Guest');
+        booking = {
+          ref: row.ref,
+          hotelProfileId: String(row.hotel_profile_id || '*'),
+          propertyName: row.route || 'Stay / Booking',
+          roomNumber: row.room_number || 'N/A',
+          roomType: row.room_type || 'Standard',
+          floorName: 'Main',
+          guestName: pax,
+          guestEmail: row.contact_email || row.contact?.email || '',
+          guestPhone: '',
+          checkInDate: row.check_in || null,
+          checkOutDate: row.check_out || null,
+          numGuests: Array.isArray(row.passengers) ? Math.max(1, row.passengers.length) : 1,
+          bookingStatus: row.status === 'cancelled' ? 'cancelled' : 'confirmed',
+          paymentStatus: 'paid',
+          ticketStatus: row.status === 'cancelled' ? 'cancelled' : 'valid',
+          totalAmount: row.total || 0,
+          createdAt: row.created_at,
+          id: row.ref
+        };
+      }
     }
   } else {
     if (global.__bc_pms && global.__bc_pms.bookings) {
@@ -422,8 +493,8 @@ async function validateStayTicket(dbReady, cleanRef, scope, staffEmail, staffNam
     };
   }
 
-  // Ownership check
-  if (!scope.ownedServiceIds.has('*') && !scope.ownedServiceIds.has(booking.hotelProfileId)) {
+  // Ownership check — skip if booking is a wildcard (no hotel_profile_id tied to it)
+  if (booking.hotelProfileId !== '*' && !scope.ownedServiceIds.has('*') && !scope.ownedServiceIds.has(booking.hotelProfileId)) {
     await logValidation(dbReady, {
       ticketNumber: cleanRef, operatorType: 'stay', serviceId: booking.hotelProfileId,
       serviceName: booking.propertyName, actionPerformed: 'verify', result: 'rejected',

@@ -57,6 +57,7 @@ export default function HotelDashboardPage() {
   const [replyText, setReplyText] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   // Real or 0 wallet
   const wallet = { available: 0.00, pending: 0.00, withdrawn: 0.00, lifetime: 0.00 };
@@ -271,10 +272,14 @@ export default function HotelDashboardPage() {
                   </div>
                 ) : (
                   reservations.slice(0, 3).map(b => (
-                    <div key={b.ref || b.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div
+                      key={b.ref || b.id}
+                      onClick={() => setSelectedBooking(b)}
+                      className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
+                    >
                       <div>
                         <div className="font-bold text-xs text-slate-900 dark:text-white">{b.guest_name || b.guestName}</div>
-                        <div className="text-[11px] text-slate-400">{b.check_in || b.checkIn} · {b.room_number ? `Room ${b.room_number}` : (b.room || 'Stay')}</div>
+                        <div className="text-[11px] text-slate-400">{b.check_in || b.checkIn} · {b.room_number ? `Room ${b.room_number}` : (b.room_type || 'Stay')}</div>
                       </div>
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${STATUS_BADGE[b.booking_status || b.status] || STATUS_BADGE.pending}`}>
                         {b.booking_status || b.status}
@@ -452,25 +457,30 @@ export default function HotelDashboardPage() {
                   <p className="text-slate-500 font-medium">No reservations found for this filter.</p>
                 </div>
               ) : filteredReservations.map(b => (
-                <div key={b.ref} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div
+                  key={b.ref || b.id}
+                  onClick={() => setSelectedBooking(b)}
+                  className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all"
+                >
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xl">
                       <i className="ph ph-user" />
                     </div>
                     <div>
-                      <div className="font-bold text-slate-900 dark:text-white text-base">{b.guestName}</div>
-                      <div className="text-xs text-slate-500">Ref: {b.ref} · {b.room}</div>
+                      <div className="font-bold text-slate-900 dark:text-white text-base">{b.guest_name || b.guestName || '—'}</div>
+                      <div className="text-xs text-slate-500">Ref: {b.ref || b.id} · {b.room_number ? `Room ${b.room_number}` : (b.room_type || 'Stay')}</div>
                       <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                        <span><i className="ph ph-calendar-blank text-blue-500" /> {b.checkIn} → {b.checkOut}</span>
-                        <span><i className="ph ph-users text-blue-500" /> {b.guests} Guests</span>
+                        <span><i className="ph ph-calendar-blank text-blue-500" /> {b.check_in || b.checkIn} → {b.check_out || b.checkOut}</span>
+                        <span><i className="ph ph-users text-blue-500" /> {b.num_guests || b.guests || 1} Guest{(b.num_guests || b.guests || 1) > 1 ? 's' : ''}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className="font-black text-blue-600 text-xl">{money(b.total)}</div>
-                    <span className={`px-3 py-0.5 rounded-full text-xs font-black capitalize border ${STATUS_BADGE[b.status] || STATUS_BADGE.pending}`}>
-                      {b.status}
+                    <div className="font-black text-blue-600 text-xl">{money(b.total_amount || b.total || 0)}</div>
+                    <span className={`px-3 py-0.5 rounded-full text-xs font-black capitalize border ${STATUS_BADGE[b.booking_status || b.status] || STATUS_BADGE.pending}`}>
+                      {b.booking_status || b.status}
                     </span>
+                    <span className="text-[10px] text-blue-500 font-bold">View Details →</span>
                   </div>
                 </div>
               ))}
@@ -641,6 +651,99 @@ export default function HotelDashboardPage() {
         )}
 
       </main>
+
+      {/* ─── BOOKING DETAIL MODAL ─────────────────────────────────────────── */}
+      {selectedBooking && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => e.target === e.currentTarget && setSelectedBooking(null)}
+        >
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-[fadeIn_0.2s_ease]">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 relative">
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
+              >
+                <i className="ph ph-x text-sm font-bold" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white text-3xl">
+                  <i className="ph ph-user" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">{selectedBooking.guest_name || selectedBooking.guestName || 'Guest'}</h3>
+                  <p className="text-blue-200 text-sm font-semibold mt-0.5">{selectedBooking.guest_email || selectedBooking.guestEmail || ''}</p>
+                  <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-[10px] font-black capitalize ${
+                    (selectedBooking.booking_status || selectedBooking.status) === 'confirmed' ? 'bg-emerald-400/30 text-emerald-100' :
+                    (selectedBooking.booking_status || selectedBooking.status) === 'cancelled' ? 'bg-rose-400/30 text-rose-100' :
+                    (selectedBooking.booking_status || selectedBooking.status) === 'checked_in' ? 'bg-blue-400/30 text-blue-100' :
+                    'bg-amber-400/30 text-amber-100'
+                  }`}>
+                    {selectedBooking.booking_status || selectedBooking.status || 'pending'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Booking Details Grid */}
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { icon: 'ph-hash', label: 'Booking Ref', value: selectedBooking.ref || selectedBooking.id },
+                  { icon: 'ph-bed', label: 'Room', value: selectedBooking.room_number ? `Room ${selectedBooking.room_number}${selectedBooking.room_type ? ` · ${selectedBooking.room_type}` : ''}` : (selectedBooking.room_type || 'Stay') },
+                  { icon: 'ph-calendar-check', label: 'Check In', value: selectedBooking.check_in || selectedBooking.checkIn || '—' },
+                  { icon: 'ph-calendar-x', label: 'Check Out', value: selectedBooking.check_out || selectedBooking.checkOut || '—' },
+                  { icon: 'ph-users', label: 'Guests', value: `${selectedBooking.num_guests || selectedBooking.guests || 1} guest${(selectedBooking.num_guests || selectedBooking.guests || 1) > 1 ? 's' : ''}` },
+                  { icon: 'ph-currency-dollar', label: 'Total Amount', value: money(selectedBooking.total_amount || selectedBooking.total || 0) },
+                  { icon: 'ph-credit-card', label: 'Payment', value: selectedBooking.payment_status || 'paid' },
+                  { icon: 'ph-buildings', label: 'Source', value: selectedBooking.source || 'direct' },
+                ].map(({ icon, label, value }) => (
+                  <div key={label} className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                      <i className={`ph ${icon} text-blue-500`} />
+                      {label}
+                    </div>
+                    <div className="font-bold text-sm text-slate-900 dark:text-white capitalize">{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {(selectedBooking.special_requests || selectedBooking.notes) && (
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4">
+                  <div className="text-[10px] font-black text-amber-600 uppercase tracking-wider mb-1"><i className="ph ph-note" /> Special Requests</div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{selectedBooking.special_requests || selectedBooking.notes}</p>
+                </div>
+              )}
+
+              {selectedBooking.guest_phone && (
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                  <i className="ph ph-phone text-blue-500" />
+                  <span className="font-semibold">{selectedBooking.guest_phone}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedBooking(null);
+                    setActiveTab('validate');
+                  }}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <i className="ph ph-qr-code" /> Validate Ticket
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
