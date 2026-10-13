@@ -162,16 +162,28 @@ export default function StaysCheckoutPage() {
     };
   };
 
+  // Pre-compute isLocalQuote early (before the big useEffect) so we can skip
+  // the Duffel client-key fetch for manually-listed properties entirely.
+  const _earlyIsLocal =
+    String(quoteId).includes('local') ||
+    String(quoteId).includes('pending') ||
+    String(quoteId).startsWith('quo_dummy') ||
+    String(searchParams.get('accommodation_id') || '').startsWith('local_');
+
   useEffect(() => {
     document.title = 'Complete Booking | BookingCart';
-    
-    // Fetch client key
-    fetch('/api/duffel-client-key', { method: 'POST' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.ok) setClientKey(data.clientKey);
-      })
-      .catch(err => console.error('Failed to get client key:', err));
+
+    // Only fetch the Duffel payment client key for real Duffel stays.
+    // For manually-listed (local) properties we never need it, and fetching it
+    // would risk the card-form being shown / button being disabled unexpectedly.
+    if (!_earlyIsLocal) {
+      fetch('/api/duffel-client-key', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) setClientKey(data.clientKey);
+        })
+        .catch(err => console.error('Failed to get client key:', err));
+    }
 
     // Try to fetch the real quote 
     setLoading(true);
@@ -253,15 +265,24 @@ export default function StaysCheckoutPage() {
   // Determine if this is a pay-at-property rate (no upfront card payment needed)
   const dueAtAccAmount = quote?.rooms?.[0]?.rates?.[0]?.due_at_accommodation_amount;
   const isPayAtProperty = dueAtAccAmount != null && Number(dueAtAccAmount) > 0;
-  // Local/demo quote IDs never go through Duffel card payment
-  const isLocalQuote = String(quoteId).includes('local') ||
+
+  // ─── Local / manual-property quote detection ─────────────────────────────
+  // Quote IDs for manually-listed hotels follow patterns like:
+  //   quo_rate_local_<id>_<ts>   (from handleBook when no Duffel quote is available)
+  //   quo_pending                 (network error fallback)
+  //   quo_dummy_*                 (demo / test)
+  // Duffel quote IDs start with "quo_" but never include "local" or "pending".
+  const isLocalQuote =
+    String(quoteId).includes('local') ||
     String(quoteId).includes('pending') ||
-    String(quoteId).startsWith('quo_dummy');
+    String(quoteId).startsWith('quo_dummy') ||
+    // safety net: any accommodation_id that starts with "local_" is a manual listing
+    String(searchParams.get('accommodation_id') || '').startsWith('local_');
 
   // Skip card tokenisation when:
   //   a) this is a B2B payment_instruction (lodged card) flow, OR
   //   b) this is a pay-at-property rate (guest pays on arrival), OR
-  //   c) this is a local platform quote (handled directly), OR
+  //   c) this is a local platform quote (handled directly — no Duffel card needed), OR
   //   d) clientKey hasn't loaded yet
   const needsCardPayment = !paymentInstructionAllowed && !isPayAtProperty && !isLocalQuote && Boolean(clientKey);
 
@@ -272,23 +293,32 @@ export default function StaysCheckoutPage() {
       window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
-    if (!firstName || !lastName || !email || !phone) {
-      alert('Please fill out all required fields.');
+    if (!firstName || !lastName || !email) {
+      alert('Please fill in your first name, last name, and email address.');
       return;
     }
     try {
       setLoading(true);
+      // Pull hotel_profile_id + room_id from URL for local PMS bookings
+      const accId = searchParams.get('accommodation_id') || '';
+      const localProfileId = accId.startsWith('local_') ? accId.replace('local_', '') : null;
+      const urlRoomId = searchParams.get('room_id');
+      const safeRoomId = (urlRoomId && urlRoomId !== 'undefined' && urlRoomId !== 'null') ? urlRoomId : null;
+
       const bookingData = {
         quote_id: quoteId,
         guests: [{ given_name: firstName, family_name: lastName }],
         email,
-        phone_number: `${phoneCode}${phone}`,
+        phone_number: phone ? `${phoneCode}${phone}` : phoneCode,
         accommodation: quote?.accommodation,
         check_in_date: quote?.check_in_date,
         check_out_date: quote?.check_out_date,
         total_amount: String(finalPrice),
         currency: quote?.currency || 'USD',
         rooms: quote?.rooms,
+        // Local / manual-property fields — ignored by Duffel flow
+        ...(localProfileId && { hotel_profile_id: localProfileId }),
+        ...(safeRoomId && { room_id: safeRoomId }),
       };
       sessionStorage.setItem('stays_booking_data', JSON.stringify(bookingData));
 
