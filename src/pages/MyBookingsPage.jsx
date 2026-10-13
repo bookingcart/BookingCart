@@ -13,7 +13,9 @@ const STATUS_BADGE = {
 };
 
 function StaysBookingCard({ booking, onCancel }) {
+  const navigate = useNavigate();
   const [cancelling, setCancelling] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const statusKey = (booking.status || 'pending').toLowerCase();
 
   const handleCancel = async () => {
@@ -36,51 +38,205 @@ function StaysBookingCard({ booking, onCancel }) {
   };
 
   const hotelName = booking.accommodation?.name || booking.accommodation_name || 'Hotel';
-  const checkin = booking.check_in_date || booking.check_in || '—';
-  const checkout = booking.check_out_date || booking.check_out || '—';
+  const hotelImage = booking.accommodation?.photos?.[0]?.url || booking.accommodation_image || null;
+  const bookingRef = booking.reference || booking.id || '—';
   const guests = booking.guests?.length || 1;
-  const total = booking.total_amount ? `${booking.total_currency || '$'}${booking.total_amount}` : '—';
+  const currency = booking.total_currency || booking.currency || 'USD';
+  const totalAmount = booking.total_amount ? `${currency}${Number(booking.total_amount).toFixed(2)}` : '—';
+  const guestName = booking.guests?.[0]
+    ? `${booking.guests[0].given_name || ''} ${booking.guests[0].family_name || ''}`.trim()
+    : '—';
+
+  // Format dates nicely
+  const formatDate = (d) => {
+    if (!d) return '—';
+    try {
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return d;
+      return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return d; }
+  };
+  const formatDateParts = (d) => {
+    if (!d) return { day: '--', month: '---' };
+    try {
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return { day: '--', month: '---' };
+      return {
+        day: String(dt.getDate()).padStart(2, '0'),
+        month: dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+      };
+    } catch { return { day: '--', month: '---' }; }
+  };
+  const checkinRaw = booking.check_in_date || booking.check_in;
+  const checkoutRaw = booking.check_out_date || booking.check_out;
+  const checkin = formatDateParts(checkinRaw);
+  const checkout = formatDateParts(checkoutRaw);
+  const nightCount = (() => {
+    try {
+      const diff = Math.round((new Date(checkoutRaw) - new Date(checkinRaw)) / 86400000);
+      return diff > 0 ? diff : null;
+    } catch { return null; }
+  })();
+
+  // Download confirmation as printable page
+  const handleDownload = () => {
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Booking Confirmation - ${bookingRef}</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:40px auto;padding:20px;color:#1e293b}
+.header{background:#059669;color:white;padding:30px;border-radius:16px;text-align:center;margin-bottom:24px}
+.header h1{margin:0;font-size:24px}.header p{margin:8px 0 0;opacity:.85;font-size:14px}
+.ref{background:#f1f5f9;border:2px solid #e2e8f0;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px}
+.ref .label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#94a3b8;font-weight:700}
+.ref .code{font-size:28px;font-family:monospace;font-weight:900;letter-spacing:3px;margin-top:4px}
+.section{margin-bottom:20px}.section h3{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;font-weight:700;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:8px}
+.row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px}.row .label{color:#64748b}.row .value{font-weight:700}
+.footer{text-align:center;font-size:11px;color:#94a3b8;margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0}
+</style></head><body>
+<div class="header"><h1>Booking Confirmed ✓</h1><p>${hotelName}</p></div>
+<div class="ref"><div class="label">Confirmation Number</div><div class="code">${bookingRef}</div></div>
+<div class="section"><h3>Stay Details</h3>
+<div class="row"><span class="label">Accommodation</span><span class="value">${hotelName}</span></div>
+<div class="row"><span class="label">Check-in</span><span class="value">${formatDate(checkinRaw)}</span></div>
+<div class="row"><span class="label">Check-out</span><span class="value">${formatDate(checkoutRaw)}</span></div>
+${nightCount ? `<div class="row"><span class="label">Duration</span><span class="value">${nightCount} night${nightCount > 1 ? 's' : ''}</span></div>` : ''}
+<div class="row"><span class="label">Guest</span><span class="value">${guestName}</span></div>
+<div class="row"><span class="label">Number of Guests</span><span class="value">${guests}</span></div>
+</div>
+<div class="section"><h3>Payment</h3>
+<div class="row"><span class="label">Total Paid</span><span class="value">${totalAmount}</span></div>
+<div class="row"><span class="label">Status</span><span class="value" style="color:#059669">Confirmed</span></div>
+</div>
+<div class="section"><h3>Important Information</h3>
+<p style="font-size:13px;color:#475569;line-height:1.6">Please present this confirmation and a valid photo ID at check-in. Check-in is typically from 14:00 and check-out by 11:00.</p>
+</div>
+<div class="footer"><p><strong>BookingCart Inc.</strong> · bookingcart.business@gmail.com · +1 (800) 555-0199</p></div>
+</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url);
+    if (w) {
+      w.onload = () => { setTimeout(() => w.print(), 300); };
+    }
+  };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-            <i className="ph ph-buildings text-green-600 text-xl" />
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-lg transition-all">
+      {/* Top section: Image + Info */}
+      <div className="flex flex-col sm:flex-row">
+        {/* Hotel Image */}
+        {hotelImage ? (
+          <div className="sm:w-44 h-36 sm:h-auto shrink-0">
+            <img src={hotelImage} alt={hotelName} className="w-full h-full object-cover" />
           </div>
-          <div>
-            <div className="font-bold text-slate-900 dark:text-slate-100 text-base">{hotelName}</div>
-            <div className="text-xs text-slate-500 mt-0.5">Booking ID: {booking.id}</div>
-            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-              <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-                <i className="ph ph-calendar-blank" />
-                {checkin} → {checkout}
+        ) : (
+          <div className="sm:w-44 h-36 sm:h-auto shrink-0 bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <i className="ph ph-buildings text-white/60 text-5xl" />
+          </div>
+        )}
+
+        {/* Booking Info */}
+        <div className="flex-1 p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-1">
+              <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight truncate">{hotelName}</h3>
+              <span className={`shrink-0 mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${STATUS_BADGE[statusKey] || STATUS_BADGE.pending}`}>
+                {booking.status || 'Pending'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mb-3 font-mono">Ref: {bookingRef}</p>
+
+            {/* Date blocks */}
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-3 py-2">
+                <div className="text-center">
+                  <div className="text-lg font-black text-slate-900 dark:text-white leading-none">{checkin.day}</div>
+                  <div className="text-[9px] font-bold text-slate-400 uppercase">{checkin.month}</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+              <div className="flex flex-col items-center">
+                {nightCount && <span className="text-[9px] font-black text-slate-400">{nightCount}N</span>}
+                <i className="ph ph-arrow-right text-slate-300 text-xs" />
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700 rounded-lg px-3 py-2">
+                <div className="text-center">
+                  <div className="text-lg font-black text-slate-900 dark:text-white leading-none">{checkout.day}</div>
+                  <div className="text-[9px] font-bold text-slate-400 uppercase">{checkout.month}</div>
+                </div>
+              </div>
+              <div className="ml-2 flex items-center gap-1 text-xs text-slate-500">
                 <i className="ph ph-user" />
                 {guests} Guest{guests !== 1 ? 's' : ''}
               </div>
             </div>
           </div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="font-black text-slate-900 dark:text-white text-lg">{total}</div>
-          <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${STATUS_BADGE[statusKey] || STATUS_BADGE.pending}`}>
-            {booking.status || 'Pending'}
-          </span>
+
+          {/* Price */}
+          <div className="text-right shrink-0">
+            <div className="font-black text-emerald-700 dark:text-emerald-400 text-xl">{totalAmount}</div>
+            <div className="text-[10px] text-slate-400 font-semibold">Total paid</div>
+          </div>
         </div>
       </div>
 
-      {statusKey !== 'cancelled' && (
-        <div className="flex justify-end mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+      {/* Action bar */}
+      <div className="px-5 py-3 bg-slate-50 dark:bg-slate-700/30 border-t border-slate-100 dark:border-slate-700 flex items-center gap-3 flex-wrap">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
+        >
+          <i className={`ph ${expanded ? 'ph-caret-up' : 'ph-caret-down'} text-sm`} />
+          {expanded ? 'Hide Details' : 'View Details'}
+        </button>
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors"
+        >
+          <i className="ph ph-download-simple text-sm" />
+          Download Confirmation
+        </button>
+        {statusKey !== 'cancelled' && (
           <button
             onClick={handleCancel}
             disabled={cancelling}
-            className="text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50 flex items-center gap-1"
+            className="ml-auto flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors"
           >
             <i className="ph ph-x-circle" />
             {cancelling ? 'Cancelling…' : 'Cancel booking'}
           </button>
+        )}
+      </div>
+
+      {/* Expanded details panel */}
+      {expanded && (
+        <div className="px-5 pb-5 pt-2 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+            <div className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Guest Information</div>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">{guestName}</p>
+              {booking.email && <p className="text-xs text-slate-500 mt-1">{booking.email}</p>}
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Stay Duration</div>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                {formatDate(checkinRaw)} → {formatDate(checkoutRaw)}
+              </p>
+              {nightCount && <p className="text-xs text-slate-500 mt-1">{nightCount} night{nightCount > 1 ? 's' : ''}</p>}
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Payment</div>
+              <p className="text-sm font-bold text-emerald-600">{totalAmount}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                <i className="ph-fill ph-check-circle text-emerald-500 mr-1" />
+                {statusKey === 'cancelled' ? 'Cancelled' : 'Paid in full'}
+              </p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Important</div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Present this confirmation and a valid photo ID at check-in. Check-in from 14:00, check-out by 11:00.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

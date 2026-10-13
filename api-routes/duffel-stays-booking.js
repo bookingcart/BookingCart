@@ -38,22 +38,28 @@ module.exports = async (req, res) => {
               dbParams.push(callerEmail.toLowerCase().trim());
             }
             const dbRes = await query(dbQ, dbParams).catch(() => ({ rows: [] }));
-            localBookings = (dbRes.rows || []).map(row => ({
-              id: `pms_${row.id}`,
-              reference: row.ref,
-              status: row.booking_status || 'confirmed',
-              email: row.guest_email,
-              check_in_date: row.check_in,
-              check_out_date: row.check_out,
-              total_amount: String(row.total_amount || 0),
-              total_currency: 'USD',
-              guests: [{ given_name: (row.guest_name || 'Guest').split(' ')[0], family_name: (row.guest_name || '').split(' ').slice(1).join(' ') }],
-              accommodation: {
-                name: 'Stay Property',
-              },
-              accommodation_name: 'Stay Property',
-              _source: 'pms'
-            }));
+            localBookings = (dbRes.rows || []).map(row => {
+              const accName = row.accommodation_name || row.notes || 'Stay Property';
+              const accImage = row.accommodation_image || null;
+              return {
+                id: `pms_${row.id}`,
+                reference: row.ref,
+                status: row.booking_status || 'confirmed',
+                email: row.guest_email,
+                check_in_date: row.check_in,
+                check_out_date: row.check_out,
+                total_amount: String(row.total_amount || 0),
+                total_currency: row.currency || 'USD',
+                guests: [{ given_name: (row.guest_name || 'Guest').split(' ')[0], family_name: (row.guest_name || '').split(' ').slice(1).join(' ') }],
+                accommodation: {
+                  name: accName,
+                  photos: accImage ? [{ url: accImage }] : [],
+                },
+                accommodation_name: accName,
+                accommodation_image: accImage,
+                _source: 'pms'
+              };
+            });
           }
         } catch (dbErr) {
           console.warn('[stays-booking] Local DB query failed:', dbErr.message);
@@ -195,6 +201,9 @@ module.exports = async (req, res) => {
         const hotelProfileId = req.body.hotel_profile_id || 1;
         const roomId = req.body.room_id || 1;
 
+        const accommodationName = accommodation?.name || 'Hotel';
+        const accommodationImage = accommodation?.photos?.[0]?.url || '';
+
         // Persist booking into bc_pms_bookings
         try {
           if (isDbConfigured()) {
@@ -226,18 +235,25 @@ module.exports = async (req, res) => {
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
               )
             `).catch(() => {});
+            // Add accommodation columns if missing (safe for existing tables)
+            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_name TEXT DEFAULT ''`).catch(() => {});
+            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_image TEXT DEFAULT ''`).catch(() => {});
+            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`).catch(() => {});
             await query(`
-              INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, source)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed', 'paid', $10, 'bookingcart_web')
+              INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, source, accommodation_name, accommodation_image, currency)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed', 'paid', $10, 'bookingcart_web', $11, $12, $13)
               ON CONFLICT (ref) DO NOTHING
             `, [
               ref, hotelProfileId, roomId, guestName, email, phone_number,
               checkIn,
               checkOut,
               guests.length || 1,
-              totalAmount
+              totalAmount,
+              accommodationName,
+              accommodationImage,
+              currency
             ]);
-            console.log('[Stays] Booking persisted to bc_pms_bookings:', ref);
+            console.log('[Stays] Booking persisted to bc_pms_bookings:', ref, '- Hotel:', accommodationName);
           }
         } catch (dbErr) {
           console.warn('[Stays PMS booking insert failed]:', dbErr.message);
