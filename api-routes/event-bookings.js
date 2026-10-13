@@ -192,6 +192,12 @@ module.exports = async function eventBookingsHandler(req, res) {
   const status = autoConfirm ? 'confirmed' : 'pending_payment';
   const ticketNo = autoConfirm ? `TKT-${crypto.randomBytes(4).toString('hex').toUpperCase()}` : '';
 
+  // Use ticket_banner_image (owner-uploaded); fall back to first step_gallery image; do NOT truncate (base64)
+  const rawBanner = profile.ticket_banner_image ||
+    (Array.isArray(profile.step_gallery) && profile.step_gallery.length > 0
+      ? (profile.step_gallery[0]?.url || profile.step_gallery[0]?.src || '')
+      : '');
+
   const record = {
     bookingRef,
     ticketNo,
@@ -199,7 +205,7 @@ module.exports = async function eventBookingsHandler(req, res) {
     eventName: clean(info.eventName, 160) || 'Local event',
     venueName: clean(info.eventName, 160) || 'Local event',
     location: [clean(location.address, 160), clean(location.city, 80), clean(location.country, 80)].filter(Boolean).join(', '),
-    bannerImage: clean(profile.ticket_banner_image, 1000),
+    bannerImage: rawBanner,
     ticketName: clean(ticket.name || ticket.type, 120) || 'Admission',
     quantity,
     unitAmount,
@@ -212,6 +218,7 @@ module.exports = async function eventBookingsHandler(req, res) {
     paymentMethod: paymentMethod || (autoConfirm ? 'instant' : ''),
     createdAt: new Date().toISOString(),
   };
+
 
   if (dbReady) {
     await query(

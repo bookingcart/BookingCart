@@ -2,6 +2,20 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 
+// ─── Lightweight QR Code (no extra dependencies) ───────────────────────────────
+function QRCode({ value, size = 130 }) {
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=1a1a2e&format=svg&margin=6`;
+  return (
+    <img
+      src={url}
+      alt="Booking QR Code"
+      width={size}
+      height={size}
+      className="rounded-xl border-4 border-white shadow-lg"
+    />
+  );
+}
+
 export default function StaysConfirmationPage() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
@@ -185,18 +199,28 @@ export default function StaysConfirmationPage() {
                 </div>
               </div>
 
-              {/* Booking ref + confirmation number */}
-              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
-                <div>
+              {/* Booking ref + confirmation number + QR code */}
+              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-6">
+                <div className="flex-1 min-w-0">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirmation Number</span>
                   <p className="text-2xl font-mono font-black text-slate-900 dark:text-white tracking-wider mt-0.5">{bookingRef}</p>
-                </div>
-                {confirmedAt && (
-                  <div className="text-right">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirmed</span>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-0.5">{formatDateTime(confirmedAt)}</p>
+                  {confirmedAt && (
+                    <p className="text-xs text-slate-500 mt-1">Confirmed {formatDateTime(confirmedAt)}</p>
+                  )}
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-full border border-emerald-200 dark:border-emerald-800">
+                      <i className="ph-fill ph-check-circle text-xs" /> Confirmed
+                    </span>
+                    <span className="text-[10px] text-slate-400">Scan QR code at check-in →</span>
                   </div>
-                )}
+                </div>
+                {/* QR Code for check-in scanning */}
+                <div className="shrink-0 flex flex-col items-center gap-1.5">
+                  <div className="p-2 bg-white dark:bg-slate-700 rounded-2xl shadow-md border border-slate-200 dark:border-slate-600">
+                    <QRCode value={JSON.stringify({ ref: bookingRef, type: 'stay', hotel: accommodationName, checkIn: checkInRaw, checkOut: checkOutRaw })} size={110} />
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Check-in QR</span>
+                </div>
               </div>
             </div>
 
