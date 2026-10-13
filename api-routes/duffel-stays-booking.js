@@ -31,26 +31,13 @@ module.exports = async (req, res) => {
             await initDb();
             // Attempt to get the caller's email from query param for filtering
             const callerEmail = req.query.email || req.query.guest_email || null;
-            let dbQ = `
-              SELECT b.*, r.room_number, r.room_type, h.hotel_name, h.name as hotel_profile_name
-              FROM bc_pms_bookings b
-              LEFT JOIN bc_pms_rooms r ON r.id = b.room_id
-              LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id
-              ORDER BY b.created_at DESC LIMIT 100
-            `;
+            let dbQ = `SELECT * FROM bc_pms_bookings ORDER BY created_at DESC LIMIT 100`;
             const dbParams = [];
             if (callerEmail) {
-              dbQ = `
-                SELECT b.*, r.room_number, r.room_type, h.hotel_name, h.name as hotel_profile_name
-                FROM bc_pms_bookings b
-                LEFT JOIN bc_pms_rooms r ON r.id = b.room_id
-                LEFT JOIN bc_hotel_profiles h ON h.id = b.hotel_profile_id
-                WHERE LOWER(b.guest_email) = $1
-                ORDER BY b.created_at DESC LIMIT 100
-              `;
+              dbQ = `SELECT * FROM bc_pms_bookings WHERE LOWER(guest_email) = $1 ORDER BY created_at DESC LIMIT 100`;
               dbParams.push(callerEmail.toLowerCase().trim());
             }
-            const dbRes = await query(dbQ, dbParams);
+            const dbRes = await query(dbQ, dbParams).catch(() => ({ rows: [] }));
             localBookings = (dbRes.rows || []).map(row => ({
               id: `pms_${row.id}`,
               reference: row.ref,
@@ -62,9 +49,9 @@ module.exports = async (req, res) => {
               total_currency: 'USD',
               guests: [{ given_name: (row.guest_name || 'Guest').split(' ')[0], family_name: (row.guest_name || '').split(' ').slice(1).join(' ') }],
               accommodation: {
-                name: row.hotel_name || row.hotel_profile_name || 'Stay Property',
-                rooms: [{ room_type: row.room_type || 'Standard Room', room_number: row.room_number }]
+                name: 'Stay Property',
               },
+              accommodation_name: 'Stay Property',
               _source: 'pms'
             }));
           }
