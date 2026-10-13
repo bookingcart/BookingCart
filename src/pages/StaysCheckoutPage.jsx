@@ -386,6 +386,22 @@ export default function StaysCheckoutPage() {
       };
       sessionStorage.setItem('stays_booking_result', JSON.stringify(enrichedBooking));
 
+      // ── Persist hotel display data to localStorage so MyBookingsPage can show
+      // the real hotel name & image even for bookings that predate the DB columns.
+      try {
+        const ref = bookingJson.booking?.reference || bookingJson.booking?.id;
+        if (ref) {
+          const accName = enrichedBooking.accommodation?.name || quote?.accommodation?.name || '';
+          const accImage = enrichedBooking.accommodation?.photos?.[0]?.url || quote?.accommodation?.photos?.[0]?.url || '';
+          if (accName || accImage) {
+            const cache = JSON.parse(localStorage.getItem('bc_stays_hotel_cache') || '{}');
+            cache[ref] = { name: accName, image: accImage };
+            localStorage.setItem('bc_stays_hotel_cache', JSON.stringify(cache));
+          }
+        }
+      } catch (_) {}
+
+
       // If payment instruction is allowed + user provided a card, trigger it
       if (paymentInstructionAllowed && lodgedCardId.trim() && bookingJson.booking?.id) {
         setPaymentInstructionLoading(true);

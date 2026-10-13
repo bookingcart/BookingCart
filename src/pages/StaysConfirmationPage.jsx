@@ -23,8 +23,20 @@ export default function StaysConfirmationPage() {
         if (isDirect) {
           const rawResult = sessionStorage.getItem('stays_booking_result');
           if (rawResult) {
-            setBooking(JSON.parse(rawResult));
+            const parsed = JSON.parse(rawResult);
+            setBooking(parsed);
             sessionStorage.removeItem('stays_booking_result');
+            // ── Cache hotel display data in localStorage for MyBookingsPage ──
+            try {
+              const ref = parsed.reference || parsed.id;
+              const accName = parsed.accommodation?.name || '';
+              const accImage = parsed.accommodation?.photos?.[0]?.url || '';
+              if (ref && (accName || accImage)) {
+                const cache = JSON.parse(localStorage.getItem('bc_stays_hotel_cache') || '{}');
+                cache[ref] = { name: accName, image: accImage };
+                localStorage.setItem('bc_stays_hotel_cache', JSON.stringify(cache));
+              }
+            } catch (_) {}
             return;
           }
         }

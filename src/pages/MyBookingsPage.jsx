@@ -441,7 +441,30 @@ export default function MyBookingsPage() {
         .then(r => r.json())
         .then(data => {
           if (data.ok) {
-            setStaysBookings(data.bookings || []);
+            // Enrich bookings with localStorage hotel cache for old rows
+            let bookings = data.bookings || [];
+            try {
+              const cache = JSON.parse(localStorage.getItem('bc_stays_hotel_cache') || '{}');
+              bookings = bookings.map(b => {
+                const ref = b.reference || b.id;
+                const cached = ref && cache[ref];
+                if (!cached) return b;
+                const hasName = b.accommodation?.name && b.accommodation.name !== 'Stay Property';
+                const hasImg = b.accommodation?.photos?.[0]?.url;
+                // Only fill in missing/placeholder data from cache
+                return {
+                  ...b,
+                  accommodation: {
+                    ...b.accommodation,
+                    name: hasName ? b.accommodation.name : (cached.name || b.accommodation?.name || 'Hotel'),
+                    photos: hasImg ? b.accommodation.photos : (cached.image ? [{ url: cached.image }] : (b.accommodation?.photos || [])),
+                  },
+                  accommodation_name: hasName ? b.accommodation_name : (cached.name || b.accommodation_name),
+                  accommodation_image: hasImg ? b.accommodation_image : (cached.image || b.accommodation_image),
+                };
+              });
+            } catch (_) {}
+            setStaysBookings(bookings);
           } else {
             setStaysError(data.error || 'Failed to load hotel bookings.');
           }
@@ -451,6 +474,7 @@ export default function MyBookingsPage() {
         .finally(() => setStaysLoading(false));
     }
   }, [activeTab, staysFetched, user]);
+
 
   // Load guide bookings
   useEffect(() => {
