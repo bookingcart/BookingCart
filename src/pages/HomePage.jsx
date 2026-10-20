@@ -198,6 +198,15 @@ const EXPLORE_CITIES_BY_COUNTRY = {
     { city: 'Sharjah',    img: 'https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=80', props: '3,200' },
     { city: 'Ras Al Khaimah', img: 'https://images.unsplash.com/photo-1548438294-1ad5d5f4f063?w=600&q=80', props: '1,400' },
   ],
+  // Fallback for unrecognised countries
+  default: [
+    { city: 'Paris',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg/960px-La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg', props: '38,000' },
+    { city: 'Dubai',     img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
+    { city: 'Nairobi',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
+    { city: 'Cape Town', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80', props: '12,000' },
+    { city: 'London',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
+    { city: 'New York',  img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', props: '82,000' },
+  ],
 };
 
 // Map country code or country name → region key
