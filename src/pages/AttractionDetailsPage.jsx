@@ -162,8 +162,8 @@ export default function AttractionDetailsPage() {
                 </span>
               )}
               {isLocalEvent && (
-                <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
-                  <i className="ph ph-ticket text-amber-400" /> Verified Organizer
+                <span className="px-3 py-1 rounded-full bg-green-600/20 text-green-300 border border-green-500/40 text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
+                  <i className="ph ph-seal-check text-green-400" /> Verified Organizer
                 </span>
               )}
             </div>

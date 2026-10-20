@@ -134,6 +134,47 @@ module.exports = async (req, res) => {
     console.warn('[hotel-profiles] DB unavailable, using memory fallback:', err.message);
   }
 
+  // ── GET ?action=public — public listing of approved hotels (no auth needed) ─
+  if (req.method === 'GET' && (req.query.action === 'public' || req.query.public === '1')) {
+    const q = (req.query.q || '').trim().toLowerCase();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 6, 20);
+    let hotels = [];
+
+    if (dbReady) {
+      try {
+        const r = await query(
+          `SELECT id, step_property_info, step_location, step_gallery, step_amenities, step_policies, completeness, updated_at
+           FROM bc_hotel_profiles
+           WHERE status IN ('approved','published')
+           ORDER BY completeness DESC, updated_at DESC
+           LIMIT 50`
+        );
+        hotels = r.rows;
+      } catch (err) {
+        console.warn('[hotel-profiles] public query error:', err.message);
+      }
+    } else {
+      const store = getMemProfiles();
+      for (const [, p] of store) {
+        if (p.status === 'approved' || p.status === 'published') hotels.push(p);
+      }
+    }
+
+    // Filter by q if provided
+    if (q) {
+      hotels = hotels.filter(h => {
+        const info = h.step_property_info || {};
+        const loc = h.step_location || {};
+        const name = (info.hotelName || '').toLowerCase();
+        const city = (loc.city || '').toLowerCase();
+        const country = (loc.country || '').toLowerCase();
+        return name.includes(q) || city.includes(q) || country.includes(q);
+      });
+    }
+
+    return res.json({ ok: true, hotels: hotels.slice(0, limit) });
+  }
+
   // ── GET — load profile for authenticated user ─────────────────────────────
   if (req.method === 'GET') {
     const auth = await verifyRequestBearer(req);

@@ -357,6 +357,11 @@ export default function HomePage() {
   const [staysDeals, setStaysDeals] = useState(STAYS_DEALS_BY_REGION['default']);
   const [staysDealCity, setStaysDealCity] = useState('');
 
+  // Trending hotels state
+  const [trendingHotels, setTrendingHotels] = useState([]);
+  const [trendingHotelsCity, setTrendingHotelsCity] = useState('');
+  const [trendingHotelsLoading, setTrendingHotelsLoading] = useState(true);
+
   // Stays Autocomplete state
   const [staysSuggestions, setStaysSuggestions] = useState([]);
   const [isStaysSuggestOpen, setIsStaysSuggestOpen] = useState(false);
@@ -413,6 +418,61 @@ export default function HomePage() {
       }
     }
     detectAndSetDeals();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch trending hotels near user's detected location
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchTrendingHotels() {
+      setTrendingHotelsLoading(true);
+      try {
+        // Step 1: detect user city/country via IP geolocation
+        let city = '';
+        let country = '';
+        try {
+          const geoResp = await fetch('https://ipapi.co/json/');
+          if (geoResp.ok) {
+            const geo = await geoResp.json();
+            city = geo.city || '';
+            country = geo.country_name || '';
+          }
+        } catch { /* geo failed – proceed without location filter */ }
+
+        if (cancelled) return;
+
+        // Step 2: fetch platform-listed hotels filtered by detected location
+        const searchTerm = city || country || '';
+        const url = searchTerm
+          ? `/api/hotel-profiles?action=public&q=${encodeURIComponent(searchTerm)}&limit=6`
+          : `/api/hotel-profiles?action=public&limit=6`;
+
+        const res = await fetch(url);
+        let hotels = [];
+        if (res.ok) {
+          const data = await res.json();
+          hotels = (data.hotels || []).slice(0, 6);
+        }
+
+        // Step 3: if location search returned nothing, show any available hotels
+        if (!hotels.length && searchTerm) {
+          const fallbackRes = await fetch(`/api/hotel-profiles?action=public&limit=6`);
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            hotels = (fallbackData.hotels || []).slice(0, 6);
+          }
+        }
+
+        if (cancelled) return;
+        setTrendingHotels(hotels);
+        setTrendingHotelsCity(city || country || '');
+      } catch {
+        // silent — section simply shows the fallback CTA
+      } finally {
+        if (!cancelled) setTrendingHotelsLoading(false);
+      }
+    }
+    fetchTrendingHotels();
     return () => { cancelled = true; };
   }, []);
 
@@ -1306,49 +1366,138 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Trending destinations */}
-            <div className="mb-6">
-              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">Trending destinations</h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium">Travelers searching for United Kingdom also booked these</p>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-12">
-              <a href="/stays/results?destination=Manchester" className="col-span-2 md:col-span-3 h-64 md:h-80 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg/960px-Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg" alt="Manchester" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                <div className="absolute top-4 left-6 right-6">
-                  <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">Manchester 🇬🇧</h3>
+            {/* Trending hotels near user's location */}
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <div className="inline-flex items-center gap-1.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-bold text-xs px-3 py-1 rounded-full mb-2">
+                  <i className="ph ph-fire" /> Trending now
                 </div>
-              </a>
-              <a href="/stays/results?destination=Birmingham" className="col-span-2 md:col-span-3 h-64 md:h-80 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Birmingham_Skyline_from_the_West.jpg/960px-Birmingham_Skyline_from_the_West.jpg" alt="Birmingham" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                <div className="absolute top-4 left-6 right-6">
-                  <h3 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">Birmingham 🇬🇧</h3>
-                </div>
-              </a>
-              <a href="/stays/results?destination=Leeds" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Leeds_CBD_at_night.jpg/960px-Leeds_CBD_at_night.jpg" alt="Leeds" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                <div className="absolute top-4 left-5 right-5">
-                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Leeds 🇬🇧</h3>
-                </div>
-              </a>
-              <a href="/stays/results?destination=Liverpool" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Pier_Head%2C_Liverpool_-_geograph.org.uk_-_3059094.jpg/960px-Pier_Head%2C_Liverpool_-_geograph.org.uk_-_3059094.jpg" alt="Liverpool" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                <div className="absolute top-4 left-5 right-5">
-                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Liverpool 🇬🇧</h3>
-                </div>
-              </a>
-              <a href="/stays/results?destination=Dublin" className="col-span-2 h-48 md:h-64 rounded-2xl overflow-hidden relative group cursor-pointer block">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Dublin_-_aerial_-_2025-07-07_01.jpg/960px-Dublin_-_aerial_-_2025-07-07_01.jpg" alt="Dublin" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                <div className="absolute top-4 left-5 right-5">
-                  <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Dublin 🇮🇪</h3>
-                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-0.5 tracking-tight">Trending hotels</h2>
+                <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+                  {trendingHotelsCity ? `Top-rated stays near ${trendingHotelsCity}` : 'Top-rated stays near you'}
+                </p>
+              </div>
+              <a
+                href={trendingHotelsCity ? `/stays/results?destination=${encodeURIComponent(trendingHotelsCity)}` : '/stays/results'}
+                className="hidden sm:flex items-center gap-1 text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+              >
+                View all <i className="ph ph-caret-right text-xs" />
               </a>
             </div>
+
+            {/* Loading skeletons */}
+            {trendingHotelsLoading && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm animate-pulse">
+                    <div className="h-44 bg-slate-200 dark:bg-slate-700" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4" />
+                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full w-1/2" />
+                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Hotel cards — real platform listings */}
+            {!trendingHotelsLoading && trendingHotels.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+                {trendingHotels.map((hotel, idx) => {
+                  const info = hotel.step_property_info || hotel;
+                  const loc = hotel.step_location || {};
+                  const gallery = Array.isArray(hotel.step_gallery) ? hotel.step_gallery : [];
+                  const firstImg = gallery[0]?.url || gallery[0] || info.featured_image || info.image || info.coverImage || '';
+                  const hotelName = info.hotelName || info.name || hotel.name || 'Hotel';
+                  const city = loc.city || info.city || hotel.city || '';
+                  const country = loc.country || info.country || hotel.country || '';
+                  const priceFrom = info.priceFrom || info.price || hotel.price_per_night || hotel.price || '';
+                  const rating = info.starRating || hotel.rating || hotel.star_rating || '';
+                  const hotelId = hotel.id;
+                  const starsCount = parseInt(rating, 10) || 0;
+
+                  return (
+                    <a
+                      key={hotelId || idx}
+                      href={`/stays/results?destination=${encodeURIComponent(city || hotelName)}&hotel_id=${hotelId || ''}`}
+                      className="group bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 block"
+                    >
+                      {/* Image */}
+                      <div className="relative h-44 overflow-hidden bg-slate-100 dark:bg-slate-700">
+                        {firstImg ? (
+                          <img
+                            src={firstImg}
+                            alt={hotelName}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                            onError={e => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <i className="ph ph-buildings text-5xl text-slate-300 dark:text-slate-600" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                        {starsCount > 0 && (
+                          <div className="absolute top-3 left-3 flex items-center gap-0.5">
+                            {Array.from({ length: starsCount }).map((_, s) => (
+                              <i key={s} className="ph-fill ph-star text-amber-400 text-xs" />
+                            ))}
+                          </div>
+                        )}
+                        <div className="absolute bottom-3 right-3 bg-green-600 text-white text-[10px] font-black px-2 py-1 rounded-full">
+                          Available
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-4">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-tight line-clamp-1 group-hover:text-green-600 transition-colors mb-1">
+                          {hotelName}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mb-2">
+                          <i className="ph ph-map-pin text-green-600 text-sm flex-shrink-0" />
+                          <span className="truncate">{[city, country].filter(Boolean).join(', ') || 'Location on file'}</span>
+                        </p>
+                        <div className="flex items-center justify-between">
+                          {priceFrom ? (
+                            <p className="text-sm font-extrabold text-slate-900 dark:text-white">
+                              from <span className="text-green-600">{typeof priceFrom === 'number' ? `$${priceFrom}` : priceFrom}</span>
+                              <span className="text-xs font-normal text-slate-400 ml-1">/night</span>
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-400">Check availability</p>
+                          )}
+                          <span className="text-[10px] font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/50 px-2 py-0.5 rounded-full">
+                            Book
+                          </span>
+                        </div>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Fallback: no local hotels found */}
+            {!trendingHotelsLoading && trendingHotels.length === 0 && (
+              <div className="mb-12 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-10 text-center shadow-sm">
+                <i className="ph ph-buildings text-5xl text-slate-200 dark:text-slate-700 mb-3 block" />
+                <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-1">Discover hotels near you</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+                  {trendingHotelsCity
+                    ? `We're expanding in ${trendingHotelsCity}. Search all available stays below.`
+                    : 'Search destinations to find the best stays for your next trip.'}
+                </p>
+                <a
+                  href={trendingHotelsCity ? `/stays/results?destination=${encodeURIComponent(trendingHotelsCity)}` : '/stays/results'}
+                  className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-md shadow-green-600/20"
+                >
+                  <i className="ph ph-magnifying-glass" />
+                  {trendingHotelsCity ? `Search stays in ${trendingHotelsCity}` : 'Search all stays'}
+                </a>
+              </div>
+            )}
 
             {/* Browse by property type */}
             <div className="mb-6">

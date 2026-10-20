@@ -207,9 +207,9 @@ export default function EventCheckoutPage() {
           {/* Checkout Form */}
           <form onSubmit={submit} className="space-y-6">
             {!isAuthenticated && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-green-600/10 border border-green-500/30 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-xl shrink-0">
                     <i className="ph ph-lock-key" />
                   </div>
                   <div>
@@ -219,7 +219,7 @@ export default function EventCheckoutPage() {
                 </div>
                 <Link
                   to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl shrink-0 transition-colors text-center"
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs rounded-xl shrink-0 transition-colors text-center"
                 >
                   Sign In / Register
                 </Link>
