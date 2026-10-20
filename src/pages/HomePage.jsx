@@ -112,6 +112,100 @@ const STAYS_DEALS_BY_REGION = {
   ],
 };
 
+// Popular cities to explore — keyed by ISO-2 country code
+const EXPLORE_CITIES_BY_COUNTRY = {
+  UG: [
+    { city: 'Kampala',    img: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Urban_Rising%2C_KAMPALA%2C_Uganda.jpg', props: '2,289' },
+    { city: 'Entebbe',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Entebbe_Main_Street.jpg/960px-Entebbe_Main_Street.jpg', props: '335' },
+    { city: 'Mbarara',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mbarara_City_Skyline.jpg/960px-Mbarara_City_Skyline.jpg', props: '72' },
+    { city: 'Fort Portal', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Fort_Portal_Town_in_Western_Uganda.jpg/960px-Fort_Portal_Town_in_Western_Uganda.jpg', props: '101' },
+    { city: 'Gulu',      img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Gulu_City.jpg/960px-Gulu_City.jpg', props: '48' },
+    { city: 'Kabale',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Kabale_Town.jpg/960px-Kabale_Town.jpg', props: '46' },
+  ],
+  KE: [
+    { city: 'Nairobi',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
+    { city: 'Mombasa',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Mombasa_Island.jpg/960px-Mombasa_Island.jpg', props: '1,480' },
+    { city: 'Kisumu',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Kisumu_City.jpg/960px-Kisumu_City.jpg', props: '340' },
+    { city: 'Nakuru',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Nakuru_Town.jpg/960px-Nakuru_Town.jpg', props: '290' },
+    { city: 'Eldoret',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Eldoret_town.jpg/960px-Eldoret_town.jpg', props: '210' },
+    { city: 'Malindi',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Malindi_beach.jpg/960px-Malindi_beach.jpg', props: '180' },
+  ],
+  TZ: [
+    { city: 'Dar es Salaam', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/St_Joseph%27s_Catholic_Cathedral_%2834895613805%29.jpg/960px-St_Joseph%27s_Catholic_Cathedral_%2834895613805%29.jpg', props: '3,200' },
+    { city: 'Zanzibar',  img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=600&q=80', props: '1,540' },
+    { city: 'Arusha',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Arusha_City_Center.jpg/960px-Arusha_City_Center.jpg', props: '980' },
+    { city: 'Mwanza',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Mwanza_City.jpg/960px-Mwanza_City.jpg', props: '310' },
+    { city: 'Dodoma',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Dodoma_Capital.jpg/960px-Dodoma_Capital.jpg', props: '160' },
+    { city: 'Moshi',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Moshi_Town_Tanzania.jpg/960px-Moshi_Town_Tanzania.jpg', props: '420' },
+  ],
+  RW: [
+    { city: 'Kigali',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/High_Angle_View_Of_Kigali_City_Street_on_November_29%2C_2018._Emmanuel_Kwizera.jpg/960px-High_Angle_View_Of_Kigali_City_Street_on_November_29%2C_2018._Emmanuel_Kwizera.jpg', props: '1,200' },
+    { city: 'Gisenyi',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Gisenyi_Lake_Kivu.jpg/960px-Gisenyi_Lake_Kivu.jpg', props: '180' },
+    { city: 'Butare',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Butare_Rwanda.jpg/960px-Butare_Rwanda.jpg', props: '95' },
+    { city: 'Musanze',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Musanze_Rwanda.jpg/960px-Musanze_Rwanda.jpg', props: '210' },
+  ],
+  NG: [
+    { city: 'Lagos',     img: 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Lagos-centre-from-executive-lounge-Continental-hotel-2026-IMG_7970.jpg', props: '8,400' },
+    { city: 'Abuja',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Abuja_heritages_30.jpg/960px-Abuja_heritages_30.jpg', props: '3,100' },
+    { city: 'Port Harcourt', img: 'https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?w=600&q=80', props: '1,200' },
+    { city: 'Ibadan',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Ibadan_City.jpg/960px-Ibadan_City.jpg', props: '870' },
+    { city: 'Kano',      img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Kano_City.jpg/960px-Kano_City.jpg', props: '540' },
+    { city: 'Calabar',   img: 'https://images.unsplash.com/photo-1577003833619-76bbd7f82948?w=600&q=80', props: '310' },
+  ],
+  GH: [
+    { city: 'Accra',     img: 'https://upload.wikimedia.org/wikipedia/commons/0/0a/Acca.jpg', props: '4,500' },
+    { city: 'Kumasi',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Kumasi_Ghana.jpg/960px-Kumasi_Ghana.jpg', props: '1,100' },
+    { city: 'Cape Coast', img: 'https://images.unsplash.com/photo-1611521260993-8f6dc5ce5e5d?w=600&q=80', props: '520' },
+    { city: 'Tamale',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Tamale_Ghana.jpg/960px-Tamale_Ghana.jpg', props: '280' },
+  ],
+  ZA: [
+    { city: 'Cape Town', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80', props: '12,000' },
+    { city: 'Johannesburg', img: 'https://images.unsplash.com/photo-1577948000111-9c970dfe1ac5?w=600&q=80', props: '9,800' },
+    { city: 'Durban',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Durban_from_the_Balcony_%28Dennis_Sylvester_Hurd%29_1.jpg/960px-Durban_from_the_Balcony_%28Dennis_Sylvester_Hurd%29_1.jpg', props: '5,200' },
+    { city: 'Pretoria',  img: 'https://images.unsplash.com/photo-1591768585849-aa47f7f66e75?w=600&q=80', props: '3,400' },
+    { city: 'Stellenbosch', img: 'https://images.unsplash.com/photo-1604999565976-8913ad2ddb7c?w=600&q=80', props: '980' },
+    { city: 'Knysna',    img: 'https://images.unsplash.com/photo-1566396223585-a6a6d8c5b1e2?w=600&q=80', props: '640' },
+  ],
+  GB: [
+    { city: 'London',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
+    { city: 'Manchester', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg/960px-Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg', props: '8,200' },
+    { city: 'Edinburgh', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', props: '6,500' },
+    { city: 'Birmingham', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Birmingham_Skyline_from_the_West.jpg/960px-Birmingham_Skyline_from_the_West.jpg', props: '5,100' },
+    { city: 'Liverpool', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Pier_Head%2C_Liverpool_-_geograph.org.uk_-_3059094.jpg/960px-Pier_Head%2C_Liverpool_-_geograph.org.uk_-_3059094.jpg', props: '3,800' },
+    { city: 'Bristol',   img: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&q=80', props: '2,900' },
+  ],
+  US: [
+    { city: 'New York',  img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', props: '82,000' },
+    { city: 'Los Angeles', img: 'https://images.unsplash.com/photo-1580655653885-65763b2597d0?w=600&q=80', props: '54,000' },
+    { city: 'Miami',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Villa_Vizcaya_20110228.jpg/960px-Villa_Vizcaya_20110228.jpg', props: '18,000' },
+    { city: 'Las Vegas', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Las_Vegas_from_above_%2840064746644%29.jpg/960px-Las_Vegas_from_above_%2840064746644%29.jpg', props: '12,400' },
+    { city: 'Chicago',   img: 'https://images.unsplash.com/photo-1494522855154-9297ac14b55f?w=600&q=80', props: '21,000' },
+    { city: 'San Francisco', img: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=600&q=80', props: '15,000' },
+  ],
+  IN: [
+    { city: 'Mumbai',    img: 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?w=600&q=80', props: '32,000' },
+    { city: 'Delhi',     img: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80', props: '28,000' },
+    { city: 'Goa',       img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=600&q=80', props: '14,000' },
+    { city: 'Bangalore', img: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600&q=80', props: '18,000' },
+    { city: 'Jaipur',   img: 'https://images.unsplash.com/photo-1477587458883-47145ed4bde0?w=600&q=80', props: '9,200' },
+    { city: 'Kerala',    img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=600&q=80', props: '11,000' },
+  ],
+  AE: [
+    { city: 'Dubai',     img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
+    { city: 'Abu Dhabi', img: 'https://images.unsplash.com/photo-1512632578888-169bbbc64f33?w=600&q=80', props: '8,500' },
+    { city: 'Sharjah',   img: 'https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=80', props: '3,200' },
+    { city: 'Ras Al Khaimah', img: 'https://images.unsplash.com/photo-1548438294-1ad5d5f4f063?w=600&q=80', props: '1,400' },
+  ],
+  default: [
+    { city: 'Paris',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg/960px-La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg', props: '38,000' },
+    { city: 'Dubai',     img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
+    { city: 'Nairobi',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
+    { city: 'Cape Town', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80', props: '12,000' },
+    { city: 'London',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
+    { city: 'New York',  img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', props: '82,000' },
+  ],
+};
+
 // Map country code or country name → region key
 function getRegionFromCountry(countryCode, countryName) {
   const cc = (countryCode || '').toUpperCase();
@@ -362,6 +456,11 @@ export default function HomePage() {
   const [trendingHotelsCity, setTrendingHotelsCity] = useState('');
   const [trendingHotelsLoading, setTrendingHotelsLoading] = useState(true);
 
+  // Explore destinations state
+  const [exploreDestinations, setExploreDestinations] = useState(EXPLORE_CITIES_BY_COUNTRY['default']);
+  const [exploreCountryName, setExploreCountryName] = useState('');
+  const [exploreCountryCode, setExploreCountryCode] = useState('');
+
   // Stays Autocomplete state
   const [staysSuggestions, setStaysSuggestions] = useState([]);
   const [isStaysSuggestOpen, setIsStaysSuggestOpen] = useState(false);
@@ -398,7 +497,7 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Geo-detect user location and pick region-appropriate stays deals
+  // Geo-detect user location: set region deals AND explore destinations
   useEffect(() => {
     let cancelled = false;
     async function detectAndSetDeals() {
@@ -410,9 +509,14 @@ export default function HomePage() {
         if (!resp.ok) throw new Error('geo failed');
         const data = await resp.json();
         if (cancelled) return;
-        const region = getRegionFromCountry(data.country_code, data.country_name);
+        const cc = data.country_code || '';
+        const region = getRegionFromCountry(cc, data.country_name);
         setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
         setStaysDealCity(data.city || data.country_name || '');
+        // Set explore destinations based on country code
+        setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY[cc] || EXPLORE_CITIES_BY_COUNTRY['default']);
+        setExploreCountryName(data.country_name || '');
+        setExploreCountryCode(cc);
       } catch {
         // Keep defaults on failure
       }
@@ -1333,35 +1437,50 @@ export default function HomePage() {
         ) : (
           <section className="max-w-7xl mx-auto px-6 py-16 dark:bg-slate-950 transition-colors">
 
-            {/* Travel Deals section — shown first */}
+            {/* ── Explore [Country] section ── */}
             <div className="mb-12">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-end justify-between mb-5">
                 <div>
-                  <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Travel deals under $197</h2>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-0.5">
-                    {staysDealCity ? `Top picks near ${staysDealCity}` : 'Explore destinations near you'}
+                  <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Explore {exploreCountryName || 'top destinations'}
+                  </h2>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+                    These popular destinations have a lot to offer
                   </p>
                 </div>
-                <a href="/results" className="text-sm font-bold text-slate-700 dark:text-slate-300 hover:underline flex items-center gap-1">
-                  Explore more <i className="ph ph-caret-right text-xs"></i>
+                <a
+                  href={exploreCountryName ? `/stays/results?destination=${encodeURIComponent(exploreCountryName)}` : '/stays/results'}
+                  className="hidden sm:flex items-center gap-1 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                >
+                  See all <i className="ph ph-caret-right text-xs" />
                 </a>
               </div>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x">
-                {staysDeals.map((deal) => (
-                  <div key={deal.city} onClick={() => window.location.href = `/stays/results?destination=${encodeURIComponent(deal.city)}`} className="flex-shrink-0 w-[220px] bg-white dark:bg-slate-800 rounded-[20px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.10)] border border-slate-100 dark:border-slate-700 cursor-pointer transition-all duration-300 group snap-start hover:-translate-y-1">
-                    <div className="h-36 overflow-hidden">
-                      <img src={deal.img} alt={deal.city} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+
+              {/* City cards grid — 6 across on desktop, 3 on mobile (scrollable) */}
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {exploreDestinations.slice(0, 6).map((dest) => (
+                  <a
+                    key={dest.city}
+                    href={`/stays/results?destination=${encodeURIComponent(dest.city)}`}
+                    className="group flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                  >
+                    {/* Destination photo */}
+                    <div className="relative aspect-[4/5] overflow-hidden bg-slate-100 dark:bg-slate-700">
+                      <img
+                        src={dest.img}
+                        alt={dest.city}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        loading="lazy"
+                        onError={e => { e.target.src = 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80'; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                     </div>
-                    <div className="p-4">
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{deal.city}</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{deal.duration}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3">{deal.dates}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-base font-bold text-slate-900 dark:text-white">from {deal.price}</p>
-                        <span className="text-xs text-slate-400 font-medium">/ night</span>
-                      </div>
+                    {/* City info */}
+                    <div className="p-3">
+                      <p className="font-extrabold text-slate-900 dark:text-white text-sm leading-tight">{dest.city}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{dest.props} properties</p>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>
