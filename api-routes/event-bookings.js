@@ -26,6 +26,8 @@ async function ensureTable() {
       quantity INTEGER NOT NULL,
       unit_amount NUMERIC(12,2) NOT NULL,
       total_amount NUMERIC(12,2) NOT NULL,
+      service_fee NUMERIC(12,2) DEFAULT 0,
+      organizer_amount NUMERIC(12,2) DEFAULT 0,
       currency TEXT NOT NULL,
       guest_name TEXT NOT NULL,
       guest_email TEXT NOT NULL,
@@ -40,6 +42,8 @@ async function ensureTable() {
   await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS banner_image TEXT DEFAULT ''`).catch(() => {});
   await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS ticket_no TEXT DEFAULT ''`).catch(() => {});
   await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT ''`).catch(() => {});
+  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS service_fee NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS organizer_amount NUMERIC(12,2) DEFAULT 0`).catch(() => {});
 }
 
 async function loadEventProfile(eventId, dbReady) {
@@ -74,6 +78,8 @@ function publicBooking(row) {
     quantity: Number(row.quantity),
     unitAmount: Number(row.unit_amount ?? row.unitAmount),
     total: Number(row.total_amount ?? row.total),
+    serviceFee: Number(row.service_fee ?? row.serviceFee ?? 0),
+    organizerAmount: Number(row.organizer_amount ?? row.organizerAmount ?? 0),
     currency: row.currency,
     clientName: row.guest_name || row.clientName,
     email: row.guest_email || row.email,
@@ -192,6 +198,11 @@ module.exports = async function eventBookingsHandler(req, res) {
   const status = autoConfirm ? 'confirmed' : 'pending_payment';
   const ticketNo = autoConfirm ? `TKT-${crypto.randomBytes(4).toString('hex').toUpperCase()}` : '';
 
+  // ── Fee calculation: 5% service fee retained by platform ──
+  const totalGross = unitAmount * quantity;
+  const serviceFee = parseFloat((totalGross * 0.05).toFixed(2));
+  const organizerAmount = parseFloat((totalGross - serviceFee).toFixed(2));
+
   // Use ticket_banner_image (owner-uploaded); fall back to first step_gallery image; do NOT truncate (base64)
   const rawBanner = profile.ticket_banner_image ||
     (Array.isArray(profile.step_gallery) && profile.step_gallery.length > 0
@@ -209,7 +220,9 @@ module.exports = async function eventBookingsHandler(req, res) {
     ticketName: clean(ticket.name || ticket.type, 120) || 'Admission',
     quantity,
     unitAmount,
-    total: unitAmount * quantity,
+    total: totalGross,
+    serviceFee,
+    organizerAmount,
     currency,
     clientName: guestName,
     email: guestEmail,
@@ -222,9 +235,9 @@ module.exports = async function eventBookingsHandler(req, res) {
 
   if (dbReady) {
     await query(
-      `INSERT INTO bc_event_bookings (booking_ref, event_profile_id, event_name, venue_name, location, banner_image, ticket_id, ticket_name, quantity, unit_amount, total_amount, currency, guest_name, guest_email, guest_phone, status, ticket_no, payment_method)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-      [bookingRef, eventId, record.eventName, record.venueName, record.location, record.bannerImage, ticketId, record.ticketName, quantity, unitAmount, record.total, currency, guestName, guestEmail, guestPhone, status, ticketNo, record.paymentMethod]
+      `INSERT INTO bc_event_bookings (booking_ref, event_profile_id, event_name, venue_name, location, banner_image, ticket_id, ticket_name, quantity, unit_amount, total_amount, service_fee, organizer_amount, currency, guest_name, guest_email, guest_phone, status, ticket_no, payment_method)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+      [bookingRef, eventId, record.eventName, record.venueName, record.location, record.bannerImage, ticketId, record.ticketName, quantity, unitAmount, record.total, serviceFee, organizerAmount, currency, guestName, guestEmail, guestPhone, status, ticketNo, record.paymentMethod]
     );
   } else {
     bookingStore().set(bookingRef, record);

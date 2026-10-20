@@ -29,9 +29,9 @@ const MENU_ITEMS = [
   { id: 'settings',      label: 'Profile Settings',icon: 'ph-gear' },
 ];
 
-// Site Theme Design Tokens (Matching Homepage & Navbar Attractions styling)
-const ACCENT_LIGHT   = 'bg-amber-50 dark:bg-amber-950/40';
-const SIDEBAR_ACTIVE = 'bg-amber-500 text-white shadow-md shadow-amber-500/25';
+// Site Theme Design Tokens (green/emerald — matches global site theme)
+const ACCENT_LIGHT   = 'bg-green-50 dark:bg-green-950/40';
+const SIDEBAR_ACTIVE = 'bg-green-600 text-white shadow-md shadow-green-600/25';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -51,7 +51,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function ProgressBar({ value, color = 'bg-amber-500' }) {
+function ProgressBar({ value, color = 'bg-green-500' }) {
   return (
     <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
       <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }} />
@@ -76,7 +76,7 @@ function Modal({ open, onClose, title, children, wide = false }) {
       >
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 rounded-t-3xl">
           <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
-            <i className="ph ph-ticket text-amber-500" />
+            <i className="ph ph-ticket text-green-600" />
             {title}
           </h3>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-colors">
@@ -104,7 +104,7 @@ function Field({ label, required, children, hint }) {
 
 const inputCls = `w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl
   px-4 py-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400
-  focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors`;
+  focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors`;
 
 const textareaCls = `${inputCls} resize-none`;
 
@@ -115,7 +115,7 @@ function ListAttractionButton({ label = "List your event or attraction", classNa
     <button
       type="button"
       onClick={onClick || (() => navigate('/list-your-event'))}
-      className={`flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition-all shadow-sm shadow-amber-500/25 ${className}`}
+      className={`flex items-center justify-center gap-2 rounded-xl bg-green-600 hover:bg-green-700 px-4 py-2.5 text-sm font-bold text-white transition-all shadow-sm shadow-green-600/25 ${className}`}
     >
       <i className="ph ph-ticket text-base" />
       <span>{label}</span>
@@ -219,7 +219,7 @@ function AttractionForm({ initial = {}, onSubmit, loading, submitLabel = 'Save A
 
       <div className="pt-2 flex gap-3 justify-end">
         <button type="submit" disabled={loading}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 hover:bg-green-700 text-white font-extrabold text-sm transition-all shadow-sm shadow-green-600/25 disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-ticket" /> {submitLabel}</>}
         </button>
       </div>
@@ -240,12 +240,12 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group flex flex-col">
-      <div className="relative h-40 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/40 dark:to-orange-950/40 overflow-hidden flex-shrink-0">
+      <div className="relative h-40 bg-gradient-to-br from-green-100 to-green-100 dark:from-green-950/40 dark:to-green-950/40 overflow-hidden flex-shrink-0">
         {a.featured_image ? (
           <img src={a.featured_image} alt={a.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={e => { e.target.style.display='none'; }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <i className="ph ph-image text-4xl text-amber-300 dark:text-amber-700" />
+            <i className="ph ph-image text-4xl text-green-300 dark:text-green-700" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -264,8 +264,8 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
               {a._source === 'event' ? (
                 /* Event-profile listings live in a different API — link back to the wizard */
                 <>
-                  <button onClick={() => { window.location.href = '/list-your-event'; setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
-                    <i className="ph ph-pencil-ruler text-amber-500" /> Continue Wizard
+                  <button onClick={() => { window.location.href = '/list-your-event'; setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-green-700 hover:bg-green-50 dark:hover:bg-green-950/40 transition-colors">
+                    <i className="ph ph-pencil-ruler text-green-600" /> Continue Wizard
                   </button>
                   <button onClick={() => { onPreview(a); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                     <i className="ph ph-eye text-slate-400" /> Preview
@@ -283,8 +283,8 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
                     <i className="ph ph-eye text-slate-400" /> Preview
                   </button>
                   {(a.status === 'draft' || a.status === 'rejected') && (
-                    <button onClick={() => { onSubmit(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
-                      <i className="ph ph-paper-plane-tilt text-amber-500" /> Submit for Review
+                    <button onClick={() => { onSubmit(a.id); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-green-700 hover:bg-green-50 dark:hover:bg-green-950/40 transition-colors">
+                      <i className="ph ph-paper-plane-tilt text-green-600" /> Submit for Review
                     </button>
                   )}
                   <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
@@ -302,24 +302,24 @@ function AttractionCard({ attraction: a, onEdit, onDelete, onDuplicate, onSubmit
         <div>
           <h3 className="font-black text-sm text-slate-900 dark:text-white line-clamp-1">{a.name || 'Unnamed Attraction'}</h3>
           <div className="flex items-center gap-1 mt-0.5 text-[11px] text-slate-500">
-            <i className="ph ph-map-pin text-amber-500 flex-shrink-0" />
+            <i className="ph ph-map-pin text-green-600 flex-shrink-0" />
             <span className="line-clamp-1">{a.city}{a.country ? `, ${a.country}` : ''}</span>
           </div>
         </div>
 
         {a.category && (
-          <span className="self-start px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-[10px] font-bold rounded-full border border-amber-200 dark:border-amber-800">
+          <span className="self-start px-2 py-0.5 bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-[10px] font-bold rounded-full border border-green-200 dark:border-green-800">
             {a.category}
           </span>
         )}
 
         <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 text-[10px] text-slate-500 font-semibold">
-            <span className="flex items-center gap-1"><i className="ph ph-eye text-amber-500" /> {a.views || 0}</span>
+            <span className="flex items-center gap-1"><i className="ph ph-eye text-green-600" /> {a.views || 0}</span>
             <span className="flex items-center gap-1"><i className="ph ph-calendar-blank" /> {fmtDate(a.created_at)}</span>
           </div>
           {a.price > 0 && (
-            <span className="text-xs font-black text-amber-600">{a.currency} {parseFloat(a.price).toFixed(0)}</span>
+            <span className="text-xs font-black text-green-700">{a.currency} {parseFloat(a.price).toFixed(0)}</span>
           )}
         </div>
       </div>
@@ -671,12 +671,12 @@ export default function AttractionDashboardPage() {
       <div>
         {/* Logo */}
         <div className="hidden md:flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black text-xl shadow-sm shadow-amber-500/25">
+          <div className="w-10 h-10 rounded-2xl bg-green-500 text-white flex items-center justify-center font-black text-xl shadow-sm shadow-green-600/25">
             <i className="ph ph-ticket" />
           </div>
           <div>
             <div className="font-black text-base text-slate-900 dark:text-white leading-none">Attraction Portal</div>
-            <div className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider mt-1">Owner Dashboard</div>
+            <div className="text-[10px] font-extrabold text-green-700 dark:text-green-400 uppercase tracking-wider mt-1">Owner Dashboard</div>
           </div>
         </div>
 
@@ -729,10 +729,10 @@ export default function AttractionDashboardPage() {
   const OverviewTab = () => (
     <div className="space-y-8">
       {/* Welcome Banner */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-800 overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-800 overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-64 h-64 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
-          <span className="inline-block bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest mb-4">
+          <span className="inline-block bg-green-500/20 text-green-300 border border-green-500/30 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest mb-4">
             Attraction Dashboard
           </span>
           <h1 className="text-2xl sm:text-4xl font-black mb-2 leading-tight">
@@ -754,11 +754,11 @@ export default function AttractionDashboardPage() {
       {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
-          { label: 'Total', value: stats.total, icon: 'ph-map-trifold', color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800', iconColor: 'text-amber-500' },
+          { label: 'Total', value: stats.total, icon: 'ph-map-trifold', color: 'text-slate-900 dark:text-white', bg: 'bg-slate-100 dark:bg-slate-800', iconColor: 'text-green-600' },
           { label: 'Published', value: stats.published, icon: 'ph-check-circle', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', iconColor: 'text-emerald-500' },
-          { label: 'Pending', value: stats.pending, icon: 'ph-clock', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/40', iconColor: 'text-amber-500' },
+          { label: 'Pending', value: stats.pending, icon: 'ph-clock', color: 'text-green-700', bg: 'bg-green-50 dark:bg-green-950/40', iconColor: 'text-green-600' },
           { label: 'Drafts', value: stats.draft, icon: 'ph-pencil-line', color: 'text-slate-600', bg: 'bg-slate-50 dark:bg-slate-800/50', iconColor: 'text-slate-400' },
-          { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-amber-600', bg: ACCENT_LIGHT, iconColor: 'text-amber-500' },
+          { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-green-700', bg: ACCENT_LIGHT, iconColor: 'text-green-600' },
           { label: 'Inquiries', value: stats.bookings.toLocaleString(), icon: 'ph-envelope', color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/40', iconColor: 'text-blue-500' },
         ].map(({ label, value, icon, color, bg, iconColor }) => (
           <div key={label} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
@@ -776,11 +776,11 @@ export default function AttractionDashboardPage() {
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-black text-base text-slate-900 dark:text-white">Recent Attractions</h3>
-            <button onClick={() => setActiveTab('attractions')} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">View All →</button>
+            <button onClick={() => setActiveTab('attractions')} className="text-xs font-bold text-green-700 dark:text-green-400 hover:underline">View All →</button>
           </div>
           {loading ? (
             <div className="flex items-center justify-center py-10">
-              <i className="ph ph-spinner-gap text-3xl text-amber-500 animate-spin" />
+              <i className="ph ph-spinner-gap text-3xl text-green-600 animate-spin" />
             </div>
           ) : attractions.length === 0 ? (
             <div className="text-center py-10">
@@ -794,13 +794,13 @@ export default function AttractionDashboardPage() {
           ) : (
             <div className="space-y-3">
               {attractions.slice(0, 5).map(a => (
-                <div key={a.id} className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-amber-100 dark:bg-amber-950/40">
+                <div key={a.id} className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-green-200 dark:hover:border-green-800 transition-colors">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-green-100 dark:bg-green-950/40">
                     {a.featured_image ? (
                       <img src={a.featured_image} alt={a.name} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <i className="ph ph-image text-amber-300 dark:text-amber-700" />
+                        <i className="ph ph-image text-green-300 dark:text-green-700" />
                       </div>
                     )}
                   </div>
@@ -858,7 +858,7 @@ export default function AttractionDashboardPage() {
                 ))}
               </div>
             )}
-            <button onClick={() => setActiveTab('notifications')} className="mt-3 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
+            <button onClick={() => setActiveTab('notifications')} className="mt-3 text-xs font-bold text-green-700 dark:text-green-400 hover:underline">
               View all notifications →
             </button>
           </div>
@@ -904,14 +904,14 @@ export default function AttractionDashboardPage() {
 
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <i className="ph ph-spinner-gap text-4xl text-amber-500 animate-spin" />
+          <i className="ph ph-spinner-gap text-4xl text-green-600 animate-spin" />
         </div>
       )}
 
       {!loading && sortedAttractions.length === 0 && (
         <div className="text-center py-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-          <div className="w-20 h-20 bg-amber-50 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ph ph-ticket text-4xl text-amber-500" />
+          <div className="w-20 h-20 bg-green-50 dark:bg-green-950/40 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i className="ph ph-ticket text-4xl text-green-600" />
           </div>
           <h3 className="font-black text-xl text-slate-800 dark:text-slate-200 mb-2">
             {search || statusFilter ? 'No attractions found' : "You haven't created any attractions yet."}
@@ -973,7 +973,7 @@ export default function AttractionDashboardPage() {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-amber-600' },
+            { label: 'Total Views', value: stats.views.toLocaleString(), icon: 'ph-eye', color: 'text-green-700' },
             { label: 'Total Listings', value: stats.total.toString(), icon: 'ph-ticket', color: 'text-emerald-600' },
             { label: 'Published', value: stats.published.toString(), icon: 'ph-check-circle', color: 'text-blue-600' },
             { label: 'Inquiries', value: stats.bookings.toString(), icon: 'ph-envelope', color: 'text-purple-600' },
@@ -1005,18 +1005,18 @@ export default function AttractionDashboardPage() {
                 return (
                   <div key={a.id} className="flex items-center gap-4">
                     <span className="text-xs font-black text-slate-400 w-4 flex-shrink-0">#{i + 1}</span>
-                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-amber-100 dark:bg-amber-950/40">
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-green-100 dark:bg-green-950/40">
                       {a.featured_image ? (
                         <img src={a.featured_image} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center"><i className="ph ph-image text-amber-300" /></div>
+                        <div className="w-full h-full flex items-center justify-center"><i className="ph ph-image text-green-300" /></div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">{a.name}</div>
-                      <ProgressBar value={pct} color="bg-amber-500" />
+                      <ProgressBar value={pct} color="bg-green-500" />
                     </div>
-                    <span className="text-xs font-black text-amber-600 flex-shrink-0">{a.views || 0} views</span>
+                    <span className="text-xs font-black text-green-700 flex-shrink-0">{a.views || 0} views</span>
                   </div>
                 );
               })}
@@ -1039,8 +1039,8 @@ export default function AttractionDashboardPage() {
 
       {notifs.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
-          <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto mb-3">
-            <i className="ph ph-bell text-3xl text-amber-500" />
+          <div className="w-16 h-16 bg-green-50 dark:bg-green-950/40 rounded-full flex items-center justify-center mx-auto mb-3">
+            <i className="ph ph-bell text-3xl text-green-600" />
           </div>
           <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1">No notifications yet</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
@@ -1086,7 +1086,7 @@ export default function AttractionDashboardPage() {
         {section === 'business' && (
           <form onSubmit={handleSave} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-3xl text-amber-500 border-2 border-dashed border-amber-200 dark:border-amber-800">
+              <div className="w-20 h-20 rounded-2xl bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-3xl text-green-600 border-2 border-dashed border-green-200 dark:border-green-800">
                 {localForm.name ? localForm.name.charAt(0).toUpperCase() : <i className="ph ph-building" />}
               </div>
               <div>
@@ -1116,7 +1116,7 @@ export default function AttractionDashboardPage() {
 
             <div className="flex justify-end">
               <button type="submit" disabled={savingProfile}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50">
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 hover:bg-green-700 text-white font-extrabold text-sm transition-all shadow-sm shadow-green-600/25 disabled:opacity-50">
                 {savingProfile ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-floppy-disk" /> Save Changes</>}
               </button>
             </div>
@@ -1134,7 +1134,7 @@ export default function AttractionDashboardPage() {
             </Field>
             <div className="flex justify-end">
               <button type="submit" disabled={savingProfile}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50">
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 hover:bg-green-700 text-white font-extrabold text-sm transition-all shadow-sm shadow-green-600/25 disabled:opacity-50">
                 {savingProfile ? <><i className="ph ph-spinner-gap animate-spin" /> Saving…</> : <><i className="ph ph-floppy-disk" /> Save Changes</>}
               </button>
             </div>
@@ -1161,7 +1161,7 @@ export default function AttractionDashboardPage() {
                     if (pwForm.newPw !== pwForm.confirm) return alert('Passwords do not match.');
                     alert('Password update requires re-authentication.');
                   }}
-                  className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm rounded-xl transition-all shadow-sm shadow-amber-500/25">
+                  className="px-6 py-3 bg-green-500 hover:bg-green-700 text-white font-extrabold text-sm rounded-xl transition-all shadow-sm shadow-green-600/25">
                   Update Password
                 </button>
               </div>
@@ -1218,14 +1218,14 @@ export default function AttractionDashboardPage() {
       {/* Balance Cards */}
       {walletLoading ? (
         <div className="flex items-center justify-center py-16">
-          <i className="ph ph-spinner-gap text-4xl text-amber-500 animate-spin" />
+          <i className="ph ph-spinner-gap text-4xl text-green-600 animate-spin" />
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Available', value: wallet?.available ?? 0, icon: 'ph-money', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', iconColor: 'text-emerald-500' },
-              { label: 'Pending', value: wallet?.pending ?? 0, icon: 'ph-clock', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/40', iconColor: 'text-amber-500' },
+              { label: 'Pending', value: wallet?.pending ?? 0, icon: 'ph-clock', color: 'text-green-700', bg: 'bg-green-50 dark:bg-green-950/40', iconColor: 'text-green-600' },
               { label: 'Withdrawn', value: wallet?.withdrawn ?? 0, icon: 'ph-arrow-circle-up', color: 'text-slate-700 dark:text-slate-300', bg: 'bg-slate-50 dark:bg-slate-800', iconColor: 'text-slate-400' },
               { label: 'Lifetime', value: wallet?.lifetime ?? 0, icon: 'ph-trophy', color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/40', iconColor: 'text-violet-500' },
             ].map(({ label, value, icon, color, bg, iconColor }) => (
@@ -1242,7 +1242,7 @@ export default function AttractionDashboardPage() {
           {/* Payout Request */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
             <h3 className="font-black text-base text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-              <i className="ph ph-paper-plane-tilt text-amber-500" />
+              <i className="ph ph-paper-plane-tilt text-green-600" />
               Request Payout
             </h3>
             <div className="space-y-4">
@@ -1264,7 +1264,7 @@ export default function AttractionDashboardPage() {
               <div className="flex gap-2">
                 {[10, 25, 50, 100].map(v => (
                   <button key={v} type="button" onClick={() => setWithdrawAmt(String(Math.min(v, wallet?.available || 0)))}
-                    className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:border-amber-400 hover:text-amber-600 transition-all">
+                    className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:border-green-400 hover:text-green-700 transition-all">
                     ${v}
                   </button>
                 ))}
@@ -1272,7 +1272,7 @@ export default function AttractionDashboardPage() {
               <button
                 onClick={handleRequestPayout}
                 disabled={withdrawing || !withdrawAmt || parseFloat(withdrawAmt) <= 0 || parseFloat(withdrawAmt) > (wallet?.available || 0)}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm transition-all shadow-sm shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-green-500 hover:bg-green-700 text-white font-extrabold text-sm transition-all shadow-sm shadow-green-600/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {withdrawing ? <><i className="ph ph-spinner-gap animate-spin" /> Processing…</> : <><i className="ph ph-paper-plane-tilt" /> Request Payout</>}
               </button>
@@ -1320,7 +1320,7 @@ export default function AttractionDashboardPage() {
       {/* Mobile Header */}
       <div className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-2 font-black text-slate-900 dark:text-white">
-          <i className="ph ph-ticket text-amber-500 text-2xl" />
+          <i className="ph ph-ticket text-green-600 text-2xl" />
           <span className="text-base">Attraction Portal</span>
         </div>
         <div className="flex items-center gap-2">
@@ -1381,12 +1381,12 @@ export default function AttractionDashboardPage() {
       <Modal open={!!previewTarget} onClose={() => setPreviewTarget(null)} title="Attraction Preview" wide>
         {previewTarget && (
           <div className="space-y-5">
-            <div className="h-52 rounded-2xl overflow-hidden bg-amber-100 dark:bg-amber-950/40 relative">
+            <div className="h-52 rounded-2xl overflow-hidden bg-green-100 dark:bg-green-950/40 relative">
               {previewTarget.featured_image ? (
                 <img src={previewTarget.featured_image} alt={previewTarget.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <i className="ph ph-image text-6xl text-amber-300 dark:text-amber-800" />
+                  <i className="ph ph-image text-6xl text-green-300 dark:text-green-800" />
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -1410,7 +1410,7 @@ export default function AttractionDashboardPage() {
               ].map(({ label, value, icon }) => (
                 <div key={label} className="bg-slate-50 dark:bg-slate-800 rounded-xl p-3">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">
-                    <i className={`ph ${icon} text-amber-500`} /> {label}
+                    <i className={`ph ${icon} text-green-600`} /> {label}
                   </div>
                   <div className="text-sm font-black text-slate-900 dark:text-white">{value}</div>
                 </div>
@@ -1430,7 +1430,7 @@ export default function AttractionDashboardPage() {
                 <ul className="space-y-1.5">
                   {previewTarget.highlights.map((h, i) => (
                     <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                      <i className="ph-fill ph-check-circle text-amber-500" /> {h}
+                      <i className="ph-fill ph-check-circle text-green-600" /> {h}
                     </li>
                   ))}
                 </ul>
@@ -1444,7 +1444,7 @@ export default function AttractionDashboardPage() {
               </button>
               {(previewTarget.status === 'draft' || previewTarget.status === 'rejected') && (
                 <button onClick={() => { handleSubmit(previewTarget.id); setPreviewTarget(null); }}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm shadow-amber-500/25">
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-green-500 hover:bg-green-700 text-white font-bold text-xs transition-all shadow-sm shadow-green-600/25">
                   <i className="ph ph-paper-plane-tilt" /> Submit for Review
                 </button>
               )}
@@ -1461,7 +1461,7 @@ export default function AttractionDashboardPage() {
           const active = activeTab === item.id;
           return (
             <button key={item.id} onClick={() => item.route ? navigate(item.route) : setActiveTab(item.id)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${active ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-400'}`}>
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${active ? 'text-green-700 dark:text-green-400 font-bold' : 'text-slate-400'}`}>
               <i className={`ph ${item.icon} text-xl`} />
               <span className="text-[9px] font-bold">{item.label.split(' ')[0]}</span>
             </button>

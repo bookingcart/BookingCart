@@ -41,8 +41,6 @@ const duffelStaysBrandsHandler = require('./api-routes/duffel-stays-brands');
 const duffelStaysAccommodationReviewsHandler = require('./api-routes/duffel-stays-accommodation-reviews');
 const staysLocationsHandler = require('./api-routes/stays-locations');
 
-const getyourguideSearchHandler = require('./api-routes/getyourguide-search');
-const getyourguideTourHandler = require('./api-routes/getyourguide-tour');
 const attractionsHandler = require('./api-routes/attractions');
 const guidesHandler = require('./api-routes/guides');
 const guideBookingsHandler = require('./api-routes/guide-bookings');
@@ -192,9 +190,6 @@ app.all('/api/stays-brands', searchLimiter, run(duffelStaysBrandsHandler));
 app.all('/api/stays-accommodation-reviews', searchLimiter, run(duffelStaysAccommodationReviewsHandler));
 app.get('/api/stays-locations', searchLimiter, run(staysLocationsHandler));
 
-// GetYourGuide routes
-app.get('/api/gyg-search', searchLimiter, run(getyourguideSearchHandler));
-app.get('/api/gyg-tour/:id', searchLimiter, run(getyourguideTourHandler));
 app.get('/api/attractions/destinations', searchLimiter, (req, res) => { req.params = { action: 'destinations' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/search', searchLimiter, (req, res) => { req.params = { action: 'search' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/featured-events', searchLimiter, (req, res) => { req.params = { action: 'featured-events' }; return attractionsHandler(req, res); });
@@ -350,9 +345,49 @@ app.post('/api/stripe/create-checkout-session', apiLimiter, async (req, res) => 
         ])
       : undefined;
 
+    // ── Build payment method types based on currency ──────────────────
+    // Apple Pay & Google Pay surface automatically through the 'card'
+    // type on Stripe's hosted checkout page (device-dependent).
+    const pmTypes = ['card', 'link'];
+
+    // Samsung Pay — supported in most major currencies
+    pmTypes.push('samsung_pay');
+
+    // USD-only methods
+    if (currency === 'usd') {
+      pmTypes.push('cashapp');          // Cash App Pay
+      pmTypes.push('us_bank_account');  // ACH bank transfers
+    }
+
+    // WeChat Pay — supported currencies
+    const WECHAT_CURRENCIES = new Set([
+      'cny','usd','aud','cad','eur','gbp','hkd','jpy','sgd','dkk','nok','sek','chf'
+    ]);
+    if (WECHAT_CURRENCIES.has(currency)) {
+      pmTypes.push('wechat_pay');
+    }
+
+    // Korean cards — KRW only
+    if (currency === 'krw') {
+      pmTypes.push('kr_card');
+    }
+
+    // Method-specific options required by Stripe
+    const pmOptions = {};
+    if (pmTypes.includes('wechat_pay')) {
+      pmOptions.wechat_pay = { client: 'web' };
+    }
+    if (pmTypes.includes('us_bank_account')) {
+      pmOptions.us_bank_account = {
+        financial_connections: { permissions: ['payment_method'] },
+      };
+    }
+
     const session = await stripe.checkout.sessions.create(
       {
         mode: 'payment',
+        payment_method_types: pmTypes,
+        ...(Object.keys(pmOptions).length > 0 && { payment_method_options: pmOptions }),
         line_items: [
           {
             price_data: {

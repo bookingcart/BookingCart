@@ -99,8 +99,8 @@ module.exports = async (req, res) => {
         const now = new Date().toISOString();
         const paymentObj = {
           total,
-          platformFee: total * 0.15,
-          guideEarnings: total * 0.85,
+          serviceFee: total * 0.05,
+          guideEarnings: total * 0.95,
           escrowStatus: (booking.status === 'confirmed') ? 'held' : 'pending'
         };
         await query(`
@@ -120,8 +120,8 @@ module.exports = async (req, res) => {
           contact: booking.contact || {},
           payment: {
             total,
-            platformFee: total * 0.15,
-            guideEarnings: total * 0.85,
+            serviceFee: total * 0.05,
+            guideEarnings: total * 0.95,
             escrowStatus: (booking.status || 'pending') === 'confirmed' ? 'held' : 'pending'
           },
           createdAt: new Date().toISOString()

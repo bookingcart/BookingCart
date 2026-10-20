@@ -72,6 +72,9 @@ async function ensureTables() {
   await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS view_type TEXT DEFAULT 'City View'`).catch(() => {});
   await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS has_balcony BOOLEAN DEFAULT FALSE`).catch(() => {});
   await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS is_accessible BOOLEAN DEFAULT FALSE`).catch(() => {});
+  // Stays service fee columns
+  await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS service_fee NUMERIC(10,2) DEFAULT 0`).catch(() => {});
+  await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS hotel_amount NUMERIC(10,2) DEFAULT 0`).catch(() => {});
 
   // Bookings (PMS-native stays bookings)
   await query(`
@@ -91,6 +94,8 @@ async function ensureTables() {
       payment_status TEXT DEFAULT 'pending',
       amount_paid NUMERIC(10,2) DEFAULT 0,
       total_amount NUMERIC(10,2) DEFAULT 0,
+      service_fee NUMERIC(10,2) DEFAULT 0,
+      hotel_amount NUMERIC(10,2) DEFAULT 0,
       remaining_balance NUMERIC(10,2) DEFAULT 0,
       special_requests TEXT DEFAULT '',
       confirmation_sent BOOLEAN DEFAULT FALSE,
@@ -846,13 +851,15 @@ module.exports = async (req, res) => {
     }
 
     const total = total_amount || 0;
+    const serviceFee = parseFloat((total * 0.05).toFixed(2));
+    const hotelAmount = parseFloat((total - serviceFee).toFixed(2));
     const remaining = total;
 
     if (dbReady) {
       const r = await query(
-        `INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, floor_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, remaining_balance, special_requests, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'confirmed','paid',$11,0,$12,$13) RETURNING *`,
-        [ref, hotelId, room_id, floor_id, guest_name, guest_email, guest_phone || '', check_in, check_out, num_guests || 1, total, special_requests || '', source || 'stays_app']
+        `INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, floor_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, service_fee, hotel_amount, remaining_balance, special_requests, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'confirmed','paid',$11,$12,$13,0,$14,$15) RETURNING *`,
+        [ref, hotelId, room_id, floor_id, guest_name, guest_email, guest_phone || '', check_in, check_out, num_guests || 1, total, serviceFee, hotelAmount, special_requests || '', source || 'stays_app']
       );
       // Remove temporary hold
       if (session_id) {
@@ -861,7 +868,7 @@ module.exports = async (req, res) => {
       return res.json({ ok: true, booking: r.rows[0], ref });
     } else {
       const id = nextId();
-      const booking = { id, ref, hotel_profile_id: hotelId, room_id, floor_id, guest_name, guest_email, guest_phone: guest_phone || '', check_in, check_out, num_guests: num_guests || 1, booking_status: 'confirmed', payment_status: 'paid', amount_paid: total, total_amount: total, remaining_balance: 0, special_requests: special_requests || '', source: source || 'stays_app', confirmation_sent: true, created_at: nowIso(), updated_at: nowIso() };
+      const booking = { id, ref, hotel_profile_id: hotelId, room_id, floor_id, guest_name, guest_email, guest_phone: guest_phone || '', check_in, check_out, num_guests: num_guests || 1, booking_status: 'confirmed', payment_status: 'paid', amount_paid: total, total_amount: total, service_fee: serviceFee, hotel_amount: hotelAmount, remaining_balance: 0, special_requests: special_requests || '', source: source || 'stays_app', confirmation_sent: true, created_at: nowIso(), updated_at: nowIso() };
       memStore('bookings').set(id, booking);
 
       if (session_id) {
