@@ -263,10 +263,10 @@ export default function EventConfirmationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="flex items-center gap-3 text-emerald-400">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="flex items-center gap-3 text-green-600">
           <i className="ph ph-spinner-gap animate-spin text-3xl" />
-          <span className="text-lg font-semibold">Loading your ticket…</span>
+          <span className="text-lg font-semibold text-slate-700">Loading your ticket…</span>
         </div>
       </div>
     );
@@ -274,12 +274,12 @@ export default function EventConfirmationPage() {
 
   if (!booking) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 pt-32 text-center text-white">
-        <div className="mx-auto max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl backdrop-blur-xl">
-          <i className="ph ph-warning-circle text-5xl text-amber-400 mb-3 block" />
-          <h1 className="text-2xl font-black">No Confirmed Booking Found</h1>
-          <p className="mt-2 text-slate-400 text-sm">A valid reservation reference is required to display your ticket.</p>
-          <Link to="/events" className="mt-6 inline-block rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white shadow-lg hover:bg-emerald-500 transition-all">
+      <main className="min-h-screen bg-slate-50 px-4 pt-32 text-center">
+        <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+          <i className="ph ph-warning-circle text-5xl text-rose-500 mb-3 block" />
+          <h1 className="text-2xl font-black text-slate-900">No Confirmed Booking Found</h1>
+          <p className="mt-2 text-slate-500 text-sm">A valid reservation reference is required to display your ticket.</p>
+          <Link to="/events" className="mt-6 inline-block rounded-xl bg-green-600 px-6 py-3 font-bold text-white shadow hover:bg-green-700 transition-all">
             Browse Events
           </Link>
         </div>
@@ -290,53 +290,51 @@ export default function EventConfirmationPage() {
   if (booking.status !== 'confirmed') {
     const total = new Intl.NumberFormat(undefined, { style: 'currency', currency: booking.currency || 'USD' }).format(Number(booking.total) || 0);
     return (
-      <main className="min-h-screen bg-slate-950 px-4 pb-16 pt-28 text-white">
-        <section className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900/90 p-7 sm:p-10 shadow-2xl backdrop-blur-xl space-y-6">
+      <main className="min-h-screen bg-slate-50 px-4 pb-16 pt-28">
+        <section className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-7 sm:p-10 shadow-lg space-y-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/10 text-3xl text-amber-400 border border-amber-400/20 shrink-0">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-3xl text-amber-500 border border-amber-200 shrink-0">
               <i className="ph ph-clock-countdown" />
             </div>
             <div>
-              <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Reservation Staged</p>
-              <h1 className="text-2xl sm:text-3xl font-black text-white">Payment Still Required</h1>
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Reservation Staged</p>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Payment Still Required</h1>
             </div>
           </div>
 
-          <p className="text-slate-300 text-sm leading-relaxed">
-            Your place has been reserved (Ref: <span className="font-mono font-bold text-emerald-400">{booking.bookingRef}</span>). Complete your payment below to instantly generate your official e-ticket and entry QR code.
+          <p className="text-slate-600 text-sm leading-relaxed">
+            Your place has been reserved (Ref: <span className="font-mono font-bold text-green-700">{booking.bookingRef}</span>). Complete your payment below to instantly generate your official e-ticket and entry QR code.
           </p>
 
-          <dl className="divide-y divide-slate-800 rounded-2xl bg-slate-950/80 border border-slate-800 px-6 py-2 text-sm">
+          <dl className="divide-y divide-slate-100 rounded-2xl bg-slate-50 border border-slate-200 px-6 py-2 text-sm">
             <div className="flex justify-between gap-4 py-3">
-              <dt className="text-slate-400">Reference</dt>
-              <dd className="font-mono font-bold text-emerald-400">{booking.bookingRef}</dd>
+              <dt className="text-slate-500">Reference</dt>
+              <dd className="font-mono font-bold text-green-700">{booking.bookingRef}</dd>
             </div>
             <div className="flex justify-between gap-4 py-3">
-              <dt className="text-slate-400">Event</dt>
-              <dd className="text-right font-bold text-white">{booking.eventName}</dd>
+              <dt className="text-slate-500">Event</dt>
+              <dd className="text-right font-bold text-slate-900">{booking.eventName}</dd>
             </div>
             <div className="flex justify-between gap-4 py-3">
-              <dt className="text-slate-400">Tickets</dt>
-              <dd className="text-right font-bold text-white">{booking.ticketName} × {booking.quantity}</dd>
+              <dt className="text-slate-500">Tickets</dt>
+              <dd className="text-right font-bold text-slate-900">{booking.ticketName} × {booking.quantity}</dd>
             </div>
             <div className="flex justify-between gap-4 py-3">
-              <dt className="text-slate-400">Amount Due</dt>
-              <dd className="font-black text-emerald-400 text-lg">{total}</dd>
+              <dt className="text-slate-500">Amount Due</dt>
+              <dd className="font-black text-green-700 text-lg">{total}</dd>
             </div>
           </dl>
 
-          {/* Action Payment Section */}
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-              <i className="ph ph-credit-card text-emerald-400" /> Complete Payment Now
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <i className="ph ph-credit-card text-green-600" /> Complete Payment Now
             </h3>
-            <p className="text-xs text-slate-400">Select a payment option below to verify payment and receive your digital QR entry pass instantly:</p>
-
+            <p className="text-xs text-slate-500">Select a payment option below to verify payment and receive your digital QR entry pass instantly:</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 onClick={() => handleCompletePayment('card')}
                 disabled={confirming}
-                className="py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/40"
+                className="py-3 px-4 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow"
               >
                 {confirming ? <i className="ph ph-spinner-gap animate-spin" /> : <i className="ph ph-credit-card" />}
                 Pay {total} (Card / Online)
@@ -344,7 +342,7 @@ export default function EventConfirmationPage() {
               <button
                 onClick={() => handleCompletePayment('mobile_money')}
                 disabled={confirming}
-                className="py-3 px-4 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-slate-700"
+                className="py-3 px-4 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-700 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 border border-slate-200"
               >
                 {confirming ? <i className="ph ph-spinner-gap animate-spin" /> : <i className="ph ph-device-mobile" />}
                 Mobile Money
@@ -353,10 +351,10 @@ export default function EventConfirmationPage() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row pt-2">
-            <Link to="/events" className="rounded-xl border border-slate-800 px-5 py-3 text-center text-sm font-bold text-slate-400 hover:text-white transition-colors flex-1">
+            <Link to="/events" className="rounded-xl border border-slate-200 px-5 py-3 text-center text-sm font-bold text-slate-500 hover:text-green-700 hover:border-green-300 transition-colors flex-1">
               Browse More Experiences
             </Link>
-            <Link to="/support" className="rounded-xl border border-slate-800 px-5 py-3 text-center text-sm font-bold text-slate-400 hover:text-white transition-colors flex-1">
+            <Link to="/support" className="rounded-xl border border-slate-200 px-5 py-3 text-center text-sm font-bold text-slate-500 hover:text-green-700 hover:border-green-300 transition-colors flex-1">
               Contact Support
             </Link>
           </div>
@@ -368,16 +366,16 @@ export default function EventConfirmationPage() {
   const b = booking;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-slate-950 to-slate-950 pt-24 pb-16 px-4">
+    <div className="min-h-screen bg-slate-50 pt-24 pb-16 px-4">
       <div className="max-w-4xl mx-auto">
 
         {/* ── Success Header ── */}
         <div className="text-center mb-10">
-          <div className="w-16 h-16 rounded-full bg-green-500/20 border-2 border-green-500/40 flex items-center justify-center mx-auto mb-4 text-green-400 text-3xl">
+          <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-300 flex items-center justify-center mx-auto mb-4 text-green-600 text-3xl shadow-sm">
             <i className="ph ph-check-circle-fill" />
           </div>
-          <h1 className="text-4xl font-black text-white mb-2">Booking Confirmed! 🎉</h1>
-          <p className="text-slate-400 text-sm max-w-sm mx-auto">
+          <h1 className="text-4xl font-black text-slate-900 mb-2">Booking Confirmed! 🎉</h1>
+          <p className="text-slate-500 text-sm max-w-sm mx-auto">
             Your ticket has been generated below. Download or screenshot it to use at the venue.
           </p>
         </div>
@@ -388,12 +386,12 @@ export default function EventConfirmationPage() {
           <div className="flex-shrink-0 w-full max-w-[430px] mx-auto lg:mx-0">
             <EventTicket booking={b} ticketBannerImage={b.bannerImage} />
 
-            {/* Download Button */}
+            {/* Download / Print Buttons */}
             <div className="mt-4 flex gap-3">
               <button
                 onClick={handleDownload}
                 disabled={downloading}
-                className="flex-1 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-60 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-900/30"
+                className="flex-1 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow"
               >
                 {downloading
                   ? <><i className="ph ph-spinner-gap animate-spin" /> Preparing…</>
@@ -402,7 +400,7 @@ export default function EventConfirmationPage() {
               </button>
               <button
                 onClick={() => window.print()}
-                className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-colors"
+                className="px-4 py-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition-colors"
                 title="Print Ticket"
               >
                 <i className="ph ph-printer text-xl" />
@@ -412,9 +410,9 @@ export default function EventConfirmationPage() {
 
           {/* ── Booking Summary ── */}
           <div className="flex-1 w-full max-w-md">
-            <div className="bg-slate-900/80 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm mb-4">
-              <h2 className="text-lg font-black text-white mb-4 flex items-center gap-2">
-                <i className="ph ph-receipt text-green-400" />
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-4">
+              <h2 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
+                <i className="ph ph-receipt text-green-600" />
                 Booking Summary
               </h2>
               <div className="space-y-3 text-sm">
@@ -428,21 +426,21 @@ export default function EventConfirmationPage() {
                   { label: 'Issue Date', value: b.issueDate },
                   { label: 'Status', value: b.status || 'Confirmed', badge: true },
                 ].map(({ label, value, mono, badge }) => (
-                  <div key={label} className="flex items-start justify-between gap-4 py-2 border-b border-slate-800 last:border-0">
-                    <span className="text-slate-400 shrink-0">{label}</span>
+                  <div key={label} className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 last:border-0">
+                    <span className="text-slate-500 shrink-0">{label}</span>
                     {badge ? (
-                      <span className="text-xs font-bold bg-green-500/15 text-green-400 border border-green-500/30 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      <span className="text-xs font-bold bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
                         {value}
                       </span>
                     ) : (
-                      <span className={`text-white font-semibold text-right ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+                      <span className={`text-slate-900 font-semibold text-right ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
                     )}
                   </div>
                 ))}
                 {b.total > 0 && (
                   <div className="flex items-center justify-between pt-2">
-                    <span className="text-slate-400">Total Paid</span>
-                    <span className="text-2xl font-black text-green-400">{b.currency || '$'}{typeof b.total === 'number' ? b.total.toFixed(2) : b.total}</span>
+                    <span className="text-slate-500">Total Paid</span>
+                    <span className="text-2xl font-black text-green-700">{b.currency || '$'}{typeof b.total === 'number' ? b.total.toFixed(2) : b.total}</span>
                   </div>
                 )}
               </div>
@@ -452,13 +450,13 @@ export default function EventConfirmationPage() {
             <div className="flex flex-col gap-3">
               <Link
                 to="/"
-                className="w-full text-center py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl transition-colors"
+                className="w-full text-center py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors shadow"
               >
                 <i className="ph ph-house mr-2" />Back to Home
               </Link>
               <Link
                 to="/my-bookings"
-                className="w-full text-center py-3 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 font-bold rounded-xl transition-colors"
+                className="w-full text-center py-3 border border-slate-200 text-slate-600 hover:text-green-700 hover:border-green-300 font-bold rounded-xl transition-colors"
               >
                 <i className="ph ph-calendar-check mr-2" />View My Bookings
               </Link>

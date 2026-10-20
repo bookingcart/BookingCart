@@ -21,7 +21,6 @@ export default function EventCheckoutPage() {
   });
   const [paymentMethod, setPaymentMethod] = useState('card');
 
-  // Keep guest details updated when user object finishes loading
   useEffect(() => {
     if (user?.email) {
       setGuest((curr) => ({
@@ -32,9 +31,7 @@ export default function EventCheckoutPage() {
     }
   }, [user]);
 
-  useEffect(() => {
-    document.title = 'Event Checkout | BookingCart';
-  }, []);
+  useEffect(() => { document.title = 'Event Checkout | BookingCart'; }, []);
 
   useEffect(() => {
     if (event) return;
@@ -57,7 +54,6 @@ export default function EventCheckoutPage() {
   const unitPrice = ticket?.price || 0;
   const total = unitPrice * quantity;
   const currency = ticket?.currency || 'USD';
-
   const money = (value) => new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(value);
 
   async function submit(eventSubmit) {
@@ -79,7 +75,6 @@ export default function EventCheckoutPage() {
 
     setSubmitting(true);
     try {
-      // 1. Check if Stripe checkout is selected & available
       if (paymentMethod === 'card') {
         try {
           const stripeRes = await fetch('/api/stripe/create-checkout-session', {
@@ -98,43 +93,21 @@ export default function EventCheckoutPage() {
           });
           const stripeData = await stripeRes.json();
           if (stripeData.ok && stripeData.url) {
-            // Also reserve booking
             await fetch('/api/event-bookings', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId,
-                ticketId,
-                quantity,
-                guestName: guest.name,
-                guestEmail: guest.email,
-                guestPhone: guest.phone,
-                paymentMethod: 'stripe',
-                autoConfirm: true,
-              }),
+              body: JSON.stringify({ eventId, ticketId, quantity, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, paymentMethod: 'stripe', autoConfirm: true }),
             });
             window.location.href = stripeData.url;
             return;
           }
-        } catch {
-          // Fall through to direct booking if Stripe session creation is unconfigured
-        }
+        } catch { /* fall through */ }
       }
 
-      // 2. Direct confirmation booking (Instant / Mobile Money / Express Card fallback)
       const response = await fetch('/api/event-bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId,
-          ticketId,
-          quantity,
-          guestName: guest.name,
-          guestEmail: guest.email,
-          guestPhone: guest.phone,
-          paymentMethod,
-          autoConfirm: true,
-        }),
+        body: JSON.stringify({ eventId, ticketId, quantity, guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone, paymentMethod, autoConfirm: true }),
       });
 
       const data = await response.json();
@@ -147,25 +120,27 @@ export default function EventCheckoutPage() {
     }
   }
 
+  /* ── Loading ── */
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center pt-24 text-white">
+      <main className="min-h-screen bg-white flex flex-col items-center justify-center pt-24">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 font-semibold text-sm">Preparing ticket options…</p>
+          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-500 font-semibold text-sm">Preparing ticket options…</p>
         </div>
       </main>
     );
   }
 
+  /* ── No tickets ── */
   if (!event || !event.ticketOptions?.length) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 pt-32 text-center text-white">
-        <div className="mx-auto max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
-          <i className="ph ph-warning text-5xl text-amber-400 mb-3 block" />
-          <h1 className="text-2xl font-black">Tickets Unavailable</h1>
-          <p className="mt-2 text-sm text-slate-400">{error || 'This event currently has no open ticket options.'}</p>
-          <Link to="/events" className="mt-6 inline-block font-bold text-emerald-400 hover:underline">
+      <main className="min-h-screen bg-slate-50 px-4 pt-32 text-center">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+          <i className="ph ph-warning text-5xl text-rose-500 mb-3 block" />
+          <h1 className="text-2xl font-black text-slate-900">Tickets Unavailable</h1>
+          <p className="mt-2 text-sm text-slate-500">{error || 'This event currently has no open ticket options.'}</p>
+          <Link to="/events" className="mt-6 inline-block font-bold text-green-600 hover:underline">
             ← Browse Other Events
           </Link>
         </div>
@@ -174,52 +149,56 @@ export default function EventCheckoutPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pb-24 pt-20">
+    <main className="min-h-screen bg-slate-50 text-slate-900 pb-24 pt-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        {/* Top Back Nav & Title */}
-        <div className="flex items-center justify-between py-4">
-          <Link to={`/events/${eventId}`} state={{ event }} className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-emerald-400 transition-colors">
+
+        {/* ── Top bar ── */}
+        <div className="flex items-center justify-between py-5 border-b border-slate-200 mb-6">
+          <Link to={`/events/${eventId}`} state={{ event }} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-green-600 transition-colors">
             <i className="ph ph-arrow-left" /> Back to Event
           </Link>
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            Secure Checkout
+          <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200 flex items-center gap-1.5">
+            <i className="ph ph-lock-key text-sm" /> Secure Checkout
           </span>
         </div>
 
-        {/* Stepper Progress Bar */}
-        <div className="my-6 grid grid-cols-3 gap-2 border-b border-slate-800 pb-6 text-center text-xs font-bold">
-          <div className="flex items-center justify-center gap-2 text-emerald-400">
-            <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-black">1</span>
-            <span>Select Ticket</span>
-          </div>
-          <div className="flex items-center justify-center gap-2 text-emerald-400">
-            <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-black">2</span>
-            <span>Guest & Payment</span>
-          </div>
-          <div className="flex items-center justify-center gap-2 text-slate-500">
-            <span className="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center font-black">3</span>
-            <span>E-Ticket</span>
-          </div>
+        {/* ── Stepper ── */}
+        <div className="mb-8 grid grid-cols-3 gap-2 text-center text-xs font-bold">
+          {[
+            { step: 1, label: 'Select Ticket', active: true },
+            { step: 2, label: 'Guest & Payment', active: true },
+            { step: 3, label: 'E-Ticket', active: false },
+          ].map(({ step, label, active }) => (
+            <div key={step} className="flex items-center justify-center gap-2">
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-sm ${
+                active ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-500'
+              }`}>{step}</span>
+              <span className={active ? 'text-green-700' : 'text-slate-400'}>{label}</span>
+            </div>
+          ))}
         </div>
 
-        {/* Main Grid */}
+        {/* ── Main Grid ── */}
         <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-          {/* Checkout Form */}
-          <form onSubmit={submit} className="space-y-6">
+
+          {/* ── Checkout Form ── */}
+          <form onSubmit={submit} className="space-y-5">
+
+            {/* Sign-in banner */}
             {!isAuthenticated && (
-              <div className="bg-green-600/10 border border-green-500/30 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-xl shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl shrink-0">
                     <i className="ph ph-lock-key" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-white">Sign In Required</h3>
-                    <p className="text-xs text-slate-300">You must be logged in to complete ticket bookings and view your issued tickets in My Bookings.</p>
+                    <h3 className="text-sm font-extrabold text-slate-900">Sign In Required</h3>
+                    <p className="text-xs text-slate-500">You must be logged in to complete ticket bookings and view your issued tickets in My Bookings.</p>
                   </div>
                 </div>
                 <Link
                   to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs rounded-xl shrink-0 transition-colors text-center"
+                  className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs rounded-xl shrink-0 transition-colors text-center"
                 >
                   Sign In / Register
                 </Link>
@@ -227,10 +206,10 @@ export default function EventCheckoutPage() {
             )}
 
             {/* Step 1: Ticket Options */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-                  <i className="ph ph-ticket text-emerald-400 text-2xl" /> Choose Ticket Type
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                  <i className="ph ph-ticket text-green-600 text-2xl" /> Choose Ticket Type
                 </h2>
                 <span className="text-xs font-bold text-slate-400">Select standard admission</span>
               </div>
@@ -243,8 +222,8 @@ export default function EventCheckoutPage() {
                       key={option.id}
                       className={`flex cursor-pointer items-start justify-between gap-4 rounded-2xl border p-5 transition-all ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-950/40 shadow-lg shadow-emerald-950/40'
-                          : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
+                          ? 'border-green-500 bg-green-50 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -254,14 +233,14 @@ export default function EventCheckoutPage() {
                           value={option.id}
                           checked={isSelected}
                           onChange={() => setTicketId(option.id)}
-                          className="mt-1 accent-emerald-500 h-4 w-4"
+                          className="mt-1 accent-green-600 h-4 w-4"
                         />
                         <div>
-                          <span className="block font-extrabold text-white text-base">{option.name}</span>
-                          <span className="mt-1 block text-xs text-slate-400">{option.description || option.type}</span>
+                          <span className="block font-extrabold text-slate-900 text-base">{option.name}</span>
+                          <span className="mt-1 block text-xs text-slate-500">{option.description || option.type}</span>
                         </div>
                       </div>
-                      <span className="text-lg font-black text-emerald-400 shrink-0">
+                      <span className="text-lg font-black text-green-700 shrink-0">
                         {new Intl.NumberFormat(undefined, { style: 'currency', currency: option.currency || currency }).format(option.price)}
                       </span>
                     </label>
@@ -270,49 +249,45 @@ export default function EventCheckoutPage() {
               </div>
 
               {/* Quantity */}
-              <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <div>
-                  <label htmlFor="event-quantity" className="block text-sm font-bold text-slate-200">
-                    Number of Guests / Tickets
-                  </label>
+                  <label htmlFor="event-quantity" className="block text-sm font-bold text-slate-700">Number of Guests / Tickets</label>
                   <p className="text-xs text-slate-400">Max 10 tickets per order</p>
                 </div>
                 <select
                   id="event-quantity"
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="h-11 w-28 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-white focus:border-emerald-500 outline-none text-center"
+                  className="h-11 w-28 rounded-xl border border-slate-200 bg-slate-50 px-3 font-bold text-slate-900 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none text-center"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((val) => (
-                    <option key={val} value={val}>
-                      {val} {val === 1 ? 'ticket' : 'tickets'}
-                    </option>
+                    <option key={val} value={val}>{val} {val === 1 ? 'ticket' : 'tickets'}</option>
                   ))}
                 </select>
               </div>
             </div>
 
             {/* Step 2: Guest Details */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-              <div className="border-b border-slate-800 pb-4">
-                <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-                  <i className="ph ph-user text-emerald-400 text-2xl" /> Ticket Holder Details
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                  <i className="ph ph-user text-green-600 text-2xl" /> Ticket Holder Details
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">Your e-ticket and QR pass will be sent to this email address.</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Full Name *
                   <input
                     required
                     value={guest.name}
                     onChange={(e) => setGuest((curr) => ({ ...curr, name: e.target.value }))}
                     placeholder="e.g. Sarah Jenkins"
-                    className="mt-2 h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-sm font-normal text-white focus:border-emerald-500 outline-none"
+                    className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-normal text-slate-900 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
                   />
                 </label>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Email Address *
                   <input
                     required
@@ -320,27 +295,27 @@ export default function EventCheckoutPage() {
                     value={guest.email}
                     onChange={(e) => setGuest((curr) => ({ ...curr, email: e.target.value }))}
                     placeholder="sarah@example.com"
-                    className="mt-2 h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-sm font-normal text-white focus:border-emerald-500 outline-none"
+                    className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-normal text-slate-900 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
                   />
                 </label>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:col-span-2">
-                  Phone Number <span className="font-normal text-slate-500">(Optional for SMS alerts)</span>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 sm:col-span-2">
+                  Phone Number <span className="font-normal text-slate-400">(Optional for SMS alerts)</span>
                   <input
                     type="tel"
                     value={guest.phone}
                     onChange={(e) => setGuest((curr) => ({ ...curr, phone: e.target.value }))}
                     placeholder="+256 700 000 000"
-                    className="mt-2 h-12 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 text-sm font-normal text-white focus:border-emerald-500 outline-none"
+                    className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-normal text-slate-900 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
                   />
                 </label>
               </div>
             </div>
 
-            {/* Step 3: Payment Method Selection */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-              <div className="border-b border-slate-800 pb-4">
-                <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-                  <i className="ph ph-credit-card text-emerald-400 text-2xl" /> Payment Method
+            {/* Step 3: Payment Method */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                  <i className="ph ph-credit-card text-green-600 text-2xl" /> Payment Method
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">Select how you want to complete your ticket purchase.</p>
               </div>
@@ -357,13 +332,13 @@ export default function EventCheckoutPage() {
                     onClick={() => setPaymentMethod(pm.id)}
                     className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 ${
                       paymentMethod === pm.id
-                        ? 'bg-emerald-950/50 border-emerald-500 shadow-md shadow-emerald-950'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        ? 'bg-green-50 border-green-500 shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                     }`}
                   >
-                    <i className={`ph ${pm.icon} text-2xl ${paymentMethod === pm.id ? 'text-emerald-400' : 'text-slate-500'}`} />
+                    <i className={`ph ${pm.icon} text-2xl ${paymentMethod === pm.id ? 'text-green-600' : 'text-slate-400'}`} />
                     <div>
-                      <span className="block font-bold text-sm text-white">{pm.name}</span>
+                      <span className="block font-bold text-sm text-slate-900">{pm.name}</span>
                       <span className="block text-xs text-slate-400">{pm.desc}</span>
                     </div>
                   </button>
@@ -371,7 +346,7 @@ export default function EventCheckoutPage() {
               </div>
 
               {error && (
-                <div role="alert" className="rounded-xl bg-rose-500/10 border border-rose-500/30 p-4 text-sm font-semibold text-rose-400 flex items-center gap-2">
+                <div role="alert" className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm font-semibold text-rose-700 flex items-center gap-2">
                   <i className="ph ph-warning text-lg shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -379,55 +354,51 @@ export default function EventCheckoutPage() {
 
               <button
                 disabled={submitting || !ticketId}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-lg rounded-xl shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
+                className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-black text-lg rounded-xl shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
               >
                 {submitting ? (
-                  <>
-                    <i className="ph ph-spinner-gap animate-spin text-xl" /> Processing Ticket Order…
-                  </>
+                  <><i className="ph ph-spinner-gap animate-spin text-xl" /> Processing Ticket Order…</>
                 ) : (
-                  <>
-                    <i className="ph ph-lock-key text-xl" /> Pay {money(total)} & Issue Tickets
-                  </>
+                  <><i className="ph ph-lock-key text-xl" /> Pay {money(total)} & Issue Tickets</>
                 )}
               </button>
             </div>
           </form>
 
-          {/* Right Column: Order Summary Sidebar */}
+          {/* ── Order Summary Sidebar ── */}
           <div>
             <aside className="sticky top-28 space-y-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 block">Order Summary</span>
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+                <span className="text-xs font-bold uppercase tracking-wider text-green-700 block">Order Summary</span>
 
                 <div>
-                  <h3 className="text-xl font-black text-white">{event.name}</h3>
-                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                    <i className="ph ph-map-pin text-emerald-400" />
+                  <h3 className="text-xl font-black text-slate-900">{event.name}</h3>
+                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                    <i className="ph ph-map-pin text-green-600" />
                     {[event.city, event.country].filter(Boolean).join(', ') || 'Venue Location'}
                   </p>
                 </div>
 
-                <div className="space-y-3 border-t border-slate-800 pt-4 text-sm">
-                  <div className="flex justify-between text-slate-300">
+                <div className="space-y-3 border-t border-slate-100 pt-4 text-sm">
+                  <div className="flex justify-between text-slate-600">
                     <span>{ticket?.name || 'Admission'} × {quantity}</span>
-                    <span className="font-semibold">{money(total)}</span>
+                    <span className="font-semibold text-slate-900">{money(total)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-300">
+                  <div className="flex justify-between text-slate-600">
                     <span>Booking & Service Fee</span>
-                    <span className="font-semibold text-emerald-400">Included</span>
+                    <span className="font-semibold text-green-600">Included</span>
                   </div>
-                  <div className="flex justify-between border-t border-slate-800 pt-3 text-lg font-black text-white">
+                  <div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-black text-slate-900">
                     <span>Total Due</span>
-                    <span className="text-emerald-400">{money(total)}</span>
+                    <span className="text-green-700">{money(total)}</span>
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800 text-xs space-y-2 text-slate-400">
-                  <div className="flex items-center gap-2 font-bold text-slate-200">
-                    <i className="ph ph-check-circle text-emerald-400" /> Direct Confirmation
+                <div className="rounded-xl bg-green-50 p-4 border border-green-200 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-green-800">
+                    <i className="ph ph-check-circle text-green-600" /> Direct Confirmation
                   </div>
-                  <p>Your tickets are reserved instantly and valid for gate entry with mobile QR scanner validation.</p>
+                  <p className="text-green-700">Your tickets are reserved instantly and valid for gate entry with mobile QR scanner validation.</p>
                 </div>
               </div>
             </aside>
@@ -437,4 +408,3 @@ export default function EventCheckoutPage() {
     </main>
   );
 }
-
