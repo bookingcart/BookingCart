@@ -529,21 +529,45 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
-    // Robust geo detection: localStorage cache (24h) → ipapi.co → ip-api.com → timezone fallback
+    // ── Geo detection — mirrors deals.js exactly ─────────────────────────────
+    // APIs: ipapi.co → ipwho.is (both HTTPS, production-safe)
+    // Caches in localStorage for 24h, also reads deals.js cache as shortcut
+    const TZ_TO_CC = {
+      'Africa/Kampala':'UG','Africa/Nairobi':'KE','Africa/Dar_es_Salaam':'TZ',
+      'Africa/Kigali':'RW','Africa/Addis_Ababa':'ET','Africa/Lagos':'NG',
+      'Africa/Accra':'GH','Africa/Johannesburg':'ZA','Africa/Cairo':'EG',
+      'Europe/London':'GB','America/New_York':'US','America/Los_Angeles':'US',
+      'America/Chicago':'US','Asia/Kolkata':'IN','Asia/Dubai':'AE',
+      'Europe/Paris':'FR','Europe/Berlin':'DE',
+    };
+    const CC_TO_NAME = {
+      UG:'Uganda',KE:'Kenya',TZ:'Tanzania',RW:'Rwanda',ET:'Ethiopia',
+      NG:'Nigeria',GH:'Ghana',ZA:'South Africa',EG:'Egypt',
+      GB:'United Kingdom',US:'United States',IN:'India',
+      AE:'United Arab Emirates',FR:'France',DE:'Germany',
+    };
+
+    function tzCountryCode() {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return TZ_TO_CC[tz] || '';
+      } catch { return ''; }
+    }
+
     async function getGeoData() {
-      // 1. Try localStorage cache first (instant on repeat visits)
+      // 1. Try our own cache (24h TTL)
       try {
         const cached = localStorage.getItem('bc_geo_data');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed.ts && Date.now() - parsed.ts < 86_400_000) return parsed; // 24h TTL
+          if (parsed.ts && Date.now() - parsed.ts < 86_400_000) return parsed;
         }
       } catch {}
 
-      // 2. Try ipapi.co (primary)
+      // 2. Try ipapi.co — same as deals.js primary
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 5000);
+        const t = setTimeout(() => ctrl.abort(), 4000);
         const resp = await fetch('https://ipapi.co/json/', { signal: ctrl.signal });
         clearTimeout(t);
         if (resp.ok) {
@@ -556,38 +580,25 @@ export default function HomePage() {
         }
       } catch {}
 
-      // 3. Fallback: ip-api.com
+      // 3. Fallback: ipwho.is — same as deals.js fallback (HTTPS, production-safe)
       try {
         const ctrl2 = new AbortController();
-        const t2 = setTimeout(() => ctrl2.abort(), 5000);
-        const resp2 = await fetch('https://ip-api.com/json/?fields=country,countryCode,city', { signal: ctrl2.signal });
+        const t2 = setTimeout(() => ctrl2.abort(), 4000);
+        const resp2 = await fetch('https://ipwho.is/', { signal: ctrl2.signal });
         clearTimeout(t2);
         if (resp2.ok) {
           const d2 = await resp2.json();
-          if (d2.countryCode) {
-            const result = { country_code: d2.countryCode, country_name: d2.country, city: d2.city, ts: Date.now() };
+          if (d2.country_code) {
+            const result = { country_code: d2.country_code, country_name: d2.country, city: d2.city, ts: Date.now() };
             try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
             return result;
           }
         }
       } catch {}
 
-      // 4. Final fallback: derive country from browser timezone
-      const TZ_TO_CC = {
-        'Africa/Kampala':'UG','Africa/Nairobi':'KE','Africa/Dar_es_Salaam':'TZ',
-        'Africa/Kigali':'RW','Africa/Lagos':'NG','Africa/Accra':'GH',
-        'Africa/Johannesburg':'ZA','Europe/London':'GB','America/New_York':'US',
-        'America/Los_Angeles':'US','America/Chicago':'US','Asia/Kolkata':'IN',
-        'Asia/Dubai':'AE','Europe/Paris':'FR','Europe/Berlin':'DE',
-      };
-      const CC_TO_NAME = {
-        UG:'Uganda',KE:'Kenya',TZ:'Tanzania',RW:'Rwanda',NG:'Nigeria',
-        GH:'Ghana',ZA:'South Africa',GB:'United Kingdom',US:'United States',
-        IN:'India',AE:'United Arab Emirates',FR:'France',DE:'Germany',
-      };
+      // 4. Timezone-based fallback (works 100% offline, same as deals.js originFromTimeZone)
       try {
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const cc = TZ_TO_CC[tz];
+        const cc = tzCountryCode();
         if (cc) {
           const result = { country_code: cc, country_name: CC_TO_NAME[cc] || cc, city: '', ts: Date.now() };
           try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
