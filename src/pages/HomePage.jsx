@@ -115,97 +115,89 @@ const STAYS_DEALS_BY_REGION = {
 // Popular cities to explore — keyed by ISO-2 country code
 const EXPLORE_CITIES_BY_COUNTRY = {
   UG: [
-    { city: 'Kampala',     img: 'https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=600&q=80', props: '2,289' },
-    { city: 'Entebbe',    img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80&sat=-60', props: '335' },
-    { city: 'Mbarara',    img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&q=80', props: '72' },
-    { city: 'Fort Portal', img: 'https://images.unsplash.com/photo-1549366021-9f761d450615?w=600&q=80', props: '101' },
-    { city: 'Jinja',      img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=600&q=80', props: '89' },
-    { city: 'Kabale',     img: 'https://images.unsplash.com/photo-1589553416260-f586c1a44af6?w=600&q=80', props: '46' },
+    { city: 'Kampala',     flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=800&q=85', props: '2,289' },
+    { city: 'Entebbe',    flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=800&q=85', props: '335' },
+    { city: 'Mbarara',    flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800&q=85', props: '72' },
+    { city: 'Fort Portal', flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1549366021-9f761d450615?w=800&q=85', props: '101' },
+    { city: 'Jinja',      flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800&q=85', props: '89' },
   ],
   KE: [
-    { city: 'Nairobi',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
-    { city: 'Mombasa',    img: 'https://images.unsplash.com/photo-1568992687947-868a62a9f521?w=600&q=80', props: '1,480' },
-    { city: 'Kisumu',     img: 'https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=600&q=80', props: '340' },
-    { city: 'Nakuru',     img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&q=80', props: '290' },
-    { city: 'Diani Beach', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80', props: '210' },
-    { city: 'Malindi',    img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80', props: '180' },
+    { city: 'Nairobi',    flag: '🇰🇪', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
+    { city: 'Mombasa',    flag: '🇰🇪', img: 'https://images.unsplash.com/photo-1568992687947-868a62a9f521?w=800&q=85', props: '1,480' },
+    { city: 'Kisumu',     flag: '🇰🇪', img: 'https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=800&q=85', props: '340' },
+    { city: 'Nakuru',     flag: '🇰🇪', img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800&q=85', props: '290' },
+    { city: 'Diani Beach', flag: '🇰🇪', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=85', props: '210' },
   ],
   TZ: [
-    { city: 'Dar es Salaam', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/St_Joseph%27s_Catholic_Cathedral_%2834895613805%29.jpg/960px-St_Joseph%27s_Catholic_Cathedral_%2834895613805%29.jpg', props: '3,200' },
-    { city: 'Zanzibar',   img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=600&q=80', props: '1,540' },
-    { city: 'Arusha',     img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&q=80', props: '980' },
-    { city: 'Mwanza',     img: 'https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=600&q=80', props: '310' },
-    { city: 'Serengeti',  img: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=600&q=80', props: '160' },
-    { city: 'Moshi',      img: 'https://images.unsplash.com/photo-1549366021-9f761d450615?w=600&q=80', props: '420' },
+    { city: 'Dar es Salaam', flag: '🇹🇿', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/St_Joseph%27s_Catholic_Cathedral_%2834895613805%29.jpg/960px-St_Joseph%27s_Catholic_Cathedral_%2834895613805%29.jpg', props: '3,200' },
+    { city: 'Zanzibar',   flag: '🇹🇿', img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=800&q=85', props: '1,540' },
+    { city: 'Arusha',     flag: '🇹🇿', img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800&q=85', props: '980' },
+    { city: 'Serengeti',  flag: '🇹🇿', img: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800&q=85', props: '160' },
+    { city: 'Moshi',      flag: '🇹🇿', img: 'https://images.unsplash.com/photo-1549366021-9f761d450615?w=800&q=85', props: '420' },
   ],
   RW: [
-    { city: 'Kigali',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/High_Angle_View_Of_Kigali_City_Street_on_November_29%2C_2018._Emmanuel_Kwizera.jpg/960px-High_Angle_View_Of_Kigali_City_Street_on_November_29%2C_2018._Emmanuel_Kwizera.jpg', props: '1,200' },
-    { city: 'Gisenyi',    img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80', props: '180' },
-    { city: 'Butare',     img: 'https://images.unsplash.com/photo-1589553416260-f586c1a44af6?w=600&q=80', props: '95' },
-    { city: 'Musanze',    img: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=600&q=80', props: '210' },
+    { city: 'Kigali',     flag: '🇷🇼', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/High_Angle_View_Of_Kigali_City_Street_on_November_29%2C_2018._Emmanuel_Kwizera.jpg/960px-High_Angle_View_Of_Kigali_City_Street_on_November_29%2C_2018._Emmanuel_Kwizera.jpg', props: '1,200' },
+    { city: 'Gisenyi',    flag: '🇷🇼', img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=85', props: '180' },
+    { city: 'Musanze',    flag: '🇷🇼', img: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800&q=85', props: '210' },
+    { city: 'Butare',     flag: '🇷🇼', img: 'https://images.unsplash.com/photo-1589553416260-f586c1a44af6?w=800&q=85', props: '95' },
+    { city: 'Nyungwe',    flag: '🇷🇼', img: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=85', props: '38' },
   ],
   NG: [
-    { city: 'Lagos',      img: 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Lagos-centre-from-executive-lounge-Continental-hotel-2026-IMG_7970.jpg', props: '8,400' },
-    { city: 'Abuja',      img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Abuja_heritages_30.jpg/960px-Abuja_heritages_30.jpg', props: '3,100' },
-    { city: 'Port Harcourt', img: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&q=80', props: '1,200' },
-    { city: 'Ibadan',     img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&q=80', props: '870' },
-    { city: 'Kano',       img: 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=600&q=80', props: '540' },
-    { city: 'Calabar',    img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80', props: '310' },
+    { city: 'Lagos',      flag: '🇳🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Lagos-centre-from-executive-lounge-Continental-hotel-2026-IMG_7970.jpg', props: '8,400' },
+    { city: 'Abuja',      flag: '🇳🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Abuja_heritages_30.jpg/960px-Abuja_heritages_30.jpg', props: '3,100' },
+    { city: 'Port Harcourt', flag: '🇳🇬', img: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&q=85', props: '1,200' },
+    { city: 'Ibadan',     flag: '🇳🇬', img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800&q=85', props: '870' },
+    { city: 'Calabar',    flag: '🇳🇬', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=85', props: '310' },
   ],
   GH: [
-    { city: 'Accra',      img: 'https://upload.wikimedia.org/wikipedia/commons/0/0a/Acca.jpg', props: '4,500' },
-    { city: 'Kumasi',     img: 'https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=600&q=80', props: '1,100' },
-    { city: 'Cape Coast', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80', props: '520' },
-    { city: 'Tamale',     img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=600&q=80', props: '280' },
-    { city: 'Takoradi',   img: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&q=80', props: '190' },
-    { city: 'Koforidua',  img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80', props: '120' },
+    { city: 'Accra',      flag: '🇬🇭', img: 'https://upload.wikimedia.org/wikipedia/commons/0/0a/Acca.jpg', props: '4,500' },
+    { city: 'Kumasi',     flag: '🇬🇭', img: 'https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=800&q=85', props: '1,100' },
+    { city: 'Cape Coast', flag: '🇬🇭', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=85', props: '520' },
+    { city: 'Tamale',     flag: '🇬🇭', img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800&q=85', props: '280' },
+    { city: 'Takoradi',   flag: '🇬🇭', img: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&q=85', props: '190' },
   ],
   ZA: [
-    { city: 'Cape Town',  img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80', props: '12,000' },
-    { city: 'Johannesburg', img: 'https://images.unsplash.com/photo-1577948000111-9c970dfe1ac5?w=600&q=80', props: '9,800' },
-    { city: 'Durban',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Durban_from_the_Balcony_%28Dennis_Sylvester_Hurd%29_1.jpg/960px-Durban_from_the_Balcony_%28Dennis_Sylvester_Hurd%29_1.jpg', props: '5,200' },
-    { city: 'Pretoria',   img: 'https://images.unsplash.com/photo-1591768585849-aa47f7f66e75?w=600&q=80', props: '3,400' },
-    { city: 'Stellenbosch', img: 'https://images.unsplash.com/photo-1604999565976-8913ad2ddb7c?w=600&q=80', props: '980' },
-    { city: 'Knysna',     img: 'https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?w=600&q=80', props: '640' },
+    { city: 'Cape Town',  flag: '🇿🇦', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=800&q=85', props: '12,000' },
+    { city: 'Johannesburg', flag: '🇿🇦', img: 'https://images.unsplash.com/photo-1577948000111-9c970dfe1ac5?w=800&q=85', props: '9,800' },
+    { city: 'Durban',     flag: '🇿🇦', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Durban_from_the_Balcony_%28Dennis_Sylvester_Hurd%29_1.jpg/960px-Durban_from_the_Balcony_%28Dennis_Sylvester_Hurd%29_1.jpg', props: '5,200' },
+    { city: 'Pretoria',   flag: '🇿🇦', img: 'https://images.unsplash.com/photo-1591768585849-aa47f7f66e75?w=800&q=85', props: '3,400' },
+    { city: 'Stellenbosch', flag: '🇿🇦', img: 'https://images.unsplash.com/photo-1604999565976-8913ad2ddb7c?w=800&q=85', props: '980' },
   ],
   GB: [
-    { city: 'London',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
-    { city: 'Manchester', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg/960px-Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg', props: '8,200' },
-    { city: 'Edinburgh',  img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80', props: '6,500' },
-    { city: 'Birmingham', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Birmingham_Skyline_from_the_West.jpg/960px-Birmingham_Skyline_from_the_West.jpg', props: '5,100' },
-    { city: 'Liverpool',  img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Pier_Head%2C_Liverpool_-_geograph.org.uk_-_3059094.jpg/960px-Pier_Head%2C_Liverpool_-_geograph.org.uk_-_3059094.jpg', props: '3,800' },
-    { city: 'Bristol',    img: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&q=80', props: '2,900' },
+    { city: 'London',     flag: '🇬🇧', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
+    { city: 'Manchester', flag: '🇬🇧', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg/960px-Tower_Blocks_over_Knott_Mill%2C_geograph_6866152_by_David_Dixon.jpg', props: '8,200' },
+    { city: 'Edinburgh',  flag: '🇬🇧', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=85', props: '6,500' },
+    { city: 'Birmingham', flag: '🇬🇧', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Birmingham_Skyline_from_the_West.jpg/960px-Birmingham_Skyline_from_the_West.jpg', props: '5,100' },
+    { city: 'Bristol',    flag: '🇬🇧', img: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&q=85', props: '2,900' },
   ],
   US: [
-    { city: 'New York',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', props: '82,000' },
-    { city: 'Los Angeles', img: 'https://images.unsplash.com/photo-1580655653885-65763b2597d0?w=600&q=80', props: '54,000' },
-    { city: 'Miami',      img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Villa_Vizcaya_20110228.jpg/960px-Villa_Vizcaya_20110228.jpg', props: '18,000' },
-    { city: 'Las Vegas',  img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Las_Vegas_from_above_%2840064746644%29.jpg/960px-Las_Vegas_from_above_%2840064746644%29.jpg', props: '12,400' },
-    { city: 'Chicago',    img: 'https://images.unsplash.com/photo-1494522855154-9297ac14b55f?w=600&q=80', props: '21,000' },
-    { city: 'San Francisco', img: 'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=600&q=80', props: '15,000' },
+    { city: 'New York',   flag: '🇺🇸', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', props: '82,000' },
+    { city: 'Los Angeles', flag: '🇺🇸', img: 'https://images.unsplash.com/photo-1580655653885-65763b2597d0?w=800&q=85', props: '54,000' },
+    { city: 'Miami',      flag: '🇺🇸', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Villa_Vizcaya_20110228.jpg/960px-Villa_Vizcaya_20110228.jpg', props: '18,000' },
+    { city: 'Las Vegas',  flag: '🇺🇸', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Las_Vegas_from_above_%2840064746644%29.jpg/960px-Las_Vegas_from_above_%2840064746644%29.jpg', props: '12,400' },
+    { city: 'Chicago',    flag: '🇺🇸', img: 'https://images.unsplash.com/photo-1494522855154-9297ac14b55f?w=800&q=85', props: '21,000' },
   ],
   IN: [
-    { city: 'Mumbai',     img: 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?w=600&q=80', props: '32,000' },
-    { city: 'Delhi',      img: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80', props: '28,000' },
-    { city: 'Goa',        img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=600&q=80', props: '14,000' },
-    { city: 'Bangalore',  img: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600&q=80', props: '18,000' },
-    { city: 'Jaipur',     img: 'https://images.unsplash.com/photo-1477587458883-47145ed4bde0?w=600&q=80', props: '9,200' },
-    { city: 'Kerala',     img: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=600&q=80', props: '11,000' },
+    { city: 'Mumbai',     flag: '🇮🇳', img: 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?w=800&q=85', props: '32,000' },
+    { city: 'Delhi',      flag: '🇮🇳', img: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=800&q=85', props: '28,000' },
+    { city: 'Goa',        flag: '🇮🇳', img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=85', props: '14,000' },
+    { city: 'Bangalore',  flag: '🇮🇳', img: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=85', props: '18,000' },
+    { city: 'Jaipur',     flag: '🇮🇳', img: 'https://images.unsplash.com/photo-1477587458883-47145ed4bde0?w=800&q=85', props: '9,200' },
   ],
   AE: [
-    { city: 'Dubai',      img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
-    { city: 'Abu Dhabi',  img: 'https://images.unsplash.com/photo-1512632578888-169bbbc64f33?w=600&q=80', props: '8,500' },
-    { city: 'Sharjah',    img: 'https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=600&q=80', props: '3,200' },
-    { city: 'Ras Al Khaimah', img: 'https://images.unsplash.com/photo-1548438294-1ad5d5f4f063?w=600&q=80', props: '1,400' },
+    { city: 'Dubai',      flag: '🇦🇪', img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
+    { city: 'Abu Dhabi',  flag: '🇦🇪', img: 'https://images.unsplash.com/photo-1512632578888-169bbbc64f33?w=800&q=85', props: '8,500' },
+    { city: 'Sharjah',    flag: '🇦🇪', img: 'https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=800&q=85', props: '3,200' },
+    { city: 'Ras Al Khaimah', flag: '🇦🇪', img: 'https://images.unsplash.com/photo-1548438294-1ad5d5f4f063?w=800&q=85', props: '1,400' },
+    { city: 'Fujairah',   flag: '🇦🇪', img: 'https://images.unsplash.com/photo-1520637836862-4d197d17c93a?w=800&q=85', props: '680' },
   ],
   // Fallback for unrecognised countries
   default: [
-    { city: 'Paris',     img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg/960px-La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg', props: '38,000' },
-    { city: 'Dubai',     img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
-    { city: 'Nairobi',   img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
-    { city: 'Cape Town', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=600&q=80', props: '12,000' },
-    { city: 'London',    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
-    { city: 'New York',  img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', props: '82,000' },
+    { city: 'Paris',     flag: '🇫🇷', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg/960px-La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg', props: '38,000' },
+    { city: 'Dubai',     flag: '🇦🇪', img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', props: '24,000' },
+    { city: 'Nairobi',   flag: '🇰🇪', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
+    { city: 'Cape Town', flag: '🇿🇦', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=800&q=85', props: '12,000' },
+    { city: 'London',    flag: '🇬🇧', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', props: '45,000' },
   ],
 };
 
@@ -1468,42 +1460,70 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* City cards — skeleton while loading, real cards once geo resolves */}
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                {exploreLoading
-                  ? Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 animate-pulse">
-                        <div className="aspect-[4/5] bg-slate-200 dark:bg-slate-700" />
-                        <div className="p-3 space-y-1.5">
-                          <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-                          <div className="h-2.5 bg-slate-100 dark:bg-slate-600 rounded w-1/2" />
-                        </div>
-                      </div>
-                    ))
-                  : exploreDestinations.slice(0, 6).map((dest) => (
+              {/* City cards — skeleton while loading, bento grid once geo resolves */}
+              {exploreLoading ? (
+                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[0,1].map(i => <div key={i} className="rounded-2xl bg-slate-200 dark:bg-slate-700 animate-pulse h-[220px]" />)}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[0,1,2].map(i => <div key={i} className="rounded-2xl bg-slate-200 dark:bg-slate-700 animate-pulse h-[160px]" />)}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {/* Row 1: 2 large landscape cards */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {exploreDestinations.slice(0, 2).map((dest) => (
                       <a
                         key={dest.city}
                         href={`/stays/results?destination=${encodeURIComponent(dest.city)}`}
-                        className="group flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                        className="relative group rounded-2xl overflow-hidden block h-[220px] sm:h-[260px] bg-slate-200 dark:bg-slate-700 cursor-pointer"
                       >
-                        <div className="relative aspect-[4/5] overflow-hidden bg-slate-100 dark:bg-slate-700">
-                          <img
-                            src={dest.img}
-                            alt={dest.city}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                            loading="lazy"
-                            onError={e => { e.target.src = 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80'; }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                        </div>
-                        <div className="p-3">
-                          <p className="font-extrabold text-slate-900 dark:text-white text-sm leading-tight">{dest.city}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{dest.props} properties</p>
+                        <img
+                          src={dest.img}
+                          alt={dest.city}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                          onError={e => { e.target.src = 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80'; }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                        <div className="absolute bottom-4 left-4">
+                          <p className="text-white font-extrabold text-xl sm:text-2xl leading-tight drop-shadow-md">
+                            {dest.city} {dest.flag}
+                          </p>
+                          <p className="text-white/70 text-xs font-semibold mt-0.5">{dest.props} properties</p>
                         </div>
                       </a>
-                    ))
-                }
-              </div>
+                    ))}
+                  </div>
+                  {/* Row 2: 3 medium landscape cards */}
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {exploreDestinations.slice(2, 5).map((dest) => (
+                      <a
+                        key={dest.city}
+                        href={`/stays/results?destination=${encodeURIComponent(dest.city)}`}
+                        className="relative group rounded-2xl overflow-hidden block h-[160px] sm:h-[190px] bg-slate-200 dark:bg-slate-700 cursor-pointer"
+                      >
+                        <img
+                          src={dest.img}
+                          alt={dest.city}
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                          onError={e => { e.target.src = 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80'; }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                        <div className="absolute bottom-3 left-3">
+                          <p className="text-white font-extrabold text-base sm:text-lg leading-tight drop-shadow-md">
+                            {dest.city} {dest.flag}
+                          </p>
+                          <p className="text-white/70 text-xs font-semibold mt-0.5">{dest.props} properties</p>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Trending hotels near user's location */}
