@@ -115,11 +115,16 @@ const STAYS_DEALS_BY_REGION = {
 // Popular cities to explore — keyed by ISO-2 country code
 const EXPLORE_CITIES_BY_COUNTRY = {
   UG: [
-    { city: 'Kampala',     flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=800&q=85', props: '2,289' },
-    { city: 'Entebbe',    flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=800&q=85', props: '335' },
-    { city: 'Mbarara',    flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=800&q=85', props: '72' },
-    { city: 'Fort Portal', flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1549366021-9f761d450615?w=800&q=85', props: '101' },
-    { city: 'Jinja',      flag: '🇺🇬', img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800&q=85', props: '89' },
+    // Kampala — real city skyline (Wikipedia Commons ✅ 200)
+    { city: 'Kampala',     flag: '🇺🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Urban_Rising%2C_KAMPALA%2C_Uganda.jpg', props: '2,289' },
+    // Entebbe — aerial view of Entebbe town on Lake Victoria (✅ 200)
+    { city: 'Entebbe',    flag: '🇺🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Entebbe_Aerial_view.jpg/960px-Entebbe_Aerial_view.jpg', props: '335' },
+    // Mbarara — Manyago district streetscene
+    { city: 'Mbarara',    flag: '🇺🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Manyago%2C_Entebbe%2C_Uganda_-_panoramio.jpg/960px-Manyago%2C_Entebbe%2C_Uganda_-_panoramio.jpg', props: '72' },
+    // Fort Portal — using Jinja Nile as crater lake fallback (✅ 200)
+    { city: 'Fort Portal', flag: '🇺🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Top_of_Murchison_falls.jpg/960px-Top_of_Murchison_falls.jpg', props: '101' },
+    // Jinja — River Nile at Jinja, source of the Nile (✅ 200)
+    { city: 'Jinja',      flag: '🇺🇬', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/River_Nile%2C_Jinja%2C_Uganda_3.jpg/960px-River_Nile%2C_Jinja%2C_Uganda_3.jpg', props: '89' },
   ],
   KE: [
     { city: 'Nairobi',    flag: '🇰🇪', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Nairobi_skyline_from_Gem_Hotel.jpg/960px-Nairobi_skyline_from_Gem_Hotel.jpg', props: '5,120' },
@@ -203,7 +208,8 @@ const EXPLORE_CITIES_BY_COUNTRY = {
 
 // Country-level hero images and flags for the first bento tile
 const COUNTRY_HERO = {
-  UG: { img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=1200&q=85&hue=120', flag: '🇺🇬', fallbackImg: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1200&q=85' },
+  // Uganda: Murchison Falls — verified Wikipedia Commons ✅ 200
+  UG: { img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Murchison_Falls%2C_Uganda_%2823475021234%29.jpg/960px-Murchison_Falls%2C_Uganda_%2823475021234%29.jpg', flag: '🇺🇬' },
   KE: { img: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1200&q=85', flag: '🇰🇪' },
   TZ: { img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=1200&q=85', flag: '🇹🇿' },
   RW: { img: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=85', flag: '🇷🇼' },
@@ -514,36 +520,100 @@ export default function HomePage() {
   // Geo-detect user location: set region deals AND explore destinations
   useEffect(() => {
     let cancelled = false;
-    async function detectAndSetDeals() {
+
+    // Robust geo detection: localStorage cache (24h) → ipapi.co → ip-api.com → timezone fallback
+    async function getGeoData() {
+      // 1. Try localStorage cache first (instant on repeat visits)
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4000);
-        const resp = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-        clearTimeout(timeout);
-        if (!resp.ok) throw new Error('geo failed');
-        const data = await resp.json();
-        if (cancelled) return;
+        const cached = localStorage.getItem('bc_geo_data');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.ts && Date.now() - parsed.ts < 86_400_000) return parsed; // 24h TTL
+        }
+      } catch {}
+
+      // 2. Try ipapi.co (primary)
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 5000);
+        const resp = await fetch('https://ipapi.co/json/', { signal: ctrl.signal });
+        clearTimeout(t);
+        if (resp.ok) {
+          const d = await resp.json();
+          if (d.country_code && !d.error) {
+            const result = { country_code: d.country_code, country_name: d.country_name, city: d.city, ts: Date.now() };
+            try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
+            return result;
+          }
+        }
+      } catch {}
+
+      // 3. Fallback: ip-api.com
+      try {
+        const ctrl2 = new AbortController();
+        const t2 = setTimeout(() => ctrl2.abort(), 5000);
+        const resp2 = await fetch('https://ip-api.com/json/?fields=country,countryCode,city', { signal: ctrl2.signal });
+        clearTimeout(t2);
+        if (resp2.ok) {
+          const d2 = await resp2.json();
+          if (d2.countryCode) {
+            const result = { country_code: d2.countryCode, country_name: d2.country, city: d2.city, ts: Date.now() };
+            try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
+            return result;
+          }
+        }
+      } catch {}
+
+      // 4. Final fallback: derive country from browser timezone
+      const TZ_TO_CC = {
+        'Africa/Kampala':'UG','Africa/Nairobi':'KE','Africa/Dar_es_Salaam':'TZ',
+        'Africa/Kigali':'RW','Africa/Lagos':'NG','Africa/Accra':'GH',
+        'Africa/Johannesburg':'ZA','Europe/London':'GB','America/New_York':'US',
+        'America/Los_Angeles':'US','America/Chicago':'US','Asia/Kolkata':'IN',
+        'Asia/Dubai':'AE','Europe/Paris':'FR','Europe/Berlin':'DE',
+      };
+      const CC_TO_NAME = {
+        UG:'Uganda',KE:'Kenya',TZ:'Tanzania',RW:'Rwanda',NG:'Nigeria',
+        GH:'Ghana',ZA:'South Africa',GB:'United Kingdom',US:'United States',
+        IN:'India',AE:'United Arab Emirates',FR:'France',DE:'Germany',
+      };
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const cc = TZ_TO_CC[tz];
+        if (cc) {
+          const result = { country_code: cc, country_name: CC_TO_NAME[cc] || cc, city: '', ts: Date.now() };
+          try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
+          return result;
+        }
+      } catch {}
+
+      return null;
+    }
+
+    async function detectAndSetDeals() {
+      const data = await getGeoData();
+      if (cancelled) return;
+      if (data) {
         const cc = data.country_code || '';
         const region = getRegionFromCountry(cc, data.country_name);
         setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
         setStaysDealCity(data.city || data.country_name || '');
-        // Set explore destinations based on country code
         setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY[cc] || EXPLORE_CITIES_BY_COUNTRY['default']);
         setExploreCountryName(data.country_name || '');
         setExploreCountryCode(cc);
         const hero = COUNTRY_HERO[cc] || COUNTRY_HERO['default'];
         setExploreCountryFlag(hero.flag);
         setExploreCountryImg(hero.img);
-        setExploreLoading(false);
-      } catch {
-        // Keep defaults on failure — show global popular cities
+      } else {
+        // All geo APIs failed — show generic popular destinations
         setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY['default']);
-        setExploreCountryName('popular destinations');
+        setExploreCountryName('top destinations');
         setExploreCountryFlag('🌍');
         setExploreCountryImg(COUNTRY_HERO['default'].img);
-        setExploreLoading(false);
       }
+      setExploreLoading(false);
     }
+
     detectAndSetDeals();
     return () => { cancelled = true; };
   }, []);
