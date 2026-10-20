@@ -201,6 +201,22 @@ const EXPLORE_CITIES_BY_COUNTRY = {
   ],
 };
 
+// Country-level hero images and flags for the first bento tile
+const COUNTRY_HERO = {
+  UG: { img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=1200&q=85&hue=120', flag: '🇺🇬', fallbackImg: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1200&q=85' },
+  KE: { img: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1200&q=85', flag: '🇰🇪' },
+  TZ: { img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=1200&q=85', flag: '🇹🇿' },
+  RW: { img: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=1200&q=85', flag: '🇷🇼' },
+  NG: { img: 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Lagos-centre-from-executive-lounge-Continental-hotel-2026-IMG_7970.jpg', flag: '🇳🇬' },
+  GH: { img: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=1200&q=85', flag: '🇬🇭' },
+  ZA: { img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=1200&q=85', flag: '🇿🇦' },
+  GB: { img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg', flag: '🇬🇧' },
+  US: { img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg/960px-View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg', flag: '🇺🇸' },
+  IN: { img: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200&q=85', flag: '🇮🇳' },
+  AE: { img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', flag: '🇦🇪' },
+  default: { img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=85', flag: '🌍' },
+};
+
 // Map country code or country name → region key
 function getRegionFromCountry(countryCode, countryName) {
   const cc = (countryCode || '').toUpperCase();
@@ -455,6 +471,8 @@ export default function HomePage() {
   const [exploreDestinations, setExploreDestinations] = useState([]);
   const [exploreCountryName, setExploreCountryName] = useState('');
   const [exploreCountryCode, setExploreCountryCode] = useState('');
+  const [exploreCountryFlag, setExploreCountryFlag] = useState('');
+  const [exploreCountryImg, setExploreCountryImg] = useState('');
   const [exploreLoading, setExploreLoading] = useState(true);
 
   // Stays Autocomplete state
@@ -513,11 +531,16 @@ export default function HomePage() {
         setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY[cc] || EXPLORE_CITIES_BY_COUNTRY['default']);
         setExploreCountryName(data.country_name || '');
         setExploreCountryCode(cc);
+        const hero = COUNTRY_HERO[cc] || COUNTRY_HERO['default'];
+        setExploreCountryFlag(hero.flag);
+        setExploreCountryImg(hero.img);
         setExploreLoading(false);
       } catch {
         // Keep defaults on failure — show global popular cities
         setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY['default']);
         setExploreCountryName('popular destinations');
+        setExploreCountryFlag('🌍');
+        setExploreCountryImg(COUNTRY_HERO['default'].img);
         setExploreLoading(false);
       }
     }
@@ -1472,17 +1495,37 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2.5">
-                  {/* Row 1: 2 large landscape cards */}
+                  {/* Row 1: country tile (large left) + first city (large right) */}
                   <div className="grid grid-cols-2 gap-2.5">
-                    {exploreDestinations.slice(0, 2).map((dest) => (
+                    {/* Tile 0: User's country */}
+                    <a
+                      href={`/stays/results?destination=${encodeURIComponent(exploreCountryName)}`}
+                      className="relative group rounded-2xl overflow-hidden block h-[220px] sm:h-[260px] bg-slate-200 dark:bg-slate-700 cursor-pointer"
+                    >
+                      <img
+                        src={exploreCountryImg}
+                        alt={exploreCountryName}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        loading="lazy"
+                        onError={e => { e.target.src = 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80'; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-4 left-4">
+                        <p className="text-white font-extrabold text-xl sm:text-2xl leading-tight drop-shadow-md">
+                          {exploreCountryName} {exploreCountryFlag}
+                        </p>
+                        <p className="text-white/70 text-xs font-semibold mt-0.5">Explore all stays</p>
+                      </div>
+                    </a>
+                    {/* Tile 1: First city */}
+                    {exploreDestinations[0] && (
                       <a
-                        key={dest.city}
-                        href={`/stays/results?destination=${encodeURIComponent(dest.city)}`}
+                        href={`/stays/results?destination=${encodeURIComponent(exploreDestinations[0].city)}`}
                         className="relative group rounded-2xl overflow-hidden block h-[220px] sm:h-[260px] bg-slate-200 dark:bg-slate-700 cursor-pointer"
                       >
                         <img
-                          src={dest.img}
-                          alt={dest.city}
+                          src={exploreDestinations[0].img}
+                          alt={exploreDestinations[0].city}
                           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                           loading="lazy"
                           onError={e => { e.target.src = 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80'; }}
@@ -1490,16 +1533,16 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
                         <div className="absolute bottom-4 left-4">
                           <p className="text-white font-extrabold text-xl sm:text-2xl leading-tight drop-shadow-md">
-                            {dest.city} {dest.flag}
+                            {exploreDestinations[0].city} {exploreDestinations[0].flag}
                           </p>
-                          <p className="text-white/70 text-xs font-semibold mt-0.5">{dest.props} properties</p>
+                          <p className="text-white/70 text-xs font-semibold mt-0.5">{exploreDestinations[0].props} properties</p>
                         </div>
                       </a>
-                    ))}
+                    )}
                   </div>
-                  {/* Row 2: 3 medium landscape cards */}
+                  {/* Row 2: next 3 cities */}
                   <div className="grid grid-cols-3 gap-2.5">
-                    {exploreDestinations.slice(2, 5).map((dest) => (
+                    {exploreDestinations.slice(1, 4).map((dest) => (
                       <a
                         key={dest.city}
                         href={`/stays/results?destination=${encodeURIComponent(dest.city)}`}
