@@ -188,7 +188,14 @@ test('every Leaflet map renders the shared keyless basemap layer', () => {
   assert.ok(urls.length >= 4, 'expected several free basemap providers');
   for (const url of urls) {
     assert.doesNotMatch(url, /\{key\}|\{apikey\}|apikey=|api_key=|access_token/i, `${url} must not need an API key`);
+    // CARTO watermarks every tile with "API KEY REQUIRED" unless a key is sent.
+    assert.doesNotMatch(url, /cartocdn|stadiamaps|thunderforest|mapbox\.com|maps\.google/i, `${url} requires a key`);
   }
+
+  const defaultProvider = tiles.match(/DEFAULT_MAP_PROVIDER = '([^']+)'/)?.[1];
+  assert.ok(defaultProvider, 'DEFAULT_MAP_PROVIDER must be declared');
+  assert.match(tiles, new RegExp(`\\n  ${defaultProvider}: \\{`), 'DEFAULT_MAP_PROVIDER must be a registered provider');
+  assert.doesNotMatch(tiles, /DEFAULT_MAP_PROVIDER = 'voyager'/, 'CARTO basemaps need a key and cannot be the default');
 });
 
 test('cron endpoint rejects unauthenticated calls and requires CRON_SECRET', async () => {

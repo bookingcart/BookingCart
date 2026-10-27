@@ -722,7 +722,7 @@ export default function StaysDetailsPage() {
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Location</h2>
                   <div className="h-[300px] w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 mb-4 z-0 relative">
                     <MapContainer center={[lat, lng]} zoom={15} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={false}>
-                      <BasemapLayer provider="voyager" maxZoom={19} />
+                      <BasemapLayer provider="osm" maxZoom={19} />
                       <Marker position={[lat, lng]} icon={customMarkerIcon} />
                     </MapContainer>
                   </div>

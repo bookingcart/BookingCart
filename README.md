@@ -150,10 +150,12 @@ Aircraft are bookable only after the operator is verified and the listing has an
 
 ## Maps
 
-Every Leaflet map (stays, explore, flight tracker, attractions) renders [BasemapLayer](src/components/BasemapLayer.jsx), which draws tiles from the free, keyless providers registered in [src/lib/mapTiles.js](src/lib/mapTiles.js): OpenStreetMap, CARTO Voyager/Light/Dark, Esri World Imagery and OpenTopoMap. No map API key is required.
+Every Leaflet map (stays, explore, flight tracker, attractions) renders [BasemapLayer](src/components/BasemapLayer.jsx), which draws tiles from the free, keyless providers registered in [src/lib/mapTiles.js](src/lib/mapTiles.js): OpenStreetMap, Esri World Street Map / Light Gray / Dark Gray / World Imagery, and OpenTopoMap. No map API key is required.
+
+CARTO basemaps (`basemaps.cartocdn.com`) are deliberately not used: they now stamp "API KEY REQUIRED" over every tile unless a CARTO key is supplied.
 
 - `BasemapLayer` switches to the next provider automatically when a tile provider starts failing (blocked, rate limited, offline).
-- `BasemapSwitcher` adds the Lights/Satellite pills to let visitors pick a basemap.
+- `BasemapSwitcher` adds the Streets/Light/Satellite pills to let visitors pick a basemap.
 - To change the default, edit `DEFAULT_MAP_PROVIDER`; to add a provider, register its URL and attribution in `MAP_PROVIDERS`.
 - Destination autocomplete and attraction search fall back to Wikimedia/OpenStreetMap when `GEOAPIFY_API_KEY` is not configured.
 
