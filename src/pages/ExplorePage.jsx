@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import BasemapLayer from '../components/BasemapLayer.jsx';
+import BasemapSwitcher from '../components/BasemapSwitcher.jsx';
+import { DEFAULT_MAP_PROVIDER } from '../lib/mapTiles.js';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -331,6 +334,7 @@ export default function ExplorePage() {
   const navigate = useNavigate();
 
   const [selectedDest, setSelectedDest] = useState(null);
+  const [basemap, setBasemap] = useState(DEFAULT_MAP_PROVIDER);
   const [visibleDests, setVisibleDests] = useState(ALL_DESTINATIONS);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isFetchingSchedule, setIsFetchingSchedule] = useState(false);
@@ -483,12 +487,7 @@ export default function ExplorePage() {
       {/* Leaflet Map */}
       <div className="absolute inset-0 z-0">
         <MapContainer center={[10, 25]} zoom={3} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={true}>
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            subdomains="abcd"
-            maxZoom={19}
-          />
+          <BasemapLayer provider={basemap} onProviderChange={setBasemap} maxZoom={19} />
           <ViewportTracker onBoundsChange={handleBoundsChange} />
           <MapFlyTo dest={selectedDest} />
 
@@ -509,6 +508,7 @@ export default function ExplorePage() {
 
       {/* Zoom controls */}
       <style>{`.leaflet-control-zoom{display:none!important}.leaflet-popup-content-wrapper{border-radius:10px!important}.leaflet-popup-tip{display:none!important}`}</style>
+      <BasemapSwitcher value={basemap} onChange={setBasemap} className="!right-4 !top-4" />
       <div className="absolute bottom-8 right-4 flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden z-[1000]">
         <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 border-b border-slate-100 text-lg">+</button>
         <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 text-lg">−</button>

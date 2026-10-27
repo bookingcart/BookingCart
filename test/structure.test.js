@@ -172,6 +172,25 @@ test('guest booking lookup is redacted while the owner gets full details', async
   });
 });
 
+test('every Leaflet map renders the shared keyless basemap layer', () => {
+  const files = [...listFiles('src/pages', '.jsx'), ...listFiles('src/components', '.jsx')]
+    .filter((file) => !path.basename(file).startsWith('Basemap'));
+  const mapFiles = files.filter((file) => /<MapContainer/.test(fs.readFileSync(path.join(ROOT, file), 'utf8')));
+  assert.ok(mapFiles.length >= 4, `expected the map surfaces to be detected, found ${mapFiles.length}`);
+
+  for (const file of mapFiles) {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.match(source, /<BasemapLayer/, `${file} must render <BasemapLayer> instead of a hard-coded TileLayer`);
+  }
+
+  const tiles = fs.readFileSync(path.join(ROOT, 'src/lib/mapTiles.js'), 'utf8');
+  const urls = [...tiles.matchAll(/url: '([^']+)'/g)].map((match) => match[1]);
+  assert.ok(urls.length >= 4, 'expected several free basemap providers');
+  for (const url of urls) {
+    assert.doesNotMatch(url, /\{key\}|\{apikey\}|apikey=|api_key=|access_token/i, `${url} must not need an API key`);
+  }
+});
+
 test('cron endpoint rejects unauthenticated calls and requires CRON_SECRET', async () => {
   const handler = (env, req) =>
     withEnv({ CRON_SECRET: env }, async () => {

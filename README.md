@@ -148,6 +148,17 @@ Luxury aviation lives at `/aviation`. Guests can search jets, helicopters, and s
 
 Aircraft are bookable only after the operator is verified and the listing has an AOC, certification, insurance, current maintenance, and pilot certifications. Apply migration `db/migrations/0005_aviation.sql` before using a persistent database. Without `DATABASE_URL`, the API keeps operator records in memory and still serves the seeded fleet.
 
+## Maps
+
+Every Leaflet map (stays, explore, flight tracker, attractions) renders [BasemapLayer](src/components/BasemapLayer.jsx), which draws tiles from the free, keyless providers registered in [src/lib/mapTiles.js](src/lib/mapTiles.js): OpenStreetMap, CARTO Voyager/Light/Dark, Esri World Imagery and OpenTopoMap. No map API key is required.
+
+- `BasemapLayer` switches to the next provider automatically when a tile provider starts failing (blocked, rate limited, offline).
+- `BasemapSwitcher` adds the Lights/Satellite pills to let visitors pick a basemap.
+- To change the default, edit `DEFAULT_MAP_PROVIDER`; to add a provider, register its URL and attribution in `MAP_PROVIDERS`.
+- Destination autocomplete and attraction search fall back to Wikimedia/OpenStreetMap when `GEOAPIFY_API_KEY` is not configured.
+
+Keep each provider's attribution visible; the tiles are free but the attribution is a licence requirement.
+
 ## Authentication
 
 - Existing `/api/auth/*` routes remain available during the Better Auth migration.

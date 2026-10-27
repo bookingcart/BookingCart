@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import BasemapLayer from '../components/BasemapLayer.jsx';
+import BasemapSwitcher from '../components/BasemapSwitcher.jsx';
+import { DEFAULT_MAP_PROVIDER } from '../lib/mapTiles.js';
 
 // ─── ADSB Proxy (via our own server to avoid CORS) ────────────────────────────
 const ADSB_PROXY = '/api/adsb';
@@ -149,6 +152,7 @@ function getNearestAirport(lat, lng) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function FlightTrackerPage() {
   const [flights, setFlights] = useState([]);
+  const [basemap, setBasemap] = useState(DEFAULT_MAP_PROVIDER);
   const [selected, setSelected] = useState(null);
   const [bounds, setBounds] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -513,11 +517,10 @@ export default function FlightTrackerPage() {
             style={{ width: '100%', height: '100%', background: '#e2e8f0' }}
             zoomControl={false}
           >
-            {/* Light map tiles */}
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a> | Flight data: <a href="https://opensky-network.org">OpenSky Network</a>'
-              subdomains="abcd"
+            {/* Free basemap with automatic provider failover */}
+            <BasemapLayer
+              provider={basemap}
+              onProviderChange={setBasemap}
               maxZoom={19}
             />
 
@@ -543,6 +546,8 @@ export default function FlightTrackerPage() {
 
           {/* Hide default zoom */}
           <style>{`.leaflet-control-zoom{display:none!important}.leaflet-attribution-flag{display:none!important}`}</style>
+
+          <BasemapSwitcher value={basemap} onChange={setBasemap} />
 
           {/* Legend */}
           <div className="absolute bottom-6 left-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 px-3 py-2 flex items-center gap-3">

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { MapContainer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import BasemapLayer from '../components/BasemapLayer.jsx';
 import InteractiveRoomMap from '../components/InteractiveRoomMap.jsx';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -721,7 +722,7 @@ export default function StaysDetailsPage() {
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Location</h2>
                   <div className="h-[300px] w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 mb-4 z-0 relative">
                     <MapContainer center={[lat, lng]} zoom={15} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={false}>
-                      <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                      <BasemapLayer provider="voyager" maxZoom={19} />
                       <Marker position={[lat, lng]} icon={customMarkerIcon} />
                     </MapContainer>
                   </div>

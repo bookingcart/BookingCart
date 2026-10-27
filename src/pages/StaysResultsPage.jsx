@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { FlightFooter } from '../components/FlightFooter.jsx';
+import BasemapLayer from '../components/BasemapLayer.jsx';
+import BasemapSwitcher from '../components/BasemapSwitcher.jsx';
+import { DEFAULT_MAP_PROVIDER } from '../lib/mapTiles.js';
 
 // Fix Leaflet icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -62,6 +65,7 @@ export default function StaysResultsPage() {
   const [results, setResults] = useState([]);
   const [mapCenter, setMapCenter] = useState([53.478, -2.242]);
   const [hoveredHotel, setHoveredHotel] = useState(null);
+  const [basemap, setBasemap] = useState(DEFAULT_MAP_PROVIDER);
   const [searchError, setSearchError] = useState('');
 
   // Corporate code / Negotiated rates
@@ -403,10 +407,7 @@ export default function StaysResultsPage() {
         <div className="hidden xl:block w-[350px] 2xl:w-[450px] shrink-0">
           <div className="sticky top-[140px] h-[calc(100vh-160px)] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner relative">
             <MapContainer center={mapCenter} zoom={13} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={false}>
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                maxZoom={19}
-              />
+              <BasemapLayer provider={basemap} onProviderChange={setBasemap} />
               <MapFlyTo center={mapCenter} />
               
               {results.map((hotel) => {
@@ -435,6 +436,8 @@ export default function StaysResultsPage() {
               <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-50 border-b border-slate-100 font-bold">+</button>
               <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-50 font-bold">−</button>
             </div>
+
+            <BasemapSwitcher value={basemap} onChange={setBasemap} className="!top-20" />
             
             {/* Map Search Overlay */}
             <div className="absolute top-4 left-4 right-4 z-[1000]">
