@@ -4,6 +4,7 @@ import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import LocalEventCard from '../components/LocalEventCard.jsx';
+import { getGeo, countryFlag, countryNameFromCode } from '../lib/geo.js';
 
 const FLIGHT_SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js?v=4','/js/deals.js?v=1'];
 
@@ -230,6 +231,70 @@ const COUNTRY_HERO = {
   AE: { img: 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Burj_Khalifa_2021.jpg/960px-Burj_Khalifa_2021.jpg', flag: '🇦🇪' },
   default: { img: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=85', flag: '🌍' },
 };
+
+// Nearby destinations for countries without a curated list above, so the
+// "Explore <country>" section never falls back to the same five cities worldwide.
+const REGION_HUB_CITIES = {
+  'east-africa': ['Kampala', 'Nairobi', 'Kigali', 'Zanzibar', 'Dubai'],
+  'west-africa': ['Lagos', 'Accra', 'Abuja', 'Mombasa', 'Dubai'],
+  'southern-africa': ['Cape Town', 'Johannesburg', 'Zanzibar', 'Nairobi', 'Dubai'],
+  'middle-east': ['Dubai', 'Abu Dhabi', 'Cairo', 'Bangkok', 'London'],
+  'south-asia': ['Mumbai', 'Goa', 'Colombo', 'Dubai', 'Singapore'],
+  'southeast-asia': ['Bangkok', 'Singapore', 'Hong Kong', 'Sydney', 'Dubai'],
+  'europe': ['London', 'Paris', 'Rome', 'Barcelona', 'Amsterdam'],
+  'north-america': ['New York', 'Los Angeles', 'Toronto', 'Cancún', 'Miami'],
+  'default': ['Dubai', 'London', 'Paris', 'Nairobi', 'New York'],
+};
+
+// Every city we already have a verified photo (and property count) for, across all
+// datasets, keyed by lower-cased city name.
+const CITY_INDEX = (() => {
+  const index = new Map();
+  const add = (entry) => {
+    const key = String(entry?.city || '').toLowerCase();
+    if (!key || index.has(key)) return;
+    index.set(key, entry);
+  };
+  Object.values(EXPLORE_CITIES_BY_COUNTRY).forEach((cities) => cities.forEach(add));
+  Object.values(FLIGHT_DEALS_BY_REGION).forEach((deals) => deals.forEach(add));
+  return index;
+})();
+
+/**
+ * Destinations for the explore section: the curated list when the visitor's country has
+ * one, otherwise hubs near their region with their detected city first.
+ */
+function resolveExploreDestinations(countryCode, geo, region) {
+  const curated = EXPLORE_CITIES_BY_COUNTRY[countryCode];
+  if (curated) return curated.slice();
+
+  const picked = [];
+  const seen = new Set();
+  const detectedCity = String(geo?.city || '').trim();
+
+  if (detectedCity) {
+    const known = CITY_INDEX.get(detectedCity.toLowerCase());
+    seen.add(detectedCity.toLowerCase());
+    picked.push({
+      city: detectedCity,
+      flag: countryFlag(countryCode),
+      img: known?.img || (COUNTRY_HERO[countryCode] || COUNTRY_HERO['default']).img,
+      props: known?.props || '',
+      note: 'Near you',
+    });
+  }
+
+  for (const name of REGION_HUB_CITIES[region] || REGION_HUB_CITIES['default']) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    const known = CITY_INDEX.get(key);
+    if (!known) continue;
+    seen.add(key);
+    picked.push({ ...known, note: known.props ? '' : 'Popular stays' });
+  }
+
+  return picked.length ? picked.slice(0, 5) : EXPLORE_CITIES_BY_COUNTRY['default'].slice();
+}
 
 // Map country code or country name → region key
 function getRegionFromCountry(countryCode, countryName) {
@@ -529,107 +594,33 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
-    // ── Geo detection — mirrors deals.js exactly ─────────────────────────────
-    // APIs: ipapi.co → ipwho.is (both HTTPS, production-safe)
-    // Caches in localStorage for 24h, also reads deals.js cache as shortcut
-    const TZ_TO_CC = {
-      'Africa/Kampala':'UG','Africa/Nairobi':'KE','Africa/Dar_es_Salaam':'TZ',
-      'Africa/Kigali':'RW','Africa/Addis_Ababa':'ET','Africa/Lagos':'NG',
-      'Africa/Accra':'GH','Africa/Johannesburg':'ZA','Africa/Cairo':'EG',
-      'Europe/London':'GB','America/New_York':'US','America/Los_Angeles':'US',
-      'America/Chicago':'US','Asia/Kolkata':'IN','Asia/Dubai':'AE',
-      'Europe/Paris':'FR','Europe/Berlin':'DE',
-    };
-    const CC_TO_NAME = {
-      UG:'Uganda',KE:'Kenya',TZ:'Tanzania',RW:'Rwanda',ET:'Ethiopia',
-      NG:'Nigeria',GH:'Ghana',ZA:'South Africa',EG:'Egypt',
-      GB:'United Kingdom',US:'United States',IN:'India',
-      AE:'United Arab Emirates',FR:'France',DE:'Germany',
-    };
-
-    function tzCountryCode() {
-      try {
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        return TZ_TO_CC[tz] || '';
-      } catch { return ''; }
-    }
-
-    async function getGeoData() {
-      // 1. Try our own cache (24h TTL)
-      try {
-        const cached = localStorage.getItem('bc_geo_data');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.ts && Date.now() - parsed.ts < 86_400_000) return parsed;
-        }
-      } catch {}
-
-      // 2. Try ipapi.co — same as deals.js primary
-      try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 4000);
-        const resp = await fetch('https://ipapi.co/json/', { signal: ctrl.signal });
-        clearTimeout(t);
-        if (resp.ok) {
-          const d = await resp.json();
-          if (d.country_code && !d.error) {
-            const result = { country_code: d.country_code, country_name: d.country_name, city: d.city, ts: Date.now() };
-            try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
-            return result;
-          }
-        }
-      } catch {}
-
-      // 3. Fallback: ipwho.is — same as deals.js fallback (HTTPS, production-safe)
-      try {
-        const ctrl2 = new AbortController();
-        const t2 = setTimeout(() => ctrl2.abort(), 4000);
-        const resp2 = await fetch('https://ipwho.is/', { signal: ctrl2.signal });
-        clearTimeout(t2);
-        if (resp2.ok) {
-          const d2 = await resp2.json();
-          if (d2.country_code) {
-            const result = { country_code: d2.country_code, country_name: d2.country, city: d2.city, ts: Date.now() };
-            try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
-            return result;
-          }
-        }
-      } catch {}
-
-      // 4. Timezone-based fallback (works 100% offline, same as deals.js originFromTimeZone)
-      try {
-        const cc = tzCountryCode();
-        if (cc) {
-          const result = { country_code: cc, country_name: CC_TO_NAME[cc] || cc, city: '', ts: Date.now() };
-          try { localStorage.setItem('bc_geo_data', JSON.stringify(result)); } catch {}
-          return result;
-        }
-      } catch {}
-
-      return null;
-    }
-
+    // Location is resolved once in src/lib/geo.js (/api/geo → ipapi.co → ipwho.is →
+    // browser timezone), so this section follows the visitor instead of a fixed country.
     async function detectAndSetDeals() {
-      const data = await getGeoData();
+      const data = await getGeo();
       if (cancelled) return;
-      if (data) {
-        const cc = data.country_code || '';
-        const region = getRegionFromCountry(cc, data.country_name);
-        setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
-        setStaysDealCity(data.city || data.country_name || '');
-        setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY[cc] || EXPLORE_CITIES_BY_COUNTRY['default']);
-        setExploreCountryName(data.country_name || '');
-        setExploreCountryCode(cc);
-        const hero = COUNTRY_HERO[cc] || COUNTRY_HERO['default'];
-        setExploreCountryFlag(hero.flag);
-        setExploreCountryImg(hero.img);
+
+      const cc = data?.countryCode || '';
+      const countryName = data?.countryName || countryNameFromCode(cc);
+      const region = getRegionFromCountry(cc, countryName);
+
+      setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
+      setStaysDealCity(data?.city || countryName || '');
+
+      setExploreDestinations(resolveExploreDestinations(cc, data, region));
+      setExploreCountryCode(cc);
+
+      if (cc) {
+        setExploreCountryName(countryName || cc);
+        setExploreCountryFlag(COUNTRY_HERO[cc]?.flag || countryFlag(cc));
+        setExploreCountryImg((COUNTRY_HERO[cc] || COUNTRY_HERO['default']).img);
       } else {
-        // All geo APIs failed — show generic popular destinations
-        setExploreDestinations(EXPLORE_CITIES_BY_COUNTRY['default']);
+        // No location available — present worldwide destinations rather than guessing
         setExploreCountryName('top destinations');
         setExploreCountryFlag('🌍');
         setExploreCountryImg(COUNTRY_HERO['default'].img);
       }
+
       setExploreLoading(false);
     }
 
@@ -643,16 +634,13 @@ export default function HomePage() {
     async function fetchTrendingHotels() {
       setTrendingHotelsLoading(true);
       try {
-        // Step 1: detect user city/country via IP geolocation
+        // Step 1: reuse the shared location detection (same source as the explore section)
         let city = '';
         let country = '';
         try {
-          const geoResp = await fetch('https://ipapi.co/json/');
-          if (geoResp.ok) {
-            const geo = await geoResp.json();
-            city = geo.city || '';
-            country = geo.country_name || '';
-          }
+          const geo = await getGeo();
+          city = geo?.city || '';
+          country = geo?.countryName || '';
         } catch { /* geo failed – proceed without location filter */ }
 
         if (cancelled) return;
@@ -1624,7 +1612,11 @@ export default function HomePage() {
                           <p className="text-white font-extrabold text-xl sm:text-2xl leading-tight drop-shadow-md">
                             {exploreDestinations[0].city} {exploreDestinations[0].flag}
                           </p>
-                          <p className="text-white/70 text-xs font-semibold mt-0.5">{exploreDestinations[0].props} properties</p>
+                          <p className="text-white/70 text-xs font-semibold mt-0.5">
+                            {exploreDestinations[0].props
+                              ? `${exploreDestinations[0].props} properties`
+                              : exploreDestinations[0].note || 'Popular stays'}
+                          </p>
                         </div>
                       </a>
                     )}
@@ -1649,7 +1641,9 @@ export default function HomePage() {
                           <p className="text-white font-extrabold text-base sm:text-lg leading-tight drop-shadow-md">
                             {dest.city} {dest.flag}
                           </p>
-                          <p className="text-white/70 text-xs font-semibold mt-0.5">{dest.props} properties</p>
+                          <p className="text-white/70 text-xs font-semibold mt-0.5">
+                            {dest.props ? `${dest.props} properties` : dest.note || 'Popular stays'}
+                          </p>
                         </div>
                       </a>
                     ))}

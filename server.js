@@ -41,6 +41,7 @@ const duffelStaysAccommodationHandler = require('./api-routes/duffel-stays-accom
 const duffelStaysBrandsHandler = require('./api-routes/duffel-stays-brands');
 const duffelStaysAccommodationReviewsHandler = require('./api-routes/duffel-stays-accommodation-reviews');
 const staysLocationsHandler = require('./api-routes/stays-locations');
+const geoHandler = require('./api-routes/geo');
 
 const attractionsHandler = require('./api-routes/attractions');
 const getYourGuideSearchHandler = require('./api-routes/getyourguide-search');
@@ -156,6 +157,7 @@ function run(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 }
 
+app.get('/api/geo', apiLimiter, run(geoHandler));
 app.get('/api/config', apiLimiter, (req, res) => {
   res.json({
     ok: true,
