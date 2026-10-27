@@ -157,7 +157,7 @@ function run(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 }
 
-app.get('/api/geo', apiLimiter, run(geoHandler));
+app.all('/api/geo', apiLimiter, run(geoHandler));
 app.get('/api/config', apiLimiter, (req, res) => {
   res.json({
     ok: true,

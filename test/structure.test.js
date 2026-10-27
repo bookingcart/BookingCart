@@ -198,6 +198,73 @@ test('every Leaflet map renders the shared keyless basemap layer', () => {
   assert.doesNotMatch(tiles, /DEFAULT_MAP_PROVIDER = 'voyager'/, 'CARTO basemaps need a key and cannot be the default');
 });
 
+test('geo endpoint resolves location from CDN headers without a key', async () => {
+  const geoHandler = require('../api-routes/geo');
+
+  const call = async (req) => {
+    const res = makeRes();
+    await geoHandler({ method: 'GET', headers: {}, query: {}, ...req }, res);
+    return res;
+  };
+
+  const london = await call({
+    headers: {
+      'x-vercel-ip-country': 'gb',
+      'x-vercel-ip-city': 'London',
+      'x-vercel-ip-latitude': '51.5074',
+      'x-vercel-ip-longitude': '-0.1276',
+    },
+  });
+  assert.strictEqual(london.statusCode, 200);
+  assert.strictEqual(london.body.countryCode, 'GB');
+  assert.strictEqual(london.body.countryName, 'United Kingdom');
+  assert.strictEqual(london.body.city, 'London');
+  assert.strictEqual(london.body.source, 'edge');
+  assert.strictEqual(london.body.latitude, 51.5074);
+  assert.ok(!('ip' in london.body), 'the caller IP must never be echoed back');
+
+  // Cloudflare headers work too, and missing coordinates stay null instead of 0
+  const nairobi = await call({ headers: { 'cf-ipcountry': 'KE', 'cf-ipcity': 'Nairobi' } });
+  assert.strictEqual(nairobi.body.countryCode, 'KE');
+  assert.strictEqual(nairobi.body.latitude, null);
+  assert.strictEqual(nairobi.body.longitude, null);
+
+  assert.strictEqual((await call({ method: 'POST' })).statusCode, 405);
+  assert.strictEqual((await call({ method: 'OPTIONS' })).statusCode, 204);
+});
+
+test('location detection has a single source of truth and drops the stale country cache', () => {
+  const server = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+  assert.match(server, /app\.all\('\/api\/geo'/, '/api/geo must be mounted');
+
+  const geoLib = fs.readFileSync(path.join(ROOT, 'src/lib/geo.js'), 'utf8');
+  assert.match(geoLib, /LEGACY_CACHE_KEYS = \['bc_geo_data'\]/, 'the old 24h cache key must be cleared');
+  assert.match(geoLib, /'\/api\/geo'/, 'the client must prefer our own geo endpoint');
+  assert.match(geoLib, /timeZone/, 'a timezone change must invalidate the cached country');
+
+  for (const file of listFiles('src/pages', '.jsx')) {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    assert.doesNotMatch(code, /bc_geo_data/, `${file} must not read the stale geo cache`);
+    assert.doesNotMatch(code, /ipapi\.co|ipwho\.is/, `${file} must use src/lib/geo.js instead of calling geo APIs directly`);
+  }
+});
+
+test('page modules only enumerate constants they declare', () => {
+  // A typo'd constant name inside Object.values() builds fine but crashes at render time.
+  for (const file of listFiles('src/pages', '.jsx')) {
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const declared = new Set([...code.matchAll(/^\s*const ([A-Z][A-Z0-9_]+)\s*=/gm)].map((match) => match[1]));
+    for (const match of code.matchAll(/import\s*\{([^}]+)\}\s*from/g)) {
+      match[1].split(',').forEach((name) => declared.add(name.trim().split(/\s+as\s+/)[0]));
+    }
+    for (const match of code.matchAll(/Object\.(?:values|keys|entries)\(\s*([A-Z][A-Z0-9_]+)\s*\)/g)) {
+      assert.ok(declared.has(match[1]), `${file} references ${match[1]}, which the module never declares`);
+    }
+  }
+});
+
 test('cron endpoint rejects unauthenticated calls and requires CRON_SECRET', async () => {
   const handler = (env, req) =>
     withEnv({ CRON_SECRET: env }, async () => {

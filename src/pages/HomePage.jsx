@@ -251,12 +251,13 @@ const REGION_HUB_CITIES = {
 const CITY_INDEX = (() => {
   const index = new Map();
   const add = (entry) => {
-    const key = String(entry?.city || '').toLowerCase();
+    const city = String(entry?.city || '').trim();
+    const key = city.toLowerCase();
     if (!key || index.has(key)) return;
-    index.set(key, entry);
+    index.set(key, { city, img: entry.img || '', props: entry.props || '', flag: entry.flag || '' });
   };
   Object.values(EXPLORE_CITIES_BY_COUNTRY).forEach((cities) => cities.forEach(add));
-  Object.values(FLIGHT_DEALS_BY_REGION).forEach((deals) => deals.forEach(add));
+  Object.values(STAYS_DEALS_BY_REGION).forEach((deals) => deals.forEach(add));
   return index;
 })();
 
@@ -288,7 +289,7 @@ function resolveExploreDestinations(countryCode, geo, region) {
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     const known = CITY_INDEX.get(key);
-    if (!known) continue;
+    if (!known?.img) continue;
     seen.add(key);
     picked.push({ ...known, note: known.props ? '' : 'Popular stays' });
   }

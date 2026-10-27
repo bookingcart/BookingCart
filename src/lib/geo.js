@@ -115,18 +115,22 @@ async function fetchJson(url) {
   }
 }
 
+function toNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalize(payload, source) {
   const countryCode = String(payload.countryCode || payload.country_code || '').toUpperCase();
   if (!/^[A-Z]{2}$/.test(countryCode)) return null;
-  const latitude = Number(payload.latitude ?? payload.lat);
-  const longitude = Number(payload.longitude ?? payload.lon);
   return {
     countryCode,
     countryName: payload.countryName || payload.country_name || payload.country || countryNameFromCode(countryCode),
     city: payload.city || '',
     region: payload.region || payload.region_name || '',
-    latitude: Number.isFinite(latitude) ? latitude : null,
-    longitude: Number.isFinite(longitude) ? longitude : null,
+    latitude: toNumber(payload.latitude ?? payload.lat),
+    longitude: toNumber(payload.longitude ?? payload.lon),
     source,
   };
 }

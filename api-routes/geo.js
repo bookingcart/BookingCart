@@ -63,18 +63,22 @@ function countryNameFor(code) {
   }
 }
 
+function toNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalize(payload) {
   const countryCode = validCountryCode(payload.country_code || payload.countryCode);
   if (!countryCode) return null;
-  const latitude = Number(payload.latitude ?? payload.lat);
-  const longitude = Number(payload.longitude ?? payload.lon ?? payload.lng);
   return {
     countryCode,
     countryName: payload.country_name || payload.countryName || countryNameFor(countryCode),
     region: payload.region || payload.region_name || payload.regionName || '',
     city: payload.city || '',
-    latitude: Number.isFinite(latitude) ? latitude : null,
-    longitude: Number.isFinite(longitude) ? longitude : null,
+    latitude: toNumber(payload.latitude ?? payload.lat),
+    longitude: toNumber(payload.longitude ?? payload.lon ?? payload.lng),
   };
 }
 
@@ -144,14 +148,17 @@ function writeCache(key, data) {
 }
 
 async function resolveLocation(req) {
-  const ip = clientIp(req);
-  const cacheKey = ip || 'edge';
+  // Edge headers are free and instant, so they are never cached — and caching them by
+  // IP would leak one visitor's country to another visitor sharing that key.
+  const edge = fromEdgeHeaders(req);
+  if (edge) return { ...edge, source: 'edge' };
 
+  const ip = clientIp(req);
+  const cacheKey = ip || 'anonymous';
   const cached = readCache(cacheKey);
   if (cached) return cached;
 
-  const edge = fromEdgeHeaders(req);
-  const location = edge ? { ...edge, source: 'edge' } : await lookupByIp(ip);
+  const location = await lookupByIp(ip);
   if (!location) return null;
 
   writeCache(cacheKey, location);

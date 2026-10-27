@@ -161,6 +161,22 @@ CARTO basemaps (`basemaps.cartocdn.com`) are deliberately not used: they now sta
 
 Keep each provider's attribution visible; the tiles are free but the attribution is a licence requirement.
 
+## Location detection
+
+The home page adapts the "Explore {country}" and "Trending hotels" sections to where the visitor actually is. No API key is required.
+
+`GET /api/geo` resolves the caller's coarse location in this order:
+
+1. CDN geo headers — `x-vercel-ip-country` / `x-vercel-ip-city` (Vercel) or `cf-ipcountry` / `cf-ipcity` (Cloudflare). Instant and quota-free.
+2. A server-side IP lookup (`ipapi.co`, then `ipwho.is`) when no geo headers are present. Doing this on the server avoids CORS and ad-blocker failures that break browser-side lookups.
+3. The browser timezone (offline-safe), applied in [src/lib/geo.js](src/lib/geo.js).
+
+The endpoint returns only `countryCode`, `countryName`, `city`, `region`, and coordinates — never the caller's IP — and caches per IP for six hours. The client caches for six hours too, but a timezone change invalidates that entry so a traveller or VPN switch is reflected. The old 24-hour `bc_geo_data` cache is deleted on read, since a stale entry there is what pinned the section to one country.
+
+- Cities per country live in `EXPLORE_CITIES_BY_COUNTRY` in [HomePage.jsx](src/pages/HomePage.jsx).
+- Countries without a curated list use their detected city first, then `REGION_HUB_CITIES` for their region.
+- Other components should call `getGeo()` from `src/lib/geo.js` rather than hitting a geo API directly; a structure test enforces this.
+
 ## Authentication
 
 - Existing `/api/auth/*` routes remain available during the Better Auth migration.
