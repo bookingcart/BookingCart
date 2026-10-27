@@ -148,6 +148,45 @@ Luxury aviation lives at `/aviation`. Guests can search jets, helicopters, and s
 
 Aircraft are bookable only after the operator is verified and the listing has an AOC, certification, insurance, current maintenance, and pilot certifications. Apply migration `db/migrations/0005_aviation.sql` before using a persistent database. Without `DATABASE_URL`, the API keeps operator records in memory and still serves the seeded fleet.
 
+## Attraction ticketing
+
+Attraction owners run timed-entry ticketing from the **Ticketing Management** area of `/attractions/dashboard` (Overview, Ticket Types & Pricing, Sales & Bookings, Inventory, QR Validation, Reports, Settings). Visitors buy on the public attraction page and collect digital tickets from **My Bookings**.
+
+### Layers
+
+| Layer | File |
+| --- | --- |
+| Domain (access, pricing, inventory, QR, refunds, notifications) | [lib/ticketing.js](lib/ticketing.js) |
+| Owner/staff console API | [api-routes/attraction-ticketing.js](api-routes/attraction-ticketing.js) |
+| Sales desk + QR validation API | [api-routes/attraction-ticket-sales.js](api-routes/attraction-ticket-sales.js) |
+| Public availability/quote/reserve/confirm API | [api-routes/attraction-ticket-checkout.js](api-routes/attraction-ticket-checkout.js) |
+| Schema | [db/migrations/0007_attraction_ticketing.sql](db/migrations/0007_attraction_ticketing.sql) |
+
+Routes: `POST /api/attraction-ticketing`, `POST /api/attraction-ticket-sales`, `POST /api/attraction-ticket-checkout` (all `action`-based, CORS + rate limited).
+
+### Rules that matter
+
+- **Ownership**: `bc_attraction_profiles.owner_email` and `bc_ticket_staff` (roles `scanner` < `manager` < `owner`) gate every action through `resolveAccess`/`roleAllows`. A non-owner gets `403`; there is no wildcard fallback.
+- **No overselling**: `bc_ticket_inventory` is unique per `(ticket_type_id, visit_date, slot_id)` with `slot_id = 0` as the day total. `reserveInventory` locks the row with `SELECT ... FOR UPDATE`, moves `reserved` -> `sold` only in `finalizeOrder`, and `releaseExpiredHolds` frees abandoned checkouts.
+- **Server-side money**: `computeQuote` recalculates prices, promo codes, taxes and service fees from the database. Frontend totals are never trusted, and `currency` travels with every line.
+- **Signed QR**: tickets carry `bct1.<ticket_no>.<HMAC>` signed with `JWT_SECRET` (namespace `::attraction-ticket`), so a scan reveals no visitor data. The server verifies the signature, attraction, payment and booking status, visit date, and remaining admissions before admitting.
+- **Atomic admission**: `admit` re-reads the ticket inside a transaction, so two simultaneous scans of a single-use ticket admit exactly once; group tickets decrement `admissions_remaining` under the same lock.
+- **Cancellations/refunds**: `cancelOrder`/`refundOrder` share one policy engine (`quoteRefund`) for the admin desk and customer self-service, void tickets, and return stock. Stripe refunds go through `refundCheckoutSession`; no secret key ever reaches the browser.
+- **Audit**: every ticket type, inventory, staff, order and validation change is appended to `bc_ticket_audit` / `bc_ticket_validations`.
+
+`finalizeOrder` is idempotent — retried payment callbacks reuse the existing tickets and skip the confirmation email. Tickets are only issued when the order is confirmed as paid.
+
+### Local verification
+
+```bash
+npm run db:migrate:deploy      # applies 0007_attraction_ticketing
+node scratch/test-ticketing-e2e.js
+```
+
+The rehearsal talks to the configured database, creates a throwaway attraction (`__ticketing-e2e__`), exercises settings -> types -> availability -> quote -> reservation -> oversell guard -> payment -> QR admission (partial group + concurrent duplicate scan + wrong attraction) -> ledger -> cancel -> refund -> overview/reports -> authorization, then deletes every row it created. It blanks `SMTP_HOST`/`MAILTRAP_API_TOKEN` first, so notifications print as `[MOCK EMAIL]` instead of being delivered.
+
+Two managed-Postgres quirks are worth knowing when editing ticketing SQL: `date` columns come back as JS `Date` objects (always render them through `T.isoDate`), and the Nile proxy turns a bound empty-string parameter into `NULL`, so optional text is written as `COALESCE($n, '')` against `NOT NULL DEFAULT ''` columns.
+
 ## Maps
 
 Every Leaflet map (stays, explore, flight tracker, attractions) renders [BasemapLayer](src/components/BasemapLayer.jsx), which draws tiles from the free, keyless providers registered in [src/lib/mapTiles.js](src/lib/mapTiles.js): OpenStreetMap, Esri World Street Map / Light Gray / Dark Gray / World Imagery, and OpenTopoMap. No map API key is required.

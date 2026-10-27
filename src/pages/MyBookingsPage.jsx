@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FlightFooter } from '../components/FlightFooter.jsx';
+import MyAttractionTickets from '../components/ticketing/MyAttractionTickets.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import { aviationRequest, money } from '../lib/aviationClient.js';
@@ -586,6 +587,12 @@ export default function MyBookingsPage() {
                 <i className="ph ph-ticket text-lg" /> Event Tickets
               </button>
               <button
+                onClick={() => setActiveTab('attractions')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'attractions' ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+              >
+                <i className="ph ph-map-trifold text-lg" /> Attraction Tickets
+              </button>
+              <button
                 onClick={() => setActiveTab('flights')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === 'flights' ? 'text-green-600 bg-green-50 dark:bg-green-900/20' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
               >
@@ -642,6 +649,12 @@ export default function MyBookingsPage() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'guides' ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
               >
                 <i className="ph ph-compass mr-1" /> Guides
+              </button>
+              <button
+                onClick={() => setActiveTab('attractions')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'attractions' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+              >
+                <i className="ph ph-map-trifold mr-1" /> Attractions
               </button>
             </div>
           </div>
@@ -813,6 +826,9 @@ export default function MyBookingsPage() {
               )}
             </div>
           )}
+
+          {/* ─── ATTRACTION TICKETS TAB ─── */}
+          {activeTab === 'attractions' && <MyAttractionTickets />}
 
           {activeTab === 'aviation' && (
             <div>

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import TicketValidationPanel from '../components/TicketValidationPanel.jsx';
+import TicketingWorkspace from '../components/ticketing/TicketingWorkspace.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -21,7 +22,8 @@ const STATUS_CONFIG = {
 const MENU_ITEMS = [
   { id: 'overview',      label: 'Overview',       icon: 'ph-squares-four' },
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
-  { id: 'create',        label: 'Create New',      icon: 'ph-ticket', route: '/list-your-event' },
+  { id: 'create',        label: 'Create New',      icon: 'ph-plus-circle', route: '/list-your-event' },
+  { id: 'ticketing',     label: 'Ticketing Management', icon: 'ph-ticket' },
   { id: 'validate',      label: 'Ticket Validation', icon: 'ph-qr-code' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
   { id: 'wallet',        label: 'Wallet',          icon: 'ph-wallet' },
@@ -335,6 +337,8 @@ export default function AttractionDashboardPage() {
 
   const [activeTab, setActiveTab] = useState(tabParam || 'overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Stable header object so ticketing panels do not refetch on every render.
+  const ticketingHeaders = useMemo(() => authHeaders(), [authHeaders]);
 
   // Client Data
   const [attractions, setAttractions] = useState([]);
@@ -1360,6 +1364,7 @@ export default function AttractionDashboardPage() {
         {activeTab === 'wallet'        && <WalletTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'settings'      && <SettingsTab />}
+        {activeTab === 'ticketing'     && <TicketingWorkspace headers={ticketingHeaders} />}
         {activeTab === 'validate'      && <TicketValidationPanel operatorType="attraction" />}
       </main>
 

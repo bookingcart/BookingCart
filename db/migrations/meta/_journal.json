@@ -43,6 +43,13 @@
       "when": 1795000000000,
       "tag": "0006_schema_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1796000000000,
+      "tag": "0007_attraction_ticketing",
+      "breakpoints": true
     }
   ]
 }

@@ -35,6 +35,8 @@ const ExplorePage = lazy(() => import('./pages/ExplorePage.jsx'));
 const AttractionsResultsPage = lazy(() => import('./pages/AttractionsResultsPage.jsx'));
 const AttractionDetailsPage = lazy(() => import('./pages/AttractionDetailsPage.jsx'));
 const AttractionsTripPage = lazy(() => import('./pages/AttractionsTripPage.jsx'));
+const AttractionTicketsPage = lazy(() => import('./pages/AttractionTicketsPage.jsx'));
+const AttractionTicketsConfirmationPage = lazy(() => import('./pages/AttractionTicketsConfirmationPage.jsx'));
 
 function AttractionStateSync() {
   const { user, getToken } = useAuth();
@@ -138,7 +140,9 @@ export default function App() {
           <Route path="/explore/:routeId" element={<ExplorePage />} />
           <Route path="/attractions/results" element={<AttractionsResultsPage />} />
           <Route path="/attractions/trip" element={<AttractionsTripPage />} />
+          <Route path="/attractions/tickets" element={<AttractionTicketsPage />} />
           <Route path="/attractions/:source/:id" element={<AttractionDetailsPage />} />
+          <Route path="/attraction-tickets/confirmation" element={<AttractionTicketsConfirmationPage />} />
           <Route path="/attraction-dashboard" element={<AttractionDashboardPage />} />
           <Route path="/attraction-dashboard/:tab" element={<AttractionDashboardPage />} />
           <Route path="/pms" element={<PMSDashboardPage />} />

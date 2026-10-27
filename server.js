@@ -8,9 +8,9 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
-const Stripe = require('stripe');
 const { assertAllowedOrigin, pickAllowOrigin } = require('./lib/cors');
 const { PgRateLimitStore } = require('./lib/rate-limit-store');
+const stripeLib = require('./lib/stripe');
 
 const bookingsHandler = require('./api-routes/bookings');
 const userHandler = require('./api-routes/user');
@@ -61,25 +61,17 @@ const stripeConnectHandler = require('./api-routes/stripe-connect');
 const uploadHandler = require('./api-routes/upload');
 const attractionProfilesHandler = require('./api-routes/attraction-profiles');
 const ticketValidationHandler = require('./api-routes/ticket-validation');
+const attractionTicketingHandler = require('./api-routes/attraction-ticketing');
+const attractionTicketSalesHandler = require('./api-routes/attraction-ticket-sales');
+const attractionTicketCheckoutHandler = require('./api-routes/attraction-ticket-checkout');
 const cronHandler = require('./api-routes/cron');
 
 const { startTracker } = require('./lib/price-tracker');
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
-function getStripeConfigError() {
-  if (!STRIPE_SECRET_KEY) {
-    return 'Stripe is not configured (missing STRIPE_SECRET_KEY)';
-  }
-
-  if (STRIPE_SECRET_KEY.startsWith('rk_')) {
-    return 'Stripe is misconfigured: STRIPE_SECRET_KEY is a restricted key (rk_*). Use a secret key (sk_test_* or sk_live_*) for checkout sessions.';
-  }
-
-  return null;
-}
-
+// Stripe configuration lives in lib/stripe.js so every payment path shares it.
+const getStripeConfigError = stripeLib.getStripeConfigError;
 const stripeConfigError = getStripeConfigError();
-const stripe = stripeConfigError ? null : Stripe(STRIPE_SECRET_KEY);
+const stripe = stripeLib.getStripeClient();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -237,6 +229,11 @@ app.get('/api/upload/:id', apiLimiter, run(uploadHandler));
 // Attraction Profile (client-owned listings) routes
 app.get('/api/attraction-profiles', apiLimiter, run(attractionProfilesHandler));
 app.post('/api/attraction-profiles', apiLimiter, run(attractionProfilesHandler));
+
+// Attraction Ticketing — owner/staff console, sales desk and public checkout
+app.all('/api/attraction-ticketing', apiLimiter, run(attractionTicketingHandler));
+app.all('/api/attraction-ticket-sales', apiLimiter, run(attractionTicketSalesHandler));
+app.all('/api/attraction-ticket-checkout', apiLimiter, run(attractionTicketCheckoutHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>

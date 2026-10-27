@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AttractionImage from '../components/AttractionImage.jsx';
 import { addToItinerary, readAttractionState, toggleSaved, trackAttractionEvent } from '../lib/attractionsClient.js';
+import { checkoutGet, money, formatDate, todayISO } from '../lib/ticketingClient.js';
 
 const AttractionMap = lazy(() => import('../components/AttractionMap.jsx'));
 
@@ -19,6 +20,20 @@ export default function AttractionDetailsPage() {
   const [selectedTicketId, setSelectedTicketId] = useState('');
   const [ticketQty, setTicketQty] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Owner-published ticket types for this attraction (public availability feed).
+  const ticketAttractionId = item?.source === 'local_attraction' ? item.sourceId : '';
+  const [visitDate, setVisitDate] = useState(todayISO());
+  const [tickets, setTickets] = useState(null);
+
+  useEffect(() => {
+    if (!ticketAttractionId) { setTickets(null); return undefined; }
+    let active = true;
+    checkoutGet('availability', { attractionId: ticketAttractionId, date: visitDate }).then((payload) => {
+      if (active) setTickets(payload.ok ? payload : null);
+    });
+    return () => { active = false; };
+  }, [ticketAttractionId, visitDate]);
 
   useEffect(() => {
     const seeded = location.state?.attraction || null;
@@ -329,6 +344,61 @@ export default function AttractionDetailsPage() {
           {/* ── Right Column: Booking Widget ── */}
           <div>
             <aside className="sticky top-28 space-y-4">
+              {tickets?.types?.some((type) => type.available) && (
+                <div className="bg-white border border-green-200 rounded-3xl p-5 shadow-lg space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Official tickets</span>
+                      <span className="text-2xl font-black text-green-700">
+                        from {money(Math.min(...tickets.types.filter((t) => t.available).map((t) => t.price)), tickets.pricing?.currency)}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                      Sold by the venue
+                    </span>
+                  </div>
+
+                  <label className="block">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Visit date</span>
+                    <input
+                      type="date"
+                      value={visitDate}
+                      min={tickets.today || todayISO()}
+                      max={tickets.maxDate || undefined}
+                      onChange={(event) => setVisitDate(event.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-green-500 outline-none"
+                    />
+                  </label>
+
+                  <ul className="space-y-1.5">
+                    {tickets.types.slice(0, 5).map((type) => (
+                      <li key={type.id} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate font-bold text-slate-700">
+                          {type.name}
+                          <span className="ml-1 font-semibold text-slate-400">× {type.admissions}</span>
+                        </span>
+                        <span className={`shrink-0 font-black ${type.available ? 'text-slate-900' : 'text-slate-400 line-through'}`}>
+                          {money(type.price, type.currency || tickets.pricing?.currency)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {tickets.closed ? (
+                    <p className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-bold text-amber-700">
+                      No tickets are on sale for {formatDate(visitDate)}. Try another date.
+                    </p>
+                  ) : (
+                    <Link
+                      to={`/attractions/tickets?attractionId=${encodeURIComponent(ticketAttractionId)}`}
+                      className="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-black text-center rounded-xl shadow-md shadow-green-600/20 flex items-center justify-center gap-2 text-sm transition-all"
+                    >
+                      <i className="ph ph-ticket text-lg" /> Choose date & tickets
+                    </Link>
+                  )}
+                </div>
+              )}
+
               <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-lg space-y-5">
 
                 {/* Price header */}
@@ -388,7 +458,7 @@ export default function AttractionDetailsPage() {
                       <i className="ph ph-ticket text-xl" /> Choose Tickets & Checkout
                     </Link>
                   </div>
-                ) : offer?.url ? (
+                ) : offer?.url && item.source !== 'local_attraction' ? (
                   <div className="space-y-4">
                     <p className="text-xs text-slate-500">Bookable through our official partner platform:</p>
                     <a
