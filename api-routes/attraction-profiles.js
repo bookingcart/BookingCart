@@ -24,50 +24,6 @@ function getMemStore() {
 let _memIdSeq = 1;
 function nextMemId() { return _memIdSeq++; }
 
-// ─── Ensure DB table exists ───────────────────────────────────────────────────
-async function ensureTables() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_attraction_profiles (
-      id SERIAL PRIMARY KEY,
-      owner_email TEXT NOT NULL,
-      owner_id INTEGER,
-      name TEXT DEFAULT '',
-      category TEXT DEFAULT '',
-      location TEXT DEFAULT '',
-      country TEXT DEFAULT '',
-      city TEXT DEFAULT '',
-      description TEXT DEFAULT '',
-      featured_image TEXT DEFAULT '',
-      gallery JSONB DEFAULT '[]',
-      tags JSONB DEFAULT '[]',
-      price NUMERIC(12,2) DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
-      duration TEXT DEFAULT '',
-      highlights JSONB DEFAULT '[]',
-      contact JSONB DEFAULT '{}',
-      opening_hours JSONB DEFAULT '{}',
-      amenities JSONB DEFAULT '[]',
-      status TEXT DEFAULT 'draft',
-      admin_note TEXT DEFAULT '',
-      views INTEGER DEFAULT 0,
-      bookings INTEGER DEFAULT 0,
-      completeness INTEGER DEFAULT 0,
-      deleted BOOLEAN DEFAULT false,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `).catch(() => {});
-
-  // Add columns for upgrades
-  await query(`ALTER TABLE bc_attraction_profiles ADD COLUMN IF NOT EXISTS bookings INTEGER DEFAULT 0`).catch(() => {});
-  await query(`ALTER TABLE bc_attraction_profiles ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT false`).catch(() => {});
-  await query(`ALTER TABLE bc_attraction_profiles ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`).catch(() => {});
-
-  // Index for fast owner lookups
-  await query(`CREATE INDEX IF NOT EXISTS idx_attr_profiles_owner ON bc_attraction_profiles(owner_email)`).catch(() => {});
-  await query(`CREATE INDEX IF NOT EXISTS idx_attr_profiles_status ON bc_attraction_profiles(status)`).catch(() => {});
-}
-
 // ─── Completeness calculator ──────────────────────────────────────────────────
 function calcCompleteness(p) {
   let score = 0;
@@ -106,7 +62,6 @@ module.exports = async function attractionProfilesHandler(req, res) {
   try {
     if (isDbConfigured()) {
       await initDb();
-      await ensureTables();
       dbReady = true;
     }
   } catch (err) {

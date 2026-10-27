@@ -11,36 +11,6 @@ function memValidations() {
   return global.__bc_ticket_validations;
 }
 
-// Ensure database tables and indices for ticket validation
-async function ensureTables() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_ticket_validations (
-      id SERIAL PRIMARY KEY,
-      ticket_number TEXT NOT NULL,
-      operator_type TEXT NOT NULL,
-      service_id TEXT DEFAULT '',
-      service_name TEXT DEFAULT '',
-      action_performed TEXT NOT NULL,
-      result TEXT NOT NULL,
-      rejection_reason TEXT DEFAULT '',
-      validated_by_email TEXT NOT NULL,
-      validated_by_name TEXT DEFAULT '',
-      device_info TEXT DEFAULT '',
-      guest_name TEXT DEFAULT '',
-      details JSONB DEFAULT '{}',
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `).catch(() => {});
-
-  await query(`CREATE INDEX IF NOT EXISTS idx_ticket_validations_ref ON bc_ticket_validations (ticket_number)`).catch(() => {});
-  await query(`CREATE INDEX IF NOT EXISTS idx_ticket_validations_email ON bc_ticket_validations (validated_by_email)`).catch(() => {});
-
-  // Add admissions tracking & status columns if missing
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS admissions_used INTEGER DEFAULT 0`).catch(() => {});
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS ticket_status TEXT DEFAULT 'valid'`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS ticket_status TEXT DEFAULT 'valid'`).catch(() => {});
-}
-
 // Log a validation event to DB or memory
 async function logValidation(dbReady, {
   ticketNumber, operatorType, serviceId = '', serviceName = '',
@@ -696,7 +666,6 @@ module.exports = async function ticketValidationHandler(req, res) {
   try {
     if (isDbConfigured()) {
       await initDb();
-      await ensureTables();
       dbReady = true;
     }
   } catch (err) {

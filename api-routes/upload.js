@@ -4,24 +4,9 @@ const { randomUUID } = require('node:crypto');
 const { query, initDb, isDbConfigured } = require('../lib/db');
 const { verifyRequestBearer } = require('../lib/google-verify');
 
-let tableReady;
-async function ensureTable() {
-  if (!tableReady) {
-    tableReady = query(`CREATE TABLE IF NOT EXISTS bc_uploaded_images (
-      id UUID PRIMARY KEY,
-      owner_email TEXT NOT NULL,
-      mime_type TEXT NOT NULL,
-      image_data BYTEA NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`).catch(error => { tableReady = null; throw error; });
-  }
-  await tableReady;
-}
-
 module.exports = async (req, res) => {
   if (!isDbConfigured()) return res.status(503).json({ ok: false, error: 'Image storage is unavailable.' });
   await initDb();
-  await ensureTable();
 
   if (req.method === 'GET') {
     const id = String(req.params?.id || '');

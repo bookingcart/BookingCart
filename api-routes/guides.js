@@ -467,51 +467,6 @@ module.exports = async (req, res) => {
     try {
       if (isDbConfigured()) {
         await initDb();
-        await query(`
-          CREATE TABLE IF NOT EXISTS bc_guides (
-            id SERIAL PRIMARY KEY,
-            slug TEXT NOT NULL UNIQUE,
-            name TEXT NOT NULL,
-            photo TEXT DEFAULT '',
-            country TEXT DEFAULT '',
-            city TEXT DEFAULT '',
-            years_exp INTEGER DEFAULT 0,
-            verified BOOLEAN DEFAULT false,
-            rating NUMERIC(3, 2) DEFAULT 0,
-            review_count INTEGER DEFAULT 0,
-            categories JSONB DEFAULT '[]'::jsonb NOT NULL,
-            skills JSONB DEFAULT '[]'::jsonb NOT NULL,
-            languages JSONB DEFAULT '[]'::jsonb NOT NULL,
-            areas JSONB DEFAULT '{}'::jsonb NOT NULL,
-            certifications JSONB DEFAULT '[]'::jsonb NOT NULL,
-            gallery JSONB DEFAULT '[]'::jsonb NOT NULL,
-            reviews JSONB DEFAULT '[]'::jsonb NOT NULL,
-            pricing JSONB DEFAULT '{}'::jsonb NOT NULL,
-            trust_indicators JSONB DEFAULT '{}'::jsonb NOT NULL,
-            demand_level TEXT DEFAULT 'moderate',
-            status TEXT DEFAULT 'active',
-            availability JSONB DEFAULT '{}'::jsonb NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
-        await query(`
-          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_paid BOOLEAN DEFAULT true;
-          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
-          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT true;
-          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'approved';
-        `).catch(() => {});
-        await query(`
-          ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
-          UPDATE bc_guides g
-          SET email = gp.email
-          FROM bc_guide_profiles gp
-          WHERE (g.email IS NULL OR g.email = '')
-            AND (
-              LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'fullName')))
-              OR LOWER(TRIM(g.name)) = LOWER(TRIM((gp.step_personal->>'name')))
-            );
-        `).catch(() => {});
 
         // Auto-seed SEED_GUIDES into bc_guides table if empty
         const countCheck = await query('SELECT COUNT(*) as cnt FROM bc_guides');

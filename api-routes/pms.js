@@ -18,123 +18,6 @@ function nextId() {
 }
 function nowIso() { return new Date().toISOString(); }
 
-// ─── DB Table Creation & Migrations ───────────────────────────────────────────
-async function ensureTables() {
-  // Floors
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_pms_floors (
-      id SERIAL PRIMARY KEY,
-      hotel_profile_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      sort_order INTEGER DEFAULT 0,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )
-  `).catch(() => {});
-
-  // Rooms
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_pms_rooms (
-      id SERIAL PRIMARY KEY,
-      hotel_profile_id INTEGER NOT NULL,
-      floor_id INTEGER,
-      room_number TEXT NOT NULL,
-      room_type TEXT DEFAULT 'Standard',
-      bed_type TEXT DEFAULT 'Queen',
-      capacity INTEGER DEFAULT 2,
-      base_price NUMERIC(10,2) DEFAULT 0,
-      seasonal_price NUMERIC(10,2),
-      currency TEXT DEFAULT 'USD',
-      amenities JSONB DEFAULT '[]',
-      images JSONB DEFAULT '[]',
-      description TEXT DEFAULT '',
-      status TEXT DEFAULT 'available',
-      size_sqm INTEGER,
-      pos_x INTEGER DEFAULT 0,
-      pos_y INTEGER DEFAULT 0,
-      grid_w INTEGER DEFAULT 1,
-      grid_h INTEGER DEFAULT 1,
-      wing_section TEXT DEFAULT 'Main Wing',
-      view_type TEXT DEFAULT 'City View',
-      has_balcony BOOLEAN DEFAULT FALSE,
-      is_accessible BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )
-  `).catch(() => {});
-
-  // Migrations for existing DB tables
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS pos_x INTEGER DEFAULT 0`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS pos_y INTEGER DEFAULT 0`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS grid_w INTEGER DEFAULT 1`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS grid_h INTEGER DEFAULT 1`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS wing_section TEXT DEFAULT 'Main Wing'`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS view_type TEXT DEFAULT 'City View'`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS has_balcony BOOLEAN DEFAULT FALSE`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_rooms ADD COLUMN IF NOT EXISTS is_accessible BOOLEAN DEFAULT FALSE`).catch(() => {});
-  // Stays service fee columns
-  await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS service_fee NUMERIC(10,2) DEFAULT 0`).catch(() => {});
-  await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS hotel_amount NUMERIC(10,2) DEFAULT 0`).catch(() => {});
-
-  // Bookings (PMS-native stays bookings)
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_pms_bookings (
-      id SERIAL PRIMARY KEY,
-      ref TEXT NOT NULL UNIQUE,
-      hotel_profile_id INTEGER NOT NULL,
-      room_id INTEGER NOT NULL,
-      floor_id INTEGER,
-      guest_name TEXT NOT NULL,
-      guest_email TEXT NOT NULL,
-      guest_phone TEXT DEFAULT '',
-      check_in DATE NOT NULL,
-      check_out DATE NOT NULL,
-      num_guests INTEGER DEFAULT 1,
-      booking_status TEXT DEFAULT 'pending',
-      payment_status TEXT DEFAULT 'pending',
-      amount_paid NUMERIC(10,2) DEFAULT 0,
-      total_amount NUMERIC(10,2) DEFAULT 0,
-      service_fee NUMERIC(10,2) DEFAULT 0,
-      hotel_amount NUMERIC(10,2) DEFAULT 0,
-      remaining_balance NUMERIC(10,2) DEFAULT 0,
-      special_requests TEXT DEFAULT '',
-      confirmation_sent BOOLEAN DEFAULT FALSE,
-      notes TEXT DEFAULT '',
-      source TEXT DEFAULT 'direct',
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )
-  `).catch(() => {});
-
-  // Room Blocks (manual blocking)
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_pms_blocks (
-      id SERIAL PRIMARY KEY,
-      hotel_profile_id INTEGER NOT NULL,
-      room_id INTEGER NOT NULL,
-      from_date DATE NOT NULL,
-      to_date DATE NOT NULL,
-      reason TEXT DEFAULT 'blocked',
-      notes TEXT DEFAULT '',
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )
-  `).catch(() => {});
-
-  // Temporary Room Holds (10-minute hold lock during checkout)
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_pms_holds (
-      id SERIAL PRIMARY KEY,
-      hotel_profile_id INTEGER NOT NULL,
-      room_id INTEGER NOT NULL,
-      session_id TEXT NOT NULL,
-      check_in DATE NOT NULL,
-      check_out DATE NOT NULL,
-      expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    )
-  `).catch(() => {});
-}
-
 // ─── Booking Reference Generator ─────────────────────────────────────────────
 function genRef() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -391,7 +274,6 @@ module.exports = async (req, res) => {
   try {
     if (isDbConfigured()) {
       await initDb();
-      await ensureTables();
       dbReady = true;
     }
   } catch (err) {

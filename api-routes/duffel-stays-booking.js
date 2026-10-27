@@ -29,10 +29,6 @@ module.exports = async (req, res) => {
         try {
           if (isDbConfigured()) {
             await initDb();
-            // Ensure columns exist
-            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_name TEXT DEFAULT ''`).catch(() => {});
-            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_image TEXT DEFAULT ''`).catch(() => {});
-            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`).catch(() => {});
 
             // Background: backfill any rows that are still missing hotel name/image from bc_hotel_profiles
             query(`
@@ -241,37 +237,6 @@ module.exports = async (req, res) => {
         try {
           if (isDbConfigured()) {
             await initDb();
-            // Ensure table exists (it's normally created by PMS handler, but guest checkout may run first)
-            await query(`
-              CREATE TABLE IF NOT EXISTS bc_pms_bookings (
-                id SERIAL PRIMARY KEY,
-                ref TEXT NOT NULL UNIQUE,
-                hotel_profile_id INTEGER NOT NULL,
-                room_id INTEGER NOT NULL,
-                floor_id INTEGER,
-                guest_name TEXT NOT NULL,
-                guest_email TEXT NOT NULL,
-                guest_phone TEXT DEFAULT '',
-                check_in DATE NOT NULL,
-                check_out DATE NOT NULL,
-                num_guests INTEGER DEFAULT 1,
-                booking_status TEXT DEFAULT 'pending',
-                payment_status TEXT DEFAULT 'pending',
-                amount_paid NUMERIC(10,2) DEFAULT 0,
-                total_amount NUMERIC(10,2) DEFAULT 0,
-                remaining_balance NUMERIC(10,2) DEFAULT 0,
-                special_requests TEXT DEFAULT '',
-                confirmation_sent BOOLEAN DEFAULT FALSE,
-                notes TEXT DEFAULT '',
-                source TEXT DEFAULT 'direct',
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-              )
-            `).catch(() => {});
-            // Add accommodation columns if missing (safe for existing tables)
-            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_name TEXT DEFAULT ''`).catch(() => {});
-            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS accommodation_image TEXT DEFAULT ''`).catch(() => {});
-            await query(`ALTER TABLE bc_pms_bookings ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`).catch(() => {});
             await query(`
               INSERT INTO bc_pms_bookings (ref, hotel_profile_id, room_id, guest_name, guest_email, guest_phone, check_in, check_out, num_guests, booking_status, payment_status, total_amount, source, accommodation_name, accommodation_image, currency)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed', 'paid', $10, 'bookingcart_web', $11, $12, $13)

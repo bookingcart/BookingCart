@@ -32,26 +32,6 @@ module.exports = async (req, res) => {
     try {
       if (isDbConfigured()) {
         await initDb();
-        await query(`
-          CREATE TABLE IF NOT EXISTS bc_guide_reviews (
-            id SERIAL PRIMARY KEY,
-            guide_id TEXT NOT NULL,
-            booking_ref TEXT NOT NULL UNIQUE,
-            author_name TEXT,
-            author_email TEXT,
-            rating NUMERIC(3, 2) NOT NULL,
-            detailed_ratings JSONB DEFAULT '{}'::jsonb,
-            text TEXT,
-            photos JSONB DEFAULT '[]'::jsonb,
-            recommendation TEXT,
-            traveler_type TEXT,
-            tags JSONB DEFAULT '[]'::jsonb,
-            status TEXT DEFAULT 'approved', -- 'approved', 'hidden', 'flagged'
-            guide_response TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
         dbReady = true;
       }
     } catch (err) {

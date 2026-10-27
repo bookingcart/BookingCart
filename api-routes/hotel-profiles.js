@@ -72,35 +72,6 @@ function nextMemId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ─── Ensure tables exist ──────────────────────────────────────────────────────
-async function ensureTables() {
-  await query(`
-    ALTER TABLE bc_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
-    ALTER TABLE bc_users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'traveler';
-  `).catch(() => {});
-
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_hotel_profiles (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER,
-      email TEXT NOT NULL,
-      step_property_info JSONB DEFAULT '{}',
-      step_location JSONB DEFAULT '{}',
-      step_amenities JSONB DEFAULT '{}',
-      step_rooms JSONB DEFAULT '{}',
-      step_gallery JSONB DEFAULT '[]',
-      step_policies JSONB DEFAULT '{}',
-      step_contact JSONB DEFAULT '{}',
-      status TEXT DEFAULT 'draft',
-      admin_note TEXT DEFAULT '',
-      completeness INTEGER DEFAULT 0,
-      current_step INTEGER DEFAULT 1,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `).catch(() => {});
-}
-
 async function getRegistrationCount(dbReady) {
   let count = 0;
   try {
@@ -127,7 +98,6 @@ module.exports = async (req, res) => {
   try {
     if (isDbConfigured()) {
       await initDb();
-      await ensureTables();
       dbReady = true;
     }
   } catch (err) {

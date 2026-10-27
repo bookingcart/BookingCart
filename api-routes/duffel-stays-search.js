@@ -1,10 +1,25 @@
 require('dotenv').config();
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 const { applyCors } = require('../lib/cors');
 const { query, isDbConfigured } = require('../lib/db');
 
 const DUFFEL_API_KEY = process.env.DUFFEL_API_KEY || '';
 const DUFFEL_BASE_URL = 'https://api.duffel.com';
+
+const HB_API_KEY  = process.env.HOTELBEDS_API_KEY  || '';
+const HB_SECRET   = process.env.HOTELBEDS_SECRET   || '';
+const HB_BASE_URL = process.env.HOTELBEDS_USE_TEST === 'true'
+  ? 'https://api.test.hotelbeds.com'
+  : 'https://api.hotelbeds.com';
+
+function hbSignature() {
+  const ts = Math.floor(Date.now() / 1000).toString();
+  return crypto.createHash('sha256').update(HB_API_KEY + HB_SECRET + ts).digest('hex');
+}
+function hbHeaders() {
+  return { 'Api-key': HB_API_KEY, 'X-Signature': hbSignature(), 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'Content-Type': 'application/json' };
+}
 
 // Fallback coordinates dictionary for fast, reliable lookup and to avoid Nominatim limits
 const CITY_COORDINATES = {
@@ -240,65 +255,114 @@ module.exports = async (req, res) => {
     const listedStays = await getListedStays(destination, checkin, checkout, guestsArray, numRooms, coords);
     console.log(`[Stays] Found ${listedStays.length} listed stay(s) for "${destination}"`);
 
-    // 3. Optionally fetch Duffel API stays if configured and approved
-    let duffelMapped = [];
-    if (DUFFEL_API_KEY) {
-      try {
-        const searchBody = {
-          data: {
-            location: {
-              radius: 30,
-              geographic_coordinates: {
-                latitude: coords.latitude,
-                longitude: coords.longitude
-              }
-            },
-            check_in_date: checkin,
-            check_out_date: checkout,
-            guests: guestsArray,
-            rooms: numRooms
+    // 3. Fetch Duffel + Hotelbeds stays in PARALLEL for lower latency
+    const [duffelMapped, hotelbedsResults] = await Promise.all([
+      // ── Duffel ────────────────────────────────────────────────────────────
+      (async () => {
+        if (!DUFFEL_API_KEY) return [];
+        try {
+          const searchBody = {
+            data: {
+              location: { radius: 30, geographic_coordinates: { latitude: coords.latitude, longitude: coords.longitude } },
+              check_in_date: checkin, check_out_date: checkout, guests: guestsArray, rooms: numRooms
+            }
+          };
+          const searchRes = await fetch(`${DUFFEL_BASE_URL}/stays/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Duffel-Version': 'v2', 'Authorization': `Bearer ${DUFFEL_API_KEY}` },
+            body: JSON.stringify(searchBody)
+          });
+          if (!searchRes.ok) {
+            console.warn(`[Stays] Duffel ${searchRes.status}`);
+            return [];
           }
-        };
-
-        const searchRes = await fetch(`${DUFFEL_BASE_URL}/stays/search`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Duffel-Version': 'v2',
-            'Authorization': `Bearer ${DUFFEL_API_KEY}`
-          },
-          body: JSON.stringify(searchBody)
-        });
-
-        if (searchRes.ok) {
           const searchData = await searchRes.json();
           const duffelResults = searchData.data?.results || [];
-          duffelMapped = duffelResults.map(r => ({
-            id: r.id,
-            accommodation: r.accommodation,
+          console.log(`[Stays] Duffel returned ${duffelResults.length} result(s)`);
+          return duffelResults.map(r => ({
+            id: r.id, accommodation: r.accommodation,
             cheapest_rate: r.cheapest_rate_total_amount,
             cheapest_rate_base_amount: r.cheapest_rate_base_amount,
             cheapest_rate_due_at_accommodation_amount: r.cheapest_rate_due_at_accommodation_amount,
             cheapest_rate_due_at_accommodation_currency: r.cheapest_rate_due_at_accommodation_currency,
             currency: r.cheapest_rate_currency,
-            check_in_date: r.check_in_date,
-            check_out_date: r.check_out_date,
-            guests: r.guests,
-            rooms: r.rooms
+            check_in_date: r.check_in_date, check_out_date: r.check_out_date,
+            guests: r.guests, rooms: r.rooms
           }));
-          console.log(`[Stays] Duffel returned ${duffelMapped.length} result(s)`);
-        } else {
-          const errText = await searchRes.text();
-          console.warn(`[Stays] Duffel search response ${searchRes.status}: ${errText.slice(0, 120)}`);
+        } catch (dErr) {
+          console.warn('[Stays] Duffel error:', dErr.message);
+          return [];
         }
-      } catch (dErr) {
-        console.warn('[Stays] Duffel search fetch error:', dErr.message);
-      }
-    }
+      })(),
 
-    // Combine listed stays (prioritized first) and Duffel stays
-    const combinedResults = [...listedStays, ...duffelMapped];
+      // ── Hotelbeds ─────────────────────────────────────────────────────────
+      (async () => {
+        if (!HB_API_KEY || !HB_SECRET) return [];
+        try {
+          // Resolve Hotelbeds destination code from the free-text destination
+          // We send a quick search using lat/lng as a geolocation-based filter
+          // Hotelbeds supports geolocation filter: "geolocation" object
+          const hbBody = {
+            stay: { checkIn: checkin, checkOut: checkout },
+            occupancies: [{ rooms: numRooms, adults: numGuests, children: 0 }],
+            geolocation: { latitude: coords.latitude, longitude: coords.longitude, radius: 30, unit: 'km' },
+            filter: { maxHotels: 20, minCategory: 2 }
+          };
+          const hbRes = await fetch(`${HB_BASE_URL}/hotel-api/1.0/hotels`, {
+            method: 'POST', headers: hbHeaders(), body: JSON.stringify(hbBody)
+          });
+          if (!hbRes.ok) {
+            console.warn(`[Stays] Hotelbeds ${hbRes.status}`);
+            return [];
+          }
+          const hbData = await hbRes.json();
+          const hotels = hbData.hotels?.hotels || [];
+          console.log(`[Stays] Hotelbeds returned ${hotels.length} hotel(s)`);
+          return hotels.filter(h => h.minRate).map(h => {
+            const minRate = parseFloat(h.minRate || '0');
+            let bestRateKey = null, bestRateType = 'BOOKABLE', cheapestNet = Infinity;
+            for (const room of (h.rooms || [])) {
+              for (const rate of (room.rates || [])) {
+                const net = parseFloat(rate.net || '0');
+                if (net < cheapestNet) { cheapestNet = net; bestRateKey = rate.rateKey; bestRateType = rate.rateType || 'BOOKABLE'; }
+              }
+            }
+            return {
+              id: `hb_${h.code}`, source: 'hotelbeds', is_hotelbeds: true,
+              hb_rate_key: bestRateKey, hb_rate_type: bestRateType, hb_hotel_code: h.code,
+              accommodation: {
+                id: `hb_${h.code}`, name: h.name || 'Hotel', description: '',
+                chain: { name: `${h.categoryName || ''} • Hotelbeds` },
+                review_score: null, review_count: 0,
+                photos: [{ url: `https://photos.hotelbeds.com/giata/${h.code}/` },
+                         { url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80' }],
+                location: {
+                  address: { line_one: h.zoneName || '', city_name: h.destinationName || '', country_code: h.countryCode || '', postal_code: '' },
+                  geographic_coordinates: { latitude: parseFloat(h.latitude || '0'), longitude: parseFloat(h.longitude || '0') }
+                },
+                amenities: [],
+                check_in_information: { check_in_after_time: '2:00 PM', check_out_before_time: '11:00 AM' }
+              },
+              cheapest_rate: String(minRate), cheapest_rate_total_amount: String(cheapestNet || minRate),
+              cheapest_rate_base_amount: String(cheapestNet || minRate),
+              cheapest_rate_due_at_accommodation_amount: '0.00',
+              cheapest_rate_due_at_accommodation_currency: h.currency || 'USD',
+              currency: h.currency || 'USD',
+              check_in_date: checkin, check_out_date: checkout,
+              guests: guestsArray, rooms: numRooms
+            };
+          });
+        } catch (hErr) {
+          console.warn('[Stays] Hotelbeds error:', hErr.message);
+          return [];
+        }
+      })()
+    ]);
+
+    // Combine: local listings first (always shown), then Duffel + Hotelbeds sorted by price
+    const thirdParty = [...duffelMapped, ...hotelbedsResults]
+      .sort((a, b) => parseFloat(a.cheapest_rate || '0') - parseFloat(b.cheapest_rate || '0'));
+    const combinedResults = [...listedStays, ...thirdParty];
 
     // Center map coordinates: if we have listed stays, center on the first stay's lat/lng
     let centerCoords = coords;

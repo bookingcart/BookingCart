@@ -13,18 +13,6 @@ function resetAviationRuntime() {
   runtime = null;
 }
 
-async function ensureTables() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_aviation_records (
-      id TEXT PRIMARY KEY,
-      kind TEXT NOT NULL,
-      payload JSONB NOT NULL DEFAULT '{}',
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  await query(`CREATE INDEX IF NOT EXISTS idx_aviation_records_kind ON bc_aviation_records (kind)`);
-}
-
 async function hydrate(service) {
   const result = await query(`SELECT id, kind, payload FROM bc_aviation_records`);
   for (const row of result.rows) {
@@ -60,7 +48,6 @@ async function getRuntime() {
   if (isDbConfigured()) {
     try {
       await initDb();
-      await ensureTables();
       await hydrate(service);
       runtime.dbReady = true;
     } catch (error) {

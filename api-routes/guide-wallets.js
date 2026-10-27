@@ -18,16 +18,6 @@ module.exports = async (req, res) => {
     try {
       if (isDbConfigured()) {
         await initDb();
-        await query(`
-          CREATE TABLE IF NOT EXISTS bc_guide_withdrawals (
-            id SERIAL PRIMARY KEY,
-            guide_id TEXT NOT NULL,
-            amount NUMERIC(12, 2) NOT NULL,
-            method TEXT NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
         dbReady = true;
       }
     } catch (err) {

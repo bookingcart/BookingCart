@@ -22,6 +22,27 @@
       "when": 1790553600000,
       "tag": "0002_event_booking_flow",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793000000000,
+      "tag": "0004_guide_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0005_aviation",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795000000000,
+      "tag": "0006_schema_backfill",
+      "breakpoints": true
     }
   ]
 }

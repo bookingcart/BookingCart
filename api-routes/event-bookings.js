@@ -11,41 +11,6 @@ function bookingStore() {
   return global.__bc_event_bookings;
 }
 
-async function ensureTable() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_event_bookings (
-      id SERIAL PRIMARY KEY,
-      booking_ref TEXT NOT NULL UNIQUE,
-      event_profile_id TEXT NOT NULL,
-      event_name TEXT NOT NULL,
-      venue_name TEXT NOT NULL,
-      location TEXT DEFAULT '',
-      banner_image TEXT DEFAULT '',
-      ticket_id TEXT NOT NULL,
-      ticket_name TEXT NOT NULL,
-      quantity INTEGER NOT NULL,
-      unit_amount NUMERIC(12,2) NOT NULL,
-      total_amount NUMERIC(12,2) NOT NULL,
-      service_fee NUMERIC(12,2) DEFAULT 0,
-      organizer_amount NUMERIC(12,2) DEFAULT 0,
-      currency TEXT NOT NULL,
-      guest_name TEXT NOT NULL,
-      guest_email TEXT NOT NULL,
-      guest_phone TEXT DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'pending_payment',
-      ticket_no TEXT DEFAULT '',
-      payment_method TEXT DEFAULT '',
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS banner_image TEXT DEFAULT ''`).catch(() => {});
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS ticket_no TEXT DEFAULT ''`).catch(() => {});
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT ''`).catch(() => {});
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS service_fee NUMERIC(12,2) DEFAULT 0`).catch(() => {});
-  await query(`ALTER TABLE bc_event_bookings ADD COLUMN IF NOT EXISTS organizer_amount NUMERIC(12,2) DEFAULT 0`).catch(() => {});
-}
-
 async function loadEventProfile(eventId, dbReady) {
   if (dbReady) {
     const result = await query(
@@ -98,7 +63,6 @@ module.exports = async function eventBookingsHandler(req, res) {
   try {
     if (isDbConfigured()) {
       await initDb();
-      await ensureTable();
       dbReady = true;
     }
   } catch (error) {

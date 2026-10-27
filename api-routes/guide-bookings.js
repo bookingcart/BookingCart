@@ -35,23 +35,6 @@ module.exports = async (req, res) => {
     try {
       if (isDbConfigured()) {
         await initDb();
-        await query(`
-          CREATE TABLE IF NOT EXISTS bc_guide_bookings (
-            id SERIAL PRIMARY KEY,
-            ref TEXT NOT NULL UNIQUE,
-            guide_id TEXT NOT NULL,
-            contact_email TEXT DEFAULT '',
-            status TEXT DEFAULT 'pending',
-            start_date TEXT DEFAULT '',
-            end_date TEXT DEFAULT '',
-            guests INTEGER DEFAULT 1,
-            total NUMERIC(12, 2) DEFAULT 0,
-            contact JSONB DEFAULT '{}'::jsonb NOT NULL,
-            payment JSONB,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-        `);
         dbReady = true;
       }
     } catch (err) {

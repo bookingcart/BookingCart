@@ -5,22 +5,29 @@ const liveBus = require('../lib/notification-live');
 const { applyCors } = require('../lib/cors');
 
 module.exports = async function handler(req, res) {
-  if (applyCors(req, res)) return;
+  applyCors(req, res);
 
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
   const method = req.method.toUpperCase();
+
+  if (method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 
   // Parse path: /api/notifications, /api/notifications/stream, /api/notifications/:id/read, /api/notifications/preferences, etc.
   const pathParts = pathname.split('/').filter(Boolean);
 
   // GET /api/notifications/stream - Server-Sent Events real-time stream
   if (method === 'GET' && pathname === '/api/notifications/stream') {
+    // Reuse the CORS decision already set by applyCors instead of allowing '*'.
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*'
+      'X-Accel-Buffering': 'no'
     });
 
     res.write('retry: 5000\n\n');

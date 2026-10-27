@@ -185,60 +185,6 @@ function profileToGuide(profile) {
   };
 }
 
-// ─── Ensure tables exist ──────────────────────────────────────────────────────
-async function ensureTables() {
-  // Ensure bc_users has phone + role columns
-  await query(`
-    ALTER TABLE bc_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
-    ALTER TABLE bc_users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'traveler';
-  `).catch(() => {});
-
-  // Ensure bc_guides has extended columns
-  await query(`
-    ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
-    ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS badges JSONB DEFAULT '[]'::jsonb;
-    ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS instant_booking BOOLEAN DEFAULT false;
-    ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS working_days TEXT DEFAULT '[]';
-    ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS working_hours TEXT DEFAULT '{}';
-    ALTER TABLE bc_guides ADD COLUMN IF NOT EXISTS max_tours_per_day INTEGER DEFAULT 1;
-  `).catch(() => {});
-
-  // Create bc_guide_profiles table
-  await query(`
-    CREATE TABLE IF NOT EXISTS bc_guide_profiles (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER,
-      email TEXT NOT NULL,
-      step_personal JSONB DEFAULT '{}',
-      step_categories JSONB DEFAULT '{}',
-      step_areas JSONB DEFAULT '{}',
-      step_languages JSONB DEFAULT '{}',
-      step_skills JSONB DEFAULT '{}',
-      step_certifications JSONB DEFAULT '[]',
-      step_experience JSONB DEFAULT '{}',
-      step_pricing JSONB DEFAULT '{}',
-      step_gallery JSONB DEFAULT '[]',
-      step_availability JSONB DEFAULT '{}',
-      step_booking_settings JSONB DEFAULT '{}',
-      status TEXT DEFAULT 'draft',
-      admin_note TEXT DEFAULT '',
-      completeness INTEGER DEFAULT 0,
-      current_step INTEGER DEFAULT 1,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  await query(`
-    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_paid BOOLEAN DEFAULT false;
-    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS registration_fee_type TEXT DEFAULT 'free_early_bird';
-    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_fee_paid BOOLEAN DEFAULT false;
-    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unrequested';
-    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
-    ALTER TABLE bc_guide_profiles ADD COLUMN IF NOT EXISTS stripe_onboarding_complete BOOLEAN DEFAULT false;
-  `).catch(() => {});
-}
-
 async function getRegistrationCount(dbReady) {
   let count = 0;
   try {
@@ -268,7 +214,6 @@ module.exports = async (req, res) => {
   try {
     if (isDbConfigured()) {
       await initDb();
-      await ensureTables();
       dbReady = true;
     }
   } catch (err) {

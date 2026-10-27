@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const fetch = require('node-fetch');
 const Stripe = require('stripe');
 const { assertAllowedOrigin, pickAllowOrigin } = require('./lib/cors');
+const { PgRateLimitStore } = require('./lib/rate-limit-store');
 
 const bookingsHandler = require('./api-routes/bookings');
 const userHandler = require('./api-routes/user');
@@ -42,6 +43,8 @@ const duffelStaysAccommodationReviewsHandler = require('./api-routes/duffel-stay
 const staysLocationsHandler = require('./api-routes/stays-locations');
 
 const attractionsHandler = require('./api-routes/attractions');
+const getYourGuideSearchHandler = require('./api-routes/getyourguide-search');
+const getYourGuideTourHandler = require('./api-routes/getyourguide-tour');
 const guidesHandler = require('./api-routes/guides');
 const guideBookingsHandler = require('./api-routes/guide-bookings');
 const guideProfilesHandler = require('./api-routes/guide-profiles');
@@ -57,6 +60,7 @@ const stripeConnectHandler = require('./api-routes/stripe-connect');
 const uploadHandler = require('./api-routes/upload');
 const attractionProfilesHandler = require('./api-routes/attraction-profiles');
 const ticketValidationHandler = require('./api-routes/ticket-validation');
+const cronHandler = require('./api-routes/cron');
 
 const { startTracker } = require('./lib/price-tracker');
 
@@ -113,6 +117,7 @@ const betterAuthLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new PgRateLimitStore({ prefix: 'better-auth' }),
   skip: (req) => req.method === 'OPTIONS',
   message: { ok: false, error: 'Too many attempts. Please try again in 15 minutes.' }
 });
@@ -136,12 +141,14 @@ const searchLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-// Strict limiter for auth endpoints to prevent brute-force attacks
+// Strict limiter for auth endpoints to prevent brute-force attacks.
+// Counters live in Postgres so they survive serverless cold starts.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new PgRateLimitStore({ prefix: 'auth' }),
   message: { ok: false, error: 'Too many attempts. Please try again in 15 minutes.' }
 });
 
@@ -196,6 +203,12 @@ app.get('/api/attractions/featured-events', searchLimiter, (req, res) => { req.p
 app.get('/api/attractions/analytics', apiLimiter, (req, res) => { req.params = { action: 'analytics' }; return attractionsHandler(req, res); });
 app.get('/api/attractions/:source/:id', searchLimiter, (req, res) => { req.params.action = 'detail'; return attractionsHandler(req, res); });
 app.post('/api/attractions/events', apiLimiter, (req, res) => { req.params = { action: 'events' }; return attractionsHandler(req, res); });
+app.get('/api/getyourguide/search', searchLimiter, run(getYourGuideSearchHandler));
+app.get('/api/getyourguide/tour/:id', searchLimiter, run(getYourGuideTourHandler));
+
+// Scheduler endpoints (platform cron; protected by CRON_SECRET)
+app.all('/api/cron/price-tracker', run(cronHandler));
+app.all('/api/cron/cache-eviction', run(cronHandler));
 
 // Tour Guide routes
 app.all('/api/guides', apiLimiter, run(guidesHandler));
@@ -880,10 +893,14 @@ if (require.main === module) {
       console.error(stripeConfigError);
     }
     
-    // Start background price tracking
+    // Start background price tracking (skipped when a platform cron drives it)
     try {
-      startTracker();
-      console.log('Background price tracker successfully started.');
+      if (process.env.DISABLE_IN_PROCESS_CRON === '1') {
+        console.log('In-process price tracker disabled (DISABLE_IN_PROCESS_CRON=1).');
+      } else {
+        startTracker();
+        console.log('Background price tracker successfully started.');
+      }
     } catch (e) {
       console.error('Failed to start background price tracker:', e.message);
     }

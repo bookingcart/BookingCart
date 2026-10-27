@@ -55,9 +55,14 @@ Required for normal local development:
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret for Better Auth |
 | `ADMIN_PIN` | Admin action PIN |
 | `VITE_ADMIN_EMAILS` | Comma-separated admin emails |
-| `DUFFEL_API_KEY` | Duffel API access |
+| `DUFFEL_API_KEY` | Duffel API access (flights and stays) |
+| `HOTELBEDS_API_KEY` | Hotelbeds API key (stays). Leave blank to disable the provider |
+| `HOTELBEDS_SECRET` | Hotelbeds shared secret used to sign requests |
+| `HOTELBEDS_USE_TEST` | `true` routes Hotelbeds calls to the sandbox host |
 | `ALLOWED_ORIGINS` | Comma-separated CORS allowlist |
 | `STRIPE_SECRET_KEY` | Stripe checkout secret key |
+| `CRON_SECRET` | Bearer token required by `/api/cron/*` scheduler endpoints |
+| `DISABLE_IN_PROCESS_CRON` | `1` stops `server.js` from running the node-cron price tracker |
 
 Generate secrets with:
 
@@ -72,7 +77,7 @@ openssl rand -base64 32
 | `npm run dev` | Run local Express API on `3001` and Vite on `3000` |
 | `npm start` | Serve the built app through Express |
 | `npm run build` | Build the frontend with Vite |
-| `npm run build:vercel` | Run deploy migrations, then build |
+| `npm run build:vercel` | Run deploy migrations, then build (fails if migrations cannot run) |
 | `npm test` | Run unit tests |
 | `npm run db:generate` | Generate Drizzle SQL migrations from `db/schema.js` |
 | `npm run db:migrate` | Run Drizzle Kit migrations directly |
@@ -99,6 +104,13 @@ Use this workflow for schema changes:
 
 The deploy runner is intentionally verbose. It prints the migration journal status and each SQL statement before execution so Vercel failures expose the real database error.
 
+Rules that the tests enforce:
+
+- Handlers must not run DDL. `CREATE`/`ALTER`/`DROP TABLE` only appear in `db/migrations/*.sql`; `test/structure.test.js` fails otherwise.
+- Every `.sql` file in [db/migrations](db/migrations) must have an entry in `db/migrations/meta/_journal.json`, otherwise the deploy runner never sees it.
+- When you add a migration folder entry, keep timestamps increasing: the runner skips anything older than the last applied migration.
+- New tables and columns must also be added to [db/schema.js](db/schema.js) and to `REQUIRED_TABLES` in [lib/db.js](lib/db.js) so a partially migrated database fails loudly instead of silently degrading.
+
 ## Vercel Deployment
 
 [vercel.json](vercel.json) uses:
@@ -113,11 +125,22 @@ The deploy runner is intentionally verbose. It prints the migration journal stat
 
 `npm run build:vercel` always:
 
-1. Requires `DATABASE_URL`.
-2. Runs `npm run db:migrate:deploy`.
+1. Requires `DATABASE_URL` (override for local-only builds with `SKIP_DB_MIGRATIONS=1`).
+2. Runs `npm run db:migrate:deploy` and fails the build if any migration fails.
 3. Runs `npm run build`.
 
 Set `DATABASE_URL` in every Vercel environment that builds this branch, including Preview, because migrations are forced during build.
+
+### Scheduled jobs
+
+Serverless functions cannot keep `node-cron` timers alive. The price tracker and the search-cache eviction are exposed as protected endpoints and scheduled by `crons` in [vercel.json](vercel.json):
+
+| Endpoint | Task |
+| --- | --- |
+| `GET /api/cron/price-tracker` | Re-check active price alerts and email matches |
+| `GET /api/cron/cache-eviction` | Delete expired `bc_search_cache` rows |
+
+Both require `Authorization: Bearer $CRON_SECRET` and return `503` when `CRON_SECRET` is unset, so they fail closed. Vercel Cron sends the same header when `CRON_SECRET` exists in the project environment. On a long-running host, set `DISABLE_IN_PROCESS_CRON=1` to avoid running the tracker twice.
 
 ## Private jets and charters
 
@@ -138,3 +161,5 @@ Aircraft are bookable only after the operator is verified and the listing has an
 - `GOOGLE_CLIENT_ID` is safe to expose to the browser through `/api/config`.
 - `STRIPE_SECRET_KEY` must be a Stripe secret key, not a restricted key.
 - Production-like runs should always use an explicit `ALLOWED_ORIGINS` allowlist.
+- `GET /api/bookings?ref=...` returns a redacted booking (itinerary, status, total) to callers who are not the booking owner or an administrator. Pass `Authorization: Bearer <token>` to receive passenger, contact, payment and ticket details.
+- Auth rate limits are stored in `bc_rate_limits`, so brute-force protection survives serverless cold starts. The limiter falls back to in-memory counters only when Postgres is unreachable.

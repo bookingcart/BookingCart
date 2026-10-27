@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 function money(value, currency = 'USD') {
   const n = Number(value || 0);
@@ -24,8 +25,10 @@ function extractSegments(booking) {
 export default function BookingDetailsPage() {
   const { ref: refParam } = useParams();
   const [searchParams] = useSearchParams();
+  const { getToken } = useAuth();
   const bookingRef = refParam || searchParams.get('ref') || searchParams.get('id') || '';
   const [booking, setBooking] = useState(null);
+  const [limited, setLimited] = useState(false);
   const [loading, setLoading] = useState(!!bookingRef);
   const [error, setError] = useState('');
 
@@ -42,10 +45,16 @@ export default function BookingDetailsPage() {
       setLoading(true);
       setError('');
       try {
-        const resp = await fetch(`/api/bookings?ref=${encodeURIComponent(bookingRef)}`);
+        const token = getToken();
+        const resp = await fetch(`/api/bookings?ref=${encodeURIComponent(bookingRef)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data.ok) throw new Error(data.error || 'Booking not found');
-        if (!cancelled) setBooking(data.booking);
+        if (!cancelled) {
+          setBooking(data.booking);
+          setLimited(Boolean(data.redacted));
+        }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Booking not found');
       } finally {
@@ -54,7 +63,7 @@ export default function BookingDetailsPage() {
     }
     loadBooking();
     return () => { cancelled = true; };
-  }, [bookingRef]);
+  }, [bookingRef, getToken]);
 
   const segments = useMemo(() => extractSegments(booking), [booking]);
   const passengers = Array.isArray(booking?.passengers) ? booking.passengers : [];
@@ -120,6 +129,13 @@ export default function BookingDetailsPage() {
               </div>
             </div>
 
+            {limited && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <strong className="font-bold">Limited view.</strong> Sign in as the booking owner to see passenger,
+                payment and ticket details.
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="font-extrabold text-slate-900 mb-4">Flight details</h2>
               {segments.length ? (
@@ -152,7 +168,9 @@ export default function BookingDetailsPage() {
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="font-extrabold text-slate-900 mb-4">Passengers</h2>
-              {passengers.length ? (
+              {limited ? (
+                <p className="text-sm text-slate-500">Visible to the booking owner after sign-in.</p>
+              ) : passengers.length ? (
                 <div className="grid gap-3">
                   {passengers.map((p, index) => (
                     <div key={index} className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
@@ -181,7 +199,9 @@ export default function BookingDetailsPage() {
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
               <h2 className="font-extrabold text-slate-900 mb-4">Ticket</h2>
-              {booking.ticket ? (
+              {limited ? (
+                <p className="text-sm text-slate-500">Visible to the booking owner after sign-in.</p>
+              ) : booking.ticket ? (
                 <div className="text-sm text-slate-600">
                   <div><strong>{booking.ticket.airline}</strong></div>
                   <div className="font-mono">{booking.ticket.ticketNumber}</div>

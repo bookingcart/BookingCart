@@ -42,7 +42,13 @@ module.exports = async (req, res) => {
       }
 
       if (!found) return res.status(404).json({ ok: false, error: 'Booking not found' });
-      return res.json({ ok: true, booking: found });
+
+      // A booking reference alone is not proof of ownership: only the owner or an
+      // administrator receives passenger/payment/ticket data.
+      const viewer = await resolveBookingViewer(req, found);
+      if (viewer.full) return res.json({ ok: true, booking: found });
+
+      return res.json({ ok: true, booking: redactBookingForGuest(found), redacted: true });
     }
 
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
@@ -311,6 +317,48 @@ function rowToBooking(row) {
     ticket: row.ticket || null,
     downloadCount: row.download_count || 0,
     createdAt: row.created_at,
+  };
+}
+
+function bookingOwnerEmail(booking) {
+  return String(booking?.contactEmail || booking?.contact?.email || '').trim().toLowerCase();
+}
+
+/**
+ * Decide how much of a booking the caller may read. Guest checkout links keep
+ * working (they only need the itinerary) while owner/admin sessions get everything.
+ */
+async function resolveBookingViewer(req, booking) {
+  const auth = await verifyRequestBearer(req);
+  if (!auth.ok) return { full: false, email: '', admin: false };
+
+  const email = String(auth.email || '').trim().toLowerCase();
+  const adminEmails = (process.env.VITE_ADMIN_EMAILS || '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  const admin = Boolean(email) && adminEmails.includes(email);
+  const owner = Boolean(email) && email === bookingOwnerEmail(booking);
+
+  return { full: admin || owner, email, admin };
+}
+
+/**
+ * Strip PII (passengers, contact details, payment instruments, tickets and
+ * Duffel order identifiers) from a booking served to an unauthenticated caller.
+ */
+function redactBookingForGuest(booking) {
+  const flight = booking?.flight && typeof booking.flight === 'object' ? booking.flight : {};
+  const { passengers: _p, travelers: _t, contact: _c, ...safeFlight } = flight;
+
+  return {
+    ref: booking.ref,
+    status: booking.status,
+    route: booking.route,
+    dates: booking.dates,
+    flight: safeFlight,
+    total: booking.total,
+    createdAt: booking.createdAt,
   };
 }
 
