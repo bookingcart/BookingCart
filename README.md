@@ -171,10 +171,12 @@ The home page adapts the "Explore {country}" and "Trending hotels" sections to w
 2. A server-side IP lookup (`ipapi.co`, then `ipwho.is`) when no geo headers are present. Doing this on the server avoids CORS and ad-blocker failures that break browser-side lookups.
 3. The browser timezone (offline-safe), applied in [src/lib/geo.js](src/lib/geo.js).
 
-The endpoint returns only `countryCode`, `countryName`, `city`, `region`, and coordinates — never the caller's IP — and caches per IP for six hours. The client caches for six hours too, but a timezone change invalidates that entry so a traveller or VPN switch is reflected. The old 24-hour `bc_geo_data` cache is deleted on read, since a stale entry there is what pinned the section to one country.
+The endpoint returns only `countryCode`, `countryName`, `city`, `region`, and coordinates — never the caller's IP — and caches per IP for six hours. The client re-detects on every page load (`getGeo()` only falls back to its local cache when every detector fails), so changing network or VPN is reflected immediately instead of waiting out a cache TTL. The old 24-hour `bc_geo_data` cache is deleted on read, since a stale entry there is what pinned the section to one country.
+
+IP geolocation is approximate, and sometimes simply wrong (carrier NAT, corporate VPN, datacenter egress). The "Kampala, Uganda · Change" pill next to the section heading lets a visitor pick their city by hand; the choice is stored in `bc_geo_override` and wins over IP detection until "Use my detected location" clears it. `/api/stays-locations?q=` supplies the suggestions and now returns each city's `countryCode` so the section can rebuild country-specific content.
 
 - Cities per country live in `EXPLORE_CITIES_BY_COUNTRY` in [HomePage.jsx](src/pages/HomePage.jsx).
-- Countries without a curated list use their detected city first, then `REGION_HUB_CITIES` for their region.
+- Countries without a curated list use their detected (or picked) city first, then `REGION_HUB_CITIES` for their region.
 - Other components should call `getGeo()` from `src/lib/geo.js` rather than hitting a geo API directly; a structure test enforces this.
 
 ## Authentication

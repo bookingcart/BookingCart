@@ -39,6 +39,8 @@ module.exports = async (req, res) => {
             unique.push({
               name: displayName,
               fullName: `${full} (Listed Property)`,
+              country: country,
+              countryCode: '',
               lat: parseFloat(loc.latitude) || 0.3177,
               lon: parseFloat(loc.longitude) || 32.5814
             });
@@ -52,7 +54,7 @@ module.exports = async (req, res) => {
 
   // 2. Query Nominatim for cities / regions
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(qStr)}&format=json&limit=5&featuretype=city`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(qStr)}&format=json&addressdetails=1&limit=5&featuretype=city`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'BookingCart/1.0 (bookingcart.business@gmail.com)' }
     });
@@ -66,6 +68,9 @@ module.exports = async (req, res) => {
           unique.push({
             name,
             fullName: item.display_name,
+            // Used by the home page location picker to rebuild country-specific content
+            country: item.address?.country || '',
+            countryCode: String(item.address?.country_code || '').toUpperCase(),
             lat: parseFloat(item.lat),
             lon: parseFloat(item.lon)
           });

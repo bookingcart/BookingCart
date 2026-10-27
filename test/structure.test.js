@@ -241,6 +241,23 @@ test('location detection has a single source of truth and drops the stale countr
   assert.match(geoLib, /LEGACY_CACHE_KEYS = \['bc_geo_data'\]/, 'the old 24h cache key must be cleared');
   assert.match(geoLib, /'\/api\/geo'/, 'the client must prefer our own geo endpoint');
   assert.match(geoLib, /timeZone/, 'a timezone change must invalidate the cached country');
+  // The cache must not short-circuit detection, or a VPN/network switch keeps showing
+  // the old country until the TTL expires.
+  assert.match(geoLib, /getGeo\(\{ useCache = false \} = \{\}\)/, 'getGeo must still export the useCache option');
+  assert.doesNotMatch(
+    geoLib,
+    /export function getGeo[\s\S]{0,200}if \(cached\) return Promise\.resolve\(cached\);/,
+    'the cached country must not short-circuit a fresh detection'
+  );
+  assert.match(geoLib, /OVERRIDE_KEY/, 'a manual location override must be supported');
+
+  const staysLocations = fs.readFileSync(path.join(ROOT, 'api-routes/stays-locations.js'), 'utf8');
+  assert.match(staysLocations, /addressdetails=1/, 'the picker needs country codes from Nominatim');
+  assert.match(staysLocations, /countryCode/, 'the picker maps a city to its country');
+
+  const homePage = fs.readFileSync(path.join(ROOT, 'src/pages/HomePage.jsx'), 'utf8');
+  assert.match(homePage, /explore-location-pill/, 'the explore section must offer a way to change location');
+  assert.match(homePage, /setGeoOverride/, 'picking a city must persist as an override');
 
   for (const file of listFiles('src/pages', '.jsx')) {
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');

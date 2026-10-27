@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import LocalEventCard from '../components/LocalEventCard.jsx';
-import { getGeo, countryFlag, countryNameFromCode } from '../lib/geo.js';
+import { getGeo, countryFlag, countryNameFromCode, countryCodeFromName, setGeoOverride, clearGeoOverride } from '../lib/geo.js';
 
 const FLIGHT_SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js?v=4','/js/deals.js?v=1'];
 
@@ -263,26 +263,37 @@ const CITY_INDEX = (() => {
 
 /**
  * Destinations for the explore section: the curated list when the visitor's country has
- * one, otherwise hubs near their region with their detected city first.
+ * one, otherwise hubs near their region with their detected (or picked) city first.
  */
 function resolveExploreDestinations(countryCode, geo, region) {
   const curated = EXPLORE_CITIES_BY_COUNTRY[countryCode];
-  if (curated) return curated.slice();
+  const city = String(geo?.city || '').trim();
+  const manual = geo?.source === 'manual';
 
-  const picked = [];
-  const seen = new Set();
-  const detectedCity = String(geo?.city || '').trim();
-
-  if (detectedCity) {
-    const known = CITY_INDEX.get(detectedCity.toLowerCase());
-    seen.add(detectedCity.toLowerCase());
-    picked.push({
-      city: detectedCity,
+  const cityTile = (name) => {
+    const known = CITY_INDEX.get(name.toLowerCase());
+    return {
+      city: name,
       flag: countryFlag(countryCode),
       img: known?.img || (COUNTRY_HERO[countryCode] || COUNTRY_HERO['default']).img,
       props: known?.props || '',
-      note: 'Near you',
-    });
+      note: known?.props || manual ? '' : 'Near you',
+    };
+  };
+
+  if (curated) {
+    // A hand-picked city must still lead the row, even in a curated country.
+    if (!manual || !city) return curated.slice();
+    const rest = curated.filter((entry) => entry.city.toLowerCase() !== city.toLowerCase());
+    return [{ ...cityTile(city), note: 'Your pick' }, ...rest].slice(0, 5);
+  }
+
+  const picked = [];
+  const seen = new Set();
+
+  if (city) {
+    seen.add(city.toLowerCase());
+    picked.push(cityTile(city));
   }
 
   for (const name of REGION_HUB_CITIES[region] || REGION_HUB_CITIES['default']) {
@@ -299,7 +310,7 @@ function resolveExploreDestinations(countryCode, geo, region) {
 
 // Map country code or country name → region key
 function getRegionFromCountry(countryCode, countryName) {
-  const cc = (countryCode || '').toUpperCase();
+  const cc = (countryCode || countryCodeFromName(countryName) || '').toUpperCase();
   const EastAfrica    = ['UG','KE','TZ','RW','BI','ET','SS','DJ','ER','SO','MZ','MG'];
   const WestAfrica    = ['NG','GH','SN','CI','CM','ML','GN','TG','BJ','NE','BF','SL','LR','GM','GW','CV','MR'];
   const SouthAfrica   = ['ZA','ZW','ZM','BW','NA','LS','SZ','AO','MZ'];
@@ -553,7 +564,15 @@ export default function HomePage() {
   const [exploreCountryCode, setExploreCountryCode] = useState('');
   const [exploreCountryFlag, setExploreCountryFlag] = useState('');
   const [exploreCountryImg, setExploreCountryImg] = useState('');
+  const [exploreCity, setExploreCity] = useState('');
+  const [exploreSource, setExploreSource] = useState('');
   const [exploreLoading, setExploreLoading] = useState(true);
+
+  // Location picker (lets a visitor correct a wrong IP mapping)
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationResults, setLocationResults] = useState([]);
+  const [locationSearching, setLocationSearching] = useState(false);
 
   // Stays Autocomplete state
   const [staysSuggestions, setStaysSuggestions] = useState([]);
@@ -591,43 +610,89 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Apply a location (detected or picked by hand) to the explore + stays deals sections
+  const applyLocation = useCallback((data) => {
+    const cc = data?.countryCode || countryCodeFromName(data?.countryName) || '';
+    const countryName = data?.countryName || countryNameFromCode(cc);
+    const region = getRegionFromCountry(cc, countryName);
+
+    setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
+    setStaysDealCity(data?.city || countryName || '');
+
+    setExploreDestinations(resolveExploreDestinations(cc, data, region));
+    setExploreCountryCode(cc);
+    setExploreCity(data?.city || '');
+    setExploreSource(data?.source || '');
+
+    if (cc || countryName) {
+      setExploreCountryName(countryName || cc);
+      setExploreCountryFlag(COUNTRY_HERO[cc]?.flag || countryFlag(cc));
+      setExploreCountryImg((COUNTRY_HERO[cc] || COUNTRY_HERO['default']).img);
+    } else {
+      // No location available — present worldwide destinations rather than guessing
+      setExploreCountryName('top destinations');
+      setExploreCountryFlag('🌍');
+      setExploreCountryImg(COUNTRY_HERO['default'].img);
+    }
+
+    setExploreLoading(false);
+  }, []);
+
   // Geo-detect user location: set region deals AND explore destinations
   useEffect(() => {
     let cancelled = false;
 
-    // Location is resolved once in src/lib/geo.js (/api/geo → ipapi.co → ipwho.is →
-    // browser timezone), so this section follows the visitor instead of a fixed country.
-    async function detectAndSetDeals() {
-      const data = await getGeo();
-      if (cancelled) return;
+    // Location is resolved in src/lib/geo.js (/api/geo → ipapi.co → ipwho.is → browser
+    // timezone). Detection runs fresh on every visit, so a VPN or network change shows up.
+    getGeo()
+      .then((data) => { if (!cancelled) applyLocation(data); })
+      .catch(() => { if (!cancelled) applyLocation(null); });
 
-      const cc = data?.countryCode || '';
-      const countryName = data?.countryName || countryNameFromCode(cc);
-      const region = getRegionFromCountry(cc, countryName);
-
-      setStaysDeals(STAYS_DEALS_BY_REGION[region] || STAYS_DEALS_BY_REGION['default']);
-      setStaysDealCity(data?.city || countryName || '');
-
-      setExploreDestinations(resolveExploreDestinations(cc, data, region));
-      setExploreCountryCode(cc);
-
-      if (cc) {
-        setExploreCountryName(countryName || cc);
-        setExploreCountryFlag(COUNTRY_HERO[cc]?.flag || countryFlag(cc));
-        setExploreCountryImg((COUNTRY_HERO[cc] || COUNTRY_HERO['default']).img);
-      } else {
-        // No location available — present worldwide destinations rather than guessing
-        setExploreCountryName('top destinations');
-        setExploreCountryFlag('🌍');
-        setExploreCountryImg(COUNTRY_HERO['default'].img);
-      }
-
-      setExploreLoading(false);
-    }
-
-    detectAndSetDeals();
     return () => { cancelled = true; };
-  }, []);
+  }, [applyLocation]);
+
+  // City search for the "change location" picker
+  useEffect(() => {
+    const value = locationQuery.trim();
+    if (!locationPickerOpen || value.length < 2) {
+      setLocationResults([]);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setLocationSearching(true);
+      fetch(`/api/stays-locations?q=${encodeURIComponent(value)}`, { signal: controller.signal })
+        .then((response) => response.json())
+        .then((data) => setLocationResults(Array.isArray(data) ? data.slice(0, 6) : []))
+        .catch(() => {})
+        .finally(() => setLocationSearching(false));
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [locationQuery, locationPickerOpen]);
+
+  const handlePickLocation = (result) => {
+    const countryCode = result.countryCode || countryCodeFromName(result.country);
+    const override = setGeoOverride({
+      city: result.name,
+      countryCode,
+      countryName: result.country || countryNameFromCode(countryCode),
+      latitude: result.lat,
+      longitude: result.lon,
+    });
+    applyLocation(override);
+    setLocationPickerOpen(false);
+    setLocationQuery('');
+    setLocationResults([]);
+  };
+
+  const handleUseDetectedLocation = () => {
+    clearGeoOverride();
+    setLocationPickerOpen(false);
+    setLocationQuery('');
+    setLocationResults([]);
+    setExploreLoading(true);
+    getGeo().then((data) => applyLocation(data)).catch(() => applyLocation(null));
+  };
 
   // Fetch trending hotels near user's detected location
   useEffect(() => {
@@ -1551,15 +1616,90 @@ export default function HomePage() {
                     These popular destinations have a lot to offer
                   </p>
                 </div>
-                {!exploreLoading && (
-                  <a
-                    href={`/stays/results?destination=${encodeURIComponent(exploreCountryName)}`}
-                    className="hidden sm:flex items-center gap-1 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                  >
-                    See all <i className="ph ph-caret-right text-xs" />
-                  </a>
-                )}
+                <div className="flex items-center gap-4">
+                  {!exploreLoading && (
+                    <button
+                      type="button"
+                      onClick={() => setLocationPickerOpen((open) => !open)}
+                      aria-expanded={locationPickerOpen}
+                      data-testid="explore-location-pill"
+                      className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-green-500 hover:text-green-600 transition-colors"
+                    >
+                      <i className="ph ph-map-pin" />
+                      <span className="max-w-[12rem] truncate">
+                        {exploreCity ? `${exploreCity}, ${exploreCountryName}` : exploreCountryName}
+                      </span>
+                      <span className="font-medium text-slate-400">· Change</span>
+                    </button>
+                  )}
+                  {!exploreLoading && (
+                    <a
+                      href={`/stays/results?destination=${encodeURIComponent(exploreCountryName)}`}
+                      className="hidden sm:flex items-center gap-1 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                    >
+                      See all <i className="ph ph-caret-right text-xs" />
+                    </a>
+                  )}
+                </div>
               </div>
+
+              {locationPickerOpen && (
+                <div className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm">
+                  <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <i className="ph ph-magnifying-glass text-slate-400" />
+                    <input
+                      autoFocus
+                      value={locationQuery}
+                      onChange={(event) => setLocationQuery(event.target.value)}
+                      placeholder="Search a city, e.g. Nairobi"
+                      className="w-full bg-transparent text-sm text-slate-800 dark:text-slate-100 outline-none placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setLocationPickerOpen(false)}
+                      aria-label="Close location search"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      <i className="ph ph-x" />
+                    </button>
+                  </div>
+
+                  {locationQuery.trim().length >= 2 && (
+                    <div className="mt-2 max-h-56 overflow-auto divide-y divide-slate-100 dark:divide-slate-800" data-testid="explore-location-results">
+                      {locationResults.length === 0 ? (
+                        <p className="py-2 text-xs text-slate-400">{locationSearching ? 'Searching…' : 'No matches found'}</p>
+                      ) : (
+                        locationResults.map((result) => (
+                          <button
+                            key={`${result.name}-${result.lat}-${result.lon}`}
+                            type="button"
+                            onClick={() => handlePickLocation(result)}
+                            className="block w-full rounded-lg px-2 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                          >
+                            <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {result.name}
+                            </span>
+                            <span className="block truncate text-xs text-slate-400">{result.fullName}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  <p className="mt-3 text-xs text-slate-400">
+                    {exploreSource === 'manual'
+                      ? 'You picked this location. '
+                      : 'Location detected from your connection. '}
+                    <button
+                      type="button"
+                      onClick={handleUseDetectedLocation}
+                      className="font-semibold text-green-600 hover:text-green-700"
+                    >
+                      Use my detected location
+                    </button>
+                  </p>
+                </div>
+              )}
 
               {/* City cards — skeleton while loading, bento grid once geo resolves */}
               {exploreLoading ? (

@@ -13,6 +13,7 @@
  */
 
 const CACHE_KEY = 'bc_geo_v2';
+const OVERRIDE_KEY = 'bc_geo_override';
 const LEGACY_CACHE_KEYS = ['bc_geo_data'];
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 4000;
@@ -48,6 +49,7 @@ const TZ_TO_CC = {
 };
 
 let inflight = null;
+let resolved = null;
 
 /** Country code → flag emoji, without shipping a lookup table. */
 export function countryFlag(code) {
@@ -64,6 +66,24 @@ export function countryNameFromCode(code) {
   } catch {
     return cc;
   }
+}
+
+let codeByName = null;
+
+/** Reverse of countryNameFromCode — Nominatim only gives us a country name. */
+export function countryCodeFromName(name) {
+  const target = String(name || '').trim().toLowerCase();
+  if (!target) return '';
+  if (!codeByName) {
+    codeByName = new Map();
+    const codes =
+      'AD AE AF AG AI AL AM AO AR AT AU AW AZ BA BB BD BE BF BG BH BI BJ BM BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FM FR GA GB GD GE GH GM GN GQ GR GT GW GY HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MO MR MT MU MV MW MX MY MZ NA NE NG NI NL NO NP NR NZ OM PA PE PG PH PK PL PS PT PW PY QA RO RS RU RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SY SZ TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VN VU WS YE ZA ZM ZW';
+    for (const code of codes.split(' ')) {
+      const label = countryNameFromCode(code).toLowerCase();
+      if (label) codeByName.set(label, code);
+    }
+  }
+  return codeByName.get(target) || '';
 }
 
 function browserTimeZone() {
@@ -93,6 +113,43 @@ function readCache() {
   } catch {
     return null;
   }
+}
+
+/** A location the visitor picked by hand — it always wins over IP detection. */
+export function readGeoOverride() {
+  try {
+    const raw = localStorage.getItem(OVERRIDE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.city && !parsed?.countryCode) return null;
+    return { ...parsed, source: 'manual' };
+  } catch {
+    return null;
+  }
+}
+
+/** Pin the section to a chosen city/country (used when IP detection is wrong). */
+export function setGeoOverride(location) {
+  const entry = {
+    city: location.city || '',
+    countryCode: String(location.countryCode || '').toUpperCase(),
+    countryName: location.countryName || countryNameFromCode(location.countryCode),
+    latitude: toNumber(location.latitude),
+    longitude: toNumber(location.longitude),
+    source: 'manual',
+  };
+  try {
+    localStorage.setItem(OVERRIDE_KEY, JSON.stringify(entry));
+  } catch {}
+  resolved = null;
+  return entry;
+}
+
+export function clearGeoOverride() {
+  try {
+    localStorage.removeItem(OVERRIDE_KEY);
+  } catch {}
+  resolved = null;
 }
 
 function writeCache(location) {
@@ -170,17 +227,30 @@ async function detect() {
   return null;
 }
 
-/** Resolve the visitor's location once per page load (and once per cache window). */
-export function getGeo() {
+/**
+ * Resolve the visitor's location.
+ *
+ * Detection always runs fresh so a network or VPN switch is reflected immediately; the
+ * local cache is only used when every detector fails (offline).
+ */
+export function getGeo({ useCache = false } = {}) {
+  const override = readGeoOverride();
+  if (override) return Promise.resolve(override);
+
+  // One detection per page load; several sections ask for it.
+  if (resolved && !useCache) return Promise.resolve(resolved);
+
   const cached = readCache();
-  if (cached) return Promise.resolve(cached);
+  if (useCache && cached) return Promise.resolve(cached);
 
   if (!inflight) {
     inflight = detect()
+      .then((location) => location || cached)
       .then((location) => {
         if (!location) return null;
         const entry = { ...location, timeZone: browserTimeZone(), ts: Date.now() };
         writeCache(entry);
+        resolved = entry;
         return entry;
       })
       .catch(() => null)
@@ -191,7 +261,7 @@ export function getGeo() {
   return inflight;
 }
 
-/** Drop the cache — useful after a manual "change location" action. */
+/** Drop everything cached about the location. */
 export function clearGeoCache() {
   clearLegacyCache();
   try {
