@@ -10,11 +10,15 @@
 //   POST { action: 'submit', id }          — submit for admin review
 //   POST { action: 'admin-list' }          — admin: list all (any status)
 //   POST { action: 'admin-review', id, status, note } — admin approve/reject
+//   GET  ?action=event-listings            — "List your event or attraction" drafts the owner can import
+//   POST { action: 'import-event', eventId } — turn one of those into a ticketable attraction
 
 const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { requireAdminEmail } = require('../lib/admin');
 const { verifyRequestBearer } = require('../lib/google-verify');
+const T = require('../lib/ticketing');
+const { TICKET_CATEGORIES } = T;
 
 // ─── In-memory fallback ───────────────────────────────────────────────────────
 function getMemStore() {
@@ -52,6 +56,170 @@ function dbShape(p) {
   };
 }
 
+// ─── Event listings → attraction listings ─────────────────────────────────────
+//
+// The "List your event or attraction" wizard writes bc_event_profiles, but the
+// ticket office only reads bc_attraction_profiles. A listing created through the
+// wizard is therefore invisible to Ticketing Management and Physical Ticket
+// Sales, and the dashboard cannot even say why. These helpers let the owner
+// import such a listing instead of retyping it, once, under their own account.
+
+function ownerKey(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function eventGalleryUrls(event) {
+  const list = event?.step_gallery?.list;
+  if (!Array.isArray(list)) return [];
+  return list.map((item) => String((item && (item.url || item.image)) || '')).filter(Boolean);
+}
+
+function eventTicketList(event) {
+  const list = event?.step_tickets?.list;
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((raw) => {
+      const ticket = raw || {};
+      const type = String(ticket.type || '').trim().toLowerCase();
+      return {
+        name: String(ticket.name || '').trim(),
+        category: TICKET_CATEGORIES.includes(type) ? type : 'adult',
+        price: Number(ticket.price) || 0,
+        currency: String(ticket.currency || '').trim().toUpperCase(),
+      };
+    })
+    .filter((ticket) => ticket.name);
+}
+
+async function listImportableEventListings(email) {
+  const key = ownerKey(email);
+  const events = await query(
+    `SELECT id, status, step_event_info, step_location, step_tickets, created_at
+       FROM bc_event_profiles
+      WHERE LOWER(BTRIM(email)) = $1
+      ORDER BY id DESC`,
+    [key]
+  );
+  const mine = await query(
+    `SELECT id, LOWER(BTRIM(name)) AS name FROM bc_attraction_profiles
+      WHERE LOWER(BTRIM(owner_email)) = $1 AND deleted IS NOT TRUE`,
+    [key]
+  );
+  const imported = new Map(mine.rows.map((row) => [row.name, row.id]));
+
+  return events.rows.map((row) => {
+    const info = row.step_event_info || {};
+    const loc = row.step_location || {};
+    const name = String(info.eventName || info.name || '').trim() || `Listing #${row.id}`;
+    return {
+      id: row.id,
+      name,
+      eventType: String(info.eventType || info.category || '').trim(),
+      city: String(loc.city || '').trim(),
+      country: String(loc.country || '').trim(),
+      status: row.status || 'draft',
+      ticketCount: eventTicketList(row).length,
+      importedAttractionId: imported.get(name.toLowerCase()) || null,
+    };
+  });
+}
+
+async function importEventListing(event, ownerEmail) {
+  const info = event.step_event_info || {};
+  const loc = event.step_location || {};
+  const contact = event.step_contact || {};
+  const policies = event.step_policies || {};
+  const gallery = eventGalleryUrls(event);
+  const tickets = eventTicketList(event);
+  const name = String(info.eventName || info.name || '').trim();
+  if (name.length < 2) return { ok: false, status: 400, error: 'This listing has no name to import' };
+
+  // Same name + same owner means it was already imported: return it untouched so
+  // a double click can never create duplicate listings or duplicate ticket types.
+  const existing = await query(
+    `SELECT * FROM bc_attraction_profiles
+      WHERE LOWER(BTRIM(owner_email)) = $1 AND LOWER(BTRIM(name)) = $2 AND deleted IS NOT TRUE
+      LIMIT 1`,
+    [ownerKey(ownerEmail), name.toLowerCase()]
+  );
+  if (existing.rows.length) {
+    const attraction = existing.rows[0];
+    return { ok: true, created: false, attraction, ticketTypes: await T.listTicketTypes(attraction.id) };
+  }
+
+  const currency = tickets.find((ticket) => /^[A-Z]{3}$/.test(ticket.currency))?.currency || 'USD';
+  const banner = String(event.ticket_banner_image || '').trim();
+  const fields = {
+    name,
+    category: String(info.eventType || info.category || '').trim(),
+    location: String(loc.address || '').trim(),
+    country: String(loc.country || '').trim(),
+    city: String(loc.city || '').trim(),
+    description: String(info.description || '').trim(),
+    featured_image: banner || gallery[0] || '',
+    gallery: banner ? [banner, ...gallery] : gallery,
+    tags: [],
+    price: tickets.length ? Math.min(...tickets.map((ticket) => ticket.price)) : 0,
+    currency,
+    duration: String(info.duration || '').trim(),
+    highlights: [],
+    contact: {
+      email: String(contact.bookingEmail || contact.email || ownerEmail).trim(),
+      phone: String(contact.phone || '').trim(),
+      website: String(contact.website || '').trim(),
+    },
+    opening_hours: { open: String(policies.startTime || ''), close: String(policies.endTime || '') },
+    amenities: [],
+    status: 'pending',
+  };
+  fields.completeness = calcCompleteness(fields);
+
+  const inserted = await query(
+    `INSERT INTO bc_attraction_profiles
+      (owner_email, name, category, location, country, city, description, featured_image,
+       gallery, tags, price, currency, duration, highlights, contact, opening_hours, amenities,
+       status, completeness, views, bookings, deleted, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,0,0,false,NOW(),NOW())
+     RETURNING *`,
+    [
+      ownerEmail, fields.name, fields.category, fields.location, fields.country, fields.city,
+      fields.description, fields.featured_image, JSON.stringify(fields.gallery), JSON.stringify(fields.tags),
+      fields.price, fields.currency, fields.duration, JSON.stringify(fields.highlights),
+      JSON.stringify(fields.contact), JSON.stringify(fields.opening_hours), JSON.stringify(fields.amenities),
+      fields.status, fields.completeness,
+    ]
+  );
+  const attraction = inserted.rows[0];
+
+  // Bring the ticket options across so the ticket office can trade immediately.
+  // The listing's stated capacity becomes the daily cap; the owner can change it.
+  const dailyCapacity = Math.max(0, parseInt(info.totalCapacity, 10) || 0);
+  const ticketTypes = [];
+  for (const [index, ticket] of tickets.entries()) {
+    const saved = await T.saveTicketType(attraction.id, ownerEmail, {
+      name: ticket.name,
+      category: ticket.category,
+      price: ticket.price,
+      currency: /^[A-Z]{3}$/.test(ticket.currency) ? ticket.currency : currency,
+      admissions: 1,
+      dailyCapacity,
+      minPerOrder: 1,
+      maxPerOrder: 10,
+      refundPolicy: 'flexible',
+      sortOrder: index,
+    });
+    if (saved.ok) ticketTypes.push(saved.ticketType);
+  }
+
+  // Ticket settings default to USD, which would make the till quote imported
+  // shilling prices as dollars. The listing's own currency wins.
+  const pricedCurrency = ticketTypes.find((type) => type.currency)?.currency || currency;
+  const settings = await T.saveSettings(attraction.id, { currency: pricedCurrency });
+  if (settings) attraction.currency = settings.currency;
+
+  return { ok: true, created: true, attraction, ticketTypes };
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 module.exports = async function attractionProfilesHandler(req, res) {
   applyCors(req, res);
@@ -73,6 +241,20 @@ module.exports = async function attractionProfilesHandler(req, res) {
     const auth = await verifyRequestBearer(req);
     if (!auth.ok) return res.status(401).json({ ok: false, error: 'Authentication required' });
 
+    // Listings made with the "List your event or attraction" wizard live in
+    // bc_event_profiles. Offer them here so the owner can import them instead of
+    // being told "no attractions" with no explanation.
+    if (String(req.query.action || '').toLowerCase() === 'event-listings') {
+      if (!dbReady) return res.status(503).json({ ok: false, error: 'Listing import requires the database' });
+      try {
+        const listings = await listImportableEventListings(auth.email);
+        return res.json({ ok: true, signedInAs: auth.email, listings });
+      } catch (err) {
+        console.error('[attraction-profiles] event-listings error:', err);
+        return res.status(500).json({ ok: false, error: 'Failed to load your listings' });
+      }
+    }
+
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
@@ -81,8 +263,8 @@ module.exports = async function attractionProfilesHandler(req, res) {
 
     try {
       if (dbReady) {
-        let whereClauses = ['owner_email = $1', 'deleted = false'];
-        const params = [auth.email];
+        let whereClauses = ["LOWER(BTRIM(COALESCE(owner_email, ''))) = $1", 'deleted IS NOT TRUE'];
+        const params = [ownerKey(auth.email)];
         let idx = 2;
 
         if (status) {
@@ -132,6 +314,39 @@ module.exports = async function attractionProfilesHandler(req, res) {
 
   const body = req.body || {};
   const { action } = body;
+
+  // ── IMPORT an event/attraction listing into a ticketable attraction ───────
+  if (action === 'import-event') {
+    const auth = await verifyRequestBearer(req);
+    if (!auth.ok) return res.status(401).json({ ok: false, error: 'Authentication required' });
+    if (!dbReady) return res.status(503).json({ ok: false, error: 'Importing a listing requires the database' });
+
+    const eventId = parseInt(body.eventId, 10);
+    if (!Number.isInteger(eventId) || eventId <= 0) {
+      return res.status(400).json({ ok: false, error: 'Choose a listing to import' });
+    }
+
+    try {
+      const found = await query(
+        `SELECT * FROM bc_event_profiles WHERE id = $1 AND LOWER(BTRIM(email)) = $2`,
+        [eventId, ownerKey(auth.email)]
+      );
+      if (!found.rows.length) {
+        return res.status(404).json({ ok: false, error: 'That listing is not on your account' });
+      }
+      const outcome = await importEventListing(found.rows[0], auth.email);
+      if (!outcome.ok) return res.status(outcome.status || 400).json({ ok: false, error: outcome.error });
+      return res.status(outcome.created ? 201 : 200).json({
+        ok: true,
+        created: outcome.created,
+        attraction: outcome.attraction,
+        ticketTypes: outcome.ticketTypes,
+      });
+    } catch (err) {
+      console.error('[attraction-profiles] import-event error:', err);
+      return res.status(500).json({ ok: false, error: 'Failed to import the listing' });
+    }
+  }
 
   // ── CREATE ────────────────────────────────────────────────────────────────
   if (action === 'create') {

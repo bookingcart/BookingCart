@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ownerGet } from '../../lib/ticketingClient.js';
-import { Badge, Button, EmptyState, ErrorNote, Loading, Panel } from './TicketingShared.jsx';
+import { Badge, Button, ErrorNote, Loading, Modal, Panel } from './TicketingShared.jsx';
+import ImportListingsPrompt, { ImportListingsList } from './ImportListingsPrompt.jsx';
 import TicketingOverviewPanel from './TicketingOverviewPanel.jsx';
 import TicketTypesPanel from './TicketTypesPanel.jsx';
 import TicketSalesPanel from './TicketSalesPanel.jsx';
@@ -42,6 +43,7 @@ export default function TicketingWorkspace({ headers, initialSection = '' }) {
   const [section, setSection] = useState(initialSection || readParam('section') || 'overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,10 +82,10 @@ export default function TicketingWorkspace({ headers, initialSection = '' }) {
   if (!attractions.length) {
     return (
       <Panel title="Ticketing management" icon="ph-ticket">
-        <EmptyState
-          icon="ph-map-trifold"
-          title="No attractions to manage yet"
-          message="Publish an attraction first — ticket types, inventory and QR validation attach to your listings."
+        <ImportListingsPrompt
+          headers={headers}
+          contextLabel="ticketing"
+          onImported={load}
         />
       </Panel>
     );
@@ -113,6 +115,11 @@ export default function TicketingWorkspace({ headers, initialSection = '' }) {
               ))}
             </select>
             <Button variant="soft" size="sm" icon="ph-arrows-clockwise" onClick={load}>Refresh</Button>
+            {role === 'owner' && (
+              <Button variant="soft" size="sm" icon="ph-download-simple" onClick={() => setImportOpen(true)}>
+                Import listing
+              </Button>
+            )}
           </div>
         </div>
 
@@ -176,6 +183,10 @@ export default function TicketingWorkspace({ headers, initialSection = '' }) {
           )}
         </>
       )}
+
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Import a saved listing" icon="ph-download-simple" wide>
+        <ImportListingsList headers={headers} contextLabel="ticketing" onImported={load} />
+      </Modal>
     </div>
   );
 }

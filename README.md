@@ -187,6 +187,14 @@ The rehearsal talks to the configured database, creates a throwaway attraction (
 
 Two managed-Postgres quirks are worth knowing when editing ticketing SQL: `date` columns come back as JS `Date` objects (always render them through `T.isoDate`), and the Nile proxy turns a bound empty-string parameter into `NULL`, so optional text is written as `COALESCE($n, '')` against `NOT NULL DEFAULT ''` columns.
 
+### Two listing stores
+
+`/list-your-event` writes `bc_event_profiles`; the ticket office reads `bc_attraction_profiles`. A listing entered through that wizard therefore exists — **My Attractions** merges both tables and shows it — but it cannot be ticketed until it is imported, which used to look like "my attraction is missing".
+
+Both ticket screens now say so instead of showing a bare empty state, and `Import listing` in the header reopens the list at any time, because the empty state disappears as soon as one attraction is ticketed. Importing copies name, description, gallery, contact, opening hours and every ticket option (name, category, price and currency), sets the ticket settings currency to match the listing, and is idempotent on `(owner_email, name)` — a double click can never duplicate a listing or its ticket types. The copy starts as `pending` review but is immediately sellable.
+
+Ownership lookups compare `LOWER(BTRIM(...))` everywhere: a stored address with padding or legacy casing used to hide a listing with no explanation. `node scratch/test-import-listings.js` rehearses the whole path against the configured database and cleans up after itself.
+
 ## Physical ticketing and point of sale
 
 Attraction owners and their ticket-office staff also run the gate: **Physical Ticket Sales** in `/attraction-dashboard/physical` (Point of Sale, Create Physical Tickets, Print Ticket Batches, Physical Ticket Inventory, Sales History, Cashier Management, Cash Reconciliation, Physical Ticket Reports). Deep links work per section, e.g. `/attraction-dashboard/physical?section=pos`.

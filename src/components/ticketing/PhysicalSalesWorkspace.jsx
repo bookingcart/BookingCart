@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ownerGet, posGet, todayISO } from '../../lib/ticketingClient.js';
-import { Badge, Button, EmptyState, ErrorNote, Loading, Notice, Panel } from './TicketingShared.jsx';
+import { Badge, Button, ErrorNote, Loading, Modal, Notice, Panel } from './TicketingShared.jsx';
+import ImportListingsPrompt, { ImportListingsList } from './ImportListingsPrompt.jsx';
 import PosTerminalPanel from './PosTerminalPanel.jsx';
 import PhysicalBatchCreatePanel from './PhysicalBatchCreatePanel.jsx';
 import PhysicalPrintPanel from './PhysicalPrintPanel.jsx';
@@ -54,6 +55,7 @@ export default function PhysicalSalesWorkspace({ headers, initialSection = '' })
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
 
   const loadAttractions = useCallback(async () => {
     setLoading(true);
@@ -122,10 +124,10 @@ export default function PhysicalSalesWorkspace({ headers, initialSection = '' })
   if (!attractions.length) {
     return (
       <Panel title="Physical ticket sales" icon="ph-cash-register">
-        <EmptyState
-          icon="ph-map-trifold"
-          title="No attractions to sell tickets for"
-          message="Publish an attraction and add ticket types first — the ticket office sells against those same tickets and capacity limits."
+        <ImportListingsPrompt
+          headers={headers}
+          contextLabel="the ticket office"
+          onImported={loadAttractions}
         />
       </Panel>
     );
@@ -170,6 +172,11 @@ export default function PhysicalSalesWorkspace({ headers, initialSection = '' })
             <Button variant="soft" size="sm" icon={refreshing ? 'ph-circle-notch' : 'ph-arrows-clockwise'} onClick={refresh} disabled={refreshing}>
               Refresh
             </Button>
+            {context?.role === 'owner' && (
+              <Button variant="soft" size="sm" icon="ph-download-simple" onClick={() => setImportOpen(true)}>
+                Import listing
+              </Button>
+            )}
           </div>
         </div>
 
@@ -223,6 +230,14 @@ export default function PhysicalSalesWorkspace({ headers, initialSection = '' })
           {section === 'reports' && <PhysicalReportsPanel {...panelProps} />}
         </>
       )}
+
+      <Modal open={importOpen} onClose={() => setImportOpen(false)} title="Import a saved listing" icon="ph-download-simple" wide>
+        <ImportListingsList
+          headers={headers}
+          contextLabel="the ticket office"
+          onImported={loadAttractions}
+        />
+      </Modal>
     </div>
   );
 }

@@ -413,7 +413,9 @@ module.exports = async function attractionTicketingHandler(req, res) {
     // ── Attractions the caller can manage ──
     if (action === 'attractions') {
       const attractions = await T.listAccessibleAttractions(email);
-      return res.json({ ok: true, attractions });
+      // `signedInAs` lets the console explain an empty list instead of guessing:
+      // listings are matched on the owner address, not on a display name.
+      return res.json({ ok: true, signedInAs: email, attractions });
     }
 
     if (!attractionId) return res.status(400).json({ ok: false, error: 'attractionId is required' });
