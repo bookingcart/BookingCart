@@ -18,10 +18,10 @@ export const LAYOUTS = {
 
 export const PAPER_SIZES = ['A4', 'A5', 'Letter', 'Thermal 80mm'];
 
-// The whole ticket is a fixed 900 × 351 proportion. Print layouts derive their
+// The whole ticket is a fixed 900 × 315 proportion. Print layouts derive their
 // height from it, and the design panel shows the same face at exactly this
 // pixel size, so what the owner composes is what the sheet prints.
-export const TICKET_SIZE = { width: 900, height: 351 };
+export const TICKET_SIZE = { width: 900, height: 315 };
 const TICKET_RATIO = TICKET_SIZE.width / TICKET_SIZE.height;
 
 // CSS px per mm at the browser's 96 dpi reference: the face preview lays the
