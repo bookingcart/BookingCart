@@ -4,6 +4,7 @@ import {
   Badge, Button, EmptyState, ErrorNote, Field, Notice, Panel, StatusBadge, TableWrap, Td, Th, inputClass,
 } from './TicketingShared.jsx';
 import { LAYOUTS, PAPER_SIZES } from './PhysicalPrint.jsx';
+import ArtworkUpload from './ArtworkUpload.jsx';
 
 const PERMISSION_LABELS = {
   sell: 'Sell tickets',
@@ -25,6 +26,7 @@ export default function CashierManagementPanel({ attractionId, headers, context,
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [settingsNotice, setSettingsNotice] = useState('');
   const [busy, setBusy] = useState('');
   const [form, setForm] = useState({ email: '', name: '', role: 'scanner', permissions: {} });
   const [settings, setSettings] = useState(null);
@@ -52,6 +54,8 @@ export default function CashierManagementPanel({ attractionId, headers, context,
         ticketTerms: context.settings.ticketTerms || '',
         receiptHeader: context.settings.receiptHeader || '',
         receiptFooter: context.settings.receiptFooter || '',
+        ticketArtworkUrl: context.settings.ticketArtworkUrl || '',
+        ticketArtworkFit: context.settings.ticketArtworkFit || 'cover',
       });
     }
   }, [context, settings]);
@@ -104,7 +108,8 @@ export default function CashierManagementPanel({ attractionId, headers, context,
     const payload = await posPost('save-settings', { attractionId, ...settings }, headers);
     setSavingSettings(false);
     if (!payload.ok) { setError(payload.error || 'Could not save the ticket design'); return; }
-    setNotice('Ticket design and receipt settings saved.');
+    if (payload.settings) setSettings((current) => ({ ...current, ...payload.settings }));
+    setSettingsNotice('Ticket design and receipt settings saved.');
     refresh();
   };
 
@@ -233,8 +238,24 @@ export default function CashierManagementPanel({ attractionId, headers, context,
           subtitle="These details are printed on every physical ticket and receipt."
           actions={<Button icon="ph-floppy-disk" onClick={saveSettings} disabled={savingSettings}>Save design</Button>}
         >
+          <Notice onClose={() => setSettingsNotice('')}>{settingsNotice}</Notice>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Attraction logo URL" hint="Printed at the top of each ticket.">
+            <Field
+              label="Your artwork space"
+              hint="Printed in the large panel on the right of every ticket. The green panel beside it is BookingCart's artwork and is set by the platform."
+              className="sm:col-span-2"
+            >
+              <ArtworkUpload
+                value={settings.ticketArtworkUrl}
+                onChange={(url) => setSettings((current) => ({ ...current, ticketArtworkUrl: url }))}
+                fit={settings.ticketArtworkFit}
+                onFitChange={(fit) => setSettings((current) => ({ ...current, ticketArtworkFit: fit }))}
+                headers={headers}
+                emptyLabel="Clients art work space"
+                hint="A landscape image (roughly 3:2) fits best. PNG, JPEG or WebP up to 20 MB."
+              />
+            </Field>
+            <Field label="Attraction logo URL" hint="Printed next to the venue name on each ticket.">
               <input value={settings.ticketLogoUrl} onChange={(event) => setSettings((current) => ({ ...current, ticketLogoUrl: event.target.value }))}
                 className={inputClass} placeholder="https://…/logo.png" />
             </Field>

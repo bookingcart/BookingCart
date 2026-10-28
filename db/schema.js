@@ -920,6 +920,21 @@ const bcTicketSettings = pgTable("bc_ticket_settings", {
   paperSize: text("paper_size").default("A4").notNull(),
   receiptHeader: text("receipt_header").default("").notNull(),
   receiptFooter: text("receipt_footer").default("").notNull(),
+  ticketArtworkUrl: text("ticket_artwork_url").default("").notNull(),
+  ticketArtworkFit: text("ticket_artwork_fit").default("cover").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Single row (id = 1): the platform artwork an administrator uploads once and
+// that is printed on every ticket, above each client's own artwork space.
+const bcTicketBranding = pgTable("bc_ticket_branding", {
+  id: integer("id").primaryKey(),
+  companyName: text("company_name").default("BookingCart").notNull(),
+  companyTagline: text("company_tagline").default("Compare. Book. Instant.").notNull(),
+  companyWebsite: text("company_website").default("www.bookingcart.online").notNull(),
+  artworkUrl: text("artwork_url").default("").notNull(),
+  artworkFit: text("artwork_fit").default("cover").notNull(),
+  updatedBy: text("updated_by").default("").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -1063,6 +1078,7 @@ module.exports = {
   bcSupport,
   bcTicketAudit,
   bcTicketBatches,
+  bcTicketBranding,
   bcTicketCalendar,
   bcTicketInventory,
   bcTicketOrderItems,

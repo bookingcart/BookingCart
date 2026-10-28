@@ -10,11 +10,13 @@
 // bc_ticket_orders (channel='pos'), which is what keeps on-site and online
 // sales on the same inventory counters.
 
-const { query, isDbConfigured, initDb } = require('../lib/db');
+const { query, isDbConfigured, initDb, writeAudit } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { verifyRequestBearer } = require('../lib/google-verify');
+const { requireAdminEmail } = require('../lib/admin');
 const T = require('../lib/ticketing');
 const P = require('../lib/physical-ticketing');
+const B = require('../lib/ticket-branding');
 
 const CASHIER_ROLES = ['scanner', 'manager'];
 
@@ -117,6 +119,22 @@ module.exports = async function attractionPosHandler(req, res) {
   const attractionId = T.toInt(body.attractionId || req.query.attractionId, 0);
 
   try {
+    // ── Platform ticket artwork (administrator only, no attraction scope) ─────
+    // This is the company panel printed on every ticket, so it is edited once
+    // for the whole platform rather than per attraction.
+    if (action === 'branding' || action === 'save-branding') {
+      const admin = await requireAdminEmail(req);
+      if (!admin.ok) return res.status(admin.status || 403).json({ ok: false, error: admin.error });
+
+      if (action === 'branding') {
+        return res.json({ ok: true, branding: await B.getBranding() });
+      }
+
+      const branding = await B.saveBranding(body, admin.email);
+      writeAudit({ type: 'ticket.branding-saved', actor: admin.email, branding: { ...branding, updatedAt: undefined } });
+      return res.json({ ok: true, branding });
+    }
+
     if (!attractionId) return res.status(400).json({ ok: false, error: 'attractionId is required' });
 
     // ── Everything a ticket-office screen needs to render ────────────────────
@@ -125,12 +143,13 @@ module.exports = async function attractionPosHandler(req, res) {
       if (!access.ok) return res.status(access.status).json({ ok: false, error: access.error });
 
       const visitDate = T.isDateISO(body.visitDate) ? body.visitDate : T.isoToday();
-      const [settings, types, availability, shift, batches] = await Promise.all([
+      const [settings, types, availability, shift, batches, company] = await Promise.all([
         T.getSettings(attractionId),
         T.listTicketTypes(attractionId),
         T.getAvailability(attractionId, visitDate),
         openShiftFor(attractionId, email),
         batchOptions(attractionId, visitDate),
+        B.getBranding(),
       ]);
 
       return res.json({
@@ -146,7 +165,11 @@ module.exports = async function attractionPosHandler(req, res) {
           logoUrl: settings.ticket_logo_url || '',
           contact: settings.ticket_contact || '',
           terms: settings.ticket_terms || settings.terms || '',
+          artworkUrl: settings.ticket_artwork_url || '',
+          artworkFit: settings.ticket_artwork_fit || 'cover',
         },
+        // Platform artwork printed on every ticket, managed from the admin panel.
+        company,
         settings: {
           posEnabled: settings.pos_enabled !== false,
           taxPercent: Number(settings.tax_percent || 0),
@@ -159,6 +182,8 @@ module.exports = async function attractionPosHandler(req, res) {
           ticketLogoUrl: settings.ticket_logo_url || '',
           ticketContact: settings.ticket_contact || '',
           ticketTerms: settings.ticket_terms || '',
+          ticketArtworkUrl: settings.ticket_artwork_url || '',
+          ticketArtworkFit: settings.ticket_artwork_fit || 'cover',
         },
         types: types
           .filter((type) => type.status === 'active')
@@ -472,7 +497,10 @@ module.exports = async function attractionPosHandler(req, res) {
       await T.writeTicketAudit({
         attractionId, actor: email, action: 'settings.physical-saved', entityType: 'settings',
         entityId: attractionId,
-        details: { posEnabled: saved.pos_enabled, printLayout: saved.print_layout, paperSize: saved.paper_size },
+        details: {
+          posEnabled: saved.pos_enabled, printLayout: saved.print_layout, paperSize: saved.paper_size,
+          ticketArtwork: Boolean(saved.ticket_artwork_url),
+        },
       });
       return res.json({
         ok: true,
@@ -485,6 +513,8 @@ module.exports = async function attractionPosHandler(req, res) {
           ticketTerms: saved.ticket_terms,
           receiptHeader: saved.receipt_header,
           receiptFooter: saved.receipt_footer,
+          ticketArtworkUrl: saved.ticket_artwork_url,
+          ticketArtworkFit: saved.ticket_artwork_fit,
         },
       });
     }

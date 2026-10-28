@@ -4,6 +4,7 @@ import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { connectSupportStream, loadSupportThreads, patchSupportThread, postSupportMessage } from '../lib/supportClient.js';
 import { aviationRequest } from '../lib/aviationClient.js';
+import TicketArtworkAdminPanel from '../components/ticketing/TicketArtworkAdminPanel.jsx';
 
 /* ─── Support Inbox ─────────────────────────────────────────────── */
 async function fetchSupportMessages() {
@@ -2466,6 +2467,11 @@ export default function AdminPage() {
                     ${adminTab === 'events' ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
                   <i className="ph ph-ticket" /> Events & Attractions
                 </button>
+                <button onClick={() => setAdminTab('artwork')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                    ${adminTab === 'artwork' ? 'bg-violet-600 text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900'}`}>
+                  <i className="ph ph-palette" /> Ticket artwork
+                </button>
               </div>
               {adminTab === 'support' && <SupportInbox />}
               {adminTab === 'users' && <UsersPanel />}
@@ -2474,6 +2480,7 @@ export default function AdminPage() {
               {adminTab === 'attractions' && <AttractionsAnalytics />}
               {adminTab === 'guides' && <GuidesPanel getToken={getToken} />}
               {adminTab === 'events' && <EventsPanel getToken={getToken} />}
+              {adminTab === 'artwork' && <TicketArtworkAdminPanel getToken={getToken} />}
               {adminTab === 'bookings' && <>
               
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8" id="stats">

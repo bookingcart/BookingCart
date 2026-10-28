@@ -36,7 +36,12 @@ function escapeHtml(value) {
 function moneyText(amount, currency = 'USD') {
   const value = Number(amount);
   if (!Number.isFinite(value)) return '';
-  return `${String(currency || 'USD').toUpperCase()} ${value.toFixed(2)}`;
+  const code = String(currency || 'USD').toUpperCase();
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code, currencyDisplay: 'code' }).format(value);
+  } catch {
+    return `${code} ${value.toFixed(2)}`;
+  }
 }
 
 function dateText(iso) {
@@ -94,9 +99,88 @@ export async function buildQrMap(tickets = []) {
 
 // ─── Ticket sheet ────────────────────────────────────────────────────────────
 
+/**
+ * Every ticket is a three-panel strip, mirroring the printed design:
+ *   1. the admission stub  — pass label, QR, ticket number, price (torn off)
+ *   2. the company panel   — artwork an administrator uploads once, printed on
+ *                            every ticket the platform issues
+ *   3. the client panel    — the attraction's own artwork, with venue, visit
+ *                            date, type and reference on a caption strip
+ */
+function artworkTag(url, fit, className = 'art') {
+  if (!url) return '';
+  const mode = fit === 'contain' ? 'contain' : 'cover';
+  return `<img class="${className} fit-${mode}" src="${escapeHtml(url)}" alt="" />`;
+}
+
+function buildCompanyPanel(company = {}) {
+  const name = company.companyName || 'BookingCart';
+  const tagline = company.companyTagline || '';
+  // Panel space is scarce at 4-up, so the domain prints without the "www."
+  // prefix — it still resolves, and the whole address stays on one line.
+  const website = String(company.companyWebsite || '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/+$/, '');
+  const artwork = artworkTag(company.artworkUrl, company.artworkFit);
+  return `
+      <div class="company">
+        ${artwork}
+        ${artwork ? '<div class="scrim"></div>' : ''}
+        <div class="company-top">
+          <div class="company-name">${escapeHtml(name)}</div>
+          ${tagline ? `<div class="company-tagline">${escapeHtml(tagline)}</div>` : ''}
+        </div>
+        ${website ? `<div class="company-site">${escapeHtml(website)}</div>` : ''}
+      </div>`;
+}
+
+function buildClientPanel({ attraction, ticket, reference, admissions, visit, slot }) {
+  const artwork = artworkTag(attraction.artworkUrl, attraction.artworkFit);
+  const detail = [ticket.type, `${admissions} ${admissions === 1 ? 'admission' : 'admissions'}`].filter(Boolean).join(' · ');
+  const when = [visit, slot].filter(Boolean).join(' · ');
+  return `
+      <div class="client ${artwork ? 'has-art' : 'no-art'}">
+        ${artwork}
+        ${artwork ? '<div class="scrim"></div>' : ''}
+        <div class="client-body">
+          <div class="venue-row">
+            ${attraction.logoUrl ? `<img class="logo" src="${escapeHtml(attraction.logoUrl)}" alt="" />` : ''}
+            <div class="venue">${escapeHtml(attraction.name || 'Admission')}</div>
+          </div>
+          ${detail ? `<div class="line strong">${escapeHtml(detail)}</div>` : ''}
+          ${when ? `<div class="line">${escapeHtml(when)}</div>` : ''}
+          ${attraction.contact ? `<div class="line soft">${escapeHtml(attraction.contact)}</div>` : ''}
+          ${reference ? `<div class="line soft mono">Ref ${escapeHtml(reference)}</div>` : ''}
+        </div>
+      </div>`;
+}
+
+function buildThermalCard({ ticket, attraction, company, reference, admissions, visit, slot, priceText, qr }) {
+  const detail = [ticket.type, `${admissions} ${admissions === 1 ? 'admission' : 'admissions'}`].filter(Boolean).join(' · ');
+  const when = [visit, slot].filter(Boolean).join(' · ');
+  const band = artworkTag(company.artworkUrl, 'cover', 't-band');
+  return `
+      <article class="ticket thermal">
+        <div class="t-pass">Tourism Pass</div>
+        <div class="t-venue">${escapeHtml(attraction.name || 'Admission')}</div>
+        ${detail ? `<div class="t-line">${escapeHtml(detail)}</div>` : ''}
+        ${when ? `<div class="t-line">${escapeHtml(when)}</div>` : ''}
+        <div class="t-qr">${qr ? `<img src="${qr}" alt="QR code for ${escapeHtml(ticketKey(ticket))}" />` : '<span class="noqr">QR</span>'}</div>
+        <div class="t-no">${escapeHtml(ticketKey(ticket))}</div>
+        ${priceText ? `<div class="t-price">${escapeHtml(priceText)}</div>` : ''}
+        ${reference ? `<div class="t-line soft">Ref ${escapeHtml(reference)}</div>` : ''}
+        ${band}
+        <div class="t-company">
+          ${escapeHtml(company.companyName || 'BookingCart')}${company.companyTagline ? ` · ${escapeHtml(company.companyTagline)}` : ''}${company.companyWebsite ? ` · ${escapeHtml(company.companyWebsite)}` : ''}
+        </div>
+      </article>`;
+}
+
 export function buildTicketSheetHtml({
   tickets = [],
   attraction = {},
+  company = {},
   layout = 'a4_4',
   paperSize = 'A4',
   margin = 10,
@@ -105,43 +189,46 @@ export function buildTicketSheetHtml({
   batchRef = '',
   title = 'Admission tickets',
   showPrice = true,
+  preview = false,
 }) {
   const preset = LAYOUTS[layout] || LAYOUTS.a4_4;
   const page = PAPER_CSS[paperSize] || preset.page;
   const safeMargin = Math.max(0, Math.min(30, Number(margin) || 10));
   const isThermal = paperSize === 'Thermal 80mm' || layout === 'thermal';
+  // One ticket per page has room for a larger QR and type; a 4/8-up sheet has
+  // to stay legible at roughly half an A4 width.
+  const roomy = preset.perPage === 1 && !isThermal;
+  const qrSize = isThermal ? 26 : roomy ? 30 : 19;
 
   const cards = tickets.map((ticket) => {
     const qr = qrMap[ticketKey(ticket)];
     const visit = dateText(ticket.visitDate);
-    const slot = ticket.slotLabel ? `<div class="slot">Entry ${escapeHtml(ticket.slotLabel)}</div>` : '';
+    const slot = ticket.slotLabel ? `Entry ${ticket.slotLabel}` : '';
+    const admissions = Number(ticket.admissions ?? ticket.admissionsTotal ?? 1);
+    const reference = ticket.reference || batchRef;
+    const priceText = showPrice && ticket.unitPrice !== undefined
+      ? moneyText(ticket.unitPrice, ticket.currency || attraction.currency)
+      : '';
+
+    if (isThermal) {
+      return buildThermalCard({ ticket, attraction, company, reference, admissions, visit, slot, priceText, qr });
+    }
+
     return `
       <article class="ticket">
         <div class="stub">
-          <div class="type">${escapeHtml(ticket.type || ticket.ticketTypeName || 'Admission')}</div>
-          <div class="admissions">${escapeHtml(ticket.admissions ?? ticket.admissionsTotal ?? 1)} ${Number(ticket.admissions ?? ticket.admissionsTotal ?? 1) === 1 ? 'admission' : 'admissions'}</div>
-          ${visit ? `<div class="visit">${escapeHtml(visit)}</div>` : ''}
-          ${slot}
-          ${showPrice && ticket.unitPrice !== undefined
-            ? `<div class="price">${escapeHtml(moneyText(ticket.unitPrice, ticket.currency || attraction.currency))}</div>`
-            : ''}
-        </div>
-        <div class="body">
-          <div class="head">
-            ${attraction.logoUrl ? `<img class="logo" src="${escapeHtml(attraction.logoUrl)}" alt="" />` : ''}
-            <div>
-              <div class="venue">${escapeHtml(attraction.name || 'Admission')}</div>
-              ${attraction.contact ? `<div class="contact">${escapeHtml(attraction.contact)}</div>` : ''}
-            </div>
-          </div>
+          <div class="pass">Tourism Pass</div>
           <div class="qr">
             ${qr ? `<img src="${qr}" alt="QR code for ${escapeHtml(ticketKey(ticket))}" />` : '<span class="noqr">QR</span>'}
           </div>
-          <div class="no">${escapeHtml(ticketKey(ticket))}</div>
-          ${ticket.reference || batchRef
-            ? `<div class="ref">Ref ${escapeHtml(ticket.reference || batchRef)}</div>`
-            : ''}
+          <div>
+            <div class="cap">Ticket number</div>
+            <div class="no">${escapeHtml(ticketKey(ticket))}</div>
+          </div>
+          ${priceText ? `<div><div class="cap">Ticket price</div><div class="price">${escapeHtml(priceText)}</div></div>` : ''}
         </div>
+        ${buildCompanyPanel(company)}
+        ${buildClientPanel({ attraction, ticket, reference, admissions, visit, slot })}
       </article>`;
   }).join('');
 
@@ -152,30 +239,90 @@ export function buildTicketSheetHtml({
   * { box-sizing: border-box; }
   body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .sheet { display: grid; grid-template-columns: repeat(${preset.columns}, minmax(0, 1fr)); gap: ${isThermal ? 3 : 5}mm; }
-  .ticket { display: flex; break-inside: avoid; page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 4mm; overflow: hidden; min-height: ${isThermal ? 46 : 44}mm; background: #fff; }
-  .stub { width: 32%; padding: 4mm 3mm; background: #0f172a; color: #fff; display: flex; flex-direction: column; gap: 2mm; justify-content: center; }
-  .stub .type { font-size: 10pt; font-weight: 700; line-height: 1.15; }
-  .stub .admissions { font-size: 8pt; letter-spacing: .04em; text-transform: uppercase; color: #a7f3d0; }
-  .stub .visit { font-size: 8pt; color: #e2e8f0; }
-  .stub .slot { font-size: 7.5pt; color: #cbd5e1; }
-  .stub .price { margin-top: auto; font-size: 9pt; font-weight: 700; }
-  .body { flex: 1; display: flex; align-items: center; gap: 3mm; padding: 3mm; }
-  .head { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 2mm; }
-  .head .logo { width: 9mm; height: 9mm; object-fit: contain; }
-  .venue { font-size: 9pt; font-weight: 700; line-height: 1.2; }
-  .contact { font-size: 6.5pt; color: #64748b; margin-top: .6mm; }
-  .qr { flex: 0 0 auto; text-align: center; }
-  .qr img { width: ${isThermal ? 26 : 22}mm; height: ${isThermal ? 26 : 22}mm; display: block; }
-  .noqr { display: block; width: 22mm; height: 22mm; border: 1px dashed #cbd5e1; border-radius: 2mm; font-size: 7pt; color: #94a3b8; }
-  .no { font-size: 8pt; font-weight: 700; font-family: ui-monospace, Menlo, monospace; letter-spacing: .02em; }
-  .ref { font-size: 6.5pt; color: #64748b; }
+
+  .ticket { display: flex; break-inside: avoid; page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 3mm; overflow: hidden; min-height: ${roomy ? 62 : 44}mm; background: #fff; }
+
+  /* 1 — admission stub */
+  .stub { width: ${roomy ? 30 : 28}%; flex: 0 0 auto; padding: 3mm 2.5mm; background: #e3edff; color: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; text-align: center; border-right: 1px dashed #94a8c8; }
+  .stub .pass { font-size: ${roomy ? 9 : 6}pt; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #1d4ed8; }
+  .stub .qr img { width: ${qrSize}mm; height: ${qrSize}mm; display: block; }
+  .stub .noqr { display: flex; align-items: center; justify-content: center; width: ${qrSize}mm; height: ${qrSize}mm; border: 1px dashed #94a8c8; border-radius: 1.5mm; font-size: 6pt; color: #7d8ca3; }
+  .stub .cap { font-size: 5.4pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #5b6b82; }
+  .stub .no { font-family: ui-monospace, Menlo, monospace; font-size: ${roomy ? 8.5 : 5.6}pt; font-weight: 700; line-height: 1.15; word-break: break-all; }
+  .stub .price { font-size: ${roomy ? 10 : 8}pt; font-weight: 800; }
+
+  /* 2 — company artwork panel */
+  .company { position: relative; width: ${roomy ? 30 : 29}%; flex: 0 0 auto; display: flex; flex-direction: column; justify-content: space-between; gap: 1.5mm; padding: 3mm; overflow: hidden; color: #fff; background: linear-gradient(145deg, #14532d 0%, #15803d 55%, #166534 100%); }
+  .company .art, .client .art { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .art.fit-cover { object-fit: cover; }
+  .art.fit-contain { object-fit: contain; background: #0f3d24; }
+  .company .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(3,28,17,.78) 0%, rgba(3,28,17,.22) 45%, rgba(3,28,17,.86) 100%); }
+  .company-top, .company-site { position: relative; z-index: 1; }
+  .company-name { font-size: ${roomy ? 12 : 9.5}pt; font-weight: 800; letter-spacing: -.01em; line-height: 1.1; }
+  .company-tagline { font-size: ${roomy ? 7 : 6}pt; font-weight: 600; color: #d1fae5; margin-top: .8mm; }
+  .company-site { font-size: ${roomy ? 6.6 : 5.2}pt; font-weight: 700; color: #d1fae5; letter-spacing: .02em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* 3 — client artwork space */
+  .client { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; background: #eef2f7; }
+  .client.has-art .art.fit-contain { background: #eef2f7; }
+  .client .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,20,38,0) 35%, rgba(9,20,38,.55) 68%, rgba(9,20,38,.9) 100%); }
+  .client-body { position: relative; z-index: 1; padding: 3mm; display: flex; flex-direction: column; gap: .7mm; }
+  .client.no-art .client-body { color: #0f172a; }
+  .client.has-art .client-body { color: #fff; }
+  .venue-row { display: flex; align-items: center; gap: 1.6mm; }
+  .venue-row .logo { height: ${roomy ? 9 : 7}mm; width: auto; max-width: 18mm; object-fit: contain; flex: 0 0 auto; }
+  .venue { font-size: ${roomy ? 11 : 9}pt; font-weight: 800; line-height: 1.15; }
+  .line { font-size: ${roomy ? 7.4 : 6.4}pt; line-height: 1.3; }
+  .line.strong { font-weight: 700; }
+  .line.soft { color: #64748b; }
+  .client.has-art .line.soft { color: #e2e8f0; }
+  .line.mono { font-family: ui-monospace, Menlo, monospace; }
+
+  /* Thermal roll */
+  .ticket.thermal { display: block; min-height: 0; padding: 3mm; border-radius: 2mm; text-align: center; }
+  .t-pass { font-size: 8pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #1d4ed8; }
+  .t-venue { font-size: 10pt; font-weight: 800; margin-top: 1mm; line-height: 1.2; }
+  .t-line { font-size: 7pt; margin-top: .8mm; }
+  .t-line.soft { color: #64748b; }
+  .t-qr { margin: 2.5mm 0 1mm; }
+  .t-qr img { width: 26mm; height: 26mm; display: block; margin: 0 auto; }
+  .t-qr .noqr { display: block; margin: 0 auto; width: 26mm; height: 26mm; border: 1px dashed #cbd5e1; border-radius: 1.5mm; font-size: 6pt; color: #94a3b8; }
+  .t-no { font-family: ui-monospace, Menlo, monospace; font-size: 8pt; font-weight: 700; }
+  .t-price { font-size: 10pt; font-weight: 800; margin-top: .8mm; }
+  .t-band { display: block; width: 100%; height: 12mm; object-fit: cover; border-radius: 1.5mm; margin-top: 2.5mm; }
+  .t-company { font-size: 6pt; font-weight: 600; color: #334155; margin-top: 2mm; border-top: 1px dashed #cbd5e1; padding-top: 1.5mm; }
+
   .terms { margin-top: 4mm; font-size: 6.5pt; color: #64748b; line-height: 1.4; }
-  @media screen { body { padding: 8mm; background: #f8fafc; } }
+  @media screen {
+    body { padding: 8mm; background: #f8fafc; }
+    .sheet { ${preview ? 'max-width: 1000px; margin: 0 auto;' : ''} }
+    .ticket { box-shadow: 0 8px 24px rgba(15, 23, 42, .10); }
+  }
 </style></head>
 <body>
   <div class="sheet">${cards || '<p>No tickets selected.</p>'}</div>
   ${terms ? `<div class="terms">${escapeHtml(terms)}</div>` : ''}
 </body></html>`;
+}
+
+/**
+ * Print call sites all receive the POS `context`; this mapper keeps the
+ * attraction artwork and the platform artwork consistent across them.
+ */
+export function printAttraction(context = {}) {
+  const attraction = context.attraction || {};
+  const settings = context.settings || {};
+  return {
+    ...attraction,
+    logoUrl: settings.ticketLogoUrl || attraction.logoUrl || '',
+    contact: settings.ticketContact || attraction.contact || '',
+    artworkUrl: settings.ticketArtworkUrl || attraction.artworkUrl || '',
+    artworkFit: settings.ticketArtworkFit || attraction.artworkFit || 'cover',
+  };
+}
+
+export function printCompany(context = {}) {
+  return context.company || {};
 }
 
 // ─── Receipt ─────────────────────────────────────────────────────────────────

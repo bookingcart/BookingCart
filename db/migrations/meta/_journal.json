@@ -57,6 +57,13 @@
       "when": 1797000000000,
       "tag": "0008_physical_ticketing",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1798000000000,
+      "tag": "0009_ticket_artwork",
+      "breakpoints": true
     }
   ]
 }

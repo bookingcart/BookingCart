@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatDate, formatDateTime, money, posGet, posPost } from '../../lib/ticketingClient.js';
 import { Badge, Button, EmptyState, ErrorNote, Field, Notice, Panel, StatusBadge, Th, Td, TableWrap, inputClass } from './TicketingShared.jsx';
 import {
-  LAYOUTS, PAPER_SIZES, PrintPreview, buildQrMap, buildTicketSheetHtml, downloadHtml, normalizeTicket, printHtml,
+  LAYOUTS, PAPER_SIZES, PrintPreview, buildQrMap, buildTicketSheetHtml, downloadHtml, normalizeTicket,
+  printAttraction, printCompany, printHtml,
 } from './PhysicalPrint.jsx';
 
 // Print a batch (or a single ticket). Printing writes an audit row and bumps a
@@ -53,7 +54,7 @@ export default function PhysicalPrintPanel({ attractionId, headers, context, ref
       : [...current, ticketNo]));
   };
 
-  const sheetHtml = useCallback(async () => {
+  const sheetHtml = useCallback(async (forPreview = false) => {
     const tickets = printable.map((ticket) => normalizeTicket({
       ...ticket,
       type: ticket.ticketTypeName || batch?.batch?.ticketTypeName,
@@ -64,11 +65,8 @@ export default function PhysicalPrintPanel({ attractionId, headers, context, ref
     const qrMap = await buildQrMap(tickets);
     return buildTicketSheetHtml({
       tickets,
-      attraction: {
-        ...(context?.attraction || {}),
-        logoUrl: context?.settings?.ticketLogoUrl || '',
-        contact: context?.settings?.ticketContact || '',
-      },
+      attraction: printAttraction(context),
+      company: printCompany(context),
       layout,
       paperSize,
       margin: Number(margin || 10),
@@ -76,6 +74,7 @@ export default function PhysicalPrintPanel({ attractionId, headers, context, ref
       qrMap,
       batchRef: batch?.batch?.batchRef || '',
       title: `Tickets ${batch?.batch?.batchRef || ''}`.trim(),
+      preview: forPreview,
     });
   }, [printable, batch, context, layout, paperSize, margin, currency]);
 
@@ -174,7 +173,7 @@ export default function PhysicalPrintPanel({ attractionId, headers, context, ref
           <Button variant="ghost" icon="ph-download-simple" onClick={download} disabled={!printable.length}>
             Download sheet
           </Button>
-          <Button variant="ghost" icon="ph-eye" onClick={async () => setPreview(await sheetHtml())} disabled={!printable.length}>
+          <Button variant="ghost" icon="ph-eye" onClick={async () => setPreview(await sheetHtml(true))} disabled={!printable.length}>
             Preview
           </Button>
         </div>

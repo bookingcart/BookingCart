@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { formatDate, money, posPost, todayISO } from '../../lib/ticketingClient.js';
 import { Badge, Button, EmptyState, ErrorNote, Field, Modal, Notice, Panel, StatCard, inputClass } from './TicketingShared.jsx';
-import { buildQrMap, buildReceiptHtml, buildTicketSheetHtml, normalizeTicket, printHtml } from './PhysicalPrint.jsx';
+import {
+  buildQrMap, buildReceiptHtml, buildTicketSheetHtml, normalizeTicket, printAttraction, printCompany, printHtml,
+} from './PhysicalPrint.jsx';
 
 // Counter sale: pick tickets, take payment, issue and print.
 //
@@ -183,10 +185,11 @@ export default function PosTerminalPanel({ attractionId, headers, context, refre
     const qrMap = await buildQrMap(list);
     const html = buildTicketSheetHtml({
       tickets: list,
-      attraction: context?.attraction || {},
+      attraction: printAttraction(context),
+      company: printCompany(context),
       layout: context?.settings?.printLayout || 'a4_4',
       paperSize: context?.settings?.paperSize || 'A4',
-      terms: context?.attraction?.terms || '',
+      terms: context?.settings?.ticketTerms || context?.attraction?.terms || '',
       qrMap,
       batchRef: result?.order?.booking_ref || '',
     });

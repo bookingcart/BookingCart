@@ -6,7 +6,9 @@ import {
   Badge, Button, DateRange, EmptyState, ErrorNote, Field, Modal, Notice, Panel, StatCard, StatusBadge,
   TableWrap, Td, Th, inputClass,
 } from './TicketingShared.jsx';
-import { buildQrMap, buildReceiptHtml, buildTicketSheetHtml, normalizeTicket, printHtml } from './PhysicalPrint.jsx';
+import {
+  buildQrMap, buildReceiptHtml, buildTicketSheetHtml, normalizeTicket, printAttraction, printCompany, printHtml,
+} from './PhysicalPrint.jsx';
 
 const METHODS = [
   { value: '', label: 'All methods' },
@@ -71,10 +73,11 @@ export default function PhysicalSalesHistoryPanel({ attractionId, headers, conte
     const qrMap = await buildQrMap(tickets);
     const html = buildTicketSheetHtml({
       tickets,
-      attraction: context?.attraction || {},
+      attraction: printAttraction(context),
+      company: printCompany(context),
       layout: context?.settings?.printLayout || 'a4_4',
       paperSize: context?.settings?.paperSize || 'A4',
-      terms: context?.attraction?.terms || '',
+      terms: context?.settings?.ticketTerms || context?.attraction?.terms || '',
       qrMap,
       batchRef: receipt.saleRef,
     });
