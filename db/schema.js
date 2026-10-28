@@ -813,12 +813,22 @@ const bcTicketOrders = pgTable(
     notes: text("notes").default("").notNull(),
     channel: text("channel").default("online").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
+    batchId: integer("batch_id").default(0).notNull(),
+    cashierEmail: text("cashier_email").default("").notNull(),
+    shiftId: integer("shift_id"),
+    amountReceived: numeric("amount_received", { precision: 12, scale: 2 }).default("0").notNull(),
+    changeGiven: numeric("change_given", { precision: 12, scale: 2 }).default("0").notNull(),
+    receiptNo: text("receipt_no").default("").notNull(),
+    idempotencyKey: text("idempotency_key").default("").notNull(),
+    paymentVerified: boolean("payment_verified").default(true).notNull(),
+    voidReason: text("void_reason").default("").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_ticket_orders_attraction").on(table.attractionId, table.visitDate),
     index("idx_ticket_orders_email").on(table.customerEmail),
+    index("idx_ticket_orders_channel").on(table.attractionId, table.channel, table.createdAt),
   ]
 );
 
@@ -844,8 +854,8 @@ const bcAttractionTickets = pgTable(
   "bc_attraction_tickets",
   {
     id: serial("id").primaryKey(),
-    orderId: integer("order_id").notNull(),
-    orderItemId: integer("order_item_id").notNull(),
+    orderId: integer("order_id"),
+    orderItemId: integer("order_item_id"),
     ticketTypeId: integer("ticket_type_id").notNull(),
     attractionId: integer("attraction_id").notNull(),
     bookingRef: text("booking_ref").notNull(),
@@ -859,12 +869,19 @@ const bcAttractionTickets = pgTable(
     admissionsTotal: integer("admissions_total").default(1).notNull(),
     admissionsUsed: integer("admissions_used").default(0).notNull(),
     status: text("status").default("valid").notNull(),
+    batchId: integer("batch_id").default(0).notNull(),
+    source: text("source").default("online").notNull(),
+    unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).default("0").notNull(),
+    currency: text("currency").default("USD").notNull(),
+    printedCount: integer("printed_count").default(0).notNull(),
+    lastPrintedAt: timestamp("last_printed_at", { withTimezone: true }),
     issuedAt: timestamp("issued_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("idx_attraction_tickets_order").on(table.orderId),
     index("idx_attraction_tickets_email").on(table.holderEmail),
+    index("idx_attraction_tickets_batch").on(table.batchId, table.status),
   ]
 );
 
@@ -878,6 +895,7 @@ const bcTicketStaff = pgTable(
     role: text("role").default("scanner").notNull(),
     status: text("status").default("active").notNull(),
     invitedBy: text("invited_by").default("").notNull(),
+    permissions: jsonb("permissions").default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index("idx_ticket_staff_email").on(table.email)]
@@ -894,6 +912,14 @@ const bcTicketSettings = pgTable("bc_ticket_settings", {
   autoConfirm: boolean("auto_confirm").default(true).notNull(),
   salesPaused: boolean("sales_paused").default(false).notNull(),
   terms: text("terms").default("").notNull(),
+  posEnabled: boolean("pos_enabled").default(true).notNull(),
+  ticketLogoUrl: text("ticket_logo_url").default("").notNull(),
+  ticketContact: text("ticket_contact").default("").notNull(),
+  ticketTerms: text("ticket_terms").default("").notNull(),
+  printLayout: text("print_layout").default("a4_4").notNull(),
+  paperSize: text("paper_size").default("A4").notNull(),
+  receiptHeader: text("receipt_header").default("").notNull(),
+  receiptFooter: text("receipt_footer").default("").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -912,6 +938,98 @@ const bcTicketAudit = pgTable(
   (table) => [index("idx_ticket_audit_attraction").on(table.attractionId)]
 );
 
+// ── Physical ticketing / point of sale ───────────────────────────────────────
+const bcTicketBatches = pgTable(
+  "bc_ticket_batches",
+  {
+    id: serial("id").primaryKey(),
+    batchRef: text("batch_ref").notNull().unique(),
+    attractionId: integer("attraction_id").notNull(),
+    ownerEmail: text("owner_email").default("").notNull(),
+    name: text("name").notNull(),
+    ticketTypeId: integer("ticket_type_id").notNull(),
+    ticketTypeName: text("ticket_type_name").default("").notNull(),
+    slotId: integer("slot_id").default(0).notNull(),
+    slotLabel: text("slot_label").default("").notNull(),
+    visitDate: date("visit_date").notNull(),
+    validTo: date("valid_to"),
+    quantity: integer("quantity").default(0).notNull(),
+    printedCount: integer("printed_count").default(0).notNull(),
+    unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).default("0").notNull(),
+    currency: text("currency").default("USD").notNull(),
+    admissions: integer("admissions").default(1).notNull(),
+    template: text("template").default("standard").notNull(),
+    status: text("status").default("open").notNull(),
+    notes: text("notes").default("").notNull(),
+    createdBy: text("created_by").default("").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_ticket_batches_attraction").on(table.attractionId, table.visitDate)]
+);
+
+const bcTicketPrints = pgTable(
+  "bc_ticket_prints",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    batchId: integer("batch_id").default(0).notNull(),
+    ticketId: integer("ticket_id"),
+    ticketNo: text("ticket_no").default("").notNull(),
+    kind: text("kind").default("print").notNull(),
+    layout: text("layout").default("a4_4").notNull(),
+    copies: integer("copies").default(1).notNull(),
+    actorEmail: text("actor_email").default("").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_ticket_prints_batch").on(table.batchId, table.createdAt)]
+);
+
+const bcCashShifts = pgTable(
+  "bc_cash_shifts",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    cashierEmail: text("cashier_email").notNull(),
+    cashierName: text("cashier_name").default("").notNull(),
+    currency: text("currency").default("USD").notNull(),
+    openingCash: numeric("opening_cash", { precision: 12, scale: 2 }).default("0").notNull(),
+    countedCash: numeric("counted_cash", { precision: 12, scale: 2 }).default("0").notNull(),
+    expectedCash: numeric("expected_cash", { precision: 12, scale: 2 }).default("0").notNull(),
+    cashSales: numeric("cash_sales", { precision: 12, scale: 2 }).default("0").notNull(),
+    mobileSales: numeric("mobile_sales", { precision: 12, scale: 2 }).default("0").notNull(),
+    cardSales: numeric("card_sales", { precision: 12, scale: 2 }).default("0").notNull(),
+    otherSales: numeric("other_sales", { precision: 12, scale: 2 }).default("0").notNull(),
+    refunds: numeric("refunds", { precision: 12, scale: 2 }).default("0").notNull(),
+    payouts: numeric("payouts", { precision: 12, scale: 2 }).default("0").notNull(),
+    difference: numeric("difference", { precision: 12, scale: 2 }).default("0").notNull(),
+    status: text("status").default("open").notNull(),
+    openNote: text("open_note").default("").notNull(),
+    closeNote: text("close_note").default("").notNull(),
+    closedBy: text("closed_by").default("").notNull(),
+    reviewedBy: text("reviewed_by").default("").notNull(),
+    reviewNote: text("review_note").default("").notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }).defaultNow().notNull(),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (table) => [index("idx_cash_shifts_attraction").on(table.attractionId, table.openedAt)]
+);
+
+const bcCashMovements = pgTable(
+  "bc_cash_movements",
+  {
+    id: serial("id").primaryKey(),
+    shiftId: integer("shift_id").notNull(),
+    attractionId: integer("attraction_id").notNull(),
+    kind: text("kind").default("payout").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).default("0").notNull(),
+    reason: text("reason").default("").notNull(),
+    actorEmail: text("actor_email").default("").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cash_movements_shift").on(table.shiftId, table.createdAt)]
+);
+
 module.exports = {
   baAccount,
   baSession,
@@ -923,6 +1041,8 @@ module.exports = {
   bcAttractionTickets,
   bcAviationRecords,
   bcBookings,
+  bcCashMovements,
+  bcCashShifts,
   bcEventBookings,
   bcEventOrganizerProfiles,
   bcEventProfiles,
@@ -942,10 +1062,12 @@ module.exports = {
   bcSearchCache,
   bcSupport,
   bcTicketAudit,
+  bcTicketBatches,
   bcTicketCalendar,
   bcTicketInventory,
   bcTicketOrderItems,
   bcTicketOrders,
+  bcTicketPrints,
   bcTicketPromos,
   bcTicketSettings,
   bcTicketSlots,

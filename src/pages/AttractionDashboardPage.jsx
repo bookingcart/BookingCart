@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import TicketValidationPanel from '../components/TicketValidationPanel.jsx';
 import TicketingWorkspace from '../components/ticketing/TicketingWorkspace.jsx';
+import PhysicalSalesWorkspace from '../components/ticketing/PhysicalSalesWorkspace.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -24,6 +25,7 @@ const MENU_ITEMS = [
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
   { id: 'create',        label: 'Create New',      icon: 'ph-plus-circle', route: '/list-your-event' },
   { id: 'ticketing',     label: 'Ticketing Management', icon: 'ph-ticket' },
+  { id: 'physical',      label: 'Physical Ticket Sales', icon: 'ph-cash-register' },
   { id: 'validate',      label: 'Ticket Validation', icon: 'ph-qr-code' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
   { id: 'wallet',        label: 'Wallet',          icon: 'ph-wallet' },
@@ -1365,6 +1367,7 @@ export default function AttractionDashboardPage() {
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'settings'      && <SettingsTab />}
         {activeTab === 'ticketing'     && <TicketingWorkspace headers={ticketingHeaders} />}
+{activeTab === 'physical'      && <PhysicalSalesWorkspace headers={ticketingHeaders} />}
         {activeTab === 'validate'      && <TicketValidationPanel operatorType="attraction" />}
       </main>
 

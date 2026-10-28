@@ -299,6 +299,8 @@ const OUTCOME_MESSAGES = {
   invalid: 'This ticket could not be verified',
   not_yet_valid: 'This ticket is not valid yet',
   unpaid: 'Payment for this booking has not been confirmed',
+  not_issued: 'This ticket has not been sold — printing alone does not issue admission',
+  voided: 'This ticket was voided and cannot be used',
 };
 
 function entryWindow(visitDate, startTime, endTime) {
@@ -386,7 +388,7 @@ async function checkTicket({ attraction, email, staffName, rawTicket, admissions
     `SELECT t.*, o.status AS order_status, o.payment_status AS order_payment_status,
             o.customer_name, o.slot_id, o.attraction_name
        FROM bc_attraction_tickets t
-       JOIN bc_ticket_orders o ON o.id = t.order_id
+       LEFT JOIN bc_ticket_orders o ON o.id = t.order_id
       WHERE UPPER(t.ticket_no) = $1
       LIMIT 1`,
     [parsed.ticketNo]
@@ -434,6 +436,12 @@ async function checkTicket({ attraction, email, staffName, rawTicket, admissions
   if (Number(ticket.attraction_id) !== Number(attraction.id)) {
     return reject('wrong_attraction', OUTCOME_MESSAGES.wrong_attraction);
   }
+  // Voided and expired stock is refused by name, sold or not, so the gate sees
+  // the real reason instead of a generic "not issued".
+  if (ticket.status === 'void') return reject('voided', OUTCOME_MESSAGES.voided);
+  if (ticket.status === 'expired') return reject('expired', OUTCOME_MESSAGES.expired);
+  // Printed batch stock is not admission until a sale claims it.
+  if (!ticket.order_id) return reject('not_issued', OUTCOME_MESSAGES.not_issued);
   if (ticket.status === 'cancelled') return reject('cancelled', OUTCOME_MESSAGES.cancelled);
   if (ticket.status === 'refunded') return reject('refunded', OUTCOME_MESSAGES.refunded);
   if (ticket.order_status === 'cancelled') return reject('cancelled', OUTCOME_MESSAGES.cancelled);

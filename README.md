@@ -187,6 +187,50 @@ The rehearsal talks to the configured database, creates a throwaway attraction (
 
 Two managed-Postgres quirks are worth knowing when editing ticketing SQL: `date` columns come back as JS `Date` objects (always render them through `T.isoDate`), and the Nile proxy turns a bound empty-string parameter into `NULL`, so optional text is written as `COALESCE($n, '')` against `NOT NULL DEFAULT ''` columns.
 
+## Physical ticketing and point of sale
+
+Attraction owners and their ticket-office staff also run the gate: **Physical Ticket Sales** in `/attraction-dashboard/physical` (Point of Sale, Create Physical Tickets, Print Ticket Batches, Physical Ticket Inventory, Sales History, Cashier Management, Cash Reconciliation, Physical Ticket Reports). Deep links work per section, e.g. `/attraction-dashboard/physical?section=pos`.
+
+### Layers
+
+| Layer | File |
+| --- | --- |
+| Domain (batches, allocation, POS sales, printing, shifts, reports) | [lib/physical-ticketing.js](lib/physical-ticketing.js) |
+| Ticket-office API | [api-routes/attraction-pos.js](api-routes/attraction-pos.js) |
+| Console UI + print engine | [src/components/ticketing/](src/components/ticketing/) (`PhysicalSalesWorkspace`, `PosTerminalPanel`, `PhysicalPrint`) |
+| Schema | [db/migrations/0008_physical_ticketing.sql](db/migrations/0008_physical_ticketing.sql) |
+
+Routes: `POST /api/attraction-pos` (`action`-based, CORS + rate limited). Validation still goes through `/api/attraction-ticket-sales` — there is no second scanner.
+
+### One inventory, two channels
+
+There is no separate physical stock. A physical ticket is an ordinary `bc_attraction_tickets` row with `source = 'physical'` and a nullable `order_id`: it is `available` while it sits printed in the drawer, and becomes `valid` only when a sale claims it. A counter sale is an ordinary `bc_ticket_orders` row with `channel = 'pos'`.
+
+That is what keeps the two channels honest:
+
+- **Same capacity.** Physical and online both go through `reserveInventory` / `remainingFor`, so a type with capacity 200 shows the same 50 left whether the question comes from the POS screen or the public page.
+- **Same price.** The POS quotes with `computeQuote`, so a walk-in pays exactly what the website charges, taxes and service fee included. The fee is owner-configurable (`service_fee_percent`); set it to `0` if the gate should not charge it.
+- **Printing is not selling.** `recordPrint` only writes `bc_ticket_prints`, bumps `printed_count` and audits; it never touches stock, orders or payments. An unsold printed ticket is refused at the door with `not_issued`.
+- **Reprinting adds nothing.** A reprint re-renders the same ticket number and the same signed QR, is flagged `reprint` in `bc_ticket_prints`, and grants no extra admission.
+
+### Rules that matter
+
+- **No double sale.** Every counter sale carries an `idempotency_key` (partial unique index on `(attraction_id, idempotency_key)`), and the whole sale runs in one transaction. A double-click or a retry after a dropped connection returns the original order with `duplicate: true`.
+- **Payment before admission.** Card and mobile-money sales without a verified reference are stored as `pending_payment` and expire after 30 minutes; their tickets validate as `unpaid` until `confirm-payment`. Cash requires `amountReceived >= total` and stores the change.
+- **Batches archive, they do not vanish.** `deleteBatch` refuses with `409` once anything has been sold or used — archive it instead. Voiding is per ticket, needs a reason, and is audited.
+- **Shift cash.** `Expected closing = opening float + gross cash received − cash refunds − authorized payouts`. "Gross" matters: a refunded cash sale still went into the drawer and is subtracted on the refund line, not removed from the intake. Card and mobile money never appear as cash. A difference of a cent or more requires a note, and closing another cashier's shift needs the manager role.
+- **Permissions.** `bc_ticket_staff.permissions` holds the per-cashier map (`sell`, `print`, `reprint`, `refund`, `void`, `shift`, `payout`, `reports`, `viewAllSales`). Owners and managers hold all of them; a plain cashier defaults to sell/print/reprint/shift only. Refunds, voids and manual price changes demand a reason and land in `bc_ticket_audit`.
+- **Print sheets.** A4 (1/4/8 per page) and 80 mm thermal, rendered into a hidden iframe; "Save as PDF" uses the browser print dialog. QR payloads are the same signed `bct1.<ticket_no>.<HMAC>` tokens as online tickets, so they carry no visitor or payment data.
+
+### Local verification
+
+```bash
+npm run db:migrate:deploy      # applies 0008_physical_ticketing
+node scratch/test-pos-e2e.js
+```
+
+The rehearsal creates a throwaway attraction with capacity 6 and walks the acceptance list: batch creation leaves inventory untouched, printing/reprinting records no sale, the oversell guard is shared with an online purchase, the idempotency replay returns the original order, pending payments are refused at the door, duplicate scans are rejected, refunds return capacity, shift reconciliation catches a 2.00 shortfall, and a batch with sold tickets refuses deletion. It cleans up every row it created.
+
 ## Maps
 
 Every Leaflet map (stays, explore, flight tracker, attractions) renders [BasemapLayer](src/components/BasemapLayer.jsx), which draws tiles from the free, keyless providers registered in [src/lib/mapTiles.js](src/lib/mapTiles.js): OpenStreetMap, Esri World Street Map / Light Gray / Dark Gray / World Imagery, and OpenTopoMap. No map API key is required.

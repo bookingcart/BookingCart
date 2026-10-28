@@ -44,6 +44,41 @@ export function salesPost(action, payload, headers) {
   return request('/api/attraction-ticket-sales', { method: 'POST', headers, body: { action, ...payload } });
 }
 
+// Physical ticket office (batches, printing, POS, shifts, reconciliation).
+export function posGet(action, query, headers) {
+  return request('/api/attraction-pos', { headers, query: { action, ...query } });
+}
+
+export function posPost(action, payload, headers) {
+  return request('/api/attraction-pos', { method: 'POST', headers, body: { action, ...payload } });
+}
+
+/** CSV export needs the raw blob, so it cannot reuse `request`. */
+export async function downloadPosSales({ attractionId, from, to, headers, filters = {} }) {
+  const params = new URLSearchParams({
+    action: 'export',
+    attractionId: String(attractionId),
+    from,
+    to,
+    ...filters,
+  });
+  const response = await fetch(`/api/attraction-pos?${params.toString()}`, { headers });
+  if (!response.ok) {
+    let message = 'Export failed';
+    try { message = (await response.json()).error || message; } catch { /* keep default */ }
+    throw new Error(message);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `physical-sales-${from}-to-${to}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 export function checkoutGet(action, query) {
   return request('/api/attraction-ticket-checkout', { query: { action, ...query } });
 }

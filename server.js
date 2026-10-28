@@ -63,6 +63,7 @@ const attractionProfilesHandler = require('./api-routes/attraction-profiles');
 const ticketValidationHandler = require('./api-routes/ticket-validation');
 const attractionTicketingHandler = require('./api-routes/attraction-ticketing');
 const attractionTicketSalesHandler = require('./api-routes/attraction-ticket-sales');
+const attractionPosHandler = require('./api-routes/attraction-pos');
 const attractionTicketCheckoutHandler = require('./api-routes/attraction-ticket-checkout');
 const cronHandler = require('./api-routes/cron');
 
@@ -234,6 +235,9 @@ app.post('/api/attraction-profiles', apiLimiter, run(attractionProfilesHandler))
 app.all('/api/attraction-ticketing', apiLimiter, run(attractionTicketingHandler));
 app.all('/api/attraction-ticket-sales', apiLimiter, run(attractionTicketSalesHandler));
 app.all('/api/attraction-ticket-checkout', apiLimiter, run(attractionTicketCheckoutHandler));
+
+// Attraction ticket office — physical batches, printing, POS, shifts, reconciliation
+app.all('/api/attraction-pos', apiLimiter, run(attractionPosHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>
