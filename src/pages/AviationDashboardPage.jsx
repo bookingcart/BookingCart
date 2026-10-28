@@ -7,6 +7,16 @@ import TicketValidationPanel from "../components/TicketValidationPanel.jsx";
 
 const TABS = ["overview", "profile", "fleet", "charters", "operations", "wallet", "validate"];
 
+const TAB_ICONS = {
+  overview: "ph-squares-four",
+  profile: "ph-buildings",
+  fleet: "ph-airplane-tilt",
+  charters: "ph-paper-plane-tilt",
+  operations: "ph-clipboard-text",
+  wallet: "ph-wallet",
+  validate: "ph-qr-code",
+};
+
 const EMPTY_AIRCRAFT = {
   name: "", category: "light_jet", manufacturer: "", model: "", year: 2020, registration: "",
   baseAirport: "EBB", passengers: 6, crew: 2, rangeNm: 1500, cruiseSpeedKt: 400, maxAltitudeFt: 41000,
@@ -188,64 +198,122 @@ export default function AviationDashboardPage() {
   }
 
   const analytics = portal.analytics || {};
+  const fleetCount = portal.fleet?.length || 0;
+  const pendingCharters = (portal.charters || []).filter((item) => item.status === "pending").length;
+  const operatorStatus = String(portal.operator.status || "pending").toLowerCase();
+  const verified = ["verified", "approved", "active"].includes(operatorStatus);
+  const statusTone = verified
+    ? "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30"
+    : "bg-amber-400/15 text-amber-200 ring-amber-300/30";
+  const approvedFleet = (portal.fleet || []).filter((item) => item.status === "approved").length;
+  const docsOnFile = Boolean(profileForm.aoc && profileForm.insurance);
+  const heroFacts = [
+    { icon: "ph-wallet", label: "Payouts", value: stripeConnected ? "Connected" : "Not set up", tone: stripeConnected ? "text-emerald-300" : "text-amber-300" },
+    { icon: "ph-airplane-tilt", label: "Fleet live", value: `${approvedFleet} of ${fleetCount}`, tone: approvedFleet ? "text-white" : "text-slate-400" },
+    // Only claim compliance here when it is true — the amber banner covers the missing-docs case.
+    ...(docsOnFile
+      ? [{ icon: "ph-shield-check", label: "Compliance", value: "AOC on file", tone: "text-emerald-300" }]
+      : []),
+  ];
 
   return (
     <AviationLayout>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        {/* Header */}
-        <div className="relative mb-8 rounded-[2rem] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-8 sm:p-10 shadow-2xl shadow-slate-900/20 text-white dark:from-slate-950 dark:via-slate-900 dark:to-black">
-          {/* subtle pattern overlay */}
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent"></div>
-          <div className="relative flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-4 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-300 border border-emerald-500/30 mb-4 backdrop-blur-sm shadow-sm">
-                <i className="ph ph-shield-check text-sm" />
-                {portal.operator.status}
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-black tracking-tight">{portal.operator.companyName}</h1>
-              <p className="text-slate-300 mt-3 text-sm flex items-center gap-3 font-medium">
-                <span className="flex items-center gap-1.5"><i className="ph ph-map-pin text-emerald-400 text-lg"></i> Base: {portal.operator.baseAirport}</span>
-                <span className="text-slate-600">|</span> 
-                <span className="flex items-center gap-1.5"><i className="ph ph-airplane text-emerald-400 text-lg"></i> {portal.fleet?.length || 0} aircraft</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Notifications bell */}
-              <a
-                href="/notifications"
-                className="relative inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-white/10 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all backdrop-blur-md shadow-lg hover:scale-105 active:scale-95"
-                title="View aviation notifications"
-              >
-                <i className="ph ph-bell text-xl text-white" />
-                {unreadNotifs > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg border-2 border-slate-900 animate-pulse">
-                    {unreadNotifs > 9 ? "9+" : unreadNotifs}
+        {/* Operator hero */}
+        <section className="relative mb-6 overflow-hidden rounded-[28px] bg-slate-950 text-white shadow-xl shadow-slate-900/20 ring-1 ring-white/10">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <div className="absolute -left-24 -top-28 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl" />
+            <div className="absolute -bottom-32 right-16 h-72 w-72 rounded-full bg-sky-500/10 blur-3xl" />
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:44px_44px] [mask-image:radial-gradient(ellipse_65%_75%_at_78%_18%,black,transparent)]" />
+            <i className="ph-fill ph-airplane-tilt absolute -right-10 top-1/2 -translate-y-1/2 -rotate-12 text-[250px] leading-none text-white/[0.06]" />
+          </div>
+
+          <div className="relative flex flex-wrap items-start justify-between gap-6 p-7 sm:p-9">
+            <div className="min-w-0">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ring-1 ring-inset ${statusTone}`}>
+                <i className={`ph ${verified ? "ph-seal-check" : "ph-hourglass-medium"} text-xs`} />
+                {operatorStatus.replaceAll("_", " ")}
+              </span>
+              <h1 className="mt-4 truncate text-[30px] font-black leading-tight tracking-tight sm:text-[38px]">{portal.operator.companyName}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-[13px] font-semibold text-slate-300">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 ring-1 ring-inset ring-white/10">
+                  <i className="ph ph-map-pin text-emerald-300" /> Base {portal.operator.baseAirport || "—"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 ring-1 ring-inset ring-white/10">
+                  <i className="ph ph-airplane-tilt text-emerald-300" /> {fleetCount} aircraft
+                </span>
+                {pendingCharters > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1.5 text-amber-200 ring-1 ring-inset ring-amber-300/25">
+                    <i className="ph ph-paper-plane-tilt" /> {pendingCharters} pending
                   </span>
                 )}
-              </a>
+              </div>
+            </div>
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+              <div className="flex items-center gap-2.5 self-end">
+                <a
+                  href="/notifications"
+                  title="View aviation notifications"
+                  aria-label={unreadNotifs ? `Notifications (${unreadNotifs} unread)` : "Notifications"}
+                  className="relative grid h-11 w-11 place-items-center rounded-2xl bg-white/[0.08] ring-1 ring-inset ring-white/15 transition-colors hover:bg-white/[0.16] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                >
+                  <i className="ph ph-bell text-lg" />
+                  {unreadNotifs > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-black ring-2 ring-slate-950">
+                      {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                    </span>
+                  )}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setTab("fleet")}
+                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-black text-emerald-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                >
+                  <i className="ph ph-plus-circle text-base" /> Add aircraft
+                </button>
+              </div>
+
+              <div className="hidden w-full rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-inset ring-white/10 backdrop-blur-sm sm:block sm:w-64">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">At a glance</p>
+                <ul className="mt-2.5 space-y-2">
+                  {heroFacts.map(({ icon, label, value, tone }) => (
+                    <li key={label} className="flex items-center justify-between gap-3 text-[12px]">
+                      <span className="inline-flex items-center gap-2 font-semibold text-slate-400">
+                        <i className={`ph ${icon} text-sm`} /> {label}
+                      </span>
+                      <span className={`font-black ${tone}`}>{value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Tabs */}
-        <div className="flex gap-3 overflow-x-auto pb-6 mb-2 scrollbar-hide">
-          {TABS.map((item) => (
-            <button
-              key={item}
-              onClick={() => setTab(item)}
-              className={`rounded-2xl px-6 py-3 text-sm font-black capitalize transition-all whitespace-nowrap shadow-sm border hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 ${tab === item ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900" : "bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:shadow-md dark:bg-slate-900 dark:border-slate-700 dark:hover:text-white dark:hover:border-slate-600"}`}
-            >
-              {item === 'overview' && <i className="ph ph-squares-four text-lg" />}
-              {item === 'profile' && <i className="ph ph-building text-lg" />}
-              {item === 'fleet' && <i className="ph ph-airplane-tilt text-lg" />}
-              {item === 'charters' && <i className="ph ph-paper-plane-tilt text-lg" />}
-              {item === 'operations' && <i className="ph ph-clipboard-text text-lg" />}
-              {item === 'wallet' && <i className="ph ph-wallet text-lg" />}
-              {item === 'validate' && <i className="ph ph-qr-code text-lg" />}
-              {item}
-            </button>
-          ))}
-        </div>
+        {/* Section tabs */}
+        <nav aria-label="Operator sections" className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-sm scrollbar-hide max-md:[mask-image:linear-gradient(to_right,black_86%,transparent)] dark:border-slate-800 dark:bg-slate-900">
+          {TABS.map((item) => {
+            const active = tab === item;
+            const badge = item === "charters" ? pendingCharters : 0;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setTab(item)}
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-bold capitalize transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:px-4 ${active ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"}`}
+              >
+                <i className={`ph ${TAB_ICONS[item]} text-base`} />
+                {item}
+                {badge > 0 && (
+                  <span className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] font-black ${active ? "bg-white/20 text-white dark:bg-slate-900/10 dark:text-slate-900" : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"}`}>
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
         {notice && <div className="mb-4 rounded-2xl bg-emerald-50 border border-emerald-200 p-3 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-300">{notice}</div>}
         {error && <div className="mb-4 rounded-2xl bg-rose-50 border border-rose-200 p-3 text-sm font-semibold text-rose-700">{error}</div>}
@@ -254,90 +322,172 @@ export default function AviationDashboardPage() {
         {tab === "overview" && (
           <div className="space-y-6">
             {(!profileForm.aoc || !profileForm.insurance) && (
-              <div className="rounded-3xl bg-amber-50 border border-amber-200 p-5 dark:bg-amber-950/20 dark:border-amber-800/60 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-amber-100 p-2.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 shrink-0">
-                    <i className="ph ph-warning-circle text-2xl" />
-                  </div>
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-white p-5 dark:border-amber-800/50 dark:from-amber-950/25 dark:to-slate-900">
+                <div className="flex items-start gap-3.5">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:ring-amber-800/60">
+                    <i className="ph ph-warning-circle text-xl" />
+                  </span>
                   <div>
-                    <h3 className="font-black text-amber-900 dark:text-amber-200 text-sm">Action Required: Submit AOC &amp; Insurance Info</h3>
-                    <p className="text-xs text-amber-700 dark:text-amber-300/80 mt-0.5">
-                      Please submit your Air Operator Certificate (AOC) and Insurance coverage details through your profile dashboard so your account file is complete.
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">Action required</p>
+                    <h3 className="mt-1 font-black text-slate-900 dark:text-amber-100">Submit your AOC &amp; insurance details</h3>
+                    <p className="mt-1 max-w-xl text-[12.5px] leading-relaxed text-amber-800/80 dark:text-amber-200/70">
+                      Charter requests stay blocked until your Air Operator Certificate and insurance coverage are on file.
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setTab("profile")}
-                  className="rounded-full bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800 transition-colors shrink-0"
+                  className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-amber-600 px-4 text-[13px] font-black text-white transition-colors hover:bg-amber-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
                 >
-                  Submit Missing Info →
+                  Complete profile <i className="ph ph-arrow-right" />
                 </button>
               </div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
               {[
-                { label: "Charter revenue", value: money(analytics.totalCharterRevenue), icon: "ph-money", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" },
-                { label: "Flights booked", value: analytics.flightsBooked || 0, icon: "ph-airplane-tilt", color: "text-sky-600 bg-sky-50 dark:bg-sky-950/40" },
-                { label: "Average booking", value: money(analytics.averageBookingValue), icon: "ph-chart-line-up", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
-                { label: "Satisfaction", value: analytics.customerSatisfaction || "—", icon: "ph-star", color: "text-purple-600 bg-purple-50 dark:bg-purple-950/40" },
-              ].map(({ label, value, icon, color }) => (
-                <div key={label} className="rounded-3xl bg-white p-5 border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
-                  <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${color} mb-3`}>
-                    <i className={`ph ${icon} text-lg`} />
+                { label: "Charter revenue", value: money(analytics.totalCharterRevenue), hint: "All time", icon: "ph-currency-circle-dollar", tile: "bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900/60", glow: "bg-emerald-500/10" },
+                { label: "Flights booked", value: analytics.flightsBooked || 0, hint: "Confirmed", icon: "ph-airplane-tilt", tile: "bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900/60", glow: "bg-sky-500/10" },
+                { label: "Average booking", value: money(analytics.averageBookingValue), hint: "Per flight", icon: "ph-chart-line-up", tile: "bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60", glow: "bg-amber-500/10" },
+                { label: "Satisfaction", value: analytics.customerSatisfaction || "—", hint: "Guest rating", icon: "ph-star", tile: "bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900/60", glow: "bg-violet-500/10" },
+              ].map(({ label, value, hint, icon, tile, glow }) => (
+                <article key={label} className="group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+                  <span aria-hidden="true" className={`pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full opacity-70 blur-2xl transition-opacity duration-300 group-hover:opacity-100 ${glow}`} />
+                  <div className="relative flex items-start justify-between gap-2">
+                    <span className={`grid h-9 w-9 place-items-center rounded-xl ring-1 ring-inset sm:h-10 sm:w-10 ${tile}`}>
+                      <i className={`ph ${icon} text-base sm:text-lg`} />
+                    </span>
+                    <span className="hidden pt-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:block dark:text-slate-400">{hint}</span>
                   </div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
-                  <p className="mt-1 text-3xl font-black">{value}</p>
-                </div>
+                  <p className="relative mt-3 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500 sm:mt-4 sm:text-[12px] dark:text-slate-400">{label}</p>
+                  <p className={`relative mt-1 text-[20px] font-black leading-none tracking-tight tabular-nums sm:text-[28px] ${value === "—" ? "text-slate-300 dark:text-slate-600" : "text-slate-900 dark:text-white"}`}>{value}</p>
+                </article>
               ))}
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-3xl bg-white border border-slate-100 p-5 dark:bg-slate-900 dark:border-slate-800">
-                <h2 className="font-black mb-3">Popular routes</h2>
-                {(analytics.popularRoutes || []).length === 0 ? (
-                  <p className="text-sm text-slate-500">No confirmed flights yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(analytics.popularRoutes || []).map((route) => (
-                      <div key={route.route} className="flex items-center justify-between text-sm">
-                        <span className="font-semibold">{route.route}</span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold dark:bg-slate-800">{route.count} flights</span>
-                      </div>
-                    ))}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <header className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="flex items-center gap-2 font-black text-slate-900 dark:text-white">
+                      <i className="ph ph-path text-emerald-600" /> Popular routes
+                    </h2>
+                    <p className="mt-0.5 text-xs font-medium text-slate-500">Confirmed charter legs across your fleet</p>
                   </div>
-                )}
-              </div>
-              <div className="rounded-3xl bg-white border border-slate-100 p-5 dark:bg-slate-900 dark:border-slate-800">
-                <h2 className="font-black mb-3">Aircraft utilization</h2>
-                {(analytics.aircraftUtilization || []).length === 0 ? (
-                  <p className="text-sm text-slate-500">No utilization data yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {(analytics.aircraftUtilization || []).slice(0, 4).map((item) => (
-                      <div key={item.id}>
-                        <div className="flex items-center justify-between text-xs font-bold mb-1">
-                          <span>{item.name}</span>
-                          <span>{item.utilization}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                          <div className="h-1.5 rounded-full bg-emerald-500 transition-all" style={{ width: `${item.utilization}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  {(analytics.popularRoutes || []).length > 0 && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      {(analytics.popularRoutes || []).length} routes
+                    </span>
+                  )}
+                </header>
+                <div className="mt-4">
+                  {(analytics.popularRoutes || []).length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-9 text-center dark:border-slate-700 dark:bg-slate-800/30">
+                      <i className="ph ph-path text-2xl text-slate-300 dark:text-slate-600" />
+                      <p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">No confirmed routes yet</p>
+                      <p className="mt-1 text-xs text-slate-400">Routes show up after your first charter is booked.</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {(analytics.popularRoutes || []).map((route) => {
+                        const [from, to] = String(route.route).split(/→|->|–|-/).map((part) => part.trim());
+                        return (
+                          <li key={route.route} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 dark:bg-slate-800/50">
+                            <span className="grid h-8 w-11 place-items-center rounded-lg bg-white text-[11px] font-black tracking-wide text-slate-900 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-white dark:ring-slate-700">{from || "—"}</span>
+                            <span className="relative flex h-6 flex-1 items-center">
+                              <span className="h-px w-full bg-[repeating-linear-gradient(90deg,#cbd5e1_0_6px,transparent_6px_12px)] dark:bg-[repeating-linear-gradient(90deg,#334155_0_6px,transparent_6px_12px)]" />
+                              <span className="absolute left-1/2 top-1/2 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-emerald-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:ring-slate-700">
+                                <i className="ph ph-airplane-tilt text-[11px]" />
+                              </span>
+                            </span>
+                            <span className="grid h-8 w-11 place-items-center rounded-lg bg-white text-[11px] font-black tracking-wide text-slate-900 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-white dark:ring-slate-700">{to || "—"}</span>
+                            <span className="w-12 text-right text-xs font-black tabular-nums text-slate-500 dark:text-slate-400">{route.count}×</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <header>
+                  <h2 className="flex items-center gap-2 font-black text-slate-900 dark:text-white">
+                    <i className="ph ph-gauge text-emerald-600" /> Aircraft utilization
+                  </h2>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">Share of available hours actually flown</p>
+                </header>
+                <div className="mt-4">
+                  {(analytics.aircraftUtilization || []).length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-9 text-center dark:border-slate-700 dark:bg-slate-800/30">
+                      <i className="ph ph-gauge text-2xl text-slate-300 dark:text-slate-600" />
+                      <p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">No utilization data yet</p>
+                      <p className="mt-1 text-xs text-slate-400">Add an aircraft and fly your first charter to see it here.</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-3.5">
+                      {(analytics.aircraftUtilization || []).slice(0, 4).map((item) => {
+                        const pct = Math.max(2, Math.min(100, Number(item.utilization) || 0));
+                        return (
+                          <li key={item.id}>
+                            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                              <span className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{item.name}</span>
+                              <span className="text-xs font-black tabular-nums text-slate-900 dark:text-white">{item.utilization}%</span>
+                            </div>
+                            <div
+                              className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                              role="progressbar"
+                              aria-label={`${item.name} utilization`}
+                              aria-valuenow={Number(item.utilization) || 0}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            >
+                              <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </section>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <a href="/aviation/dashboard#fleet" onClick={() => setTab("fleet")} className="rounded-3xl border-2 border-dashed border-slate-200 p-6 hover:border-emerald-300 hover:bg-emerald-50 transition-all dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/20 text-center">
-                <i className="ph ph-airplane text-3xl text-slate-300 dark:text-slate-600" />
-                <p className="mt-2 font-black text-sm">Add aircraft to your fleet</p>
-                <p className="text-xs text-slate-500 mt-1">Upload details and submit for approval</p>
-              </a>
-              <a href="/aviation/dashboard#charters" onClick={() => setTab("charters")} className="rounded-3xl border-2 border-dashed border-slate-200 p-6 hover:border-emerald-300 hover:bg-emerald-50 transition-all dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/20 text-center">
-                <i className="ph ph-clipboard-text text-3xl text-slate-300 dark:text-slate-600" />
-                <p className="mt-2 font-black text-sm">{portal.charters?.length || 0} charter requests</p>
-                <p className="text-xs text-slate-500 mt-1">Review and quote pending requests</p>
-              </a>
+              {[
+                {
+                  icon: "ph-airplane-tilt",
+                  title: fleetCount ? "Grow your fleet" : "Add your first aircraft",
+                  body: fleetCount ? `${fleetCount} aircraft listed — add another to cover more routes.` : "Upload specs, cabin photos and safety documents, then submit for approval.",
+                  cta: fleetCount ? "Manage fleet" : "Add aircraft",
+                  onClick: () => setTab("fleet"),
+                  tile: "bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900/60",
+                },
+                {
+                  icon: "ph-paper-plane-tilt",
+                  title: pendingCharters ? `${pendingCharters} charter request${pendingCharters === 1 ? "" : "s"} waiting` : "No charter requests yet",
+                  body: pendingCharters ? "Reply with a quote before the guest books elsewhere." : "Requests land here as soon as a guest asks for one of your routes.",
+                  cta: "Open charters",
+                  onClick: () => setTab("charters"),
+                  tile: "bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900/60",
+                },
+              ].map(({ icon, title, body, cta, onClick, tile }) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={onClick}
+                  className="group flex items-center gap-4 rounded-3xl border border-slate-200/80 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-900"
+                >
+                  <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ring-1 ring-inset ${tile}`}>
+                    <i className={`ph ${icon} text-xl`} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-black text-slate-900 dark:text-white">{title}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{body}</span>
+                    <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-400">
+                      {cta} <i className="ph ph-arrow-right transition-transform duration-200 group-hover:translate-x-0.5" />
+                    </span>
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         )}
