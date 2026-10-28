@@ -6,6 +6,7 @@ import PosTerminalPanel from './PosTerminalPanel.jsx';
 import PhysicalBatchCreatePanel from './PhysicalBatchCreatePanel.jsx';
 import PhysicalPrintPanel from './PhysicalPrintPanel.jsx';
 import PhysicalInventoryPanel from './PhysicalInventoryPanel.jsx';
+import TicketDesignPanel from './TicketDesignPanel.jsx';
 import PhysicalSalesHistoryPanel from './PhysicalSalesHistoryPanel.jsx';
 import CashierManagementPanel from './CashierManagementPanel.jsx';
 import CashReconciliationPanel from './CashReconciliationPanel.jsx';
@@ -15,6 +16,7 @@ const SECTIONS = [
   { id: 'pos', label: 'Point of Sale', icon: 'ph-cash-register', permission: 'sell' },
   { id: 'create', label: 'Create Physical Tickets', icon: 'ph-ticket', permission: 'print' },
   { id: 'print', label: 'Print Ticket Batches', icon: 'ph-printer', permission: 'print' },
+  { id: 'design', label: 'Ticket Design', icon: 'ph-palette', permission: 'print' },
   { id: 'inventory', label: 'Physical Ticket Inventory', icon: 'ph-stack', permission: 'print' },
   { id: 'history', label: 'Sales History', icon: 'ph-receipt', permission: 'sell' },
   { id: 'cashiers', label: 'Cashier Management', icon: 'ph-users-three', roleOnly: 'owner' },
@@ -223,6 +225,7 @@ export default function PhysicalSalesWorkspace({ headers, initialSection = '' })
           {section === 'pos' && <PosTerminalPanel {...panelProps} />}
           {section === 'create' && <PhysicalBatchCreatePanel {...panelProps} />}
           {section === 'print' && <PhysicalPrintPanel {...panelProps} />}
+          {section === 'design' && <TicketDesignPanel {...panelProps} />}
           {section === 'inventory' && <PhysicalInventoryPanel {...panelProps} />}
           {section === 'history' && <PhysicalSalesHistoryPanel {...panelProps} />}
           {section === 'cashiers' && <CashierManagementPanel {...panelProps} />}

@@ -9,7 +9,7 @@ import {
 // Print a batch (or a single ticket). Printing writes an audit row and bumps a
 // print counter, nothing else — stock, payment and admission state are untouched,
 // so a reprint can never create extra admission rights.
-export default function PhysicalPrintPanel({ attractionId, headers, context, refresh }) {
+export default function PhysicalPrintPanel({ attractionId, headers, context, refresh, onNavigate }) {
   const currency = context?.attraction?.currency || 'USD';
   const batches = context?.batches || [];
 
@@ -179,6 +179,12 @@ export default function PhysicalPrintPanel({ attractionId, headers, context, ref
         </div>
         <p className="mt-2 text-[11px] font-semibold text-slate-400">
           "Save as PDF" opens the browser print dialog — choose “Save as PDF” as the destination for a downloadable ticket sheet.
+        </p>
+        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+          The right-hand panel of every ticket is your own artwork.{' '}
+          <button type="button" onClick={() => onNavigate?.('design')} className="font-bold text-green-600 hover:underline">
+            Change it in Ticket Design
+          </button>.
         </p>
 
         <ErrorNote message={error} />

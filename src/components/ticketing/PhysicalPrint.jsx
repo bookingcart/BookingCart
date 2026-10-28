@@ -245,6 +245,7 @@ export function buildTicketSheetHtml({
   /* 1 — admission stub */
   .stub { width: ${roomy ? 30 : 28}%; flex: 0 0 auto; padding: 3mm 2.5mm; background: #e3edff; color: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; text-align: center; border-right: 1px dashed #94a8c8; }
   .stub .pass { font-size: ${roomy ? 9 : 6}pt; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #1d4ed8; }
+  .stub .qr { background: #fff; padding: 1mm; border-radius: 1mm; line-height: 0; }
   .stub .qr img { width: ${qrSize}mm; height: ${qrSize}mm; display: block; }
   .stub .noqr { display: flex; align-items: center; justify-content: center; width: ${qrSize}mm; height: ${qrSize}mm; border: 1px dashed #94a8c8; border-radius: 1.5mm; font-size: 6pt; color: #7d8ca3; }
   .stub .cap { font-size: 5.4pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #5b6b82; }
