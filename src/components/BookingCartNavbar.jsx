@@ -105,7 +105,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             </a>
 
             {/* Context CTAs */}
-            {user?.role !== 'guide' && activeNav === 'guides' && (
+            {activeNav === 'guides' && (
               <a href="/become-a-guide" className="flex h-9 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-amber-500/25">
                 <i className="ph ph-compass text-sm" /><span>Become a Guide</span>
               </a>
@@ -118,6 +118,11 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             {activeNav === 'aviation' && (
               <a href="/aviation/operators/join" className="flex h-9 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-[13px] font-bold text-white transition-colors hover:bg-slate-800">
                 <i className="ph ph-airplane-takeoff text-sm" /><span>List Aircraft</span>
+              </a>
+            )}
+            {activeNav === 'attractions' && (
+              <a href="/list-your-event" className="flex h-9 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-amber-500/25">
+                <i className="ph ph-ticket text-sm" /><span>List your event</span>
               </a>
             )}
             {showPortalCta && (
@@ -181,7 +186,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
             {/* Context CTAs */}
             <div className="grid gap-2 px-0.5">
-              {user?.role !== 'guide' && activeNav === 'guides' && (
+              {activeNav === 'guides' && (
                 <a href="/become-a-guide" onClick={closeMobile}
                   className="flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white transition-colors hover:bg-amber-600 shadow-sm shadow-amber-500/25">
                   <i className="ph ph-compass" /> Become a Guide
@@ -197,6 +202,12 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <a href="/aviation/operators/join" onClick={closeMobile}
                   className="flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800">
                   <i className="ph ph-airplane-takeoff" /> List your aircraft
+                </a>
+              )}
+              {activeNav === 'attractions' && (
+                <a href="/list-your-event" onClick={closeMobile}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white transition-colors hover:bg-amber-600 shadow-sm shadow-amber-500/25">
+                  <i className="ph ph-ticket" /> List your event or attraction
                 </a>
               )}
 
