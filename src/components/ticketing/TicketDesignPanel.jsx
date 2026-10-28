@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CLIENT_ARTWORK_SIZE } from '../../lib/artworkImage.js';
 import { posPost } from '../../lib/ticketingClient.js';
 import { Button, ErrorNote, Field, Loading, Notice, Panel, inputClass } from './TicketingShared.jsx';
 import { LAYOUTS, PAPER_SIZES, buildQrMap, buildTicketSheetHtml } from './PhysicalPrint.jsx';
@@ -103,23 +104,25 @@ export default function TicketDesignPanel({ attractionId, headers, context, refr
       <ErrorNote message={error} />
       <Notice onClose={() => setNotice('')}>{notice}</Notice>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <Field
+        label="Clients art work space"
+        hint={`The exact slot on every ticket: ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px. It prints as a banner across the top of the right-hand panel, with the venue details underneath.`}
+      >
+        <ArtworkUpload
+          value={settings.ticketArtworkUrl}
+          onChange={(url) => patch({ ticketArtworkUrl: url })}
+          fit={settings.ticketArtworkFit}
+          onFitChange={(fit) => patch({ ticketArtworkFit: fit })}
+          headers={headers}
+          width={CLIENT_ARTWORK_SIZE.width}
+          height={CLIENT_ARTWORK_SIZE.height}
+          emptyLabel="Clients art work space"
+          hint={`Slot size ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px · PNG, JPEG or WebP up to 20 MB. Larger images are centre-cropped to the slot.`}
+        />
+      </Field>
+
+      <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field
-            label="Your artwork space"
-            hint="Upload the artwork clients see in the large right-hand panel of every ticket. A landscape image (roughly 3:2) fits best."
-            className="sm:col-span-2"
-          >
-            <ArtworkUpload
-              value={settings.ticketArtworkUrl}
-              onChange={(url) => patch({ ticketArtworkUrl: url })}
-              fit={settings.ticketArtworkFit}
-              onFitChange={(fit) => patch({ ticketArtworkFit: fit })}
-              headers={headers}
-              emptyLabel="Clients art work space"
-              hint="PNG, JPEG or WebP up to 20 MB."
-            />
-          </Field>
           <Field label="Attraction logo URL" hint="Printed next to the venue name on each ticket.">
             <input value={settings.ticketLogoUrl} onChange={(event) => patch({ ticketLogoUrl: event.target.value })}
               className={inputClass} placeholder="https://…/logo.png" />
@@ -167,7 +170,7 @@ export default function TicketDesignPanel({ attractionId, headers, context, refr
             className="mt-2 w-full h-[360px] bg-white rounded-xl border border-slate-200 dark:border-slate-700"
           />
           <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Your artwork is the large panel on the right. The QR stub and the green BookingCart panel are fixed.
+            Your artwork is the banner at the top of the right-hand panel. The QR stub and the green BookingCart panel are fixed.
           </p>
         </div>
       </div>

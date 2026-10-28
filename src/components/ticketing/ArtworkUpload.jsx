@@ -20,10 +20,16 @@ export default function ArtworkUpload({
   hint,
   emptyLabel = 'No artwork yet',
   previewHeight = 'h-32',
+  width,
+  height,
 }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // A fixed slot previews at its real shape and uploads at its real size, so
+  // the client sees exactly the frame the ticket will print.
+  const slot = width && height ? { width, height } : null;
 
   const pick = async (event) => {
     const file = event.target.files?.[0];
@@ -32,7 +38,7 @@ export default function ArtworkUpload({
     setBusy(true);
     setError('');
     try {
-      const url = await uploadArtwork(file, headers);
+      const url = await uploadArtwork(file, headers, slot);
       onChange(url);
     } catch (err) {
       setError(err.message || 'Upload failed');
@@ -43,7 +49,10 @@ export default function ArtworkUpload({
 
   return (
     <div data-artwork-field className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
-      <div className={`relative ${previewHeight} bg-slate-100 dark:bg-slate-800 flex items-center justify-center`}>
+      <div
+        className={`relative ${slot ? 'w-full' : previewHeight} bg-slate-100 dark:bg-slate-800 flex items-center justify-center`}
+        style={slot ? { aspectRatio: `${slot.width} / ${slot.height}`, maxWidth: `${slot.width}px` } : undefined}
+      >
         {value ? (
           <img
             src={value}
@@ -54,6 +63,9 @@ export default function ArtworkUpload({
           <div className="text-center text-slate-400">
             <i className="ph ph-image text-2xl" />
             <p className="text-[11px] font-black uppercase tracking-wide mt-1">{emptyLabel}</p>
+            {slot && (
+              <p className="text-[10px] font-bold mt-0.5">{slot.width} × {slot.height} px</p>
+            )}
           </div>
         )}
       </div>

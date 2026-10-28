@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { CLIENT_ARTWORK_SIZE } from '../../lib/artworkImage.js';
 import { Modal } from './TicketingShared.jsx';
 
 // Printing engine for physical tickets and receipts.
@@ -104,8 +105,9 @@ export async function buildQrMap(tickets = []) {
  *   1. the admission stub  — pass label, QR, ticket number, price (torn off)
  *   2. the company panel   — artwork an administrator uploads once, printed on
  *                            every ticket the platform issues
- *   3. the client panel    — the attraction's own artwork, with venue, visit
- *                            date, type and reference on a caption strip
+ *   3. the client panel    — the attraction's own 851 × 315 px artwork, printed
+ *                            as a banner with venue, visit date, type and
+ *                            reference underneath
  */
 function artworkTag(url, fit, className = 'art') {
   if (!url) return '';
@@ -142,7 +144,6 @@ function buildClientPanel({ attraction, ticket, reference, admissions, visit, sl
   return `
       <div class="client ${artwork ? 'has-art' : 'no-art'}">
         ${artwork}
-        ${artwork ? '<div class="scrim"></div>' : ''}
         <div class="client-body">
           <div class="venue-row">
             ${attraction.logoUrl ? `<img class="logo" src="${escapeHtml(attraction.logoUrl)}" alt="" />` : ''}
@@ -265,18 +266,18 @@ export function buildTicketSheetHtml({
 
   /* 3 — client artwork space */
   .client { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; background: #eef2f7; }
+  /* Clients compose their artwork at ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px, so it prints as a banner across the top
+     of the panel at that exact ratio — never cropped — with the details underneath. */
+  .client.has-art { justify-content: space-between; }
+  .client.has-art .art { position: static; inset: auto; width: 100%; height: auto; flex: 0 0 auto; aspect-ratio: ${CLIENT_ARTWORK_SIZE.width} / ${CLIENT_ARTWORK_SIZE.height}; }
   .client.has-art .art.fit-contain { background: #eef2f7; }
-  .client .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,20,38,0) 35%, rgba(9,20,38,.55) 68%, rgba(9,20,38,.9) 100%); }
-  .client-body { position: relative; z-index: 1; padding: 3mm; display: flex; flex-direction: column; gap: .7mm; }
-  .client.no-art .client-body { color: #0f172a; }
-  .client.has-art .client-body { color: #fff; }
+  .client-body { position: relative; z-index: 1; padding: 3mm; display: flex; flex-direction: column; gap: .7mm; color: #0f172a; }
   .venue-row { display: flex; align-items: center; gap: 1.6mm; }
   .venue-row .logo { height: ${roomy ? 9 : 7}mm; width: auto; max-width: 18mm; object-fit: contain; flex: 0 0 auto; }
   .venue { font-size: ${roomy ? 11 : 9}pt; font-weight: 800; line-height: 1.15; }
   .line { font-size: ${roomy ? 7.4 : 6.4}pt; line-height: 1.3; }
   .line.strong { font-weight: 700; }
   .line.soft { color: #64748b; }
-  .client.has-art .line.soft { color: #e2e8f0; }
   .line.mono { font-family: ui-monospace, Menlo, monospace; }
 
   /* Thermal roll */
