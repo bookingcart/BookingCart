@@ -107,7 +107,7 @@ export default function TicketDesignPanel({ attractionId, headers, context, refr
 
       <Field
         label="Clients art work space"
-        hint={`The exact slot on every ticket: ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px. It prints as a banner across the top of the right-hand panel, with the venue details underneath.`}
+        hint={`The exact slot on every ticket: ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px. It fills the right-hand panel edge to edge, with the venue and visit captioned over the foot of it.`}
       >
         <ArtworkUpload
           value={settings.ticketArtworkUrl}
@@ -135,7 +135,7 @@ export default function TicketDesignPanel({ attractionId, headers, context, refr
           />
         </div>
         <p className="mt-2 text-[11px] font-semibold text-slate-400">
-          Shown at {TICKET_SIZE.width} × {TICKET_SIZE.height} px — the exact proportion every ticket prints at. Your artwork is the banner at the top of the right-hand panel; the QR stub and the green BookingCart panel are fixed.
+          Shown at {TICKET_SIZE.width} × {TICKET_SIZE.height} px — the exact proportion every ticket prints at. Your artwork fills the right-hand panel; the QR stub and the green BookingCart panel are fixed.
         </p>
       </div>
 

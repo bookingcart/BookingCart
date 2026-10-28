@@ -9,7 +9,7 @@ const MAX_EDGE = 1600;
 const TARGET_LENGTH = 1_400_000; // base64 characters, roughly 1 MB of binary
 
 // The client artwork slot beside the stub and the company panel. The design
-// form, the upload preview and the printed banner all use this one size, so
+// form, the upload preview and the printed panel all use this one size, so
 // what the client composes is exactly what the ticket shows.
 export const CLIENT_ARTWORK_SIZE = { width: 851, height: 315 };
 

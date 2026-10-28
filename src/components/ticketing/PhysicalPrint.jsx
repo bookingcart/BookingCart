@@ -98,10 +98,11 @@ export async function buildQrMap(tickets = []) {
           errorCorrectionLevel: 'M',
           margin: 1,
           width: 240,
-          color: { dark: '#0f172a', light: '#ffffff' },
+          color: { dark: '#000000', light: '#ffffff' },
         });
         return [ticketKey(ticket), url];
-      } catch {
+      } catch (error) {
+        console.warn('[ticket-qr] could not render', error);
         return [ticketKey(ticket), ''];
       }
     })
@@ -117,8 +118,8 @@ export async function buildQrMap(tickets = []) {
  *   2. the company panel   — artwork an administrator uploads once, printed on
  *                            every ticket the platform issues
  *   3. the client panel    — the attraction's own 851 × 315 px artwork, printed
- *                            as a banner with venue, visit date, type and
- *                            reference underneath
+ *                            full-bleed with the venue and visit captioned over
+ *                            the foot of it
  */
 function artworkTag(url, fit, className = 'art') {
   if (!url) return '';
@@ -152,18 +153,31 @@ function buildClientPanel({ attraction, ticket, reference, admissions, visit, sl
   const artwork = artworkTag(attraction.artworkUrl, attraction.artworkFit);
   const detail = [ticket.type, `${admissions} ${admissions === 1 ? 'admission' : 'admissions'}`].filter(Boolean).join(' · ');
   const when = [visit, slot].filter(Boolean).join(' · ');
+  // With artwork on the ticket the panel belongs to the client's design, so only
+  // the two facts a steward reads off it — venue and visit — are captioned over
+  // the foot. Without artwork the panel prints the full details instead.
+  const caption = [detail, when].filter(Boolean).join(' · ');
+  const fill = artwork && attraction.artworkFit === 'contain'
+    ? `<div class="art-fill" style="background-image: url(&quot;${escapeHtml(attraction.artworkUrl)}&quot;)"></div>`
+    : '';
+  const details = artwork
+    ? (caption ? `<div class="line strong">${escapeHtml(caption)}</div>` : '')
+    : [
+      detail ? `<div class="line strong">${escapeHtml(detail)}</div>` : '',
+      when ? `<div class="line">${escapeHtml(when)}</div>` : '',
+      attraction.contact ? `<div class="line soft">${escapeHtml(attraction.contact)}</div>` : '',
+      reference ? `<div class="line soft mono">Ref ${escapeHtml(reference)}</div>` : '',
+    ].join('');
   return `
       <div class="client ${artwork ? 'has-art' : 'no-art'}">
+        ${fill}
         ${artwork}
         <div class="client-body">
           <div class="venue-row">
             ${attraction.logoUrl ? `<img class="logo" src="${escapeHtml(attraction.logoUrl)}" alt="" />` : ''}
             <div class="venue">${escapeHtml(attraction.name || 'Admission')}</div>
           </div>
-          ${detail ? `<div class="line strong">${escapeHtml(detail)}</div>` : ''}
-          ${when ? `<div class="line">${escapeHtml(when)}</div>` : ''}
-          ${attraction.contact ? `<div class="line soft">${escapeHtml(attraction.contact)}</div>` : ''}
-          ${reference ? `<div class="line soft mono">Ref ${escapeHtml(reference)}</div>` : ''}
+          ${details}
         </div>
       </div>`;
 }
@@ -241,14 +255,14 @@ export function buildTicketSheetHtml({
       <article class="ticket">
         <div class="stub">
           <div class="pass">Tourism Pass</div>
-          <div class="qr">
-            ${qr ? `<img src="${qr}" alt="QR code for ${escapeHtml(ticketKey(ticket))}" />` : '<span class="noqr">QR</span>'}
-          </div>
-          <div>
+          <div class="stub-block">
             <div class="cap">Ticket number</div>
             <div class="no">${escapeHtml(ticketKey(ticket))}</div>
           </div>
-          ${priceText ? `<div><div class="cap">Ticket price</div><div class="price">${escapeHtml(priceText)}</div></div>` : ''}
+          <div class="qr">
+            ${qr ? `<img src="${qr}" alt="QR code for ${escapeHtml(ticketKey(ticket))}" />` : '<span class="noqr">QR</span>'}
+          </div>
+          ${priceText ? `<div class="stub-block"><div class="cap">Ticket price</div><div class="price">${escapeHtml(priceText)}</div></div>` : ''}
         </div>
         ${buildCompanyPanel(company)}
         ${buildClientPanel({ attraction, ticket, reference, admissions, visit, slot })}
@@ -265,35 +279,37 @@ export function buildTicketSheetHtml({
 
   .ticket { display: flex; break-inside: avoid; page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 3mm; overflow: hidden; aspect-ratio: ${TICKET_SIZE.width} / ${TICKET_SIZE.height}; background: #fff; }
 
-  /* 1 — admission stub */
-  .stub { width: ${roomy ? 30 : 28}%; flex: 0 0 auto; padding: ${roomy ? '3mm 2.5mm' : '1.8mm'}; background: #e3edff; color: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${roomy ? 2 : 1}mm; text-align: center; border-right: 1px dashed #94a8c8; }
-  .stub .pass { font-size: ${roomy ? 9 : 6}pt; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #1d4ed8; }
-  .stub .qr { background: #fff; padding: 1mm; border-radius: 1mm; line-height: 0; }
+  /* 1 — admission stub: white card, black QR, the three facts a steward checks */
+  .stub { width: ${roomy ? 20 : 22}%; flex: 0 0 auto; padding: ${roomy ? '4mm 3mm' : '1.4mm'}; background: #fff; color: #0f172a; display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; gap: ${roomy ? 2 : '.8'}mm; text-align: left; border-right: 1px dashed #9aa7b8; }
+  .stub .pass { font-size: ${roomy ? 13 : 6.8}pt; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+  .stub .qr { align-self: center; line-height: 0; }
   .stub .qr img { width: ${qrSize}mm; height: ${qrSize}mm; display: block; }
-  .stub .noqr { display: flex; align-items: center; justify-content: center; width: ${qrSize}mm; height: ${qrSize}mm; border: 1px dashed #94a8c8; border-radius: 1.5mm; font-size: 6pt; color: #7d8ca3; }
-  .stub .cap { font-size: 5.4pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #5b6b82; }
-  .stub .no { font-family: ui-monospace, Menlo, monospace; font-size: ${roomy ? 8.5 : 5.6}pt; font-weight: 700; line-height: 1.15; word-break: break-all; }
-  .stub .price { font-size: ${roomy ? 10 : 8}pt; font-weight: 800; }
+  .stub .noqr { display: flex; align-items: center; justify-content: center; width: ${qrSize}mm; height: ${qrSize}mm; border: 1px dashed #cbd5e1; border-radius: 1.5mm; font-size: 6pt; color: #94a3b8; }
+  .stub .cap { font-size: ${roomy ? 6.6 : 4.4}pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }
+  .stub .no { font-family: ui-monospace, Menlo, monospace; font-size: ${roomy ? 9 : 4.6}pt; font-weight: 700; line-height: 1.2; word-break: break-all; }
+  .stub .price { font-size: ${roomy ? 11 : 6.8}pt; font-weight: 800; line-height: 1.15; }
 
   /* 2 — company artwork panel */
-  .company { position: relative; width: ${roomy ? 30 : 29}%; flex: 0 0 auto; display: flex; flex-direction: column; justify-content: space-between; gap: 1.5mm; padding: 3mm; overflow: hidden; color: #fff; background: linear-gradient(145deg, #14532d 0%, #15803d 55%, #166534 100%); }
+  .company { position: relative; width: ${roomy ? 22 : 24}%; flex: 0 0 auto; display: flex; flex-direction: column; justify-content: space-between; gap: 1.5mm; padding: ${roomy ? '4mm 3mm' : '2mm 1.8mm'}; overflow: hidden; color: #fff; background: linear-gradient(150deg, #15803d 0%, #16a34a 58%, #15803d 100%); }
   .company .art, .client .art { position: absolute; inset: 0; width: 100%; height: 100%; }
   .art.fit-cover { object-fit: cover; }
-  .art.fit-contain { object-fit: contain; background: #0f3d24; }
+  .art.fit-contain { object-fit: contain; }
+  .company .art.fit-contain { background: #0f3d24; }
+  .client .art.fit-contain { background: transparent; }
   .company .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(3,28,17,.78) 0%, rgba(3,28,17,.22) 45%, rgba(3,28,17,.86) 100%); }
   .company-top, .company-site { position: relative; z-index: 1; }
-  .company-name { font-size: ${roomy ? 12 : 9.5}pt; font-weight: 800; letter-spacing: -.01em; line-height: 1.1; }
-  .company-tagline { font-size: ${roomy ? 7 : 6}pt; font-weight: 600; color: #d1fae5; margin-top: .8mm; }
-  .company-site { font-size: ${roomy ? 6.6 : 5.2}pt; font-weight: 700; color: #d1fae5; letter-spacing: .02em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .company-name { font-size: ${roomy ? 13 : 7.2}pt; font-weight: 800; font-style: italic; letter-spacing: -.02em; line-height: 1.05; text-transform: uppercase; }
+  .company-tagline { font-size: ${roomy ? 7 : 5.4}pt; font-weight: 600; font-style: italic; color: #dcfce7; margin-top: .8mm; }
+  .company-site { font-size: ${roomy ? 6.8 : 5}pt; font-weight: 700; font-style: italic; text-decoration: underline; color: #dcfce7; letter-spacing: .02em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* 3 — client artwork space */
+  /* 3 — client artwork space: the client's design fills the panel */
   .client { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; background: #eef2f7; }
-  /* Clients compose their artwork at ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px, so it prints as a banner across the top
-     of the panel at that exact ratio — never cropped — with the details underneath. */
-  .client.has-art { justify-content: space-between; }
-  .client.has-art .art { position: static; inset: auto; width: 100%; height: auto; flex: 0 0 auto; aspect-ratio: ${CLIENT_ARTWORK_SIZE.width} / ${CLIENT_ARTWORK_SIZE.height}; }
-  .client.has-art .art.fit-contain { background: #eef2f7; }
-  .client-body { position: relative; z-index: 1; padding: ${roomy ? 3 : 1.8}mm; display: flex; flex-direction: column; gap: ${roomy ? '.7' : '.4'}mm; color: #0f172a; }
+  /* Clients compose their artwork at ${CLIENT_ARTWORK_SIZE.width} × ${CLIENT_ARTWORK_SIZE.height} px and it prints over the whole
+     panel. A "fit inside" upload leaves bands top and bottom, so a blurred copy
+     of the same artwork fills them and the panel still reads as one surface. */
+  .client .art-fill { position: absolute; inset: -3mm; background-size: cover; background-position: center; filter: blur(5mm); opacity: .4; }
+  .client-body { position: relative; z-index: 1; padding: ${roomy ? '4mm' : '1.6mm 2mm'}; display: flex; flex-direction: column; gap: ${roomy ? '.7' : '.4'}mm; color: #0f172a; }
+  .client.has-art .client-body { background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.9) 30%, rgba(255,255,255,.97) 100%); }
   .venue-row { display: flex; align-items: center; gap: 1.6mm; }
   .venue-row .logo { height: ${roomy ? 9 : 6}mm; width: auto; max-width: 18mm; object-fit: contain; flex: 0 0 auto; }
   .venue { font-size: ${roomy ? 11 : 8}pt; font-weight: 800; line-height: ${roomy ? 1.15 : 1.12}; }
