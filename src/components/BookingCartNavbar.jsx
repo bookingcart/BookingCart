@@ -34,6 +34,11 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
     localStorage.getItem('bc_is_operator') === 'true'
   );
 
+  // The Property Portal shortcut belongs to the sections it serves. On Flights
+  // and Aviation the owner still reaches it from the account menu, so the nav
+  // keeps those two rows for their own CTAs.
+  const showPortalCta = isHotelOwner && activeNav !== 'flights' && activeNav !== 'aviation';
+
   // All main nav sections shown in the mobile drawer
   const NAV_SECTIONS = [
     { key: 'flights',    href: '/',             icon: 'ph-airplane-tilt',  label: 'Flights' },
@@ -100,7 +105,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             </a>
 
             {/* Context CTAs */}
-            {!isGuide && activeNav === 'guides' && (
+            {user?.role !== 'guide' && activeNav === 'guides' && (
               <a href="/become-a-guide" className="flex h-9 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-amber-500/25">
                 <i className="ph ph-compass text-sm" /><span>Become a Guide</span>
               </a>
@@ -115,12 +120,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <i className="ph ph-airplane-takeoff text-sm" /><span>List Aircraft</span>
               </a>
             )}
-            {activeNav === 'attractions' && (
-              <a href="/list-your-event" className="flex h-9 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-amber-500/25">
-                <i className="ph ph-ticket text-sm" /><span>List your event</span>
-              </a>
-            )}
-            {isHotelOwner && (
+            {showPortalCta && (
               <a href="/hotel-dashboard" className="flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-blue-600/25">
                 <i className="ph ph-buildings text-sm" /><span>Property Portal</span>
               </a>
@@ -181,7 +181,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
             {/* Context CTAs */}
             <div className="grid gap-2 px-0.5">
-              {!isGuide && activeNav === 'guides' && (
+              {user?.role !== 'guide' && activeNav === 'guides' && (
                 <a href="/become-a-guide" onClick={closeMobile}
                   className="flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white transition-colors hover:bg-amber-600 shadow-sm shadow-amber-500/25">
                   <i className="ph ph-compass" /> Become a Guide
@@ -197,12 +197,6 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <a href="/aviation/operators/join" onClick={closeMobile}
                   className="flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800">
                   <i className="ph ph-airplane-takeoff" /> List your aircraft
-                </a>
-              )}
-              {activeNav === 'attractions' && (
-                <a href="/list-your-event" onClick={closeMobile}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-bold text-white transition-colors hover:bg-amber-600 shadow-sm shadow-amber-500/25">
-                  <i className="ph ph-ticket" /> List your event or attraction
                 </a>
               )}
 
@@ -240,7 +234,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                     </a>
 
                     {/* Role-specific dashboards */}
-                    {isHotelOwner && (
+                    {showPortalCta && (
                       <a href="/hotel-dashboard" onClick={closeMobile}
                         className="flex h-11 items-center justify-between rounded-xl px-3 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
                         <span className="flex items-center gap-3">
