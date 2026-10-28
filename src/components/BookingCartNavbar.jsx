@@ -70,15 +70,16 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             </span>
           </a>
 
-          {/* Desktop nav pills — hidden on mobile */}
-          <nav className="bookingcart-nav hidden min-w-0 flex-1 items-center justify-center gap-0.5 md:flex" aria-label="Primary">
+          {/* Desktop nav pills — below xl the hamburger drawer takes over, because a
+              section CTA plus the account cluster leaves no room for the labels */}
+          <nav className="bookingcart-nav hidden min-w-0 flex-1 items-center justify-center gap-0.5 xl:flex" aria-label="Primary">
             {NAV_SECTIONS.map(({ key, href, icon, label }) => {
               const isActive = activeNav === key;
               return (
                 <a
                   key={key}
                   href={href}
-                  className={`flex h-9 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold transition-all duration-200 select-none whitespace-nowrap
+                  className={`flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold transition-all duration-200 select-none whitespace-nowrap
                     ${isActive
                       ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-300'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'}`}
@@ -91,7 +92,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
           </nav>
 
           {/* Desktop-only right tools */}
-          <div className="bookingcart-header-tools hidden shrink-0 items-center gap-2 md:flex">
+          <div className="bookingcart-header-tools hidden shrink-0 items-center gap-2 xl:flex">
             <div className="bookingcart-currency flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">
               <i className="ph ph-globe text-green-600 text-sm" />
               <span>USD</span>
@@ -138,12 +139,12 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
           {/* Auth cluster + hamburger — always visible */}
           <div className="flex shrink-0 items-center gap-1.5">
             {user && (isGuide || isAdmin) && (
-              <span className="md:hidden"><NotificationBell /></span>
+              <span className="xl:hidden"><NotificationBell /></span>
             )}
             <HeaderAuthCluster />
             <button
               type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900 md:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900 xl:hidden"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(o => !o)}
@@ -155,7 +156,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
         {/* ── Mobile drawer ── */}
         {mobileOpen && (
-          <div className="bookingcart-mobile-menu border-t border-slate-100 dark:border-slate-800 pb-4 pt-2 md:hidden">
+          <div className="bookingcart-mobile-menu border-t border-slate-100 dark:border-slate-800 pb-4 pt-2 xl:hidden">
 
             {/* Section label */}
             <p className="px-3 pt-1 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Browse</p>
