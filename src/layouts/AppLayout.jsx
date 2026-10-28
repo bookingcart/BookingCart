@@ -34,6 +34,8 @@ export default function AppLayout() {
   else if (pathname.startsWith('/tracker')) activeNav = 'tracker';
   else if (pathname.startsWith('/explore')) activeNav = 'explore';
   else if (pathname.startsWith('/aviation')) activeNav = 'aviation';
+  // Consoles carry their own chrome, so no public section is "current" there.
+  else if (pathname.startsWith('/admin')) activeNav = 'admin';
 
   // Don't show the sign-in popup on the auth/login/register pages
   const suppressSignInPopup = ['/auth', '/login', '/register'].includes(pathname) || pathname.startsWith('/attractions') || new URLSearchParams(search).get('mode') === 'attractions';

@@ -57,8 +57,11 @@ export default function AircraftCard({ item, search = "" }) {
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <i className={`ph ${icon} text-5xl text-slate-300 dark:text-slate-600`} />
+          <div className="flex h-full flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/70 ring-1 ring-inset ring-white/80 dark:bg-white/5 dark:ring-white/10">
+              <i className={`ph ${icon} text-2xl text-slate-400 dark:text-slate-500`} />
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Photo on request</span>
           </div>
         )}
 
@@ -88,7 +91,9 @@ export default function AircraftCard({ item, search = "" }) {
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div>
           <h3 className="text-base font-black tracking-tight group-hover:text-emerald-700 transition-colors">{aircraft.name}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">{aircraft.manufacturer} {aircraft.model}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {[aircraft.manufacturer, aircraft.model].filter(Boolean).join(" ")}
+          </p>
         </div>
 
         <p className="text-xs text-slate-500 flex items-center gap-1.5">

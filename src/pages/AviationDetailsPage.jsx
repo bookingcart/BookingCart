@@ -135,8 +135,12 @@ export default function AviationDetailsPage() {
                 )}
               </>
             ) : (
-              <div className="flex h-80 w-full items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800">
-                <i className="ph ph-airplane-tilt text-6xl text-slate-300" />
+              <div className="flex h-80 w-full flex-col items-center justify-center gap-3 rounded-3xl bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950">
+                <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/70 ring-1 ring-inset ring-white/80 dark:bg-white/5 dark:ring-white/10">
+                  <i className="ph ph-airplane-tilt text-3xl text-slate-400 dark:text-slate-500" />
+                </span>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Photo on request</p>
+                <p className="max-w-xs px-6 text-center text-xs text-slate-400 dark:text-slate-500">The operator shares cabin photos once you confirm the charter.</p>
               </div>
             )}
           </div>
@@ -208,7 +212,7 @@ export default function AviationDetailsPage() {
               ].map(([label, value]) => (
                 <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                   <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</dt>
-                  <dd className={`mt-1 font-semibold text-sm ${!value || value === "Pending review" ? "text-amber-600" : "text-slate-900 dark:text-white"}`}>
+                  <dd className={`mt-1 font-semibold text-sm capitalize ${!value || value === "Pending review" ? "text-amber-600" : "text-slate-900 dark:text-white"}`}>
                     {value || "Not published"}
                   </dd>
                 </div>

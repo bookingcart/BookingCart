@@ -10,10 +10,12 @@ const AVIATION_TICKET_PREVIEW = {
   name: "James Andrew",
   passengers: 1,
   departDate: "2026-09-21",
+  departTime: "09:30",
   createdAt: "2026-05-05T07:00:00.000Z",
   origin: { code: "EBB", name: "Entebbe International Airport" },
   destination: { code: "MRC", name: "Morocco International Airport" },
   aircraftName: "Montieri Private Jet",
+  aircraftRegistration: "5X-MTJ",
   aircraftImage: "https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1200&q=85",
   quote: { durationMinutes: 40, distanceNm: 214, price: 6200, currency: "USD" },
   payment: { sessionId: "08839373t3e3526" },
@@ -24,25 +26,35 @@ function TicketQr({ value }) {
   return <img src={src} alt="Booking QR code" width="112" height="112" className="rounded-[12px] bg-black p-1.5" />;
 }
 
+function formatClock(value) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(value || ""));
+  if (!match) return "";
+  const hour = Number(match[1]);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${String(display).padStart(2, "0")}:${match[2]} ${suffix}`;
+}
+
 function formatTicketDate(value) {
-  const date = value ? new Date(`${value}T12:00:00`) : new Date();
+  const date = value ? new Date(String(value).includes("T") ? value : `${value}T12:00:00`) : new Date();
   return Number.isNaN(date.getTime()) ? String(value || '') : date.toLocaleDateString('en-US', { weekday: 'long', month: '2-digit', day: '2-digit', year: 'numeric' }).replace(',', '.').toUpperCase();
 }
 
 function AviationTicket({ booking }) {
   const qrData = JSON.stringify({ ref: booking.ref, route: `${booking.origin?.code}-${booking.destination?.code}`, passenger: booking.name });
   const ticketNumber = booking.payment?.sessionId || booking.ref;
+  const departure = formatClock(booking.departTime);
   return <div id="aviation-ticket" className="relative mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] bg-white shadow-2xl" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
     <header className="flex h-[92px] flex-col items-center justify-center bg-[#292b28] px-8"><img src="/images/logo%20.png" alt="BookingCart" className="h-auto w-[245px] brightness-0 invert" /><p className="mt-1 text-[10px] font-medium tracking-[0.34em] text-white/75">Compare. Book. instant</p></header>
     <section className="relative h-[250px] overflow-hidden bg-slate-800">
       <img src={booking.aircraftImage || 'https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1200&q=85'} alt={booking.aircraftName || 'Private aircraft'} className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-0 bg-black/35" />
-      <p className="absolute right-6 top-5 text-[17px] font-black text-white">Boarding <span className="text-[#00dc58]">Pass</span></p>
+      <p className="absolute right-5 top-4 rounded-full bg-black/30 px-3.5 py-1 text-[16px] font-black text-white backdrop-blur-[2px]">Boarding <span className="text-[#00dc58]">Pass</span></p>
       <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between text-white"><div><p className="text-[42px] font-black leading-none">{booking.origin?.code}</p><p className="mt-1 max-w-[120px] text-[10px] leading-[1.05]">{booking.origin?.name || booking.origin?.city}</p></div><i className="ph-fill ph-airplane-tilt mb-5 text-2xl" /><div className="text-right"><p className="text-[42px] font-black leading-none">{booking.destination?.code}</p><p className="mt-1 ml-auto max-w-[120px] text-[10px] leading-[1.05]">{booking.destination?.name || booking.destination?.city}</p></div></div>
     </section>
-    <section className="relative grid grid-cols-3 gap-5 border-t-2 border-dashed border-[#00d454] bg-[#292b28] px-9 py-5 text-white before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[12px] font-black text-[#00d454]">FLIGHT</p><p className="mt-1 text-[22px] font-light">{booking.ref?.slice(-6).toUpperCase()}</p></div><div><p className="text-[12px] font-black text-[#00d454]">GATE</p><p className="mt-1 text-[22px] font-light">VIP</p></div><div><p className="text-[12px] font-black text-[#00d454]">SEAT</p><p className="mt-1 text-[22px] font-light">{booking.passengers || 1} PAX</p></div></section>
-    <section className="mx-4 rounded-b-[24px] bg-[#00c950] px-5 py-5 text-[#20231f]"><div className="grid grid-cols-2 gap-x-7 gap-y-5"><div><p className="text-[11px] font-black text-white">PASSENGER</p><p className="text-[18px] leading-tight">{booking.name || 'Lead passenger'}</p></div><div><p className="text-[11px] font-black text-white">TICKET NO:</p><p className="break-all text-[14px] leading-tight">{ticketNumber}</p></div><div><p className="text-[11px] font-black text-white">BOARDING TIME</p><p className="text-[16px]">07:00 AM</p></div><div><p className="text-[11px] font-black text-white">EST. FLIGHT TIME</p><p className="text-[16px]">{durationLabel(booking.quote?.durationMinutes || 0)}</p></div></div></section>
-    <footer className="relative mt-3 flex min-h-[136px] items-center justify-between border-t-2 border-dashed border-[#00c950] px-8 py-5 before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[11px] font-black text-[#00b846]">ISSUE DATE</p><p className="text-[14px] text-[#292b28]">{formatTicketDate(booking.createdAt?.slice(0, 10))}</p><p className="mt-4 text-[11px] font-black text-[#00b846]">BOARDING</p><p className="text-[14px] text-[#292b28]">07:00 AM {formatTicketDate(booking.departDate)}</p></div><TicketQr value={qrData} /></footer>
+    <section className="relative grid grid-cols-3 gap-5 border-t-2 border-dashed border-[#00d454] bg-[#292b28] px-9 py-5 text-white before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[12px] font-black text-[#00d454]">FLIGHT</p><p className="mt-1 break-all text-[13px] font-light leading-snug">{booking.ref}</p></div><div><p className="text-[12px] font-black text-[#00d454]">AIRCRAFT</p><p className="mt-1 break-words text-[15px] font-light leading-tight">{booking.aircraftRegistration || booking.aircraftName || 'Private jet'}</p></div><div><p className="text-[12px] font-black text-[#00d454]">CABIN</p><p className="mt-1 text-[22px] font-light">{booking.passengers || 1} PAX</p></div></section>
+    <section className="mx-4 rounded-b-[24px] bg-[#00c950] px-5 py-5 text-[#20231f]"><div className="grid grid-cols-2 gap-x-7 gap-y-5"><div><p className="text-[11px] font-black text-white">PASSENGER</p><p className="text-[18px] leading-tight">{booking.name || 'Lead passenger'}</p></div><div><p className="text-[11px] font-black text-white">TICKET NO:</p><p className="break-all text-[14px] leading-tight">{ticketNumber}</p></div><div><p className="text-[11px] font-black text-white">DEPARTURE</p><p className="text-[16px]">{departure || 'Time to be confirmed'}</p></div><div><p className="text-[11px] font-black text-white">EST. FLIGHT TIME</p><p className="text-[16px]">{durationLabel(booking.quote?.durationMinutes || 0)}</p></div></div></section>
+    <footer className="relative mt-3 flex min-h-[136px] items-center justify-between border-t-2 border-dashed border-[#00c950] px-8 py-5 before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[11px] font-black text-[#00b846]">ISSUE DATE</p><p className="text-[14px] text-[#292b28]">{formatTicketDate(booking.createdAt)}</p><p className="mt-4 text-[11px] font-black text-[#00b846]">DEPARTS</p><p className="text-[14px] text-[#292b28]">{formatTicketDate(booking.departDate)}</p><p className="text-[14px] text-[#292b28]">{departure || "Local time confirmed by the operator"}</p></div><TicketQr value={qrData} /></footer>
   </div>;
 }
 
@@ -52,6 +64,22 @@ export default function AviationConfirmationPage() {
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [emailEntry, setEmailEntry] = useState("");
+  const [needsEmail, setNeedsEmail] = useState(false);
+
+  const ref = params.get("ref") || "";
+
+  async function loadBooking(email) {
+    const token = getToken();
+    const paid = params.get("paid") === "1";
+    if (paid) {
+      await aviationRequest("booking-confirm", { method: "POST", body: { ref, email, method: "card", sessionId: params.get("session_id") || "" } })
+        .catch((err) => setError(err.message || "Payment could not be confirmed"));
+    }
+    const data = await aviationRequest("booking", { token, query: { ref, email } });
+    setBooking(data.booking);
+    setNeedsEmail(false);
+  }
 
   useEffect(() => {
     document.title = "Charter confirmed | BookingCart";
@@ -59,19 +87,37 @@ export default function AviationConfirmationPage() {
       setBooking(AVIATION_TICKET_PREVIEW);
       return;
     }
-    const ref = params.get("ref");
     if (!ref) return;
-    const email = sessionStorage.getItem(`aviation-booking-${ref}`) || "";
-    const token = getToken();
-    const finish = params.get("paid") === "1" && email
-      ? aviationRequest("booking-confirm", { method: "POST", body: { ref, email, method: "card", sessionId: params.get("session_id") || "" } })
-      : Promise.resolve();
-    finish
-      .catch((err) => setError(err.message || "Payment could not be confirmed"))
-      .then(() => aviationRequest("booking", { token, query: { ref, email } }))
-      .then((data) => setBooking(data.booking))
-      .catch((err) => setError(err.message));
+    // The email is cached on redirect; fall back to localStorage so a reload or a later visit still works.
+    const email = sessionStorage.getItem(`aviation-booking-${ref}`) || localStorage.getItem(`aviation-booking-${ref}`) || "";
+    if (!email) {
+      setNeedsEmail(true);
+      return;
+    }
+    loadBooking(email).catch((err) => {
+      if (err.status === 403 || err.status === 401) {
+        setNeedsEmail(true);
+        return;
+      }
+      setError(err.message);
+    });
   }, [params, getToken]);
+
+  async function submitEmail(event) {
+    event.preventDefault();
+    const email = emailEntry.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      setError("Enter the email address used for this booking");
+      return;
+    }
+    setError("");
+    try {
+      await loadBooking(email);
+      localStorage.setItem(`aviation-booking-${ref}`, email);
+    } catch (err) {
+      setError(err.status === 403 || err.status === 404 ? "We could not match that email to this booking reference." : err.message);
+    }
+  }
 
   async function downloadTicket() {
     setDownloading(true);
@@ -102,10 +148,37 @@ export default function AviationConfirmationPage() {
         </div>
 
         {error && (
-          <div className="rounded-3xl bg-rose-50 border border-rose-200 p-5 mb-6 text-center">
+          <div className="rounded-3xl bg-rose-50 border border-rose-200 p-5 mb-6 text-center" role="alert">
             <i className="ph ph-warning-circle text-2xl text-rose-500 mb-2" />
             <p className="font-bold text-rose-700">{error}</p>
           </div>
+        )}
+
+        {needsEmail && !booking && (
+          <form onSubmit={submitEmail} className="mx-auto mb-8 max-w-md rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center gap-2.5">
+              <i className="ph ph-envelope-simple text-xl text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+              <h2 className="font-black">Open this boarding pass</h2>
+            </div>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              For privacy we only show a charter to the email that booked it. Enter that address to continue.
+            </p>
+            <label htmlFor="av-confirm-email" className="mt-4 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Email used for this booking</label>
+            <input
+              id="av-confirm-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={emailEntry}
+              onChange={(event) => setEmailEntry(event.target.value)}
+              placeholder="you@example.com"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            <button type="submit" className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white transition-colors hover:bg-emerald-800">
+              View boarding pass
+              <i className="ph ph-arrow-right text-sm" aria-hidden="true" />
+            </button>
+          </form>
         )}
 
         {booking && booking.status !== "confirmed" && (
@@ -132,7 +205,10 @@ export default function AviationConfirmationPage() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Route</p>
                   <p className="font-black">{booking.origin?.code} <i className="ph ph-arrow-right" /> {booking.destination?.code}</p>
-                  <p className="text-sm text-slate-400 mt-0.5">{booking.departDate}</p>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    {booking.departDate}
+                    {formatClock(booking.departTime) ? ` · departs ${formatClock(booking.departTime)}` : " · departure time to be confirmed"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Aircraft</p>
