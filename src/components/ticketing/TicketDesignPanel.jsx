@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CLIENT_ARTWORK_SIZE } from '../../lib/artworkImage.js';
 import { posPost } from '../../lib/ticketingClient.js';
 import { Button, ErrorNote, Field, Loading, Notice, Panel, inputClass } from './TicketingShared.jsx';
-import { LAYOUTS, PAPER_SIZES, buildQrMap, buildTicketSheetHtml } from './PhysicalPrint.jsx';
+import { LAYOUTS, PAPER_SIZES, TICKET_SIZE, buildQrMap, buildTicketSheetHtml } from './PhysicalPrint.jsx';
 import ArtworkUpload from './ArtworkUpload.jsx';
 
 // The attraction's own ticket design. The centrepiece is the artwork upload for
@@ -76,6 +76,7 @@ export default function TicketDesignPanel({ attractionId, headers, context, refr
       qrMap,
       title: 'Ticket design preview',
       preview: true,
+      face: true,
     });
   }, [settings, sample, context, qrMap]);
 
@@ -121,58 +122,61 @@ export default function TicketDesignPanel({ attractionId, headers, context, refr
         />
       </Field>
 
-      <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Attraction logo URL" hint="Printed next to the venue name on each ticket.">
-            <input value={settings.ticketLogoUrl} onChange={(event) => patch({ ticketLogoUrl: event.target.value })}
-              className={inputClass} placeholder="https://…/logo.png" />
-          </Field>
-          <Field label="Contact details">
-            <input value={settings.ticketContact} onChange={(event) => patch({ ticketContact: event.target.value })}
-              className={inputClass} placeholder="+256 … · gate@attraction.com" />
-          </Field>
-          <Field label="Ticket design">
-            <select value={settings.printLayout} onChange={(event) => patch({ printLayout: event.target.value })} className={inputClass}>
-              {Object.entries(LAYOUTS).map(([key, layout]) => (
-                <option key={key} value={key}>{layout.label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Paper size">
-            <select value={settings.paperSize} onChange={(event) => patch({ paperSize: event.target.value })} className={inputClass}>
-              {PAPER_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-            </select>
-          </Field>
-          <Field label="Terms and conditions" className="sm:col-span-2">
-            <textarea rows={3} value={settings.ticketTerms} onChange={(event) => patch({ ticketTerms: event.target.value })}
-              className={inputClass} placeholder="Valid for the dated entry only. Non-transferable." />
-          </Field>
-          <Field label="Receipt header">
-            <input value={settings.receiptHeader} onChange={(event) => patch({ receiptHeader: event.target.value })}
-              className={inputClass} placeholder="Ticket office · Gate 1" />
-          </Field>
-          <Field label="Receipt footer">
-            <input value={settings.receiptFooter} onChange={(event) => patch({ receiptFooter: event.target.value })}
-              className={inputClass} placeholder="Thank you for visiting." />
-          </Field>
-          <label className="sm:col-span-2 flex items-start gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-            <input type="checkbox" checked={settings.posEnabled}
-              onChange={(event) => patch({ posEnabled: event.target.checked })} className="mt-0.5" />
-            Point of sale enabled for this attraction
-          </label>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Every ticket will look like this</p>
+      <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-800 p-3">
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+          Every ticket · {TICKET_SIZE.width} × {TICKET_SIZE.height} px
+        </p>
+        <div className="mt-2 overflow-x-auto">
           <iframe
             title="Ticket design preview"
             srcDoc={preview}
-            className="mt-2 w-full h-[360px] bg-white rounded-xl border border-slate-200 dark:border-slate-700"
+            className="block bg-white rounded-xl border border-slate-200 dark:border-slate-700"
+            style={{ width: TICKET_SIZE.width, height: TICKET_SIZE.height }}
           />
-          <p className="mt-2 text-[11px] font-semibold text-slate-400">
-            Your artwork is the banner at the top of the right-hand panel. The QR stub and the green BookingCart panel are fixed.
-          </p>
         </div>
+        <p className="mt-2 text-[11px] font-semibold text-slate-400">
+          Shown at {TICKET_SIZE.width} × {TICKET_SIZE.height} px — the exact proportion every ticket prints at. Your artwork is the banner at the top of the right-hand panel; the QR stub and the green BookingCart panel are fixed.
+        </p>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Attraction logo URL" hint="Printed next to the venue name on each ticket.">
+          <input value={settings.ticketLogoUrl} onChange={(event) => patch({ ticketLogoUrl: event.target.value })}
+            className={inputClass} placeholder="https://…/logo.png" />
+        </Field>
+        <Field label="Contact details">
+          <input value={settings.ticketContact} onChange={(event) => patch({ ticketContact: event.target.value })}
+            className={inputClass} placeholder="+256 … · gate@attraction.com" />
+        </Field>
+        <Field label="Ticket design">
+          <select value={settings.printLayout} onChange={(event) => patch({ printLayout: event.target.value })} className={inputClass}>
+            {Object.entries(LAYOUTS).map(([key, layout]) => (
+              <option key={key} value={key}>{layout.label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Paper size">
+          <select value={settings.paperSize} onChange={(event) => patch({ paperSize: event.target.value })} className={inputClass}>
+            {PAPER_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </Field>
+        <Field label="Terms and conditions" className="sm:col-span-2">
+          <textarea rows={3} value={settings.ticketTerms} onChange={(event) => patch({ ticketTerms: event.target.value })}
+            className={inputClass} placeholder="Valid for the dated entry only. Non-transferable." />
+        </Field>
+        <Field label="Receipt header">
+          <input value={settings.receiptHeader} onChange={(event) => patch({ receiptHeader: event.target.value })}
+            className={inputClass} placeholder="Ticket office · Gate 1" />
+        </Field>
+        <Field label="Receipt footer">
+          <input value={settings.receiptFooter} onChange={(event) => patch({ receiptFooter: event.target.value })}
+            className={inputClass} placeholder="Thank you for visiting." />
+        </Field>
+        <label className="sm:col-span-2 flex items-start gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+          <input type="checkbox" checked={settings.posEnabled}
+            onChange={(event) => patch({ posEnabled: event.target.checked })} className="mt-0.5" />
+          Point of sale enabled for this attraction
+        </label>
       </div>
     </Panel>
   );

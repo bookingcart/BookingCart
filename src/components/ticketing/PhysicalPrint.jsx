@@ -18,6 +18,17 @@ export const LAYOUTS = {
 
 export const PAPER_SIZES = ['A4', 'A5', 'Letter', 'Thermal 80mm'];
 
+// The whole ticket is a fixed 900 × 351 proportion. Print layouts derive their
+// height from it, and the design panel shows the same face at exactly this
+// pixel size, so what the owner composes is what the sheet prints.
+export const TICKET_SIZE = { width: 900, height: 351 };
+const TICKET_RATIO = TICKET_SIZE.width / TICKET_SIZE.height;
+
+// CSS px per mm at the browser's 96 dpi reference: the face preview lays the
+// strip out at one-per-page width and scales it up to TICKET_SIZE.
+const PX_PER_MM = 96 / 25.4;
+const FACE_WIDTH_MM = 190;
+
 const PAPER_CSS = {
   A4: 'A4 portrait',
   A5: 'A5 portrait',
@@ -191,6 +202,7 @@ export function buildTicketSheetHtml({
   title = 'Admission tickets',
   showPrice = true,
   preview = false,
+  face = false,
 }) {
   const preset = LAYOUTS[layout] || LAYOUTS.a4_4;
   const page = PAPER_CSS[paperSize] || preset.page;
@@ -199,7 +211,17 @@ export function buildTicketSheetHtml({
   // One ticket per page has room for a larger QR and type; a 4/8-up sheet has
   // to stay legible at roughly half an A4 width.
   const roomy = preset.perPage === 1 && !isThermal;
-  const qrSize = isThermal ? 26 : roomy ? 30 : 19;
+  const qrSize = isThermal ? 26 : roomy ? 30 : 14;
+  // The 900-wide face preview: the strip is laid out at one-per-page width and
+  // scaled up into a TICKET_SIZE box, so type and artwork keep their print
+  // proportions instead of being re-invented at screen sizes.
+  const faceScale = TICKET_SIZE.width / (FACE_WIDTH_MM * PX_PER_MM);
+  const faceCss = face ? `
+  @media screen {
+    html, body { width: ${TICKET_SIZE.width}px; height: ${TICKET_SIZE.height}px; margin: 0; padding: 0; overflow: hidden; background: #fff; }
+    .sheet { display: block; max-width: none; }
+    .ticket { width: ${FACE_WIDTH_MM}mm; height: ${(FACE_WIDTH_MM / TICKET_RATIO).toFixed(2)}mm; transform: scale(${faceScale.toFixed(5)}); transform-origin: top left; }
+  }` : '';
 
   const cards = tickets.map((ticket) => {
     const qr = qrMap[ticketKey(ticket)];
@@ -241,10 +263,10 @@ export function buildTicketSheetHtml({
   body { margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .sheet { display: grid; grid-template-columns: repeat(${preset.columns}, minmax(0, 1fr)); gap: ${isThermal ? 3 : 5}mm; }
 
-  .ticket { display: flex; break-inside: avoid; page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 3mm; overflow: hidden; min-height: ${roomy ? 62 : 44}mm; background: #fff; }
+  .ticket { display: flex; break-inside: avoid; page-break-inside: avoid; border: 1px solid #cbd5e1; border-radius: 3mm; overflow: hidden; aspect-ratio: ${TICKET_SIZE.width} / ${TICKET_SIZE.height}; background: #fff; }
 
   /* 1 — admission stub */
-  .stub { width: ${roomy ? 30 : 28}%; flex: 0 0 auto; padding: 3mm 2.5mm; background: #e3edff; color: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2mm; text-align: center; border-right: 1px dashed #94a8c8; }
+  .stub { width: ${roomy ? 30 : 28}%; flex: 0 0 auto; padding: ${roomy ? '3mm 2.5mm' : '1.8mm'}; background: #e3edff; color: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${roomy ? 2 : 1}mm; text-align: center; border-right: 1px dashed #94a8c8; }
   .stub .pass { font-size: ${roomy ? 9 : 6}pt; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #1d4ed8; }
   .stub .qr { background: #fff; padding: 1mm; border-radius: 1mm; line-height: 0; }
   .stub .qr img { width: ${qrSize}mm; height: ${qrSize}mm; display: block; }
@@ -271,17 +293,17 @@ export function buildTicketSheetHtml({
   .client.has-art { justify-content: space-between; }
   .client.has-art .art { position: static; inset: auto; width: 100%; height: auto; flex: 0 0 auto; aspect-ratio: ${CLIENT_ARTWORK_SIZE.width} / ${CLIENT_ARTWORK_SIZE.height}; }
   .client.has-art .art.fit-contain { background: #eef2f7; }
-  .client-body { position: relative; z-index: 1; padding: 3mm; display: flex; flex-direction: column; gap: .7mm; color: #0f172a; }
+  .client-body { position: relative; z-index: 1; padding: ${roomy ? 3 : 1.8}mm; display: flex; flex-direction: column; gap: ${roomy ? '.7' : '.4'}mm; color: #0f172a; }
   .venue-row { display: flex; align-items: center; gap: 1.6mm; }
-  .venue-row .logo { height: ${roomy ? 9 : 7}mm; width: auto; max-width: 18mm; object-fit: contain; flex: 0 0 auto; }
-  .venue { font-size: ${roomy ? 11 : 9}pt; font-weight: 800; line-height: 1.15; }
-  .line { font-size: ${roomy ? 7.4 : 6.4}pt; line-height: 1.3; }
+  .venue-row .logo { height: ${roomy ? 9 : 6}mm; width: auto; max-width: 18mm; object-fit: contain; flex: 0 0 auto; }
+  .venue { font-size: ${roomy ? 11 : 8}pt; font-weight: 800; line-height: ${roomy ? 1.15 : 1.12}; }
+  .line { font-size: ${roomy ? 7.4 : 6}pt; line-height: ${roomy ? 1.3 : 1.25}; }
   .line.strong { font-weight: 700; }
   .line.soft { color: #64748b; }
   .line.mono { font-family: ui-monospace, Menlo, monospace; }
 
   /* Thermal roll */
-  .ticket.thermal { display: block; min-height: 0; padding: 3mm; border-radius: 2mm; text-align: center; }
+  .ticket.thermal { display: block; aspect-ratio: auto; min-height: 0; padding: 3mm; border-radius: 2mm; text-align: center; }
   .t-pass { font-size: 8pt; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #1d4ed8; }
   .t-venue { font-size: 10pt; font-weight: 800; margin-top: 1mm; line-height: 1.2; }
   .t-line { font-size: 7pt; margin-top: .8mm; }
@@ -300,6 +322,7 @@ export function buildTicketSheetHtml({
     .sheet { ${preview ? 'max-width: 1000px; margin: 0 auto;' : ''} }
     .ticket { box-shadow: 0 8px 24px rgba(15, 23, 42, .10); }
   }
+  ${faceCss}
 </style></head>
 <body>
   <div class="sheet">${cards || '<p>No tickets selected.</p>'}</div>
