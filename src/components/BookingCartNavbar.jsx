@@ -122,14 +122,9 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               </a>
             )}
             {activeNav === 'attractions' && (
-              <>
-                <a href="/attractions/cinemas" className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900">
-                  <i className="ph ph-popcorn text-sm" /><span>Cinemas</span>
-                </a>
-                <a href="/list-your-event" className="flex h-9 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-amber-500/25">
-                  <i className="ph ph-ticket text-sm" /><span>List your event</span>
-                </a>
-              </>
+              <a href="/list-your-event" className="flex h-9 items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-amber-500/25">
+                <i className="ph ph-ticket text-sm" /><span>List your event</span>
+              </a>
             )}
             {showPortalCta && (
               <a href="/hotel-dashboard" className="flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 text-[13px] font-bold text-white transition-colors shadow-sm shadow-blue-600/25">

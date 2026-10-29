@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import LocalEventCard from '../components/LocalEventCard.jsx';
+import CinemaCard from '../components/cinema/CinemaCard.jsx';
+import { cinemaGet } from '../lib/cinemaClient.js';
 import { getGeo, countryFlag, countryNameFromCode, countryCodeFromName, setGeoOverride, clearGeoOverride } from '../lib/geo.js';
 
 const FLIGHT_SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js?v=4','/js/deals.js?v=1'];
@@ -330,7 +332,9 @@ function getRegionFromCountry(countryCode, countryName) {
   return 'default';
 }
 
-function AttractionsHomeContent() {
+// Cinemas are located in HomePage (which owns the geo detection), so the rail is
+// fed in rather than detecting the visitor a second time.
+function AttractionsHomeContent({ cinemas = [], cinemasScope = 'all', cinemasLoading = false, exploreCity = '', exploreCountryName = '' }) {
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -364,7 +368,7 @@ function AttractionsHomeContent() {
     { icon: 'ph-boat', label: 'Water Activities' },
     { icon: 'ph-castle-turret', label: 'Landmarks' },
     { icon: 'ph-person-simple-ski', label: 'Sports & Adventure' },
-    { icon: 'ph-film-strip', label: 'Cinemas' },
+    { icon: 'ph-film-strip', label: 'Cinemas', href: '/attractions/cinemas' },
     { icon: 'ph-music-notes', label: 'Concerts' },
   ];
 
@@ -377,7 +381,7 @@ function AttractionsHomeContent() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 mt-8 mb-10">
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
           {categories.map(cat => (
-            <a key={cat.label} href={`/attractions?category=${encodeURIComponent(cat.label)}`}
+            <a key={cat.label} href={cat.href || `/attractions?category=${encodeURIComponent(cat.label)}`}
               className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full font-semibold text-sm border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-slate-300 transition-all whitespace-nowrap bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
               <i className={`ph ${cat.icon} text-base`} />
               {cat.label}
@@ -423,6 +427,44 @@ function AttractionsHomeContent() {
               <LocalEventCard key={event.id} item={event} />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── CINEMAS NEAR YOU ── */}
+      {(cinemasLoading || cinemas.length > 0) && (
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 mb-14">
+          <div className="flex items-end justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Cinemas near you</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+                {cinemasScope === 'city'
+                  ? `Screening in ${exploreCity}. Pick your seat, pay, and the QR ticket lands in your email.`
+                  : cinemasScope === 'country' && exploreCountryName
+                    ? `Cinemas across ${exploreCountryName} with live seat availability.`
+                    : 'Cinemas on BookingCart with live seat availability.'}
+              </p>
+            </div>
+            <Link
+              to="/attractions/cinemas"
+              className="shrink-0 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+            >
+              View all <i className="ph ph-arrow-right" />
+            </Link>
+          </div>
+
+          {cinemasLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {[0, 1, 2].map(key => (
+                <div key={key} className="h-64 animate-pulse rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {cinemas.slice(0, 4).map(cinema => (
+                <CinemaCard key={cinema.id} cinema={cinema} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -568,6 +610,11 @@ export default function HomePage() {
   const [exploreSource, setExploreSource] = useState('');
   const [exploreLoading, setExploreLoading] = useState(true);
 
+  // Cinemas the visitor can actually walk into (city first, then country)
+  const [nearbyCinemas, setNearbyCinemas] = useState([]);
+  const [cinemasScope, setCinemasScope] = useState('all');
+  const [cinemasLoading, setCinemasLoading] = useState(true);
+
   // Location picker (lets a visitor correct a wrong IP mapping)
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
@@ -610,6 +657,36 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Cinemas near the visitor: ask for their country, then prefer the ones in their
+  // city. With nothing published yet the rail stays hidden rather than empty.
+  const loadNearbyCinemas = useCallback(async ({ city = '', country = '', countryCode = '' } = {}) => {
+    setCinemasLoading(true);
+
+    let list = [];
+    let scope = 'all';
+
+    if (country || countryCode) {
+      const scoped = await cinemaGet('cinemas', { country, countryCode });
+      if (scoped.ok && scoped.cinemas?.length) {
+        list = scoped.cinemas;
+        scope = 'country';
+      }
+    }
+    if (!list.length) {
+      const all = await cinemaGet('cinemas');
+      if (all.ok) list = all.cinemas || [];
+    }
+
+    const wantedCity = String(city || '').trim().toLowerCase();
+    const inTown = wantedCity
+      ? list.filter((cinema) => String(cinema.city || '').trim().toLowerCase() === wantedCity)
+      : [];
+
+    setNearbyCinemas(inTown.length ? inTown : list);
+    setCinemasScope(inTown.length ? 'city' : scope);
+    setCinemasLoading(false);
+  }, []);
+
   // Apply a location (detected or picked by hand) to the explore + stays deals sections
   const applyLocation = useCallback((data) => {
     const cc = data?.countryCode || countryCodeFromName(data?.countryName) || '';
@@ -636,7 +713,9 @@ export default function HomePage() {
     }
 
     setExploreLoading(false);
-  }, []);
+
+    loadNearbyCinemas({ city: data?.city || '', country: countryName || '', countryCode: cc });
+  }, [loadNearbyCinemas]);
 
   // Geo-detect user location: set region deals AND explore destinations
   useEffect(() => {
@@ -1296,21 +1375,32 @@ export default function HomePage() {
                     </form>
                   </div>
 
-                  {/* Quick-pick popular categories */}
+                  {/* Quick-pick popular categories — Cinemas opens the seat-map index
+                      rather than a text search, so it carries its own destination. */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {['Events', 'Safari', 'Museums', 'Nature', 'Landmarks', 'Family Fun', 'Adventure', 'Cultural'].map(category => (
+                    {[
+                      { label: 'Events' },
+                      { label: 'Cinemas', href: '/attractions/cinemas', icon: 'ph-popcorn' },
+                      { label: 'Safari' },
+                      { label: 'Museums' },
+                      { label: 'Nature' },
+                      { label: 'Landmarks' },
+                      { label: 'Family Fun' },
+                      { label: 'Adventure' },
+                      { label: 'Cultural' },
+                    ].map(({ label, href, icon }) => (
                       <button
-                        key={category}
+                        key={label}
                         type="button"
                         onClick={() => {
-                          const url = `/attractions/results?q=${encodeURIComponent(category)}`;
+                          const url = href || `/attractions/results?q=${encodeURIComponent(label)}`;
                           if (typeof window.__bcNavigate === 'function') window.__bcNavigate(url);
                           else window.location.href = url;
                         }}
                         className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur text-slate-700 dark:text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-full border border-white/80 dark:border-slate-700 shadow-sm hover:bg-white dark:hover:bg-slate-700 transition-all"
                       >
-                        <i className="ph ph-sparkle text-amber-500 text-sm"></i>
-                        {category}
+                        <i className={`ph ${icon || 'ph-sparkle'} ${icon ? 'text-emerald-600' : 'text-amber-500'} text-sm`}></i>
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -1354,7 +1444,13 @@ export default function HomePage() {
         </section>
 
 
-        {activeMode === 'attractions' ? <AttractionsHomeContent /> : <>
+        {activeMode === 'attractions' ? <AttractionsHomeContent
+                  cinemas={nearbyCinemas}
+                  cinemasScope={cinemasScope}
+                  cinemasLoading={cinemasLoading}
+                  exploreCity={exploreCity}
+                  exploreCountryName={exploreCountryName}
+                /> : <>
         {/* Recent Searches Section */}
         {recentSearches.length > 0 && (
           <section className="max-w-7xl mx-auto px-6 pt-12 pb-4 dark:bg-slate-950 transition-colors">

@@ -191,7 +191,12 @@ module.exports = async function cinemaHandler(req, res) {
     // ─── Public ──────────────────────────────────────────────────────────────
 
     if (action === 'cinemas' || action === '') {
-      const cinemas = await C.listPublicCinemas({ search: body.search || '', city: body.city || '' });
+      const cinemas = await C.listPublicCinemas({
+        search: body.search || '',
+        city: body.city || '',
+        country: body.country || '',
+        countryCode: body.countryCode || '',
+      });
       return res.json({ ok: true, cinemas });
     }
 
