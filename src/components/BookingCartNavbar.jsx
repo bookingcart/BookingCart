@@ -54,7 +54,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
   return (
     <header className="bookingcart-navbar sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 transition-colors duration-200">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 2xl:max-w-[1500px]">
         <div className="flex h-16 items-center justify-between gap-4">
 
           {/* Logo */}
@@ -89,12 +89,12 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <a
                   key={key}
                   href={href}
-                  className={`flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold transition-all duration-200 select-none whitespace-nowrap
+                  className={`flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-[13px] font-semibold transition-all duration-200 select-none whitespace-nowrap 2xl:px-3
                     ${isActive
                       ? 'bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-300'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'}`}
                 >
-                  <i className={`ph ${icon} text-sm`} />
+                  <i className={`ph ${icon} hidden text-sm 2xl:inline`} />
                   <span>{label}</span>
                 </a>
               );
@@ -103,16 +103,23 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
 
           {/* Desktop-only right tools */}
           <div className="bookingcart-header-tools hidden shrink-0 items-center gap-2 xl:flex">
-            <div className="bookingcart-currency flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900">
+            {/* The currency read-out and the Support label only fit on wide screens;
+                below 2xl they give way so the nav links never collide with the logo. */}
+            <div className="bookingcart-currency hidden h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900 2xl:flex">
               <i className="ph ph-globe text-green-600 text-sm" />
               <span>USD</span>
             </div>
 
-            <div className="h-5 w-px bg-slate-200 dark:bg-slate-800" />
+            <div className="hidden h-5 w-px bg-slate-200 dark:bg-slate-800 2xl:block" />
 
-            <a href="/support" className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white">
+            <a
+              href="/support"
+              aria-label="Support"
+              title="Support"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white 2xl:border-transparent 2xl:px-3"
+            >
               <i className="ph ph-headset text-green-600 text-sm" />
-              <span>Support</span>
+              <span className="hidden 2xl:inline">Support</span>
             </a>
 
             <SoundToggle />
