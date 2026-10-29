@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { checkoutGet, checkoutPost, money, formatDate, formatDateTime } from '../lib/ticketingClient.js';
+import { useBookingSound } from '../lib/sound.js';
 
 function qrSrc(value, size = 190) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=0f172a&format=svg&margin=4`;
@@ -74,6 +75,9 @@ export default function AttractionTicketsConfirmationPage() {
   const copy = STATUS_COPY[status] || STATUS_COPY.pending_payment;
   const currency = order?.currency || 'USD';
   const tickets = order?.tickets || [];
+
+  // Only a paid ticket is a successful booking.
+  useBookingSound(status === 'confirmed' ? order.reference || order.bookingRef || ref : null);
 
   if (loading || confirming) {
     return (

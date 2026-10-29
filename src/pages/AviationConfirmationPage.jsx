@@ -5,6 +5,7 @@ import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import BoardingPass from "../components/aviation/BoardingPass.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { aviationRequest, money, durationLabel } from "../lib/aviationClient.js";
+import { useBookingSound } from "../lib/sound.js";
 
 const AVIATION_TICKET_PREVIEW = {
   ref: "BC989",
@@ -71,6 +72,10 @@ export default function AviationConfirmationPage() {
   const [needsEmail, setNeedsEmail] = useState(false);
 
   const ref = params.get("ref") || "";
+
+  // The pass only appears once the charter is confirmed; key it on the reference
+  // so reopening the link stays quiet.
+  useBookingSound(booking?.status === "confirmed" ? booking.ref || ref : null);
 
   async function loadBooking(email) {
     const token = getToken();

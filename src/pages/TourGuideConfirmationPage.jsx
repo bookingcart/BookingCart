@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useBookingSound } from '../lib/sound.js';
 
 export default function TourGuideConfirmationPage() {
   const location = useLocation();
@@ -28,6 +29,13 @@ export default function TourGuideConfirmationPage() {
         setLoading(false);
       });
   }, [queryRef]);
+
+  // Only chime for a real booking — the demo card shown when a lookup fails is
+  // not a confirmation.
+  const confirmedRef = booking && (booking.status || 'confirmed') === 'confirmed'
+    ? booking.ref || booking.id || queryRef
+    : null;
+  useBookingSound(confirmedRef);
 
   if (loading) {
     return (

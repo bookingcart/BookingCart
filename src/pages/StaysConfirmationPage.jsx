@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FlightFooter } from '../components/FlightFooter.jsx';
+import { useBookingSound } from '../lib/sound.js';
 
 // ─── Lightweight QR Code (no extra dependencies) ───────────────────────────────
 function QRCode({ value, size = 130 }) {
@@ -24,6 +25,10 @@ export default function StaysConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [booking, setBooking] = useState(null);
+
+  // Chime once the stay is confirmed — keyed on the booking so a reload of the
+  // same confirmation link stays quiet.
+  useBookingSound(booking ? booking.reference || booking.id || sessionId : null);
 
   useEffect(() => {
     document.title = 'Booking Confirmed | BookingCart';

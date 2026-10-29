@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import { useBookingSound } from '../lib/sound.js';
 
 const EVENT_TICKET_PREVIEW = {
   bookingRef: 'B009865456T',
@@ -240,6 +241,10 @@ export default function EventConfirmationPage() {
   }
 
   const [confirming, setConfirming] = useState(false);
+
+  // Reserved-but-unpaid places are not a successful booking, so the chime waits
+  // for the confirmed status.
+  useBookingSound(booking?.status === 'confirmed' ? booking.bookingRef : null);
 
   async function handleCompletePayment(method = 'card') {
     if (!booking?.bookingRef) return;

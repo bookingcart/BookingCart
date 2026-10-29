@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { cinemaGet, cinemaPost, formatDate, formatDateTime, money } from '../lib/cinemaClient.js';
 import CinemaTicket from '../components/cinema/CinemaTicket.jsx';
+import { useBookingSound } from '../lib/sound.js';
 
 const STATUS_COPY = {
   confirmed: { tone: 'emerald', icon: 'ph-check-circle', title: 'Your cinema tickets are confirmed' },
@@ -81,6 +82,12 @@ export default function CinemaConfirmationPage() {
     if (sessionId) confirmPayment();
     else loadOrder();
   }, [sessionId, confirmPayment, loadOrder]);
+
+  // Only a confirmed order is a successful booking; a reservation held at the
+  // box office must not fire the chime.
+  useBookingSound(
+    data?.order?.status === 'confirmed' ? data.order.bookingRef || data.order.reference || ref : null
+  );
 
   const cancelBooking = async () => {
     if (!window.confirm('Cancel this booking and release the seats?')) return;

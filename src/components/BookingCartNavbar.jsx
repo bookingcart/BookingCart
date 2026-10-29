@@ -3,6 +3,7 @@ import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import { ThemeToggle, ThemeToggleRow } from './ThemeToggle.jsx';
+import { SoundToggle, SoundToggleRow } from './SoundToggle.jsx';
 
 /**
  * BookingCartNavbar
@@ -114,6 +115,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               <span>Support</span>
             </a>
 
+            <SoundToggle />
             <ThemeToggle />
 
             {/* Context CTAs */}
@@ -234,7 +236,8 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 </>
               )}
 
-              {/* Dark theme — same control as the desktop header tools */}
+              {/* Theme and sound — same controls as the desktop header tools */}
+              <SoundToggleRow />
               <ThemeToggleRow />
 
               {/* Support — always shown */}

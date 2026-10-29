@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { playNotificationSound } from '../lib/sound.js';
 
 const API = '/api/notifications';
 
@@ -76,7 +77,8 @@ export default function NotificationBell() {
         if (notif.type === 'CONNECTED') return;
         setNotifications((prev) => [notif, ...prev].slice(0, 50));
         setUnread((n) => n + 1);
-        // Ring the bell animation
+        // Chime for the push, then ring the bell in step with it.
+        playNotificationSound();
         setAnimateBell(true);
         setTimeout(() => setAnimateBell(false), 1000);
       } catch {}

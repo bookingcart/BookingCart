@@ -4,10 +4,13 @@ import App from './App.jsx';
 import './styles/app.css';
 import { legacyHrefToRoute } from './lib/legacyRoutes.js';
 import { initTheme } from './lib/theme.js';
+import { initSound } from './lib/sound.js';
 import { AuthProvider } from './context/AuthContext.jsx';
 
 // Keep <html class="dark">, the theme-color meta and OS changes in step.
 initTheme();
+// Browsers gate audio behind a gesture: the first tap or key unlocks the chimes.
+initSound();
 
 window.__bcNavigate = (href) => {
   const path = legacyHrefToRoute(String(href || ''));

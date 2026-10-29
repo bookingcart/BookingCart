@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useBookingSound } from '../lib/sound.js';
 import {
   TRANSPORT_PHOTOS,
   clockLabel,
@@ -198,6 +199,10 @@ export default function TransportConfirmationPage() {
   }, [ref]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Chime for a live booking only: a cancelled order keeps its reference but is
+  // not a success. The reference makes repeat visits silent.
+  useBookingSound(order && order.status !== 'cancelled' ? order.bookingRef || order.id || ref : null);
 
   const cancel = async () => {
     if (!window.confirm('Cancel this booking? The seats will be released immediately.')) return;
