@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+  TRANSPORT_PHOTOS,
   TRANSPORT_TYPES,
   addDays,
   clockLabel,
@@ -18,13 +19,6 @@ const TYPE_ACTIVE = {
   emerald: 'bg-green-600 text-white shadow-md shadow-green-600/30',
   sky: 'bg-sky-600 text-white shadow-md shadow-sky-600/30',
   violet: 'bg-violet-600 text-white shadow-md shadow-violet-600/30',
-};
-
-// The hero photo follows the vehicle type, the way the home page swaps its sky.
-const HERO_IMAGES = {
-  bus: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2000&q=80',
-  boat: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=2000&q=80',
-  train: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=2000&q=80',
 };
 
 const TYPE_SOFT = {
@@ -284,7 +278,7 @@ export default function TransportPage() {
           <div className="absolute inset-0 z-10 rounded-b-[40px] bg-gradient-to-b from-white/90 via-white/60 to-white/30 dark:from-slate-950/95 dark:via-slate-950/75 dark:to-slate-950/40" />
           <img
             key={type}
-            src={HERO_IMAGES[type]}
+            src={TRANSPORT_PHOTOS[type]}
             className="absolute inset-0 h-full w-full rounded-b-[40px] object-cover object-center transition-opacity duration-700 ease-in-out"
             alt=""
           />

@@ -253,6 +253,35 @@ test('money totals carry the currency they were priced in', () => {
   }
 });
 
+test('arrival is measured to the alighting stop, not the terminus', () => {
+  // A partial segment arrives before the vehicle reaches the end of the line.
+  assert.deepEqual(Tr.segmentArrival('07:00', 45), { time: '07:45', dayOffset: 0 });
+  // Overnight runs carry the extra day instead of wrapping silently.
+  assert.deepEqual(Tr.segmentArrival('23:30', 120), { time: '01:30', dayOffset: 1 });
+  // No stop list (minutes null) falls back to the departure's own arrival.
+  assert.deepEqual(Tr.segmentArrival('07:00', null, '08:30'), { time: '08:30', dayOffset: 0 });
+});
+
+test('the boarding pass carries what the printed ticket shows', () => {
+  const lib = read('lib', 'transport.js');
+  // The pass prints the plate, the city pair and the segment arrival.
+  assert.match(lib, /vehicleRegistration: row\.vehicle_registration/);
+  assert.match(lib, /boardingCity: row\.boarding_city/);
+  assert.match(lib, /dropoffCity: row\.dropoff_city/);
+  assert.match(lib, /arrivalTime: arrival\.time/);
+  assert.match(lib, /s\.minutes_from_origin[\s\S]*AS trip_minutes/);
+
+  const page = read('src', 'pages', 'TransportConfirmationPage.jsx');
+  assert.match(page, /TRANSPORT_PHOTOS\[order\.transportType\]/);
+  assert.match(page, /ticket-print/, 'the pass must be marked for the print stylesheet');
+  assert.match(page, /@media print/);
+  assert.match(page, /break-inside: avoid/);
+  assert.match(page, /print-color-adjust: exact/, 'the dark pass must keep its artwork on paper');
+  // Site chrome is dropped so a booking never prints the navbar or the footer.
+  assert.match(page, /footer\[aria-label="Site Footer"\]/);
+  assert.match(page, /\.bookingcart-navbar/);
+});
+
 test('the transport API refuses to run without a database', async () => {
   const previous = process.env.DATABASE_URL;
   delete process.env.DATABASE_URL;

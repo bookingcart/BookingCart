@@ -105,6 +105,13 @@ export function typeMeta(key) {
   return TRANSPORT_TYPES.find((entry) => entry.key === key) || TRANSPORT_TYPES[0];
 }
 
+/** Vehicle photography, swapped by type on the search hero and the ticket stub. */
+export const TRANSPORT_PHOTOS = {
+  bus: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2000&q=80',
+  boat: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=2000&q=80',
+  train: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=2000&q=80',
+};
+
 export function clockLabel(time) {
   const value = String(time || '');
   if (!/^\d{2}:\d{2}$/.test(value)) return value || '—';
