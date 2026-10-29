@@ -7,14 +7,26 @@ import { useBookingSound } from '../lib/sound.js';
 
 const SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js'];
 
+// PaymentPage chimes on this same key before it hands over, so the fresh
+// document never rings twice for one trip.
+function storedFlightRef() {
+  try {
+    return JSON.parse(localStorage.getItem('bookingcart_flights_v1') || '{}')?.bookingRef || '';
+  } catch {
+    return '';
+  }
+}
+
 export default function ConfirmationPage() {
   useEffect(() => { document.title = 'BookingCart — Confirmed'; }, []);
   useLegacyScripts(SCRIPTS, 'confirmation');
   const location = useLocation();
   // The Stripe session is unique per checkout, so it identifies the booking;
-  // without one, the history entry keeps reloads from replaying the chime.
+  // without one, the booking reference (or the history entry) keeps reloads
+  // from replaying the chime.
   const sessionId = new URLSearchParams(location.search).get('session_id');
-  useBookingSound(sessionId || `flight:${location.key}`);
+  const flightRef = storedFlightRef();
+  useBookingSound(sessionId || (flightRef ? `flight:${flightRef}` : `flight:${location.key}`));
   return (
     <>
         <main className="flex-grow flex flex-col items-center justify-center p-6 bg-[#16a34a] min-h-[80vh]"

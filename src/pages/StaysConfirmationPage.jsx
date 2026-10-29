@@ -4,16 +4,154 @@ import { FlightFooter } from '../components/FlightFooter.jsx';
 import { useBookingSound } from '../lib/sound.js';
 
 // ─── Lightweight QR Code (no extra dependencies) ───────────────────────────────
-function QRCode({ value, size = 130 }) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=1a1a2e&format=svg&margin=6`;
+function QRCode({ value, size = 96 }) {
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=0f172a&format=svg&margin=4`;
   return (
     <img
       src={url}
-      alt="Booking QR Code"
+      alt="Check-in QR code"
       width={size}
       height={size}
-      className="rounded-xl border-4 border-white shadow-lg"
+      className="h-24 w-24 rounded-lg bg-white"
     />
+  );
+}
+
+/**
+ * The stay voucher. Same printed artwork as the transport boarding pass and the
+ * event pass: brand band, photo band carrying the facts, white ticket face with
+ * the check-in QR, then a perforated stub.
+ */
+function StayPass({
+  bookingRef,
+  hotelName,
+  address,
+  photo,
+  checkIn,
+  checkOut,
+  nightCount,
+  guestName,
+  roomLabel,
+  numGuests,
+  issued,
+  qrValue,
+}) {
+  return (
+    <article className="ticket-print relative mx-auto w-full max-w-[404px] overflow-hidden rounded-[28px] bg-[#1e2226] text-white shadow-2xl">
+      {/* Brand band */}
+      <header className="px-6 pb-3.5 pt-5 text-center">
+        <img
+          src="/images/bookingcart-logo-on-dark.png"
+          alt="BookingCart"
+          width="202"
+          height="28"
+          className="mx-auto h-7 w-auto"
+          onError={(event) => { event.currentTarget.style.display = 'none'; }}
+        />
+        <p className="mt-1 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Compare · Book · Instant</p>
+      </header>
+
+      {/* Property photo, with the stay facts laid over it */}
+      <section className="relative mx-3.5 overflow-hidden rounded-[22px] bg-slate-900">
+        {photo ? (
+          <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,#1d3b2c,#0b0d0c_70%)]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/30 to-slate-950/90" />
+
+        <div className="relative flex min-h-[268px] flex-col justify-between gap-6 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <i className="ph ph-buildings mt-0.5 text-2xl leading-none" aria-hidden="true" />
+              <p className="text-[15px] font-extrabold leading-tight text-white">
+                Stay<br /><span className="text-green-400">Voucher</span>
+              </p>
+            </div>
+            <span className="flex items-center gap-1 rounded-full border border-green-500/40 bg-green-500/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-green-300 backdrop-blur">
+              <i className="ph-fill ph-check-circle" aria-hidden="true" /> Confirmed
+            </span>
+          </div>
+
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-green-400">Property</p>
+            <h2 className="mt-1 line-clamp-2 text-[19px] font-black uppercase leading-tight tracking-tight [text-shadow:0_1px_10px_rgba(0,0,0,0.85)]">{hotelName}</h2>
+            {address && (
+              <p className="mt-1 flex items-start gap-1.5 text-[10px] font-semibold text-white/70">
+                <i className="ph ph-map-pin mt-px shrink-0 text-green-400" aria-hidden="true" />
+                <span className="line-clamp-2">{address}</span>
+              </p>
+            )}
+
+            <dl className="mt-4 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+              <div className="min-w-0">
+                <dt className="text-[9px] font-black uppercase tracking-wider text-green-400">Check-in</dt>
+                <dd className="text-[13px] font-bold leading-tight">{checkIn}</dd>
+              </div>
+              <div className="pb-0.5 text-center">
+                {nightCount ? (
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-white/60">
+                    {nightCount} night{nightCount > 1 ? 's' : ''}
+                  </p>
+                ) : null}
+                <i className="ph ph-arrow-right mt-1 block text-sm text-white/50" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 text-right">
+                <dt className="text-[9px] font-black uppercase tracking-wider text-green-400">Check-out</dt>
+                <dd className="text-[13px] font-bold leading-tight">{checkOut}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      {/* White face: the guest's copy */}
+      <div className="bg-white px-4 py-4 text-slate-900">
+        <div className="flex items-start gap-3">
+          <dl className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-2.5">
+            <div className="col-span-2">
+              <dt className="text-[9px] font-black uppercase tracking-wider text-green-600">Guest</dt>
+              <dd className="truncate text-sm font-bold">{guestName}</dd>
+            </div>
+            <div>
+              <dt className="text-[9px] font-black uppercase tracking-wider text-green-600">Room</dt>
+              <dd className="truncate text-[11px] font-bold leading-snug">{roomLabel}</dd>
+            </div>
+            <div>
+              <dt className="text-[9px] font-black uppercase tracking-wider text-green-600">Guests</dt>
+              <dd className="text-[11px] font-bold leading-snug">{numGuests} guest{numGuests > 1 ? 's' : ''}</dd>
+            </div>
+            <div>
+              <dt className="text-[9px] font-black uppercase tracking-wider text-green-600">Booking ref</dt>
+              <dd className="truncate font-mono text-[11px] font-bold">{bookingRef}</dd>
+            </div>
+            <div>
+              <dt className="text-[9px] font-black uppercase tracking-wider text-green-600">Issued</dt>
+              <dd className="text-[10px] font-bold leading-snug">{issued}</dd>
+            </div>
+          </dl>
+
+          <div className="shrink-0 rounded-2xl bg-slate-950 p-2">
+            <QRCode value={qrValue} />
+          </div>
+        </div>
+        <p className="mt-2 text-[9px] font-semibold text-slate-400">Scan at check-in — one code per stay.</p>
+      </div>
+
+      {/* Perforated stub */}
+      <div className="relative border-t-2 border-dashed border-slate-300 bg-[#1e2226] px-6 pb-5 pt-4 text-center">
+        <span aria-hidden="true" className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-slate-50 dark:bg-slate-950 print:bg-white" />
+        <span aria-hidden="true" className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-slate-50 dark:bg-slate-950 print:bg-white" />
+        <p className="text-base font-black tracking-tight text-white">{hotelName}</p>
+        <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+          Booked with BookingCart
+        </p>
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/10 pt-2 text-[9px] font-bold uppercase tracking-wider">
+          <span className="font-mono text-slate-400">{bookingRef}</span>
+          <span className="text-green-400">confirmed</span>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -110,11 +248,17 @@ export default function StaysConfirmationPage() {
       };
     } catch { return { day: '--', month: '---' }; }
   };
-  const formatDateTime = (d) => {
-    if (!d) return '—';
+  // "Thu, 29 Oct" — the shape the ticket faces use.
+  const compactDate = (d) => {
+    const p = formatDateShort(d);
+    return p.day === '--' ? '—' : `${p.weekday}, ${p.day} ${p.month}`;
+  };
+  // "29 Oct 2026" — short enough for the banner, still year-complete.
+  const mediumDate = (d) => {
+    if (!d) return '';
     try {
-      return new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch { return d; }
+      return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return ''; }
   };
 
   // ── Derived values ──────────────────────────────────────────
@@ -144,8 +288,6 @@ export default function StaysConfirmationPage() {
   const accommodationName = booking?.accommodation?.name || booking?._checkoutQuote?.accommodation?.name || 'Hotel';
   const checkInRaw = booking?.check_in_date || booking?._checkoutQuote?.check_in_date;
   const checkOutRaw = booking?.check_out_date || booking?._checkoutQuote?.check_out_date;
-  const checkIn = formatDateShort(checkInRaw);
-  const checkOut = formatDateShort(checkOutRaw);
   const guestName = booking?.guests?.[0]
     ? `${booking.guests[0].given_name || ''} ${booking.guests[0].family_name || ''}`.trim()
     : '—';
@@ -165,396 +307,350 @@ export default function StaysConfirmationPage() {
   const roomInfo = booking?.accommodation?.rooms?.[0] || booking?.rooms?.[0] || booking?._checkoutQuote?.rooms?.[0] || null;
   const keyCollection = booking?.accommodation?.key_collection?.instructions;
 
+  // Hotel owners sometimes name a room just "4"; read it as "Room 4".
+  const rawRoomName = String(roomInfo?.name || roomInfo?.room_type || '').trim();
+  const roomLabel = !rawRoomName
+    ? 'Standard room'
+    : /^\d+$/.test(rawRoomName) ? `Room ${rawRoomName}` : rawRoomName;
+
+  // Address shapes differ between local profiles and Duffel quotes.
+  const addressObj = booking?.accommodation?.address
+    || booking?.accommodation?.location?.address
+    || booking?._checkoutQuote?.accommodation?.location?.address
+    || null;
+  const addressText = typeof addressObj === 'string'
+    ? addressObj
+    : [addressObj?.line_one || addressObj?.line_1, addressObj?.city_name || addressObj?.city, addressObj?.postal_code, addressObj?.country_code]
+        .filter(Boolean)
+        .join(', ');
+  const phoneNumber = booking?.accommodation?.phone_numbers?.[0] || '';
+
+  const photoEntry = booking?.accommodation?.photos?.[0] || booking?._checkoutQuote?.accommodation?.photos?.[0];
+  const photo = typeof photoEntry === 'string' ? photoEntry : photoEntry?.url || '';
+  const rating = Number(booking?.accommodation?.rating || 0);
+
+  const qrValue = JSON.stringify({ ref: bookingRef, type: 'stay', hotel: accommodationName, checkIn: checkInRaw, checkOut: checkOutRaw });
+
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col">
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-10">
+    <main className="min-h-screen bg-slate-50 pb-16 dark:bg-slate-950 print:bg-white print:pb-0">
+      {/* Printing keeps the voucher alone: site chrome and the detail panels
+          are dropped so the pass never breaks across two pages. */}
+      <style>{`
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          html, body { background: #fff !important; }
+          .bookingcart-navbar,
+          footer[aria-label="Site Footer"],
+          [aria-modal="true"] { display: none !important; }
+          .print-hide { display: none !important; }
+          .ticket-print {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            box-shadow: none !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .ticket-print * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 print:max-w-none print:p-0">
         {/* ── Loading ── */}
         {loading && (
-          <div className="text-center py-24">
-            <div className="w-14 h-14 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
+          <div className="py-24 text-center">
+            <div className="mx-auto h-14 w-14 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
             <h2 className="mt-8 text-2xl font-black text-slate-900 dark:text-white">Confirming your booking…</h2>
-            <p className="text-slate-500 mt-2 text-sm">Please don't close this page. We're securing your reservation.</p>
+            <p className="mt-2 text-sm text-slate-500">Please don't close this page. We're securing your reservation.</p>
           </div>
         )}
 
         {/* ── Error ── */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-950/30 w-full text-red-700 dark:text-red-300 p-10 rounded-2xl border border-red-200 dark:border-red-800 flex flex-col items-center text-center">
-            <i className="ph ph-warning-circle text-5xl mb-4" />
+          <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+            <i className="ph ph-warning-circle mb-3 text-4xl" aria-hidden="true" />
             <h2 className="text-xl font-black">Booking Error</h2>
             <p className="mt-2 text-sm">{error}</p>
-            <Link to="/support" className="mt-6 px-6 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors">Contact Support</Link>
+            <Link to="/support" className="mt-6 rounded-xl bg-red-600 px-6 py-2.5 font-bold text-white transition-colors hover:bg-red-700">Contact Support</Link>
           </div>
         )}
 
-        {/* ── Confirmation Letter ── */}
         {!loading && !error && booking && (
-          <div className="space-y-0">
+          <>
+            {/* ── Success banner ── */}
+            <section className="print-hide rounded-2xl border border-green-200 bg-green-50 p-5 text-center dark:border-green-800 dark:bg-green-900/20">
+              <span className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-600 text-white">
+                <i className="ph ph-check text-2xl" aria-hidden="true" />
+              </span>
+              <h1 className="text-xl font-black text-slate-900 dark:text-white">You're booked</h1>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                {accommodationName}{checkInRaw ? ` · ${mediumDate(checkInRaw)}` : ''}
+                {checkOutRaw ? ` → ${mediumDate(checkOutRaw)}` : ''}
+                {nightCount ? ` · ${nightCount} night${nightCount > 1 ? 's' : ''}` : ''}
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                A confirmation email {guestEmail ? `is on its way to ${guestEmail}` : 'will be sent shortly'}.
+              </p>
+              <p className="mt-3 inline-block rounded-xl bg-white px-3 py-1.5 font-mono text-sm font-bold text-slate-900 dark:bg-slate-900 dark:text-white">
+                {bookingRef}
+              </p>
+            </section>
 
-            {/* ════════════════════ HEADER BANNER ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 rounded-t-3xl border border-b-0 border-slate-200 dark:border-slate-800 overflow-hidden">
-              {/* Green success strip */}
-              <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 px-8 py-6 flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shrink-0">
-                  <i className="ph-fill ph-check-circle text-3xl text-white" />
+            <div className="mt-5 grid gap-6 lg:grid-cols-[404px_1fr] lg:items-start">
+              {/* ── The voucher ── */}
+              <div className="space-y-4">
+                <StayPass
+                  bookingRef={bookingRef}
+                  hotelName={accommodationName}
+                  address={addressText}
+                  photo={photo}
+                  checkIn={compactDate(checkInRaw)}
+                  checkOut={compactDate(checkOutRaw)}
+                  nightCount={nightCount}
+                  guestName={guestName}
+                  roomLabel={roomLabel}
+                  numGuests={numGuests}
+                  issued={confirmedAt ? formatDate(confirmedAt) : '—'}
+                  qrValue={qrValue}
+                />
+
+                <div className="print-hide grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                  >
+                    <i className="ph ph-printer text-base" aria-hidden="true" /> Print / save PDF
+                  </button>
+                  <Link
+                    to="/my-bookings"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <i className="ph ph-suitcase text-base" aria-hidden="true" /> My bookings
+                  </Link>
+                  <Link
+                    to="/"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <i className="ph ph-house text-base" aria-hidden="true" /> Home
+                  </Link>
                 </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">Booking Confirmation</h1>
-                  <p className="text-emerald-100 text-sm mt-1">Your stay has been confirmed. A confirmation email will be sent shortly.</p>
-                </div>
+
+                <p className="print-hide text-center text-[11px] text-slate-400">
+                  Keep this page or the email — the QR code is scanned once at check-in.
+                </p>
               </div>
 
-              {/* Booking ref + confirmation number + QR code */}
-              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-6">
-                <div className="flex-1 min-w-0">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Confirmation Number</span>
-                  <p className="text-2xl font-mono font-black text-slate-900 dark:text-white tracking-wider mt-0.5">{bookingRef}</p>
-                  {confirmedAt && (
-                    <p className="text-xs text-slate-500 mt-1">Confirmed {formatDateTime(confirmedAt)}</p>
-                  )}
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-full border border-emerald-200 dark:border-emerald-800">
-                      <i className="ph-fill ph-check-circle text-xs" /> Confirmed
-                    </span>
-                    <span className="text-[10px] text-slate-400">Scan QR code at check-in →</span>
-                  </div>
-                </div>
-                {/* QR Code for check-in scanning */}
-                <div className="shrink-0 flex flex-col items-center gap-1.5">
-                  <div className="p-2 bg-white dark:bg-slate-700 rounded-2xl shadow-md border border-slate-200 dark:border-slate-600">
-                    <QRCode value={JSON.stringify({ ref: bookingRef, type: 'stay', hotel: accommodationName, checkIn: checkInRaw, checkOut: checkOutRaw })} size={110} />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Check-in QR</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ════════════════════ PROPERTY + DATES ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-slate-200 dark:border-slate-800 px-8 py-7">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-                {/* Property info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <i className="ph-fill ph-buildings text-emerald-600 text-xl" />
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">{accommodationName}</h2>
-                  </div>
-                  {booking?.accommodation?.address && (
-                    <p className="text-xs text-slate-500 mt-1 flex items-start gap-1.5">
-                      <i className="ph ph-map-pin text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{typeof booking.accommodation.address === 'string' ? booking.accommodation.address : [booking.accommodation.address?.line_1, booking.accommodation.address?.city_name, booking.accommodation.address?.country_code].filter(Boolean).join(', ')}</span>
-                    </p>
-                  )}
-                  {booking?.accommodation?.phone_numbers?.[0] && (
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                      <i className="ph ph-phone text-emerald-500" />
-                      {booking.accommodation.phone_numbers[0]}
-                    </p>
-                  )}
-                </div>
-
-                {/* Check-in / Check-out date boxes */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-center">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Check-in</div>
-                    <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col items-center justify-center">
-                      <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400 leading-none">{checkIn.day}</span>
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">{checkIn.month}</span>
+              {/* ── Everything the guest needs to read ── */}
+              <div className="space-y-4 print-hide">
+                {/* Stay summary */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-base font-black text-slate-900 dark:text-white">{accommodationName}</h2>
+                      {addressText && (
+                        <p className="mt-0.5 flex items-start gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          <i className="ph ph-map-pin mt-0.5 shrink-0 text-green-600" aria-hidden="true" /> {addressText}
+                        </p>
+                      )}
+                      {phoneNumber && (
+                        <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          <i className="ph ph-phone text-green-600" aria-hidden="true" /> {phoneNumber}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex flex-col items-center gap-0.5 px-1">
-                    {nightCount && (
-                      <span className="text-[10px] font-black text-slate-400">{nightCount} night{nightCount > 1 ? 's' : ''}</span>
+                    {rating > 0 && (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                        <i className="ph-fill ph-star text-amber-500" aria-hidden="true" /> {rating.toFixed(1)}
+                      </span>
                     )}
-                    <i className="ph ph-arrow-right text-slate-300 text-lg" />
                   </div>
-                  <div className="text-center">
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Check-out</div>
-                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center">
-                      <span className="text-2xl font-black text-slate-700 dark:text-slate-200 leading-none">{checkOut.day}</span>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">{checkOut.month}</span>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs dark:border-slate-700 sm:grid-cols-4">
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide text-slate-400">Check-in</dt>
+                      <dd className="font-bold text-slate-900 dark:text-white">{compactDate(checkInRaw)}</dd>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ════════════════════ GUEST DETAILS ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="ph ph-user text-emerald-500" /> Guest Details
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Guest Name</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{guestName}</p>
-                </div>
-                {guestEmail && (
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Email</span>
-                    <p className="font-bold text-slate-900 dark:text-white mt-0.5 break-all">{guestEmail}</p>
-                  </div>
-                )}
-                {guestPhone && (
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Phone</span>
-                    <p className="font-bold text-slate-900 dark:text-white mt-0.5">{guestPhone}</p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Number of Guests</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{numGuests} guest{numGuests > 1 ? 's' : ''}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* ════════════════════ ROOM DETAILS ════════════════════ */}
-            {roomInfo && (
-              <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <i className="ph ph-bed text-emerald-500" /> Room Details
-                </h3>
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                  <p className="font-bold text-sm text-slate-900 dark:text-white">{roomInfo.name || roomInfo.room_type || 'Standard Room'}</p>
-                  {roomInfo.description && (
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">{roomInfo.description}</p>
-                  )}
-                  {roomInfo.amenities && roomInfo.amenities.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {roomInfo.amenities.slice(0, 12).map((a, i) => (
-                        <span key={i} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-md text-[10px] font-bold">{a}</span>
-                      ))}
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide text-slate-400">Check-out</dt>
+                      <dd className="font-bold text-slate-900 dark:text-white">{compactDate(checkOutRaw)}</dd>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide text-slate-400">Nights</dt>
+                      <dd className="font-bold text-slate-900 dark:text-white">{nightCount || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide text-slate-400">Guests</dt>
+                      <dd className="font-bold text-slate-900 dark:text-white">{numGuests}</dd>
+                    </div>
+                  </dl>
 
-            {/* ════════════════════ PRICE BREAKDOWN ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="ph ph-receipt text-emerald-500" /> Price Summary
-              </h3>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs dark:border-slate-700">
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide text-slate-400">Room</dt>
+                      <dd className="font-bold text-slate-900 dark:text-white">{roomLabel}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase tracking-wide text-slate-400">Lead guest</dt>
+                      <dd className="font-bold text-slate-900 dark:text-white">{guestName}</dd>
+                    </div>
+                    {guestEmail && (
+                      <div>
+                        <dt className="font-semibold uppercase tracking-wide text-slate-400">Email</dt>
+                        <dd className="break-all font-bold text-slate-900 dark:text-white">{guestEmail}</dd>
+                      </div>
+                    )}
+                    {guestPhone && (
+                      <div>
+                        <dt className="font-semibold uppercase tracking-wide text-slate-400">Phone</dt>
+                        <dd className="font-bold text-slate-900 dark:text-white">{guestPhone}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </section>
 
-              <div className="space-y-0 divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-                {/* Room rate */}
-                <div className="flex justify-between items-center px-4 py-3.5">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Room rate{nightCount ? ` × ${nightCount} night${nightCount > 1 ? 's' : ''}` : ''}</p>
-                    {numGuests > 0 && <p className="text-[11px] text-slate-400">For {numGuests} guest{numGuests > 1 ? 's' : ''}</p>}
+                {/* Price summary */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                  <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Price summary</h2>
+                  <div className="mt-3 space-y-1.5 text-sm text-slate-600 dark:text-slate-300">
+                    <div className="flex justify-between gap-3">
+                      <span>Room rate{nightCount ? ` × ${nightCount} night${nightCount > 1 ? 's' : ''}` : ''}</span>
+                      <span className="font-bold tabular-nums text-slate-900 dark:text-white">{currency} {totalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span>Taxes &amp; charges</span>
+                      <span className="font-bold tabular-nums text-slate-900 dark:text-white">
+                        {taxAmount != null && Number(taxAmount) > 0
+                          ? `${currency} ${Number(taxAmount).toFixed(2)}`
+                          : <span className="font-normal italic text-slate-400">Included</span>}
+                      </span>
+                    </div>
+                    {feeAmount != null && Number(feeAmount) > 0 && (
+                      <div className="flex justify-between gap-3">
+                        <span>Service fees</span>
+                        <span className="font-bold tabular-nums text-slate-900 dark:text-white">{currency} {Number(feeAmount).toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">{currency} {totalAmount.toFixed(2)}</span>
-                </div>
 
-                {/* Taxes */}
-                <div className="flex justify-between items-center px-4 py-3">
-                  <span className="text-sm text-slate-500">Taxes & charges</span>
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    {taxAmount != null && Number(taxAmount) > 0
-                      ? `${currency} ${Number(taxAmount).toFixed(2)}`
-                      : <span className="italic font-normal text-slate-400">Included</span>}
-                  </span>
-                </div>
-
-                {/* Fees */}
-                {feeAmount != null && Number(feeAmount) > 0 && (
-                  <div className="flex justify-between items-center px-4 py-3">
-                    <span className="text-sm text-slate-500">Service fees</span>
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{currency} {Number(feeAmount).toFixed(2)}</span>
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-base font-black text-slate-900 dark:border-slate-700 dark:text-white">
+                    <span>Total paid</span>
+                    <span className="tabular-nums">{currency} {totalAmount.toFixed(2)}</span>
                   </div>
-                )}
 
-                {/* Total */}
-                <div className="flex justify-between items-center px-5 py-4 bg-slate-50 dark:bg-slate-800/50">
-                  <span className="font-black text-slate-900 dark:text-white">Total Paid</span>
-                  <span className="text-xl font-black text-emerald-700 dark:text-emerald-400">{currency} {totalAmount.toFixed(2)}</span>
-                </div>
-
-                {/* Due at accommodation */}
-                <div className="flex justify-between items-center px-5 py-4 bg-emerald-50 dark:bg-emerald-950/30">
-                  <div>
-                    <span className="font-bold text-emerald-800 dark:text-emerald-300 text-sm">Due at Accommodation</span>
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">Payable directly to the property</p>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-green-50 px-3 py-2 text-xs font-bold text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                    <span className="flex items-center gap-1.5">
+                      <i className="ph-fill ph-check-circle" aria-hidden="true" /> Paid in full · {booking?.status || 'confirmed'}
+                    </span>
+                    <span className="font-semibold">
+                      {dueAtAccAmount != null && Number(dueAtAccAmount) > 0
+                        ? `${dueAtAccCurrency} ${Number(dueAtAccAmount).toFixed(2)} due at the property`
+                        : 'Nothing due at the property'}
+                    </span>
                   </div>
-                  <span className="font-black text-emerald-800 dark:text-emerald-300">
-                    {dueAtAccAmount != null && Number(dueAtAccAmount) > 0
-                      ? `${dueAtAccCurrency} ${Number(dueAtAccAmount).toFixed(2)}`
-                      : <span className="text-sm font-semibold italic text-emerald-600">Nothing due</span>}
-                  </span>
-                </div>
-              </div>
-            </div>
+                </section>
 
-            {/* ════════════════════ PAYMENT INFO ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <i className="ph ph-credit-card text-emerald-500" /> Payment Information
-              </h3>
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-5 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Payment status</span>
-                  <span className="font-bold text-emerald-600 flex items-center gap-1.5">
-                    <i className="ph-fill ph-check-circle text-xs" /> Paid in full
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Payment method</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Online Payment</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Booking status</span>
-                  <span className="font-bold text-emerald-600 capitalize">{booking?.status || 'Confirmed'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ════════════════════ CANCELLATION POLICY ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="ph ph-shield-check text-emerald-500" /> Cancellation Policy
-              </h3>
-              {cancellationTimeline?.cancel_by ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-5 border border-emerald-200 dark:border-emerald-800">
-                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold mb-2">
-                    <i className="ph-fill ph-check-circle text-lg" />
-                    Free cancellation until {formatDate(cancellationTimeline.cancel_by)}
-                  </div>
-                  {((cancellationTimeline.penalties || cancellationTimeline.periods) || []).length > 0 && (
-                    <div className="space-y-1.5 mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Penalty Schedule</p>
-                      {(cancellationTimeline.penalties || cancellationTimeline.periods).map((p, i) => (
-                        <div key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                          <i className="ph ph-caret-right text-slate-400" />
-                          After {formatDate(p.start_date || p.starts_at)}:{' '}
-                          {p.percentage != null
-                            ? `${p.percentage}% of total amount`
-                            : p.amount != null
-                            ? `${currency} ${Number(p.amount).toFixed(2)}`
-                            : 'Penalty applies'}
+                {/* Cancellation policy */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                  <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+                    <i className="ph ph-shield-check text-green-600" aria-hidden="true" /> Cancellation
+                  </h2>
+                  {cancellationTimeline?.cancel_by ? (
+                    <div className="mt-3">
+                      <p className="flex items-center gap-1.5 text-sm font-bold text-green-700 dark:text-green-400">
+                        <i className="ph-fill ph-check-circle" aria-hidden="true" />
+                        Free cancellation until {formatDate(cancellationTimeline.cancel_by)}
+                      </p>
+                      {((cancellationTimeline.penalties || cancellationTimeline.periods) || []).length > 0 && (
+                        <div className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-400">
+                          {(cancellationTimeline.penalties || cancellationTimeline.periods).map((p, i) => (
+                            <p key={i} className="flex items-center gap-1.5">
+                              <i className="ph ph-caret-right text-slate-400" aria-hidden="true" />
+                              After {formatDate(p.start_date || p.starts_at)}:{' '}
+                              {p.percentage != null
+                                ? `${p.percentage}% of the total`
+                                : p.amount != null
+                                ? `${currency} ${Number(p.amount).toFixed(2)}`
+                                : 'Penalty applies'}
+                            </p>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
+                  ) : (
+                    <p className="mt-3 text-sm font-bold text-amber-700 dark:text-amber-400">
+                      {rateConditions?.toLowerCase().includes('non-refundable')
+                        ? 'Non-refundable — no cancellation after booking.'
+                        : 'The property sets the cancellation policy — check your confirmation email.'}
+                    </p>
                   )}
-                </div>
-              ) : (
-                <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-5 border border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-sm">
-                    <i className="ph ph-warning-circle text-lg" />
-                    {rateConditions?.toLowerCase().includes('non-refundable')
-                      ? 'Non-refundable – no cancellation available after booking'
-                      : 'Cancellation policy varies – please check your confirmation email'}
+                </section>
+
+                {/* Key collection */}
+                {keyCollection && (
+                  <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm font-semibold text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                    <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-wide">
+                      <i className="ph-fill ph-key" aria-hidden="true" /> Key collection
+                    </h2>
+                    <p className="mt-1.5 leading-relaxed">{keyCollection}</p>
+                  </section>
+                )}
+
+                {/* Rate conditions */}
+                {rateConditions && (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                    <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+                      <i className="ph ph-info text-green-600" aria-hidden="true" /> Rate conditions
+                    </h2>
+                    <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-slate-600 dark:text-slate-400">{rateConditions}</p>
+                  </section>
+                )}
+
+                {/* At check-in */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                  <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+                    <i className="ph ph-clock text-green-600" aria-hidden="true" /> At check-in
+                  </h2>
+                  <div className="mt-2 space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    <p>Check-in from <span className="font-black text-slate-900 dark:text-white">14:00</span>, check-out by <span className="font-black text-slate-900 dark:text-white">11:00</span>.</p>
+                    <p>Bring this voucher and a valid photo ID.</p>
                   </div>
-                </div>
-              )}
-            </div>
+                </section>
 
-            {/* ════════════════════ RATE CONDITIONS ════════════════════ */}
-            {rateConditions && (
-              <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <i className="ph ph-info text-emerald-500" /> Rate Conditions
-                </h3>
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-5 text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
-                  {rateConditions}
-                </div>
-              </div>
-            )}
+                {/* Need help */}
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+                  <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
+                    <i className="ph ph-headset text-green-600" aria-hidden="true" /> Need help?
+                  </h2>
+                  <div className="mt-2 space-y-1 text-xs font-semibold">
+                    <a href="mailto:bookingcart.business@gmail.com" className="flex items-center gap-1.5 text-green-700 hover:underline dark:text-green-400">
+                      <i className="ph ph-envelope" aria-hidden="true" /> bookingcart.business@gmail.com
+                    </a>
+                    <a href="tel:+18005550199" className="flex items-center gap-1.5 text-green-700 hover:underline dark:text-green-400">
+                      <i className="ph ph-phone" aria-hidden="true" /> +1 (800) 555-0199
+                    </a>
+                    <p className="pt-1 text-[11px] font-medium text-slate-400">Open 24 hours a day, 7 days a week.</p>
+                  </div>
+                </section>
 
-            {/* ════════════════════ KEY COLLECTION ════════════════════ */}
-            {keyCollection && (
-              <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <i className="ph ph-key text-emerald-500" /> Key Collection
-                </h3>
-                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm text-blue-800 dark:text-blue-300 font-semibold leading-relaxed">
-                    <i className="ph-fill ph-key text-blue-500 mr-2" />
-                    {keyCollection}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ════════════════════ IMPORTANT INFORMATION ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="ph ph-info text-emerald-500" /> Important Information
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                  <p className="text-xs font-black text-slate-400 uppercase mb-2 flex items-center gap-1.5">
-                    <i className="ph ph-clock text-emerald-500" /> Check-in / Check-out
-                  </p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">Check-in: <span className="font-bold">from 14:00</span></p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">Check-out: <span className="font-bold">by 11:00</span></p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                  <p className="text-xs font-black text-slate-400 uppercase mb-2 flex items-center gap-1.5">
-                    <i className="ph ph-identification-card text-emerald-500" /> At Check-in
-                  </p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">Please present your <span className="font-bold">booking confirmation</span> and a <span className="font-bold">valid photo ID</span>.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* ════════════════════ NEED HELP ════════════════════ */}
-            <div className="bg-white dark:bg-slate-900 border-x border-t border-slate-200 dark:border-slate-800 px-8 py-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="ph ph-headset text-emerald-500" /> Need Help?
-              </h3>
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-5 border border-slate-100 dark:border-slate-700">
-                <p className="font-bold text-sm text-slate-900 dark:text-white mb-3">BookingCart Customer Service</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                  <a href="mailto:bookingcart.business@gmail.com" className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 hover:underline">
-                    <i className="ph ph-envelope text-emerald-500" /> bookingcart.business@gmail.com
-                  </a>
-                  <a href="tel:+18005550199" className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 hover:underline">
-                    <i className="ph ph-phone text-emerald-500" /> +1 (800) 555-0199
-                  </a>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-3">We're available 24 hours a day, 7 days a week.</p>
-              </div>
-            </div>
-
-            {/* ════════════════════ LEGAL FOOTER ════════════════════ */}
-            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-b-3xl px-8 py-5">
-              <div className="text-[11px] text-slate-400 leading-relaxed text-center">
-                <p>
-                  This confirmation contains the most important information about your booking.
-                  It can be used to check in when you arrive at the property.
+                <p className="px-1 text-[11px] leading-relaxed text-slate-400">
+                  This confirmation holds the details of your booking and doubles as your check-in voucher.
+                  By booking you agreed to our{' '}
+                  <Link to="/terms" className="text-green-600 hover:underline">Terms &amp; Conditions</Link>{' '}and{' '}
+                  <Link to="/privacy" className="text-green-600 hover:underline">Privacy Policy</Link>,
+                  plus the property's own terms.
                 </p>
-                <p className="mt-2">
-                  By confirming this booking, you agreed to our{' '}
-                  <Link to="/terms" className="text-emerald-600 hover:underline">Terms & Conditions</Link>{' '}and{' '}
-                  <Link to="/privacy" className="text-emerald-600 hover:underline">Privacy Policy</Link>,
-                  as well as any applicable property terms.
-                </p>
-                <p className="mt-3 font-bold text-slate-500">BookingCart Inc. · 123 Travel Street, Silicon Valley, CA 94000</p>
               </div>
             </div>
-
-            {/* ════════════════════ ACTION BUTTONS ════════════════════ */}
-            <div className="flex flex-col sm:flex-row gap-3 mt-8 print:hidden">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="flex-1 flex items-center justify-center gap-2 py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-600 text-slate-800 dark:text-white font-bold rounded-2xl transition-all hover:shadow-lg"
-              >
-                <i className="ph ph-printer text-lg text-emerald-600" />
-                Print / Save as PDF
-              </button>
-              <Link to="/my-bookings" className="flex-1 text-center py-4 bg-emerald-600 text-white font-bold rounded-2xl transition-all hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 flex items-center justify-center gap-2">
-                <i className="ph ph-list-checks text-lg" /> View My Bookings
-              </Link>
-              <Link to="/" className="flex-1 text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold rounded-2xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2">
-                <i className="ph ph-house text-lg" /> Return Home
-              </Link>
-            </div>
-          </div>
+          </>
         )}
-      </main>
+      </div>
+
       <div className="print:hidden">
         <FlightFooter />
       </div>
-    </div>
+    </main>
   );
 }

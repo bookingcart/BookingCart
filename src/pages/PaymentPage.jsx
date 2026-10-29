@@ -3,6 +3,7 @@ import { useLegacyScripts } from '../hooks/useLegacyScripts.js';
 import { FlightFooter } from '../components/FlightFooter.jsx';
 import { HeaderAuthCluster } from '../components/HeaderAuthCluster.jsx';
 import { DuffelCardForm, useDuffelCardFormActions, createThreeDSecureSession } from '@duffel/components';
+import { playBookingChime } from '../lib/sound.js';
 
 const SCRIPTS = ['/js/loading-ui.js','/js/auth.js','/js/bookingcart.js'];
 
@@ -111,6 +112,9 @@ export default function PaymentPage() {
 
     if (!Number.isFinite(amountCents) || amountCents < 50) {
       writeState({ _platformStripeStatus: 'not_required' });
+      // Nothing more to pay: the trip is booked, and this is the last page with
+      // the visitor's gesture. The confirmation page keys on the same reference.
+      playBookingChime(`flight:${bookingRef}`);
       window.location.href = '/confirmation';
       return;
     }

@@ -126,10 +126,16 @@ const CHIMES = {
 export function playSound(name) {
   if (!soundEnabled() || !CHIMES[name]) return false;
   if (!unlocked) {
-    // Safari/Chrome need a gesture first: hold the chime for a few seconds so
-    // a notification that lands before the first tap still gets its sound.
-    pending = { name, at: Date.now() };
-    return false;
+    // A same-origin page load ("Pay" → /confirmation) keeps the tab's sticky
+    // activation, so the new document can play straight away instead of
+    // waiting for another click.
+    if (!activationCarried()) {
+      // Safari/Chrome need a gesture first: hold the chime for a few seconds so
+      // a notification that lands before the first tap still gets its sound.
+      pending = { name, at: Date.now() };
+      return false;
+    }
+    unlocked = true;
   }
   const ctx = ensureAudio();
   if (!ctx) return false;
@@ -142,12 +148,34 @@ export function playSound(name) {
   return true;
 }
 
+// Sticky activation survives a same-origin navigation even though the audio
+// context of the previous document does not.
+function activationCarried() {
+  try {
+    return Boolean(navigator.userActivation?.hasBeenActive);
+  } catch {
+    return false;
+  }
+}
+
 export function playBookingSound() {
   return playSound('booking');
 }
 
 export function playNotificationSound() {
   return playSound('notification');
+}
+
+/**
+ * Chime for the booking that was just paid for, from the page where the visitor
+ * still has a fresh gesture (the checkout, before it hands over to the
+ * confirmation page). The confirmation page uses the same key, so the fanfare
+ * never plays twice for one booking.
+ */
+export function playBookingChime(key) {
+  if (!key) return false;
+  if (alreadyPlayed(`booking:${key}`)) return false;
+  return playSound('booking');
 }
 
 /**
@@ -208,8 +236,7 @@ function alreadyPlayed(key) {
 export function useBookingSound(key) {
   useEffect(() => {
     if (!key) return;
-    if (alreadyPlayed(`booking:${key}`)) return;
-    playSound('booking');
+    playBookingChime(key);
   }, [key]);
 }
 

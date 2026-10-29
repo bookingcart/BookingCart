@@ -70,6 +70,30 @@ test('incoming notifications ping as they arrive', () => {
   assert.match(bell, /setUnread\(\(n\) => n \+ 1\);\s*\/\/[^\n]*\n\s*playNotificationSound\(\);/, 'the SSE push must play the chime');
 });
 
+test('a booking that hands over with a full page load chimes from the checkout', () => {
+  const sound = read('src/lib/sound.js');
+  assert.match(sound, /export function playBookingChime\(key\)/, 'checkouts need a deduped chime of their own');
+  assert.match(sound, /activationCarried\(\)/, 'a same-origin page load may keep activation — use it before queuing');
+
+  const checkouts = [
+    'src/pages/StaysCheckoutPage.jsx',
+    'src/pages/AviationCheckoutPage.jsx',
+    'src/pages/PaymentPage.jsx',
+  ];
+  checkouts.forEach((file) => {
+    const page = read(file);
+    assert.match(page, /import \{ playBookingChime \} from ['"]\.\.\/lib\/sound\.js['"]/, `${file} must import the handover chime`);
+    assert.match(page, /playBookingChime\(/, `${file} must chime before the browser leaves the document`);
+  });
+
+  // The chime must fire while the click that paid is still current.
+  const stays = read('src/pages/StaysCheckoutPage.jsx');
+  assert.ok(
+    stays.indexOf('playBookingChime(') < stays.indexOf('window.location.href = `/stays/confirmation'),
+    'the stays chime must run before the redirect'
+  );
+});
+
 test('the visitor can mute sound from the header and the drawer', () => {
   const navbar = read('src/components/BookingCartNavbar.jsx');
   assert.match(navbar, /import \{ SoundToggle, SoundToggleRow \} from '\.\/SoundToggle\.jsx'/);

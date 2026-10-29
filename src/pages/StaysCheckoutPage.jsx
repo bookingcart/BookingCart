@@ -4,6 +4,7 @@ import { FlightFooter } from '../components/FlightFooter.jsx';
 import { DuffelCardForm, useDuffelCardFormActions, createThreeDSecureSession } from '@duffel/components';
 import { useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { playBookingChime } from '../lib/sound.js';
 
 export default function StaysCheckoutPage() {
   const [searchParams] = useSearchParams();
@@ -418,6 +419,10 @@ export default function StaysCheckoutPage() {
         setPaymentInstructionLoading(false);
       }
 
+      // The confirmation page arrives as a fresh document (window.location), so
+      // this is the last moment the browser still trusts us with audio. The
+      // confirmation page keys its hook on the same reference and stays quiet.
+      playBookingChime(enrichedBooking.reference || enrichedBooking.id);
       window.location.href = `/stays/confirmation?quote_id=${encodeURIComponent(quoteId)}&direct=1`;
     } catch (err) {
       alert(err.message);

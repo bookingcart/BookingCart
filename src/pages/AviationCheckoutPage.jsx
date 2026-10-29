@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import { aviationRequest, categoryLabel, durationLabel, money, searchQuery, stripeCheckoutOutcome } from "../lib/aviationClient.js";
+import { playBookingChime } from "../lib/sound.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const STEPS = ["Route", "Aircraft", "Review & pay"];
@@ -150,6 +151,9 @@ export default function AviationCheckoutPage() {
       }
 
       await aviationRequest("booking-confirm", { method: "POST", body: { ref, email, method: "invoice" } });
+      // The confirmation page loads as a fresh document, so the chime plays here
+      // where the click that paid is still recent. Same key, one chime.
+      playBookingChime(ref);
       window.location.href = `/aviation/confirmation?ref=${ref}`;
     } catch (err) {
       setError(err.message);
