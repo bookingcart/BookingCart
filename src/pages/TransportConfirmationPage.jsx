@@ -9,6 +9,7 @@ import {
   transportPost,
   typeMeta,
 } from '../lib/transportClient.js';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 function TicketCard({ ticket, order }) {
   return (
@@ -20,7 +21,7 @@ function TicketCard({ ticket, order }) {
         </span>
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
           ticket.status === 'valid'
-            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
             : ticket.status === 'used'
               ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
               : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
@@ -124,7 +125,7 @@ export default function TransportConfirmationPage() {
           <i className="ph ph-ticket mx-auto mb-3 block text-4xl text-slate-300" aria-hidden="true" />
           <h1 className="text-lg font-bold text-slate-900 dark:text-white">We could not find that booking</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{error}</p>
-          <Link to="/transport" className="mt-4 inline-block rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Search transport</Link>
+          <Link to="/transport" className="mt-4 inline-block rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white">Search transport</Link>
         </div>
       </main>
     );
@@ -134,15 +135,16 @@ export default function TransportConfirmationPage() {
   const cancelled = order.status === 'cancelled';
 
   return (
+    <>
     <main className="min-h-screen bg-slate-50 pb-16 dark:bg-slate-950">
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
         <section className={`rounded-2xl border p-5 text-center ${
           cancelled
             ? 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-900/20'
-            : 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20'
+            : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
         }`}>
           <span className={`mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full ${
-            cancelled ? 'bg-rose-600' : 'bg-emerald-600'
+            cancelled ? 'bg-rose-600' : 'bg-green-600'
           } text-white`}>
             <i className={`ph ${cancelled ? 'ph-x' : 'ph-check'} text-2xl`} aria-hidden="true" />
           </span>
@@ -168,7 +170,7 @@ export default function TransportConfirmationPage() {
         {/* ── Journey ── */}
         <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:bg-slate-700 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-green-600 dark:bg-slate-700 dark:text-green-400">
               <i className={`ph ${meta.icon} text-sm`} aria-hidden="true" /> {order.transportLabel}
             </span>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{order.operatorName}</span>
@@ -241,5 +243,7 @@ export default function TransportConfirmationPage() {
         </p>
       </div>
     </main>
+      <FlightFooter />
+    </>
   );
 }

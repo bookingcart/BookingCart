@@ -9,10 +9,11 @@ import {
   transportPost,
   typeMeta,
 } from '../lib/transportClient.js';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 const SEAT_STATE = {
-  available: 'border-slate-300 bg-white text-slate-700 hover:border-emerald-500 hover:bg-emerald-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
-  selected: 'border-emerald-600 bg-emerald-600 text-white shadow-sm shadow-emerald-600/30',
+  available: 'border-slate-300 bg-white text-slate-700 hover:border-green-500 hover:bg-green-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
+  selected: 'border-green-600 bg-green-600 text-white shadow-sm shadow-green-600/30',
   held: 'border-amber-300 bg-amber-100 text-amber-700 cursor-not-allowed dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   sold: 'border-slate-200 bg-slate-200 text-slate-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500',
   blocked: 'border-dashed border-slate-300 bg-slate-50 text-slate-300 cursor-not-allowed dark:border-slate-700 dark:bg-slate-800/40',
@@ -102,7 +103,7 @@ function SeatButton({ seat, selected, onToggle }) {
       aria-label={`Seat ${seat.label}, ${state}`}
       disabled={disabled}
       onClick={() => onToggle(seat)}
-      className={`h-9 w-9 shrink-0 rounded-lg border text-[11px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed ${SEAT_STATE[state] || SEAT_STATE.available}`}
+      className={`h-9 w-9 shrink-0 rounded-lg border text-[11px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed ${SEAT_STATE[state] || SEAT_STATE.available}`}
     >
       {seat.label}
     </button>
@@ -177,9 +178,12 @@ export default function TransportSeatsPage() {
   // segment back from the departure rather than trusting the query string.
   const tripMinutes = useMemo(() => {
     if (!map) return 0;
-    const board = map.stops.find((stop) => stop.order === map.departure.fromStop)?.minutesFromOrigin ?? 0;
-    const alight = map.stops.find((stop) => stop.order === map.departure.toStop)?.minutesFromOrigin ?? 0;
-    return Math.max(0, alight - board);
+    const stops = map.stops || [];
+    const board = stops.find((stop) => stop.order === map.departure.fromStop)?.minutesFromOrigin ?? 0;
+    const alight = stops.find((stop) => stop.order === map.departure.toStop)?.minutesFromOrigin ?? 0;
+    const segment = Math.max(0, alight - board);
+    // An unresolved segment still deserves a sane duration, so fall back to the whole route.
+    return segment || Number(stops[stops.length - 1]?.minutesFromOrigin || 0);
   }, [map]);
 
   const startHold = async () => {
@@ -247,7 +251,7 @@ export default function TransportSeatsPage() {
           <i className="ph ph-warning-circle mx-auto mb-3 block text-4xl text-rose-400" aria-hidden="true" />
           <h1 className="text-lg font-bold text-slate-900 dark:text-white">This departure is unavailable</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{error || 'It may have been cancelled or sold out.'}</p>
-          <Link to="/transport" className="mt-4 inline-block rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Search again</Link>
+          <Link to="/transport" className="mt-4 inline-block rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white">Search again</Link>
         </div>
       </main>
     );
@@ -257,10 +261,11 @@ export default function TransportSeatsPage() {
   const step = hold ? 2 : 1;
 
   return (
+    <>
     <main className="min-h-screen bg-slate-50 pb-16 dark:bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <nav className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-slate-400" aria-label="Breadcrumb">
-          <Link to="/transport" className="hover:text-emerald-600">Transport</Link>
+          <Link to="/transport" className="hover:text-green-600">Transport</Link>
           <i className="ph ph-caret-right" aria-hidden="true" />
           <span className="text-slate-600 dark:text-slate-300">Choose your {seating === 'assigned' ? 'seat' : 'places'}</span>
         </nav>
@@ -270,7 +275,7 @@ export default function TransportSeatsPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="mb-1 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:bg-slate-700 dark:text-emerald-400">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-green-600 dark:bg-slate-700 dark:text-green-400">
                   <i className={`ph ${meta.icon} text-sm`} aria-hidden="true" /> {departure.transportLabel}
                 </span>
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{departure.operatorName}</span>
@@ -297,9 +302,9 @@ export default function TransportSeatsPage() {
                 {durationLabel(tripMinutes)}
               </p>
               <span className="mt-1 flex items-center gap-1" aria-hidden="true">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                 <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
               </span>
             </div>
             <div className="text-center">
@@ -311,13 +316,13 @@ export default function TransportSeatsPage() {
 
         {/* ── Steps ── */}
         <ol className="mt-5 flex items-center gap-2 text-xs font-bold">
-          <li className={`flex items-center gap-1.5 ${step === 1 ? 'text-emerald-600' : 'text-slate-400'}`}>
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${step === 1 ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-700'}`}>1</span>
+          <li className={`flex items-center gap-1.5 ${step === 1 ? 'text-green-600' : 'text-slate-400'}`}>
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${step === 1 ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700'}`}>1</span>
             {seating === 'assigned' ? 'Seats' : 'Places'}
           </li>
           <li className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
-          <li className={`flex items-center gap-1.5 ${step === 2 ? 'text-emerald-600' : 'text-slate-400'}`}>
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${step === 2 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>2</span>
+          <li className={`flex items-center gap-1.5 ${step === 2 ? 'text-green-600' : 'text-slate-400'}`}>
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${step === 2 ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>2</span>
             Passengers
           </li>
           <li className="h-px flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
@@ -348,7 +353,7 @@ export default function TransportSeatsPage() {
                     onClick={() => setFareClass(entry.code)}
                     className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors disabled:opacity-60 ${
                       fareClass === entry.code
-                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'
+                        ? 'border-green-600 bg-green-50 dark:bg-green-900/20'
                         : 'border-slate-200 hover:border-slate-300 dark:border-slate-700'
                     }`}
                   >
@@ -388,7 +393,7 @@ export default function TransportSeatsPage() {
               </>
             ) : (
               <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-800">
-                <i className="ph ph-users-three mx-auto mb-2 block text-3xl text-emerald-600" aria-hidden="true" />
+                <i className="ph ph-users-three mx-auto mb-2 block text-3xl text-green-600" aria-hidden="true" />
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">General admission</h2>
                 <p className="mx-auto mt-1 max-w-sm text-xs text-slate-500 dark:text-slate-400">
                   This vessel has no assigned seating — your booking reserves {passengers} {passengers === 1 ? 'place' : 'places'} on board.
@@ -424,7 +429,7 @@ export default function TransportSeatsPage() {
                   type="button"
                   onClick={startHold}
                   disabled={holding || (seating === 'assigned' && selected.length !== passengers)}
-                  className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-4 w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {holding ? 'Holding…' : `Hold ${seating === 'assigned' ? 'seats' : 'places'} & continue`}
                 </button>
@@ -488,7 +493,7 @@ export default function TransportSeatsPage() {
                     type="button"
                     onClick={confirm}
                     disabled={booking || countdown?.expired}
-                    className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {booking ? 'Issuing tickets…' : `Confirm & get tickets`}
                   </button>
@@ -508,5 +513,7 @@ export default function TransportSeatsPage() {
         </div>
       </div>
     </main>
+      <FlightFooter />
+    </>
   );
 }

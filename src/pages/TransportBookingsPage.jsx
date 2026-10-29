@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { clockLabel, money, shortDate, transportGet, typeMeta } from '../lib/transportClient.js';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 /**
  * "My Transport Bookings" — a booking reference is all a guest needs, so the
@@ -46,6 +47,7 @@ export default function TransportBookingsPage() {
   const meta = order ? typeMeta(order.transportType) : null;
 
   return (
+    <>
     <main className="min-h-screen bg-slate-50 pb-16 dark:bg-slate-950">
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">My transport bookings</h1>
@@ -53,7 +55,10 @@ export default function TransportBookingsPage() {
           Enter the reference from your ticket email — it starts with <span className="font-mono font-bold">TR-</span>.
         </p>
 
-        <form onSubmit={lookup} className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <form
+          onSubmit={lookup}
+          className="mt-5 flex flex-col gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-100/80 transition-colors dark:bg-slate-800 dark:ring-slate-700/80 sm:flex-row"
+        >
           <label htmlFor="booking-ref" className="sr-only">Booking reference</label>
           <input
             id="booking-ref"
@@ -61,12 +66,12 @@ export default function TransportBookingsPage() {
             onChange={(event) => setRef(event.target.value)}
             placeholder="TR-XXXXXXXXXX"
             autoComplete="off"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base font-semibold uppercase tracking-wide text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:text-sm"
+            className="h-11 w-full min-w-0 flex-1 rounded-lg border border-transparent bg-slate-50 px-3 text-base font-bold uppercase tracking-wide text-slate-900 transition-colors focus:border-green-500/50 focus:outline-none dark:bg-slate-700 dark:text-white sm:text-sm"
           />
           <button
             type="submit"
             disabled={loading}
-            className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+            className="h-11 shrink-0 whitespace-nowrap rounded-lg bg-green-600 px-6 text-sm font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-60"
           >
             {loading ? 'Looking…' : 'Find booking'}
           </button>
@@ -95,7 +100,7 @@ export default function TransportBookingsPage() {
                   return (
                     <li key={entry.bookingRef} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-300">
                           <i className={`ph ${entryMeta.icon} text-sm`} aria-hidden="true" />
                         </span>
                         <div className="min-w-0">
@@ -111,7 +116,7 @@ export default function TransportBookingsPage() {
                           entry.status === 'cancelled'
                             ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
                             : entry.paymentStatus === 'paid'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                               : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
                         }`}>
                           {entry.status === 'cancelled' ? 'Cancelled' : entry.paymentStatus === 'paid' ? 'Paid' : 'Pay pending'}
@@ -119,7 +124,7 @@ export default function TransportBookingsPage() {
                         <button
                           type="button"
                           onClick={() => navigate(`/transport/confirmation?ref=${encodeURIComponent(entry.bookingRef)}`)}
-                          className="rounded-lg px-2 py-1 text-[11px] font-black text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                          className="rounded-lg px-2 py-1 text-[11px] font-black text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950/40"
                         >
                           Tickets
                         </button>
@@ -142,13 +147,13 @@ export default function TransportBookingsPage() {
         {order && (
           <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:bg-slate-700 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-green-600 dark:bg-slate-700 dark:text-green-400">
                 <i className={`ph ${meta.icon} text-sm`} aria-hidden="true" /> {order.transportLabel}
               </span>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                 order.status === 'cancelled'
                   ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
-                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                  : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
               }`}>
                 {order.status}
               </span>
@@ -181,17 +186,19 @@ export default function TransportBookingsPage() {
             <button
               type="button"
               onClick={() => navigate(`/transport/confirmation?ref=${encodeURIComponent(order.bookingRef)}`)}
-              className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"
+              className="mt-4 w-full rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-700"
             >
               View tickets
             </button>
           </section>
         )}
 
-        <Link to="/transport" className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-600 hover:text-emerald-700">
+        <Link to="/transport" className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-green-600 hover:text-green-700">
           <i className="ph ph-arrow-left text-base" aria-hidden="true" /> Book a new trip
         </Link>
       </div>
     </main>
+      <FlightFooter />
+    </>
   );
 }

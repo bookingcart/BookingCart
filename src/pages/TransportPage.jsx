@@ -11,15 +11,24 @@ import {
   transportGet,
   typeMeta,
 } from '../lib/transportClient.js';
+import ModeSwitcher from '../components/ModeSwitcher.jsx';
+import { FlightFooter } from '../components/FlightFooter.jsx';
 
 const TYPE_ACTIVE = {
-  emerald: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30',
+  emerald: 'bg-green-600 text-white shadow-md shadow-green-600/30',
   sky: 'bg-sky-600 text-white shadow-md shadow-sky-600/30',
   violet: 'bg-violet-600 text-white shadow-md shadow-violet-600/30',
 };
 
+// The hero photo follows the vehicle type, the way the home page swaps its sky.
+const HERO_IMAGES = {
+  bus: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2000&q=80',
+  boat: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=2000&q=80',
+  train: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=2000&q=80',
+};
+
 const TYPE_SOFT = {
-  emerald: 'text-emerald-600 dark:text-emerald-400',
+  emerald: 'text-green-600 dark:text-green-400',
   sky: 'text-sky-600 dark:text-sky-400',
   violet: 'text-violet-600 dark:text-violet-400',
 };
@@ -48,17 +57,17 @@ function StationPicker({ label, icon, placeholder, value, onChange, type }) {
 
   return (
     <div className="relative min-w-0">
-      <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
         {label}
       </label>
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900">
-        <i className={`ph ${icon} text-lg text-slate-400 shrink-0`} aria-hidden="true" />
+      <div className="flex h-11 items-center gap-2 rounded-lg border border-transparent bg-slate-50 px-3 transition-colors focus-within:border-green-500/50 dark:bg-slate-700">
+        <i className={`ph ${icon} shrink-0 text-lg text-green-600`} aria-hidden="true" />
         <input
           type="text"
           value={term}
           placeholder={placeholder}
           autoComplete="off"
-          className="w-full min-w-0 border-0 bg-transparent p-0 text-base font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none dark:text-white sm:text-sm"
+          className="w-full min-w-0 border-0 bg-transparent p-0 text-base font-bold text-slate-900 placeholder:font-medium placeholder:text-slate-400 focus:outline-none dark:text-white sm:text-sm"
           onFocus={() => setOpen(true)}
           onChange={(event) => {
             const text = event.target.value;
@@ -91,7 +100,7 @@ function StationPicker({ label, icon, placeholder, value, onChange, type }) {
                   setOpen(false);
                 }}
               >
-                <i className="ph ph-map-pin text-base text-emerald-600" aria-hidden="true" />
+                <i className="ph ph-map-pin text-base text-green-600" aria-hidden="true" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold text-slate-900 dark:text-white">{option.name}</span>
                   <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
@@ -177,7 +186,7 @@ function JourneyCard({ journey, passengers, date }) {
           ) : (
             <Link
               to={`/transport/seats/${journey.id}?from=${journey.fromStop.order}&to=${journey.toStop.order}&pax=${passengers}&date=${date}`}
-              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+              className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
             >
               Select
             </Link>
@@ -265,18 +274,36 @@ export default function TransportPage() {
   }, [journeys, classFilter, sort]);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16 dark:bg-slate-950">
-      {/* ── Search band ── */}
-      <section className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto max-w-6xl px-4 pb-6 pt-8 sm:px-6 sm:pt-10">
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* ── Hero: the same shell the flights, guides and stays pages use ── */}
+      <section
+        className="relative flex min-h-[520px] flex-col items-center justify-center px-4 pb-12 pt-16 text-center transition-colors dark:bg-slate-950 lg:pb-16 lg:pt-20"
+        data-step="search"
+      >
+        <div className="pointer-events-none absolute inset-0 z-0 select-none">
+          <div className="absolute inset-0 z-10 rounded-b-[40px] bg-gradient-to-b from-white/90 via-white/60 to-white/30 dark:from-slate-950/95 dark:via-slate-950/75 dark:to-slate-950/40" />
+          <img
+            key={type}
+            src={HERO_IMAGES[type]}
+            className="absolute inset-0 h-full w-full rounded-b-[40px] object-cover object-center transition-opacity duration-700 ease-in-out"
+            alt=""
+          />
+        </div>
+
+        <div className="relative z-10 mx-auto w-full max-w-4xl">
+          <h1 className="text-4xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-white lg:text-6xl">
             Book bus, boat &amp; train tickets
           </h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-3 text-base font-medium text-slate-600 dark:text-slate-300 lg:text-lg">
             Compare every operator, pick your seat and get a QR ticket by email.
           </p>
 
-          <div className="mt-5 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-1 no-scrollbar dark:border-slate-700 dark:bg-slate-800/60 sm:inline-flex">
+          <div className="mt-6 flex justify-center">
+            <ModeSwitcher active="transport" />
+          </div>
+
+          {/* Vehicle type — mirrors the Round Trip / One-Way tabs on the flights hero */}
+          <div className="mt-4 inline-flex gap-1 overflow-x-auto rounded-xl border border-white/80 bg-white p-1 shadow-sm no-scrollbar dark:border-slate-700/80 dark:bg-slate-800/80" role="tablist" aria-label="Transport type">
             {TRANSPORT_TYPES.map((entry) => {
               const active = entry.key === type;
               return (
@@ -286,7 +313,7 @@ export default function TransportPage() {
                   aria-pressed={active}
                   onClick={() => { setType(entry.key); setJourneys([]); setSearched(false); setError(''); }}
                   className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-bold transition-all sm:flex-none sm:px-4 ${
-                    active ? TYPE_ACTIVE[entry.accent] : 'text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
+                    active ? TYPE_ACTIVE[entry.accent] : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
                   }`}
                 >
                   <i className={`ph ${entry.icon} text-base`} aria-hidden="true" />
@@ -297,7 +324,7 @@ export default function TransportPage() {
           </div>
 
           <form
-            className="mt-4 grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto_auto]"
+            className="mt-3 grid grid-cols-1 gap-2 rounded-2xl bg-white p-2 text-left shadow-lg ring-1 ring-slate-100/80 transition-colors dark:bg-slate-800 dark:ring-slate-700/80 sm:p-2.5 md:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto_auto]"
             onSubmit={(event) => { event.preventDefault(); runSearch(); }}
           >
             <StationPicker
@@ -318,7 +345,7 @@ export default function TransportPage() {
             />
 
             <div className="min-w-0">
-              <label htmlFor="transport-date" className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <label htmlFor="transport-date" className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Travel date
               </label>
               <input
@@ -328,19 +355,19 @@ export default function TransportPage() {
                 min={todayISO()}
                 max={addDays(todayISO(), 120)}
                 onChange={(event) => setDate(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:text-sm"
+                className="h-11 w-full rounded-lg border border-transparent bg-slate-50 px-3 text-base font-bold text-slate-900 transition-colors focus:border-green-500/50 focus:outline-none dark:bg-slate-700 dark:text-white dark:[&::-webkit-calendar-picker-indicator]:invert sm:text-sm"
               />
             </div>
 
             <div className="min-w-0">
-              <label htmlFor="transport-pax" className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <label htmlFor="transport-pax" className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 Passengers
               </label>
               <select
                 id="transport-pax"
                 value={passengers}
                 onChange={(event) => setPassengers(Number(event.target.value))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:text-sm"
+                className="h-11 w-full rounded-lg border border-transparent bg-slate-50 px-3 text-base font-bold text-slate-900 transition-colors focus:border-green-500/50 focus:outline-none dark:bg-slate-700 dark:text-white sm:text-sm"
               >
                 {Array.from({ length: 10 }, (_, index) => index + 1).map((count) => (
                   <option key={count} value={count}>{count} {count === 1 ? 'passenger' : 'passengers'}</option>
@@ -352,7 +379,7 @@ export default function TransportPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-[46px] w-full rounded-xl bg-emerald-600 px-6 text-sm font-bold text-white transition-colors hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
+                className="h-11 w-full rounded-lg bg-green-600 px-6 text-sm font-bold text-white transition-colors hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
               >
                 <i className={`ph ${loading ? 'ph-circle-notch animate-spin' : 'ph-magnifying-glass'} mr-1.5 align-middle`} aria-hidden="true" />
                 {loading ? 'Searching' : 'Search'}
@@ -361,7 +388,7 @@ export default function TransportPage() {
           </form>
 
           {error && (
-            <p role="alert" className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+            <p role="alert" className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
               <i className="ph ph-warning-circle text-base" aria-hidden="true" /> {error}
             </p>
           )}
@@ -369,13 +396,13 @@ export default function TransportPage() {
       </section>
 
       {/* ── Results ── */}
-      <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+      <section className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
         {searched && journeys.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               {journeys.length} {journeys.length === 1 ? 'journey' : 'journeys'} on {shortDate(date)}
               <span className="ml-2 font-normal text-slate-500 dark:text-slate-400">
-                {from.name || 'origin'} → {to.name || 'destination'}
+                {from.name || journeys[0]?.fromStop?.name || 'origin'} → {to.name || journeys[0]?.toStop?.name || 'destination'}
               </span>
             </p>
             <div className="flex items-center gap-2">
@@ -400,7 +427,7 @@ export default function TransportPage() {
               type="button"
               onClick={() => setClassFilter('')}
               className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-                classFilter ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-emerald-600 text-white'
+                classFilter ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-green-600 text-white'
               }`}
             >
               All classes
@@ -411,7 +438,7 @@ export default function TransportPage() {
                 type="button"
                 onClick={() => setClassFilter(classFilter === entry.code ? '' : entry.code)}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-                  classFilter === entry.code ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                  classFilter === entry.code ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                 }`}
               >
                 {entry.name}
@@ -469,6 +496,8 @@ export default function TransportPage() {
           </p>
         )}
       </section>
+
+      <FlightFooter />
     </main>
   );
 }
