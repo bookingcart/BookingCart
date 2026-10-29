@@ -1045,12 +1045,165 @@ const bcCashMovements = pgTable(
   (table) => [index("idx_cash_movements_shift").on(table.shiftId, table.createdAt)]
 );
 
+// ── Cinema ticketing ─────────────────────────────────────────────────────────
+// A cinema is a bc_attraction_profiles row with category = 'Cinema'. Screens own
+// the permanent seat identities; a showtime only records the state of those seats,
+// so seat B5 can be sold for the 14:00 screening and again for the 19:00 one.
+const bcCinemaSettings = pgTable("bc_cinema_settings", {
+  attractionId: integer("attraction_id").primaryKey(),
+  holdMinutes: integer("hold_minutes").default(10).notNull(),
+  serviceFeePercent: numeric("service_fee_percent", { precision: 5, scale: 2 }).default("3").notNull(),
+  taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  refundWindowHours: integer("refund_window_hours").default(24).notNull(),
+  cancellationFeePercent: numeric("cancellation_fee_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  allowOnline: boolean("allow_online").default(true).notNull(),
+  allowPayAtVenue: boolean("allow_pay_at_venue").default(true).notNull(),
+  cleaningMinutes: integer("cleaning_minutes").default(15).notNull(),
+  categoryPrices: jsonb("category_prices").default({}).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+const bcCinemaScreens = pgTable(
+  "bc_cinema_screens",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    ownerEmail: text("owner_email").default("").notNull(),
+    name: text("name").notNull(),
+    screenType: text("screen_type").default("standard").notNull(),
+    rowCount: integer("row_count").default(8).notNull(),
+    seatsPerRow: integer("seats_per_row").default(12).notNull(),
+    features: jsonb("features").default({}).notNull(),
+    accessibleSeats: integer("accessible_seats").default(0).notNull(),
+    status: text("status").default("active").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_screens_attraction").on(table.attractionId)]
+);
+
+const bcCinemaSeats = pgTable(
+  "bc_cinema_seats",
+  {
+    id: serial("id").primaryKey(),
+    screenId: integer("screen_id").notNull(),
+    attractionId: integer("attraction_id").notNull(),
+    rowLabel: text("row_label").notNull(),
+    seatNo: integer("seat_no").notNull(),
+    seatKey: text("seat_key").notNull(),
+    category: text("category").default("standard").notNull(),
+    x: integer("x").default(0).notNull(),
+    y: integer("y").default(0).notNull(),
+    priceOverride: numeric("price_override", { precision: 12, scale: 2 }),
+    status: text("status").default("available").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_seats_screen").on(table.screenId, table.status)]
+);
+
+const bcCinemaMovies = pgTable(
+  "bc_cinema_movies",
+  {
+    id: serial("id").primaryKey(),
+    ownerEmail: text("owner_email").default("").notNull(),
+    attractionId: integer("attraction_id").default(0).notNull(),
+    title: text("title").notNull(),
+    posterUrl: text("poster_url").default("").notNull(),
+    backdropUrl: text("backdrop_url").default("").notNull(),
+    synopsis: text("synopsis").default("").notNull(),
+    genre: text("genre").default("").notNull(),
+    durationMin: integer("duration_min").default(0).notNull(),
+    ageRating: text("age_rating").default("").notNull(),
+    language: text("language").default("").notNull(),
+    subtitles: text("subtitles").default("").notNull(),
+    releaseDate: date("release_date"),
+    director: text("director").default("").notNull(),
+    castList: text("cast_list").default("").notNull(),
+    format: text("format").default("2D").notNull(),
+    trailerUrl: text("trailer_url").default("").notNull(),
+    status: text("status").default("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_movies_owner").on(table.ownerEmail, table.status)]
+);
+
+const bcCinemaShowtimes = pgTable(
+  "bc_cinema_showtimes",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    screenId: integer("screen_id").notNull(),
+    movieId: integer("movie_id").notNull(),
+    ownerEmail: text("owner_email").default("").notNull(),
+    showDate: date("show_date").notNull(),
+    startTime: text("start_time").default("").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    salesOpenAt: timestamp("sales_open_at", { withTimezone: true }),
+    salesCloseAt: timestamp("sales_close_at", { withTimezone: true }),
+    basePrice: numeric("base_price", { precision: 12, scale: 2 }).default("0").notNull(),
+    currency: text("currency").default("USD").notNull(),
+    status: text("status").default("scheduled").notNull(),
+    notes: text("notes").default("").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_cinema_showtimes_attraction").on(table.attractionId, table.startsAt),
+    index("idx_cinema_showtimes_movie").on(table.movieId, table.startsAt),
+  ]
+);
+
+const bcCinemaHolds = pgTable(
+  "bc_cinema_holds",
+  {
+    id: serial("id").primaryKey(),
+    holdRef: text("hold_ref").notNull().unique(),
+    showtimeId: integer("showtime_id").notNull(),
+    attractionId: integer("attraction_id").notNull(),
+    customerEmail: text("customer_email").default("").notNull(),
+    seatIds: jsonb("seat_ids").default([]).notNull(),
+    subtotal: numeric("subtotal", { precision: 12, scale: 2 }).default("0").notNull(),
+    currency: text("currency").default("USD").notNull(),
+    status: text("status").default("active").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_holds_showtime").on(table.showtimeId, table.status)]
+);
+
+const bcCinemaSeatStates = pgTable(
+  "bc_cinema_seat_states",
+  {
+    showtimeId: integer("showtime_id").notNull(),
+    seatId: integer("seat_id").notNull(),
+    attractionId: integer("attraction_id").notNull(),
+    status: text("status").default("held").notNull(),
+    holdId: integer("hold_id").default(0).notNull(),
+    orderId: integer("order_id").default(0).notNull(),
+    price: numeric("price", { precision: 12, scale: 2 }).default("0").notNull(),
+    currency: text("currency").default("USD").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_seat_states_hold").on(table.holdId)]
+);
+
 module.exports = {
   baAccount,
   baSession,
   baUser,
   baVerification,
   bcAdminAudit,
+  bcCinemaHolds,
+  bcCinemaMovies,
+  bcCinemaScreens,
+  bcCinemaSeatStates,
+  bcCinemaSeats,
+  bcCinemaSettings,
+  bcCinemaShowtimes,
   bcAttractionEvents,
   bcAttractionProfiles,
   bcAttractionTickets,

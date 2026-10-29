@@ -4,13 +4,14 @@ import { useAuth } from '../context/AuthContext.jsx';
 import TicketValidationPanel from '../components/TicketValidationPanel.jsx';
 import TicketingWorkspace from '../components/ticketing/TicketingWorkspace.jsx';
 import PhysicalSalesWorkspace from '../components/ticketing/PhysicalSalesWorkspace.jsx';
+import CinemaWorkspace from '../components/cinema/CinemaWorkspace.jsx';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
   'Museum','Art Gallery','Theme Park','National Park','Historic Site',
   'Beach','Waterfall','Wildlife Reserve','Cultural Center','Adventure Sport',
   'Food & Dining','Shopping','Religious Site','Garden','Viewpoint',
-  'Zoo / Aquarium','Water Park','Stadium','Casino','Spa & Wellness','Other',
+  'Zoo / Aquarium','Water Park','Stadium','Casino','Cinema','Spa & Wellness','Other',
 ];
 
 const STATUS_CONFIG = {
@@ -25,6 +26,7 @@ const MENU_ITEMS = [
   { id: 'attractions',   label: 'My Attractions',  icon: 'ph-map-trifold' },
   { id: 'create',        label: 'Create New',      icon: 'ph-plus-circle', route: '/list-your-event' },
   { id: 'ticketing',     label: 'Ticketing Management', icon: 'ph-ticket' },
+  { id: 'cinema',        label: 'Cinema Management', icon: 'ph-film-strip' },
   { id: 'physical',      label: 'Physical Ticket Sales', icon: 'ph-cash-register' },
   { id: 'validate',      label: 'Ticket Validation', icon: 'ph-qr-code' },
   { id: 'analytics',     label: 'Analytics',       icon: 'ph-chart-line-up' },
@@ -1367,6 +1369,7 @@ export default function AttractionDashboardPage() {
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'settings'      && <SettingsTab />}
         {activeTab === 'ticketing'     && <TicketingWorkspace headers={ticketingHeaders} />}
+        {activeTab === 'cinema'        && <CinemaWorkspace headers={ticketingHeaders} onOpenVenueSettings={() => setActiveTab('settings')} />}
 {activeTab === 'physical'      && <PhysicalSalesWorkspace headers={ticketingHeaders} />}
         {activeTab === 'validate'      && <TicketValidationPanel operatorType="attraction" />}
       </main>

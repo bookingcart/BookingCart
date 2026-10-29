@@ -64,6 +64,13 @@
       "when": 1798000000000,
       "tag": "0009_ticket_artwork",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1799000000000,
+      "tag": "0010_cinema",
+      "breakpoints": true
     }
   ]
 }

@@ -37,6 +37,10 @@ const AttractionDetailsPage = lazy(() => import('./pages/AttractionDetailsPage.j
 const AttractionsTripPage = lazy(() => import('./pages/AttractionsTripPage.jsx'));
 const AttractionTicketsPage = lazy(() => import('./pages/AttractionTicketsPage.jsx'));
 const AttractionTicketsConfirmationPage = lazy(() => import('./pages/AttractionTicketsConfirmationPage.jsx'));
+const CinemasPage = lazy(() => import('./pages/CinemasPage.jsx'));
+const CinemaDetailsPage = lazy(() => import('./pages/CinemaDetailsPage.jsx'));
+const CinemaSeatsPage = lazy(() => import('./pages/CinemaSeatsPage.jsx'));
+const CinemaConfirmationPage = lazy(() => import('./pages/CinemaConfirmationPage.jsx'));
 
 function AttractionStateSync() {
   const { user, getToken } = useAuth();
@@ -141,6 +145,10 @@ export default function App() {
           <Route path="/attractions/results" element={<AttractionsResultsPage />} />
           <Route path="/attractions/trip" element={<AttractionsTripPage />} />
           <Route path="/attractions/tickets" element={<AttractionTicketsPage />} />
+          <Route path="/attractions/cinemas" element={<CinemasPage />} />
+          <Route path="/attractions/cinemas/confirmation" element={<CinemaConfirmationPage />} />
+          <Route path="/attractions/cinemas/:cinemaId" element={<CinemaDetailsPage />} />
+          <Route path="/attractions/cinemas/:cinemaId/seats/:showtimeId" element={<CinemaSeatsPage />} />
           <Route path="/attractions/:source/:id" element={<AttractionDetailsPage />} />
           <Route path="/attraction-tickets/confirmation" element={<AttractionTicketsConfirmationPage />} />
           <Route path="/attraction-dashboard" element={<AttractionDashboardPage />} />
