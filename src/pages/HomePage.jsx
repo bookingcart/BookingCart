@@ -980,6 +980,14 @@ export default function HomePage() {
                 <span className="hidden sm:inline">Attractions</span>
                 <span className="sm:hidden">Events</span>
               </a>
+              <a
+                href="/transport"
+                id="mode-transport-btn"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-white"
+              >
+                <i className="ph ph-bus text-base text-emerald-600 shrink-0"></i>
+                <span>Transport</span>
+              </a>
             </div>
 
             <div className="mt-4 sm:mt-6 w-full max-w-7xl mx-auto text-left" role="region" aria-label="Search panel">

@@ -66,6 +66,7 @@ const attractionTicketSalesHandler = require('./api-routes/attraction-ticket-sal
 const attractionPosHandler = require('./api-routes/attraction-pos');
 const attractionTicketCheckoutHandler = require('./api-routes/attraction-ticket-checkout');
 const cinemaHandler = require('./api-routes/cinema');
+const transportHandler = require('./api-routes/transport');
 const cronHandler = require('./api-routes/cron');
 
 const { startTracker } = require('./lib/price-tracker');
@@ -242,6 +243,9 @@ app.all('/api/attraction-pos', apiLimiter, run(attractionPosHandler));
 
 // Cinema ticketing — locations, screens, seats, showtimes, holds and checkout
 app.all('/api/cinema', apiLimiter, run(cinemaHandler));
+
+// Transport ticketing — bus, boat/ferry and train search, seats, holds, tickets
+app.all('/api/transport', apiLimiter, run(transportHandler));
 
 // Notification routes — SSE stream + REST
 app.get('/api/notifications/stream', (req, res, next) =>

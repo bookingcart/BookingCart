@@ -7,7 +7,7 @@ import NotificationBell from './NotificationBell.jsx';
  * BookingCartNavbar
  * Primary site navigation — desktop + mobile drawer.
  * Props:
- *   activeNav  – 'flights' | 'stays' | 'guides' | 'attractions' | 'aviation' | 'explore' | 'bookings'
+ *   activeNav  – 'flights' | 'stays' | 'guides' | 'attractions' | 'transport' | 'explore' | 'bookings'
  *   rightSlot  – optional JSX rendered on the far right (e.g. Print button)
  */
 export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) {
@@ -34,10 +34,10 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
     localStorage.getItem('bc_is_operator') === 'true'
   );
 
-  // The Property Portal shortcut belongs to the sections it serves. On Flights
-  // and Aviation the owner still reaches it from the account menu, so the nav
-  // keeps those two rows for their own CTAs.
-  const showPortalCta = isHotelOwner && activeNav !== 'flights' && activeNav !== 'aviation';
+  // The Property Portal shortcut belongs to the sections it serves. On Flights,
+  // Aviation and Transport the owner still reaches it from the account menu, so
+  // the nav keeps those rows for their own CTAs.
+  const showPortalCta = isHotelOwner && activeNav !== 'flights' && activeNav !== 'aviation' && activeNav !== 'transport';
 
   // All main nav sections shown in the mobile drawer
   const NAV_SECTIONS = [
@@ -45,7 +45,7 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
     { key: 'stays',      href: '/stays',         icon: 'ph-buildings',      label: 'Stays' },
     { key: 'guides',     href: '/tour-guides',   icon: 'ph-compass',        label: 'Tour Guides' },
     { key: 'attractions',href: '/?mode=attractions', icon: 'ph-ticket',  label: 'Attractions' },
-    { key: 'aviation',   href: '/aviation',      icon: 'ph-airplane-takeoff', label: 'Aviation' },
+    { key: 'transport',  href: '/transport',     icon: 'ph-bus',            label: 'Transport' },
   ];
 
   const closeMobile = () => setMobileOpen(false);
@@ -116,9 +116,9 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                 <i className="ph ph-buildings text-sm" /><span>List Property</span>
               </a>
             )}
-            {activeNav === 'aviation' && (
-              <a href="/aviation/operators/join" className="flex h-9 items-center gap-1.5 rounded-xl bg-slate-950 px-4 text-[13px] font-bold text-white transition-colors hover:bg-slate-800">
-                <i className="ph ph-airplane-takeoff text-sm" /><span>List Aircraft</span>
+            {activeNav === 'transport' && (
+              <a href="/transport/bookings" className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 px-4 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900">
+                <i className="ph ph-ticket text-sm" /><span>My tickets</span>
               </a>
             )}
             {activeNav === 'attractions' && (
@@ -199,10 +199,10 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                   <i className="ph ph-buildings" /> List Your Property
                 </a>
               )}
-              {activeNav === 'aviation' && (
-                <a href="/aviation/operators/join" onClick={closeMobile}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-800">
-                  <i className="ph ph-airplane-takeoff" /> List your aircraft
+              {activeNav === 'transport' && (
+                <a href="/transport/bookings" onClick={closeMobile}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900">
+                  <i className="ph ph-ticket" /> My transport tickets
                 </a>
               )}
               {activeNav === 'attractions' && (

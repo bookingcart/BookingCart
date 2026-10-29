@@ -71,6 +71,20 @@
       "when": 1799000000000,
       "tag": "0010_cinema",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1800000000000,
+      "tag": "0011_transport",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1800100000000,
+      "tag": "0012_transport_hold_class",
+      "breakpoints": true
     }
   ]
 }

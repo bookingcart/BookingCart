@@ -73,6 +73,10 @@ const AviationDashboardPage = lazy(() => import('./pages/AviationDashboardPage.j
 const AviationAdminPage = lazy(() => import('./pages/AviationAdminPage.jsx'));
 const AttractionDashboardPage = lazy(() => import('./pages/AttractionDashboardPage.jsx'));
 const PMSDashboardPage = lazy(() => import('./pages/PMSDashboardPage.jsx'));
+const TransportPage = lazy(() => import('./pages/TransportPage.jsx'));
+const TransportSeatsPage = lazy(() => import('./pages/TransportSeatsPage.jsx'));
+const TransportConfirmationPage = lazy(() => import('./pages/TransportConfirmationPage.jsx'));
+const TransportBookingsPage = lazy(() => import('./pages/TransportBookingsPage.jsx'));
 
 export default function App() {
   return (
@@ -120,6 +124,10 @@ export default function App() {
           <Route path="/aviation/operators/join" element={<AviationOnboardingPage />} />
           <Route path="/aviation/dashboard" element={<AviationDashboardPage />} />
           <Route path="/admin/aviation" element={<AviationAdminPage />} />
+          <Route path="/transport" element={<TransportPage />} />
+          <Route path="/transport/seats/:departureId" element={<TransportSeatsPage />} />
+          <Route path="/transport/confirmation" element={<TransportConfirmationPage />} />
+          <Route path="/transport/bookings" element={<TransportBookingsPage />} />
           <Route path="/list-your-event" element={<EventOnboardingPage />} />
           <Route path="/list-your-event/:step" element={<EventOnboardingPage />} />
           <Route path="/events/:eventId" element={<AttractionDetailsPage />} />

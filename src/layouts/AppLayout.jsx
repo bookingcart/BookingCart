@@ -34,6 +34,7 @@ export default function AppLayout() {
   else if (pathname.startsWith('/tracker')) activeNav = 'tracker';
   else if (pathname.startsWith('/explore')) activeNav = 'explore';
   else if (pathname.startsWith('/aviation')) activeNav = 'aviation';
+  else if (pathname.startsWith('/transport')) activeNav = 'transport';
   // Consoles carry their own chrome, so no public section is "current" there.
   else if (pathname.startsWith('/admin')) activeNav = 'admin';
 
