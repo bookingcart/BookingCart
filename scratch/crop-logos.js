@@ -74,5 +74,8 @@ function crop(file) {
   console.log(path.basename(file), `${png.width}x${png.height} -> ${width}x${height} -> ${scaled.width}x${scaled.height}`);
 }
 
-['public/images/bookingcart-logo.png', 'public/images/bookingcart-logo-on-dark.png']
-  .forEach((file) => crop(path.join(__dirname, '..', file)));
+// Pass file names to re-crop a single variant; with no args both are processed.
+const targets = process.argv.length > 2
+  ? process.argv.slice(2)
+  : ['public/images/bookingcart-logo.png', 'public/images/bookingcart-logo-on-dark.png'];
+targets.forEach((file) => crop(path.join(__dirname, '..', file)));

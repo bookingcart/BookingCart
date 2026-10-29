@@ -127,8 +127,8 @@ function avatarUrl(profile) {
 function SettingsSkeleton() {
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8 grid gap-5">
-      <div className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
-      <div className="h-72 rounded-2xl bg-slate-100 animate-pulse" />
+      <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      <div className="h-72 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
     </div>
   );
 }
@@ -136,11 +136,11 @@ function SettingsSkeleton() {
 function EmptyPanel({ icon, title, body, action }) {
   return (
     <div className="settings-card text-center">
-      <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+      <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
         <i className={`ph ${icon} text-2xl text-slate-400`} />
       </div>
-      <div className="font-extrabold text-slate-900">{title}</div>
-      <p className="text-sm text-slate-500 mt-1">{body}</p>
+      <div className="font-extrabold text-slate-900 dark:text-slate-50">{title}</div>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{body}</p>
       {action}
     </div>
   );
@@ -330,13 +330,13 @@ export default function AccountSettingsPage() {
   const sidebar = (
     <aside className="w-full lg:w-60 flex-shrink-0 lg:sticky lg:top-[80px]">
       {/* Desktop sidebar card */}
-      <div className="hidden lg:block bg-white border border-slate-100 rounded-2xl p-3 shadow-sm">
-        <div className="flex items-center gap-3 px-3 py-3 mb-2 border-b border-slate-100">
-          <img src={avatarUrl(profile)} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" alt="" />
+      <div className="hidden lg:block bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-sm">
+        <div className="flex items-center gap-3 px-3 py-3 mb-2 border-b border-slate-100 dark:border-slate-800">
+          <img src={avatarUrl(profile)} className="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-sm" alt="" />
           <div className="overflow-hidden">
-            <div className="text-sm font-extrabold text-slate-900 truncate">{displayName(profile)}</div>
-            <div className="text-xs text-slate-500 truncate mt-0.5">{profile.email || 'Not signed in'}</div>
-            <div className="mt-1 inline-flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase">
+            <div className="text-sm font-extrabold text-slate-900 dark:text-slate-50 truncate">{displayName(profile)}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{profile.email || 'Not signed in'}</div>
+            <div className="mt-1 inline-flex items-center gap-1 bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase">
               <i className="ph-fill ph-seal-check" /> {state.rewards.level}
             </div>
           </div>
@@ -350,7 +350,7 @@ export default function AccountSettingsPage() {
           ))}
         </nav>
         {isGuide && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <a
               href="/guide-dashboard"
               className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 text-white font-extrabold text-xs shadow-sm hover:opacity-95 transition-all"
@@ -363,7 +363,7 @@ export default function AccountSettingsPage() {
             </a>
           </div>
         )}
-        <div className="mt-3 pt-3 border-t border-slate-100">
+        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
           <a href="/" className="sidebar-link text-slate-400"><i className="ph ph-arrow-left" /> Back to Home</a>
         </div>
       </div>
@@ -371,10 +371,10 @@ export default function AccountSettingsPage() {
       {/* Mobile: user header + horizontal tab strip */}
       <div className="lg:hidden">
         {/* Mobile user strip */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-sm mb-3">
-          <img src={avatarUrl(profile)} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm shrink-0" alt="" />
+        <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm mb-3">
+          <img src={avatarUrl(profile)} className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-sm shrink-0" alt="" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-extrabold text-slate-900 truncate">{displayName(profile)}</div>
+            <div className="text-sm font-extrabold text-slate-900 dark:text-slate-50 truncate">{displayName(profile)}</div>
             <div className="text-xs text-slate-400 truncate">{profile.email}</div>
           </div>
           <a href="/" className="text-xs font-semibold text-slate-400 hover:text-slate-700 flex items-center gap-1 shrink-0">
@@ -393,7 +393,7 @@ export default function AccountSettingsPage() {
                 className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-green-600 text-white shadow-sm shadow-green-600/30'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-green-300 hover:text-green-700'
+                    : 'bg-white border border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:border-green-300 hover:text-green-700'
                 }`}
               >
                 <i className={`ph ${SECTION_ICONS[section]} text-sm`} />
@@ -435,11 +435,11 @@ export default function AccountSettingsPage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start bg-slate-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8 flex flex-col lg:flex-row gap-4 lg:gap-6 items-start bg-slate-50 dark:bg-slate-950 min-h-screen">
         {sidebar}
         <main className="flex-1 min-w-0 w-full">
           {status && (
-            <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${/success|saved|changed|updated/i.test(status) ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+            <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${/success|saved|changed|updated/i.test(status) ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-300' : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
               {status}
             </div>
           )}
@@ -448,16 +448,16 @@ export default function AccountSettingsPage() {
             <section>
               <PageHeading title="Profile Information" subtitle="Manage your personal details and preferences" />
               {isGuide && (
-                <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between flex-wrap gap-4 shadow-sm">
+                <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30 flex items-center justify-between flex-wrap gap-4 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shrink-0">
                       <i className="ph ph-seal-check text-xl" />
                     </div>
                     <div>
-                      <div className="text-sm font-extrabold text-emerald-950">
+                      <div className="text-sm font-extrabold text-emerald-950 dark:text-emerald-200">
                         Registered Tour Guide Profile
                       </div>
-                      <p className="text-xs text-emerald-700 mt-0.5">
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
                         You are registered as a tour guide. Manage your tour packages, rates, availability &amp; public guide profile in your Guide Dashboard.
                       </p>
                     </div>
@@ -629,8 +629,8 @@ export default function AccountSettingsPage() {
 function PageHeading({ title, subtitle }) {
   return (
     <div className="mb-6">
-      <h1 className="text-2xl font-extrabold text-slate-900">{title}</h1>
-      <p className="text-slate-500 text-sm mt-1">{subtitle}</p>
+      <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-50">{title}</h1>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{subtitle}</p>
     </div>
   );
 }
@@ -640,7 +640,7 @@ function TextField({ label, value, onChange, type = 'text', required = false, ma
     <label className="block">
       <span className="field-label">{label}</span>
       <input
-        className={`field-input ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+        className={`field-input ${readOnly ? 'bg-slate-100 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400 cursor-not-allowed' : ''}`}
         type={type}
         value={value || ''}
         maxLength={maxLength}
@@ -671,7 +671,7 @@ function ToggleRow({ title, body, checked, disabled = false, onChange }) {
     <div className="flex items-center justify-between gap-4">
       <div>
         <div className="settings-card-header">{title}</div>
-        <div className="text-sm text-slate-500 mt-1">{body}</div>
+        <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">{body}</div>
       </div>
       <label className="toggle-wrap">
         <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange?.(event.target.checked)} />

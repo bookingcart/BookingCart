@@ -839,3 +839,37 @@ details.filter-chip[open] > summary .filter-chip-caret {
 .guide-cal-booked    { background-color: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #dc2626; }
 .guide-cal-blocked   { background-color: rgba(100, 116, 139, 0.1); border-color: rgba(100, 116, 139, 0.2); color: #64748b; }
 
+/* ─── Dark theme: account settings surfaces ─── */
+.dark .settings-card {
+  background: #0f172a;
+  border-color: #1e293b;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+.dark .settings-card:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.dark .settings-card-header { color: #f8fafc; }
+.dark .settings-card-sub { color: #94a3b8; }
+.dark .field-label { color: #cbd5e1; }
+.dark .field-input {
+  background: #0b1220;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+.dark .field-input::placeholder { color: #64748b; }
+.dark .field-input:focus { background: #0f172a; border-color: #22c55e; }
+.dark .sidebar-link:hover { background: #1e293b; color: #f8fafc; }
+.dark .sidebar-link.active { background: rgba(22, 163, 74, 0.16); color: #4ade80; }
+.dark .progress-bar { background: #1e293b; }
+.dark .airline-chip {
+  background: #0f172a;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+.dark .airline-chip.selected {
+  background: rgba(22, 163, 74, 0.16);
+  border-color: #22c55e;
+  color: #4ade80;
+}
+.dark .toggle-slider { background: #334155; }
+

@@ -509,26 +509,26 @@ export default function ExplorePage() {
       {/* Zoom controls */}
       <style>{`.leaflet-control-zoom{display:none!important}.leaflet-popup-content-wrapper{border-radius:10px!important}.leaflet-popup-tip{display:none!important}`}</style>
       <BasemapSwitcher value={basemap} onChange={setBasemap} className="!right-4 !top-4" />
-      <div className="absolute bottom-8 right-4 flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden z-[1000]">
-        <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 border-b border-slate-100 text-lg">+</button>
-        <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 text-lg">−</button>
+      <div className="absolute bottom-8 right-4 flex flex-col bg-white dark:bg-slate-900 rounded-lg shadow-md border border-slate-200 dark:border-slate-800 overflow-hidden z-[1000]">
+        <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 text-lg">+</button>
+        <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-lg">−</button>
       </div>
 
       {/* Floating Sidebar */}
-      <div className="absolute top-4 bottom-4 left-4 w-full max-w-[340px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[1000]">
+      <div className="absolute top-4 bottom-4 left-4 w-full max-w-[340px] bg-white dark:bg-slate-900 dark:ring-1 dark:ring-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-[1000]">
         {!selectedDest ? (
           <>
-            <div className="p-4 border-b border-slate-100">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex gap-1.5 mb-3">
-                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2.5"><input type="text" defaultValue="Entebbe (EBB)" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 outline-none" /></div>
-                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2.5"><input type="text" placeholder="Where to?" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none" /></div>
+                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2.5"><input type="text" defaultValue="Entebbe (EBB)" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none" /></div>
+                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2.5"><input type="text" placeholder="Where to?" className="w-full bg-transparent border-none text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none" /></div>
               </div>
-              <div className="bg-slate-100 rounded-lg px-3 py-2.5 mb-3 cursor-pointer hover:bg-slate-200 transition-colors">
-                <span className="text-sm text-slate-600 font-medium">Any time, any duration</span>
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2.5 mb-3 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">Any time, any duration</span>
               </div>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {['Stops','Price','Flight duration'].map(f => (
-                  <button key={f} className="flex items-center gap-1 bg-white border border-slate-200 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 whitespace-nowrap transition-colors">
+                  <button key={f} className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 whitespace-nowrap transition-colors">
                     {f} <span className="text-[10px]">▾</span>
                   </button>
                 ))}
@@ -536,17 +536,17 @@ export default function ExplorePage() {
             </div>
 
             {/* Destination list */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800">
               {sidebarList.map(dest => {
                 const lp = livePrices[dest.iata];
                 const displayPrice = lp?.loading || !lp ? '···' : lp?.price ? `$${lp.price}` : 'Unavailable';
                 const isLive = !!lp?.price;
                 return (
-                  <div key={dest.id} onClick={() => handleSelectDest(dest)} className="flex gap-3 px-3 py-3 hover:bg-slate-50 cursor-pointer transition-colors">
+                  <div key={dest.id} onClick={() => handleSelectDest(dest)} className="flex gap-3 px-3 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
                     <img src={dest.image} alt={dest.city} className="w-[60px] h-[60px] rounded-xl object-cover flex-shrink-0 bg-slate-200" />
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div className="flex items-start justify-between">
-                        <span className="font-bold text-sm text-slate-900 truncate">{dest.city}</span>
+                        <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{dest.city}</span>
                         <button onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-red-400 transition-colors ml-2">
                           <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/></svg>
                         </button>
@@ -563,7 +563,7 @@ export default function ExplorePage() {
               })}
             </div>
 
-            <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-center">
+            <div className="px-4 py-2 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 text-center">
               <span className="text-[10px] text-slate-400">{visibleDests.length} destinations · prices from Entebbe</span>
             </div>
           </>
@@ -593,19 +593,19 @@ export default function ExplorePage() {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedDest.city}<span className="text-green-600">.</span></h2>
-                  <p className="text-slate-500 text-sm font-medium">{selectedDest.country}</p>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight">{selectedDest.city}<span className="text-green-600">.</span></h2>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{selectedDest.country}</p>
                 </div>
-                <button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-400 bg-slate-50 rounded-full">
+                <button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-400 bg-slate-50 dark:bg-slate-800 rounded-full">
                   <svg width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/></svg>
                 </button>
               </div>
 
               {/* Price card */}
-              <div className="border border-slate-200 rounded-xl p-4 shadow-sm">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <p className="font-bold text-slate-900 mb-0.5">Cheapest</p>
+                    <p className="font-bold text-slate-900 dark:text-slate-100 mb-0.5">Cheapest</p>
                     <p className="text-[11px] text-slate-400">{dateRange} · {selectedDest.duration}</p>
                     {livePrices[selectedDest.iata]?.price && (
                       <p className="text-[10px] text-green-600 font-semibold mt-0.5">✓ Live price from Duffel</p>
@@ -631,9 +631,9 @@ export default function ExplorePage() {
               </div>
 
               {/* Nonstop flights card */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                  <span className="font-bold text-sm text-slate-900">Nonstop flights</span>
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                  <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Nonstop flights</span>
                   <div className="flex gap-1 items-center">
                     {getAirlinesForDest(selectedDest).slice(0,3).map((a, i) => (
                       <span key={i} className="text-base">{a.logo}</span>
@@ -644,16 +644,16 @@ export default function ExplorePage() {
                 <div className="p-4 space-y-4">
                   {[{label:'Outbound', route:`EBB→${selectedDest.iata}`},{label:'Return', route:`${selectedDest.iata}→EBB`}].map(({label, route}) => (
                     <div key={label}>
-                      <div className="text-xs font-bold text-slate-800 mb-2">{label} <span className="text-slate-400 font-normal ml-1">{route}</span></div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">{label} <span className="text-slate-400 font-normal ml-1">{route}</span></div>
                       <div className="grid grid-cols-7 gap-1">
                         {DAYS.map((d,i) => (
-                          <div key={i} className="aspect-square rounded border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">{d}</div>
+                          <div key={i} className="aspect-square rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400">{d}</div>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-slate-100 p-3">
+                <div className="border-t border-slate-100 dark:border-slate-800 p-3">
                   <button
                     onClick={() => {
                       setIsFetchingSchedule(true);
@@ -663,7 +663,7 @@ export default function ExplorePage() {
                       }, 1200);
                     }}
                     disabled={isFetchingSchedule}
-                    className="w-full text-sm font-bold text-slate-800 hover:text-green-600 transition-colors text-center flex items-center justify-center gap-2"
+                    className="w-full text-sm font-bold text-slate-800 dark:text-slate-200 hover:text-green-600 transition-colors text-center flex items-center justify-center gap-2"
                   >
                     {isFetchingSchedule ? (
                       <>

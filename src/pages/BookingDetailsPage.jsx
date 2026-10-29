@@ -73,8 +73,8 @@ export default function BookingDetailsPage() {
     return (
       <>
         <main className="max-w-5xl mx-auto px-4 py-10">
-          <div className="h-8 w-56 bg-slate-100 rounded animate-pulse mb-6" />
-          <div className="h-72 bg-slate-100 rounded-2xl animate-pulse" />
+          <div className="h-8 w-56 bg-slate-100 dark:bg-slate-800 rounded animate-pulse mb-6" />
+          <div className="h-72 bg-slate-100 dark:bg-slate-800 rounded-2xl animate-pulse" />
         </main>
         <FlightFooter />
       </>
@@ -85,12 +85,12 @@ export default function BookingDetailsPage() {
     return (
       <>
         <main className="max-w-3xl mx-auto px-4 py-14">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-8 text-center">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm p-8 text-center">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
               <i className="ph ph-airplane-tilt text-3xl text-slate-400" />
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Booking not found</h1>
-            <p className="text-sm text-slate-500 mt-2">{error || 'We could not find a booking with that reference.'}</p>
+            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-50">Booking not found</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{error || 'We could not find a booking with that reference.'}</p>
             <Link to="/my-bookings" className="btn-primary inline-flex mt-6">Back to My Bookings</Link>
           </div>
         </main>
@@ -110,49 +110,49 @@ export default function BookingDetailsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
           <section className="space-y-5">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                   <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-sm font-bold capitalize ${statusClass(booking.status)}`}>
                     <i className="ph ph-circle" /> {booking.status || 'new'}
                   </span>
-                  <h1 className="text-2xl font-extrabold text-slate-900 mt-4">{booking.route || 'Flight booking'}</h1>
-                  <p className="text-sm text-slate-500 mt-1">{booking.dates || 'Dates unavailable'}</p>
+                  <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-50 mt-4">{booking.route || 'Flight booking'}</h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{booking.dates || 'Dates unavailable'}</p>
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Booking number</div>
-                  <div className="text-sm font-extrabold text-slate-800 font-mono">{booking.ref}</div>
+                  <div className="text-sm font-extrabold text-slate-800 dark:text-slate-200 font-mono">{booking.ref}</div>
                   {booking.duffelBookingReference && (
-                    <div className="mt-2 text-xs text-slate-500">Airline ref: {booking.duffelBookingReference}</div>
+                    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">Airline ref: {booking.duffelBookingReference}</div>
                   )}
                 </div>
               </div>
             </div>
 
             {limited && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                 <strong className="font-bold">Limited view.</strong> Sign in as the booking owner to see passenger,
                 payment and ticket details.
               </div>
             )}
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="font-extrabold text-slate-900 mb-4">Flight details</h2>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 dark:text-slate-50 mb-4">Flight details</h2>
               {segments.length ? (
                 <div className="space-y-4">
                   {segments.map((seg, index) => (
-                    <div key={`${seg.id || index}`} className="flex gap-4 items-start border-b border-slate-100 last:border-0 pb-4 last:pb-0">
-                      <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+                    <div key={`${seg.id || index}`} className="flex gap-4 items-start border-b border-slate-100 dark:border-slate-800 last:border-0 pb-4 last:pb-0">
+                      <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/30 flex items-center justify-center shrink-0">
                         <i className="ph ph-airplane-tilt text-green-600 text-lg" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 flex-wrap">
-                          <strong className="text-slate-900">{seg.departCode || seg.departAirport || seg.origin?.iata_code || '--'}</strong>
+                          <strong className="text-slate-900 dark:text-slate-100">{seg.departCode || seg.departAirport || seg.origin?.iata_code || '--'}</strong>
                           <span className="text-slate-400">→</span>
-                          <strong className="text-slate-900">{seg.arriveCode || seg.arriveAirport || seg.destination?.iata_code || '--'}</strong>
-                          <span className="text-sm text-slate-500">{seg.departTime || seg.departing_at || ''} {seg.arriveTime ? `- ${seg.arriveTime}` : ''}</span>
+                          <strong className="text-slate-900 dark:text-slate-100">{seg.arriveCode || seg.arriveAirport || seg.destination?.iata_code || '--'}</strong>
+                          <span className="text-sm text-slate-500 dark:text-slate-400">{seg.departTime || seg.departing_at || ''} {seg.arriveTime ? `- ${seg.arriveTime}` : ''}</span>
                         </div>
-                        <div className="mt-1 text-sm text-slate-500">
+                        <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                           {seg.airlineName || seg.airline || seg.marketing_carrier?.name || 'Airline unavailable'}
                           {seg.flightNumber ? ` · ${seg.flightNumber}` : ''}
                           {seg.durationMin ? ` · ${Math.floor(seg.durationMin / 60)}h ${seg.durationMin % 60}m` : ''}
@@ -162,52 +162,52 @@ export default function BookingDetailsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">Flight segment details are unavailable for this booking.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Flight segment details are unavailable for this booking.</p>
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="font-extrabold text-slate-900 mb-4">Passengers</h2>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 dark:text-slate-50 mb-4">Passengers</h2>
               {limited ? (
-                <p className="text-sm text-slate-500">Visible to the booking owner after sign-in.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Visible to the booking owner after sign-in.</p>
               ) : passengers.length ? (
                 <div className="grid gap-3">
                   {passengers.map((p, index) => (
-                    <div key={index} className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                    <div key={index} className="rounded-xl bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm">
                       <strong>{[p.firstName, p.lastName, p.name].filter(Boolean).join(' ') || `Passenger ${index + 1}`}</strong>
-                      {p.type && <span className="text-slate-500 ml-2 capitalize">{p.type}</span>}
+                      {p.type && <span className="text-slate-500 dark:text-slate-400 ml-2 capitalize">{p.type}</span>}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">Passenger details are unavailable.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Passenger details are unavailable.</p>
               )}
             </div>
           </section>
 
           <aside className="space-y-5">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="font-extrabold text-slate-900 mb-4">Price summary</h2>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 dark:text-slate-50 mb-4">Price summary</h2>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Total</span>
-                <strong className="text-green-600 text-lg">{money(booking.total, currency)}</strong>
+                <span className="text-slate-500 dark:text-slate-400">Total</span>
+                <strong className="text-green-600 dark:text-green-400 text-lg">{money(booking.total, currency)}</strong>
               </div>
               {booking.payment?.status && (
-                <div className="mt-3 text-xs text-slate-500">Payment status: {booking.payment.status}</div>
+                <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">Payment status: {booking.payment.status}</div>
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h2 className="font-extrabold text-slate-900 mb-4">Ticket</h2>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
+              <h2 className="font-extrabold text-slate-900 dark:text-slate-50 mb-4">Ticket</h2>
               {limited ? (
-                <p className="text-sm text-slate-500">Visible to the booking owner after sign-in.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Visible to the booking owner after sign-in.</p>
               ) : booking.ticket ? (
-                <div className="text-sm text-slate-600">
+                <div className="text-sm text-slate-600 dark:text-slate-300">
                   <div><strong>{booking.ticket.airline}</strong></div>
                   <div className="font-mono">{booking.ticket.ticketNumber}</div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">No ticket has been issued yet.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No ticket has been issued yet.</p>
               )}
             </div>
           </aside>

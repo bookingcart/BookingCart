@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { HeaderAuthCluster } from './HeaderAuthCluster.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import NotificationBell from './NotificationBell.jsx';
+import { ThemeToggle, ThemeToggleRow } from './ThemeToggle.jsx';
 
 /**
  * BookingCartNavbar
@@ -112,6 +113,8 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
               <i className="ph ph-headset text-green-600 text-sm" />
               <span>Support</span>
             </a>
+
+            <ThemeToggle />
 
             {/* Context CTAs */}
             {activeNav === 'guides' && (
@@ -230,6 +233,9 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
                   </a>
                 </>
               )}
+
+              {/* Dark theme — same control as the desktop header tools */}
+              <ThemeToggleRow />
 
               {/* Support — always shown */}
               <a href="/support" onClick={closeMobile}

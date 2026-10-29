@@ -362,7 +362,7 @@ export default function FlightTrackerPage() {
     <div className="flex flex-col bg-slate-50" style={{ height: 'calc(100vh - 80px)' }}>
 
       {/* ── Top control bar ── */}
-      <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-2.5">
+      <div className="flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2.5">
         <div className="flex items-center gap-3 flex-wrap">
 
           {/* Title + live badge */}
@@ -391,7 +391,7 @@ export default function FlightTrackerPage() {
               value={searchVal}
               onChange={e => setSearchVal(e.target.value)}
               placeholder="Search callsign…"
-              className="w-full bg-slate-100 border border-slate-200 text-slate-900 placeholder:text-slate-400 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-green-500/60"
+              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 placeholder:text-slate-400 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-green-500/60"
             />
           </div>
 
@@ -401,7 +401,7 @@ export default function FlightTrackerPage() {
               <button
                 key={ap.code}
                 onClick={() => handleAirportJump(ap)}
-                className="flex-shrink-0 bg-white hover:bg-green-50 border border-slate-200 hover:border-green-300 text-slate-600 hover:text-green-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all shadow-sm"
+                className="flex-shrink-0 bg-white dark:bg-slate-900 hover:bg-green-50 border border-slate-200 dark:border-slate-800 hover:border-green-300 text-slate-600 dark:text-slate-300 hover:text-green-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-all shadow-sm"
               >
                 {ap.code}
               </button>
@@ -417,7 +417,7 @@ export default function FlightTrackerPage() {
             <button
               onClick={fetchFlights}
               disabled={loading}
-              className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 text-xs font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 text-xs font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm disabled:opacity-50"
             >
               <svg className={loading ? 'animate-spin' : ''} width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.1"/></svg>
               Refresh
@@ -444,21 +444,21 @@ export default function FlightTrackerPage() {
       <div className="flex-1 flex overflow-hidden relative">
 
         {/* ── Left Tracker Search Overlay ── */}
-        <div className="absolute top-6 left-6 z-[1000] w-[400px] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+        <div className="absolute top-6 left-6 z-[1000] w-[400px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
           <div className="p-6">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-5">Flight Tracker</h2>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight mb-5">Flight Tracker</h2>
             
             {/* Tabs */}
-            <div className="flex border-b border-slate-200 mb-5">
+            <div className="flex border-b border-slate-200 dark:border-slate-800 mb-5">
               <button
                 onClick={() => setTrackerTab('flight')}
-                className={`pb-3 text-sm font-bold border-b-2 transition-colors mr-6 ${trackerTab === 'flight' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors mr-6 ${trackerTab === 'flight' ? 'border-slate-900 text-slate-900 dark:text-slate-50' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
               >
                 Flight number
               </button>
               <button
                 onClick={() => setTrackerTab('airport')}
-                className={`pb-3 text-sm font-bold border-b-2 transition-colors ${trackerTab === 'airport' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                className={`pb-3 text-sm font-bold border-b-2 transition-colors ${trackerTab === 'airport' ? 'border-slate-900 text-slate-900 dark:text-slate-50' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
               >
                 Airport
               </button>
@@ -467,11 +467,11 @@ export default function FlightTrackerPage() {
             {/* Flight number tab */}
             {trackerTab === 'flight' && (
               <div className="space-y-3">
-                <input type="text" placeholder="Airline" value={flightSearch.airline} onChange={e => setFlightSearch({...flightSearch, airline: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
-                <input type="text" placeholder="Flight Number" value={flightSearch.flightNumber} onChange={e => setFlightSearch({...flightSearch, flightNumber: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <input type="text" placeholder="Airline" value={flightSearch.airline} onChange={e => setFlightSearch({...flightSearch, airline: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <input type="text" placeholder="Flight Number" value={flightSearch.flightNumber} onChange={e => setFlightSearch({...flightSearch, flightNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
                 <div className="relative">
-                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H32V48ZM208,208H48V96H208V208Z"></path></svg>
-                  <input type="date" value={flightSearch.date} onChange={e => setFlightSearch({...flightSearch, date: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg pl-11 pr-4 py-3.5 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" style={{ colorScheme: 'light' }} />
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-300" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H32V48ZM208,208H48V96H208V208Z"></path></svg>
+                  <input type="date" value={flightSearch.date} onChange={e => setFlightSearch({...flightSearch, date: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg pl-11 pr-4 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" style={{ colorScheme: 'inherit' }} />
                 </div>
               </div>
             )}
@@ -479,15 +479,15 @@ export default function FlightTrackerPage() {
             {/* Airport tab */}
             {trackerTab === 'airport' && (
               <div className="space-y-3">
-                <input type="text" placeholder="Airport (required)" value={airportSearch.airport} onChange={e => setAirportSearch({...airportSearch, airport: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
-                <input type="text" placeholder="Airline (optional)" value={airportSearch.airline} onChange={e => setAirportSearch({...airportSearch, airline: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <input type="text" placeholder="Airport (required)" value={airportSearch.airport} onChange={e => setAirportSearch({...airportSearch, airport: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
+                <input type="text" placeholder="Airline (optional)" value={airportSearch.airline} onChange={e => setAirportSearch({...airportSearch, airline: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg px-4 py-3.5 text-sm font-medium focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" />
                 <div className="flex gap-3">
                   <div className="relative w-1/2">
-                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H32V48ZM208,208H48V96H208V208Z"></path></svg>
-                    <input type="date" value={airportSearch.date} onChange={e => setAirportSearch({...airportSearch, date: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg pl-11 pr-2 py-3.5 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" style={{ colorScheme: 'light' }} />
+                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-300" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H32V48ZM208,208H48V96H208V208Z"></path></svg>
+                    <input type="date" value={airportSearch.date} onChange={e => setAirportSearch({...airportSearch, date: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg pl-11 pr-2 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors" style={{ colorScheme: 'inherit' }} />
                   </div>
                   <div className="w-1/2 relative">
-                    <select value={airportSearch.time} onChange={e => setAirportSearch({...airportSearch, time: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-3.5 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors appearance-none">
+                    <select value={airportSearch.time} onChange={e => setAirportSearch({...airportSearch, time: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg px-3 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-colors appearance-none">
                       <option>Morning 6:00am - 12:00pm</option>
                       <option>Afternoon 12:00pm - 6:00pm</option>
                       <option>Evening 6:00pm - 12:00am</option>
@@ -539,9 +539,9 @@ export default function FlightTrackerPage() {
           </MapContainer>
 
           {/* Zoom controls */}
-          <div className="absolute bottom-6 right-4 flex flex-col bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 overflow-hidden z-[1000]">
-            <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-b border-slate-200 text-xl font-light transition-colors">+</button>
-            <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xl font-light transition-colors">−</button>
+          <div className="absolute bottom-6 right-4 flex flex-col bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden z-[1000]">
+            <button onClick={() => document.querySelector('.leaflet-control-zoom-in')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 hover:bg-slate-50 border-b border-slate-200 dark:border-slate-800 text-xl font-light transition-colors">+</button>
+            <button onClick={() => document.querySelector('.leaflet-control-zoom-out')?.click()} className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 hover:bg-slate-50 text-xl font-light transition-colors">−</button>
           </div>
 
           {/* Hide default zoom */}
@@ -550,14 +550,14 @@ export default function FlightTrackerPage() {
           <BasemapSwitcher value={basemap} onChange={setBasemap} />
 
           {/* Legend */}
-          <div className="absolute bottom-6 left-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 px-3 py-2 flex items-center gap-3">
+          <div className="absolute bottom-6 left-4 z-[1000] bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 px-3 py-2 flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#0ea5e9" d="M12 2.5L8.5 10H5l1.5 2.5H10l-1 5H7l1 2 4-1 4 1 1-2h-2l-1-5h3.5L17 10h-3.5L12 2.5z"/></svg>
-              <span className="text-[10px] text-slate-600 font-semibold">Aircraft</span>
+              <span className="text-[10px] text-slate-600 dark:text-slate-300 font-semibold">Aircraft</span>
             </div>
             <div className="flex items-center gap-1.5">
               <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#16a34a" d="M12 2.5L8.5 10H5l1.5 2.5H10l-1 5H7l1 2 4-1 4 1 1-2h-2l-1-5h3.5L17 10h-3.5L12 2.5z"/></svg>
-              <span className="text-[10px] text-slate-600 font-semibold">Selected</span>
+              <span className="text-[10px] text-slate-600 dark:text-slate-300 font-semibold">Selected</span>
             </div>
             <div className="w-px h-4 bg-slate-200" />
                         <span className="text-[10px] text-slate-500 font-medium">OpenSky · Live</span>
@@ -565,14 +565,14 @@ export default function FlightTrackerPage() {
 
           {/* Selected flight popup */}
           {selected && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl p-4 w-[300px]">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 w-[300px]">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-slate-900 font-black text-lg tracking-tight">{selected.callsign}</p>
                   <p className="text-slate-500 text-xs mt-0.5 font-medium">{getAirlineName(selected.callsign)}</p>
                   {selected.origin && <p className="text-slate-400 text-[10px] mt-0.5">Aircraft Type: {selected.origin}</p>}
                 </div>
-                <button onClick={() => setSelected(null)} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors">
+                <button onClick={() => setSelected(null)} className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors">
                   <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
               </div>
@@ -584,16 +584,16 @@ export default function FlightTrackerPage() {
                   { label:'Heading',   value: fmtHead(selected.heading),icon:'M12 2L12 22M2 12L22 12' },
                   { label:'Position',  value: `${selected.lat.toFixed(2)}°, ${selected.lng.toFixed(2)}°`, icon:'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z' },
                 ].map(({ label, value, icon }) => (
-                  <div key={label} className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
+                  <div key={label} className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-2.5">
                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-slate-900 text-xs font-bold leading-tight">{value}</p>
+                    <p className="text-slate-900 dark:text-slate-50 text-xs font-bold leading-tight">{value}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-medium">ICAO24: <span className="font-mono text-slate-700">{selected.icao24}</span></span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selected.onGround ? 'bg-slate-100 text-slate-500' : 'bg-green-100 text-green-700'}`}>
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-medium">ICAO24: <span className="font-mono text-slate-700 dark:text-slate-200">{selected.icao24}</span></span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selected.onGround ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' : 'bg-green-100 text-green-700'}`}>
                   {selected.onGround ? 'On Ground' : 'Airborne'}
                 </span>
               </div>
@@ -602,10 +602,10 @@ export default function FlightTrackerPage() {
         </div>
 
         {/* ── Right: Live Area Traffic Board ── */}
-        <div className="w-[300px] flex-shrink-0 flex flex-col bg-white border-l border-slate-200 overflow-hidden relative z-10 pointer-events-auto">
+        <div className="w-[300px] flex-shrink-0 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 overflow-hidden relative z-10 pointer-events-auto">
 
           {/* Board header */}
-          <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+          <div className="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
@@ -645,7 +645,7 @@ export default function FlightTrackerPage() {
                     <div className="text-[9px] text-slate-500 font-mono mt-0.5">{f.icao24}</div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-bold text-slate-700 truncate" title={getAirlineName(f.callsign)}>{getAirlineName(f.callsign)}</div>
+                    <div className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate" title={getAirlineName(f.callsign)}>{getAirlineName(f.callsign)}</div>
                     <div className="text-[9px] text-slate-500 truncate">{fmtSpd(f.speed)} • {fmtHead(f.heading)}</div>
                   </div>
                   <div className="text-right">
@@ -657,13 +657,13 @@ export default function FlightTrackerPage() {
           </div>
 
           {/* Board footer stats */}
-          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
+          <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
             <div className="grid grid-cols-2 gap-2 text-center mb-2">
-              <div className="bg-white border border-slate-100 shadow-sm rounded-lg py-1.5">
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 shadow-sm rounded-lg py-1.5">
                 <p className="text-green-600 font-black text-sm">{totalInView}</p>
                 <p className="text-[8px] text-slate-500 font-bold">In Area</p>
               </div>
-              <div className="bg-white border border-slate-100 shadow-sm rounded-lg py-1.5">
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 shadow-sm rounded-lg py-1.5">
                 <p className="text-blue-600 font-black text-sm">{displayed.filter(f => !f.onGround).length}</p>
                 <p className="text-[8px] text-slate-500 font-bold">Airborne</p>
               </div>
