@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { cinemaGet, cinemaPost, clockLabel, formatDate, formatDateTime, money } from '../lib/cinemaClient.js';
-
-function qrSrc(value, size = 200) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=0f172a&format=svg&margin=4`;
-}
+import { cinemaGet, cinemaPost, formatDate, formatDateTime, money } from '../lib/cinemaClient.js';
+import CinemaTicket from '../components/cinema/CinemaTicket.jsx';
 
 const STATUS_COPY = {
   confirmed: { tone: 'emerald', icon: 'ph-check-circle', title: 'Your cinema tickets are confirmed' },
@@ -37,73 +34,6 @@ function Empty({ icon, title, message }) {
         <i className="ph ph-film-strip" /> Browse cinemas
       </Link>
     </div>
-  );
-}
-
-function SeatTicket({ ticket, order, cinema }) {
-  const currency = ticket.currency || order.currency;
-  return (
-    <article className="print-card overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col sm:flex-row">
-        {/* Stub */}
-        <div className="relative flex-1 border-b border-dashed border-slate-200 p-5 dark:border-slate-700 sm:border-b-0 sm:border-r">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600">Admit one{ticket.admissionsTotal > 1 ? ` · ${ticket.admissionsTotal} people` : ''}</p>
-              <h3 className="mt-1 truncate text-lg font-black leading-tight text-slate-900 dark:text-white">{ticket.movieTitle || order.movieTitle}</h3>
-              <p className="mt-0.5 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                {cinema?.name || order.attractionName} · {ticket.screenName || order.screenName}
-              </p>
-            </div>
-            <div className="shrink-0 rounded-xl bg-slate-900 px-3 py-2 text-center dark:bg-white">
-              <p className="text-[8px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Seat</p>
-              <p className="text-lg font-black leading-tight tabular-nums text-white dark:text-slate-900">{ticket.seatLabel || '—'}</p>
-            </div>
-          </div>
-
-          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
-            <div>
-              <dt className="font-black uppercase tracking-wider text-slate-400">Date</dt>
-              <dd className="font-bold text-slate-700 dark:text-slate-200">{formatDate(ticket.showDate || order.showDate)}</dd>
-            </div>
-            <div>
-              <dt className="font-black uppercase tracking-wider text-slate-400">Time</dt>
-              <dd className="font-bold text-slate-700 dark:text-slate-200">{order.slotLabel || clockLabel(order.slotLabel)}</dd>
-            </div>
-            <div>
-              <dt className="font-black uppercase tracking-wider text-slate-400">Category</dt>
-              <dd className="font-bold capitalize text-slate-700 dark:text-slate-200">{ticket.seatCategory || 'standard'}</dd>
-            </div>
-            <div>
-              <dt className="font-black uppercase tracking-wider text-slate-400">Price</dt>
-              <dd className="font-bold text-slate-700 dark:text-slate-200">{money(ticket.unitPrice, currency)}</dd>
-            </div>
-          </dl>
-
-          <p className="mt-4 truncate font-mono text-[10px] font-bold tracking-wide text-slate-400">{ticket.ticketNo}</p>
-        </div>
-
-        {/* QR */}
-        <div className="flex w-full shrink-0 flex-col items-center justify-center gap-2 bg-slate-50 p-5 dark:bg-slate-950/40 sm:w-[190px]">
-          {ticket.qrToken ? (
-            <img
-              src={qrSrc(ticket.qrToken)}
-              alt={`QR code for seat ${ticket.seatLabel}`}
-              width="150"
-              height="150"
-              className="h-[150px] w-[150px] rounded-lg bg-white p-1"
-            />
-          ) : (
-            <div className="flex h-[150px] w-[150px] items-center justify-center rounded-lg border border-dashed border-slate-300 text-xs font-bold text-slate-400">
-              QR issued on payment
-            </div>
-          )}
-          <p className="text-center text-[9px] font-bold uppercase tracking-wider text-slate-400">
-            {ticket.status === 'used' ? 'Already scanned' : 'Scan at the door'}
-          </p>
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -199,8 +129,10 @@ export default function CinemaConfirmationPage() {
         @media print {
           body { background: #fff !important; }
           .print-hide { display: none !important; }
-          .print-card { break-inside: avoid; box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
-          @page { margin: 12mm; }
+          .print-card { break-inside: avoid; page-break-inside: avoid; }
+          .print-card, .print-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .ct-ticket { box-shadow: none !important; }
+          @page { margin: 8mm; }
         }
       `}</style>
 
@@ -271,14 +203,16 @@ export default function CinemaConfirmationPage() {
 
         {/* Tickets */}
         {tickets.length > 0 ? (
-          <div className="mt-4 space-y-3">
-            <h2 className="flex items-center gap-2 px-1 text-sm font-black text-slate-900 dark:text-white print-hide">
+          <div className="mt-4">
+            <h2 className="mb-3 flex items-center gap-2 px-1 text-sm font-black text-slate-900 dark:text-white print-hide">
               <i className="ph ph-qr-code text-emerald-600" />
               {tickets.length} {tickets.length === 1 ? 'ticket' : 'tickets'} · one QR per seat
             </h2>
-            {tickets.map((ticket) => (
-              <SeatTicket key={ticket.id} ticket={ticket} order={order} cinema={cinema} />
-            ))}
+            <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+              {tickets.map((ticket) => (
+                <CinemaTicket key={ticket.id} ticket={ticket} order={order} cinema={cinema} notch="bg-slate-50 dark:bg-slate-950 print:bg-white" />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
