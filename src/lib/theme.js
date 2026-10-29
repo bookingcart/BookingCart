@@ -4,25 +4,19 @@ import { useCallback, useSyncExternalStore } from 'react';
  * Site-wide dark theme.
  * The choice is expressed as <html class="dark"> (Tailwind's class-based dark
  * variant) and mirrored to localStorage so the inline bootstrap in index.html
- * can paint the right colours before React mounts. Visitors without a saved
- * choice follow their operating system until they press the toggle.
+ * can paint the right colours before React mounts. The site is light by default:
+ * dark mode is opt-in through the toggle, not inherited from the OS setting.
  */
 export const THEME_KEY = 'bc_theme';
 
 const listeners = new Set();
-
-function systemPrefersDark() {
-  return typeof window !== 'undefined' && window.matchMedia
-    ? window.matchMedia('(prefers-color-scheme: dark)').matches
-    : false;
-}
 
 export function storedTheme() {
   try {
     const value = localStorage.getItem(THEME_KEY);
     if (value === 'dark' || value === 'light') return value;
   } catch {
-    // Storage can be blocked in private mode — the system preference wins.
+    // Storage can be blocked in private mode — the light default still applies.
   }
   return null;
 }
@@ -55,22 +49,9 @@ export function toggleTheme() {
   setTheme(activeTheme() === 'dark' ? 'light' : 'dark');
 }
 
-/** Follow the OS only while the visitor has not picked a theme themselves. */
-export function watchSystemTheme() {
-  if (typeof window === 'undefined' || !window.matchMedia) return () => {};
-  const query = window.matchMedia('(prefers-color-scheme: dark)');
-  const onChange = (event) => {
-    if (storedTheme()) return;
-    applyTheme(event.matches ? 'dark' : 'light');
-  };
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-/** Re-applies the resolved theme on boot and keeps the system listener alive. */
+/** Re-applies the resolved theme on boot. Light unless dark was chosen. */
 export function initTheme() {
-  applyTheme(storedTheme() || (systemPrefersDark() ? 'dark' : 'light'));
-  return watchSystemTheme();
+  applyTheme(storedTheme() || 'light');
 }
 
 function subscribe(listener) {

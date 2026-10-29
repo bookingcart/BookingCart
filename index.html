@@ -6,13 +6,12 @@
     <title>BookingCart — Fly Smarter, Book Faster</title>
     <meta name="description" content="BookingCart is a fast, modern flight booking platform. Search, compare, and book flights from hundreds of airlines worldwide." />
     <meta name="theme-color" content="#16a34a" />
-    <!-- Dark theme: resolve the saved/system preference before the first paint
-         so the page never flashes light on the way in. Mirrored by src/lib/theme.js -->
+    <!-- Theme: light unless the visitor picked dark. Resolved before the first
+         paint so the page never flashes the wrong theme. Mirrored by src/lib/theme.js -->
     <script>
       (function () {
         try {
-          var saved = localStorage.getItem('bc_theme');
-          var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = localStorage.getItem('bc_theme') === 'dark';
           document.documentElement.classList.toggle('dark', dark);
           document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
           if (dark) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#020617');

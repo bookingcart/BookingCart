@@ -20,18 +20,19 @@ test('the dark variant is class-based so the toggle can drive every page', () =>
   assert.match(css, /body \{[^}]*dark:bg-slate-950/, 'the page background must follow the theme');
 });
 
-test('the theme store applies the class, persists the choice and follows the OS by default', () => {
+test('the theme store applies the class, persists the choice and defaults to light', () => {
   const store = read('src/lib/theme.js');
   assert.match(store, /classList\.toggle\('dark', dark\)/, 'applyTheme must toggle the class on <html>');
   assert.match(store, /localStorage\.setItem\(THEME_KEY, theme\)/, 'an explicit choice must be remembered');
-  assert.match(store, /prefers-color-scheme: dark/, 'first visit should follow the operating system');
-  assert.match(store, /matchMedia\('\(prefers-color-scheme: dark\)'\)/, 'OS changes must be watched while no choice is saved');
+  assert.match(store, /applyTheme\(storedTheme\(\) \|\| 'light'\)/, 'a first visit must be light, not dark');
+  assert.doesNotMatch(store, /prefers-color-scheme/, 'the OS setting must not decide the theme');
   assert.match(store, /useSyncExternalStore/, 'components must re-render when the theme flips');
 });
 
 test('the saved theme is applied before the first paint', () => {
   const html = read('index.html');
-  assert.match(html, /localStorage\.getItem\('bc_theme'\)/, 'index.html must resolve the theme before React mounts');
+  assert.match(html, /localStorage\.getItem\('bc_theme'\) === 'dark'/, 'only a saved dark choice may paint dark');
+  assert.doesNotMatch(html, /prefers-color-scheme/, 'the bootstrap must not inherit the OS dark setting');
   assert.match(html, /document\.documentElement\.classList\.toggle\('dark', dark\)/, 'the bootstrap must set the class itself');
   assert.match(read('src/main.jsx'), /initTheme\(\)/, 'main.jsx must re-sync the theme on boot');
 });
