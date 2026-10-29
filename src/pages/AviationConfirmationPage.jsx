@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, Link } from "react-router-dom";
 import AviationLayout from "../components/aviation/AviationLayout.jsx";
+import BoardingPass from "../components/aviation/BoardingPass.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { aviationRequest, money, durationLabel } from "../lib/aviationClient.js";
 
@@ -16,15 +18,15 @@ const AVIATION_TICKET_PREVIEW = {
   destination: { code: "MRC", name: "Morocco International Airport" },
   aircraftName: "Montieri Private Jet",
   aircraftRegistration: "5X-MTJ",
+  operatorName: "Montieri Aviation",
   aircraftImage: "https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1200&q=85",
   quote: { durationMinutes: 40, distanceNm: 214, price: 6200, currency: "USD" },
   payment: { sessionId: "08839373t3e3526" },
 };
 
-function TicketQr({ value }) {
-  const src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(value)}&bgcolor=171917&color=ffffff&format=svg&margin=5`;
-  return <img src={src} alt="Booking QR code" width="112" height="112" className="rounded-[12px] bg-black p-1.5" />;
-}
+const EYEBROW = "text-[10px] font-semibold uppercase tracking-[0.26em]";
+const CARD = "rounded-2xl border border-slate-200/80 bg-white p-6 dark:border-slate-800 dark:bg-slate-900";
+const MICRO = "text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400";
 
 function formatClock(value) {
   const match = /^(\d{2}):(\d{2})$/.exec(String(value || ""));
@@ -35,34 +37,35 @@ function formatClock(value) {
   return `${String(display).padStart(2, "0")}:${match[2]} ${suffix}`;
 }
 
-function formatTicketDate(value) {
-  const date = value ? new Date(String(value).includes("T") ? value : `${value}T12:00:00`) : new Date();
-  return Number.isNaN(date.getTime()) ? String(value || '') : date.toLocaleDateString('en-US', { weekday: 'long', month: '2-digit', day: '2-digit', year: 'numeric' }).replace(',', '.').toUpperCase();
+// The pass is captured as a PNG, so fonts and images must be settled first.
+async function waitForTicketAssets(node) {
+  if (!node) return;
+  const images = [...node.querySelectorAll("img")].filter((img) => !img.complete);
+  await Promise.all([
+    document.fonts?.ready,
+    ...images.map(
+      (img) =>
+        new Promise((resolve) => {
+          img.addEventListener("load", resolve, { once: true });
+          img.addEventListener("error", resolve, { once: true });
+        })
+    ),
+  ]);
 }
 
-function AviationTicket({ booking }) {
-  const qrData = JSON.stringify({ ref: booking.ref, route: `${booking.origin?.code}-${booking.destination?.code}`, passenger: booking.name });
-  const ticketNumber = booking.payment?.sessionId || booking.ref;
-  const departure = formatClock(booking.departTime);
-  return <div id="aviation-ticket" className="relative mx-auto w-full max-w-[430px] overflow-hidden rounded-[28px] bg-white shadow-2xl" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
-    <header className="flex h-[92px] flex-col items-center justify-center bg-[#292b28] px-8"><img src="/images/logo%20.png" alt="BookingCart" className="h-auto w-[245px] brightness-0 invert" /><p className="mt-1 text-[10px] font-medium tracking-[0.34em] text-white/75">Compare. Book. instant</p></header>
-    <section className="relative h-[250px] overflow-hidden bg-slate-800">
-      <img src={booking.aircraftImage || 'https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1200&q=85'} alt={booking.aircraftName || 'Private aircraft'} className="absolute inset-0 h-full w-full object-cover" />
-      <div className="absolute inset-0 bg-black/35" />
-      <p className="absolute right-5 top-4 rounded-full bg-black/30 px-3.5 py-1 text-[16px] font-black text-white backdrop-blur-[2px]">Boarding <span className="text-[#00dc58]">Pass</span></p>
-      <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between text-white"><div><p className="text-[42px] font-black leading-none">{booking.origin?.code}</p><p className="mt-1 max-w-[120px] text-[10px] leading-[1.05]">{booking.origin?.name || booking.origin?.city}</p></div><i className="ph-fill ph-airplane-tilt mb-5 text-2xl" /><div className="text-right"><p className="text-[42px] font-black leading-none">{booking.destination?.code}</p><p className="mt-1 ml-auto max-w-[120px] text-[10px] leading-[1.05]">{booking.destination?.name || booking.destination?.city}</p></div></div>
-    </section>
-    <section className="relative grid grid-cols-3 gap-5 border-t-2 border-dashed border-[#00d454] bg-[#292b28] px-9 py-5 text-white before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[12px] font-black text-[#00d454]">FLIGHT</p><p className="mt-1 break-all text-[13px] font-light leading-snug">{booking.ref}</p></div><div><p className="text-[12px] font-black text-[#00d454]">AIRCRAFT</p><p className="mt-1 break-words text-[15px] font-light leading-tight">{booking.aircraftRegistration || booking.aircraftName || 'Private jet'}</p></div><div><p className="text-[12px] font-black text-[#00d454]">CABIN</p><p className="mt-1 text-[22px] font-light">{booking.passengers || 1} PAX</p></div></section>
-    <section className="mx-4 rounded-b-[24px] bg-[#00c950] px-5 py-5 text-[#20231f]"><div className="grid grid-cols-2 gap-x-7 gap-y-5"><div><p className="text-[11px] font-black text-white">PASSENGER</p><p className="text-[18px] leading-tight">{booking.name || 'Lead passenger'}</p></div><div><p className="text-[11px] font-black text-white">TICKET NO:</p><p className="break-all text-[14px] leading-tight">{ticketNumber}</p></div><div><p className="text-[11px] font-black text-white">DEPARTURE</p><p className="text-[16px]">{departure || 'Time to be confirmed'}</p></div><div><p className="text-[11px] font-black text-white">EST. FLIGHT TIME</p><p className="text-[16px]">{durationLabel(booking.quote?.durationMinutes || 0)}</p></div></div></section>
-    <footer className="relative mt-3 flex min-h-[136px] items-center justify-between border-t-2 border-dashed border-[#00c950] px-8 py-5 before:absolute before:-left-5 before:-top-5 before:h-10 before:w-10 before:rounded-full before:bg-[#00bd49] after:absolute after:-right-5 after:-top-5 after:h-10 after:w-10 after:rounded-full after:bg-[#00bd49]"><div><p className="text-[11px] font-black text-[#00b846]">ISSUE DATE</p><p className="text-[14px] text-[#292b28]">{formatTicketDate(booking.createdAt)}</p><p className="mt-4 text-[11px] font-black text-[#00b846]">DEPARTS</p><p className="text-[14px] text-[#292b28]">{formatTicketDate(booking.departDate)}</p><p className="text-[14px] text-[#292b28]">{departure || "Local time confirmed by the operator"}</p></div><TicketQr value={qrData} /></footer>
-  </div>;
-}
+const NEXT_STEPS = [
+  { icon: "ph-user-check", text: "The operator will assign a qualified captain and co-pilot to your flight." },
+  { icon: "ph-file-text", text: "Flight documents and the crew manifest are issued 24 hours before departure." },
+  { icon: "ph-car", text: "If you requested ground transport, your coordinator will confirm pick-up details." },
+  { icon: "ph-envelope", text: "A full itinerary confirmation is sent to the email on this booking." },
+];
 
 export default function AviationConfirmationPage() {
   const [params] = useSearchParams();
   const { getToken } = useAuth();
   const [booking, setBooking] = useState(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [emailEntry, setEmailEntry] = useState("");
   const [needsEmail, setNeedsEmail] = useState(false);
@@ -120,170 +123,298 @@ export default function AviationConfirmationPage() {
   }
 
   async function downloadTicket() {
+    const node = document.getElementById("aviation-ticket");
+    if (!node) {
+      setNotice("The boarding pass is still loading. Please try again in a moment.");
+      return;
+    }
     setDownloading(true);
+    setNotice("");
     try {
-      if (!window.html2canvas) {
-        await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js'; script.onload = resolve; script.onerror = reject; document.head.appendChild(script); });
-      }
-      const canvas = await window.html2canvas(document.getElementById('aviation-ticket'), { scale: 3, useCORS: true, backgroundColor: null });
-      const link = document.createElement('a'); link.download = `boarding-pass-${booking.ref}.png`; link.href = canvas.toDataURL('image/png'); link.click();
-    } catch {
-      setError('Could not download the boarding pass. Please try printing it instead.');
+      await waitForTicketAssets(node);
+      // html2canvas-pro understands Tailwind's oklch() colours; the original build throws on them.
+      const { default: html2canvas } = await import("html2canvas-pro");
+      const canvas = await html2canvas(node, { scale: 3, useCORS: true, backgroundColor: "#ffffff", logging: false });
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("the image could not be generated");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `boarding-pass-${booking?.ref || "booking"}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (err) {
+      setNotice(
+        `We could not download the boarding pass (${err.message || "unknown error"}). Use Print, then choose “Save as PDF”.`
+      );
     } finally {
       setDownloading(false);
     }
   }
 
+  const departure = formatClock(booking?.departTime);
+  const confirmed = booking?.status === "confirmed";
+
   return (
     <AviationLayout>
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        {/* Success animation */}
-        <div className="text-center mb-10">
-          <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 mb-4">
-            <i className="ph ph-airplane-takeoff text-4xl text-emerald-700" />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">{booking?.status === 'confirmed' ? 'Charter confirmed' : 'Booking received'}</p>
-          <h1 className="mt-2 text-4xl font-black">{booking ? booking.ref : "Booking received"}</h1>
-          {!booking && !error && <p className="mt-3 text-slate-500">Loading your booking details…</p>}
-        </div>
-
-        {error && (
-          <div className="rounded-3xl bg-rose-50 border border-rose-200 p-5 mb-6 text-center" role="alert">
-            <i className="ph ph-warning-circle text-2xl text-rose-500 mb-2" />
-            <p className="font-bold text-rose-700">{error}</p>
-          </div>
-        )}
-
-        {needsEmail && !booking && (
-          <form onSubmit={submitEmail} className="mx-auto mb-8 max-w-md rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center gap-2.5">
-              <i className="ph ph-envelope-simple text-xl text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
-              <h2 className="font-black">Open this boarding pass</h2>
+      <section className="relative isolate overflow-hidden bg-slate-950">
+        <div className="absolute -left-32 -top-24 h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950/95 to-slate-900" aria-hidden="true" />
+        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6">
+          <p className={`${EYEBROW} text-emerald-400`}>{confirmed ? "Charter confirmed" : "Booking received"}</p>
+          <div className="mt-3 flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-semibold tracking-tight text-white tabular-nums sm:text-4xl">
+                {booking?.ref || ref || "Your booking"}
+              </h1>
+              <p className="mt-2 max-w-md text-[12px] leading-relaxed text-white/55">
+                Keep this reference for check-in, amendments and support. Your boarding pass is issued in the operator’s name.
+              </p>
             </div>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              For privacy we only show a charter to the email that booked it. Enter that address to continue.
-            </p>
-            <label htmlFor="av-confirm-email" className="mt-4 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Email used for this booking</label>
-            <input
-              id="av-confirm-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              value={emailEntry}
-              onChange={(event) => setEmailEntry(event.target.value)}
-              placeholder="you@example.com"
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
-            <button type="submit" className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-black text-white transition-colors hover:bg-emerald-800">
-              View boarding pass
-              <i className="ph ph-arrow-right text-sm" aria-hidden="true" />
-            </button>
-          </form>
-        )}
-
-        {booking && booking.status !== "confirmed" && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900"><h2 className="text-xl font-black">Payment still required</h2><p className="mt-2 text-sm">Your request is saved, but a boarding pass will only be issued after payment is verified.</p></div>
-        )}
-
-        {booking && booking.status === "confirmed" && (
-          <>
-            <AviationTicket booking={booking} />
-            <div className="mx-auto mb-8 mt-4 flex max-w-[430px] gap-3"><button onClick={downloadTicket} disabled={downloading} className="flex-1 rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white disabled:opacity-60"><i className="ph ph-download-simple mr-2" />{downloading ? 'Preparing…' : 'Download boarding pass'}</button><button onClick={() => window.print()} className="rounded-xl bg-slate-800 px-4 py-3 text-white" aria-label="Print boarding pass"><i className="ph ph-printer text-xl" /></button></div>
-            {/* Booking card */}
-            <div className="rounded-3xl bg-slate-950 text-white p-6 shadow-2xl mb-6">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Reference</p>
-                  <p className="text-2xl font-black mt-0.5">{booking.ref}</p>
+            {booking && (
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white backdrop-blur-sm">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/45">Route</p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                    {booking.origin?.code}
+                    <span className="mx-1.5 text-white/35">→</span>
+                    {booking.destination?.code}
+                  </p>
                 </div>
-                <span className={`rounded-full px-3 py-1.5 text-xs font-black ${booking.status === "confirmed" ? "bg-emerald-600" : "bg-amber-600"}`}>
+                <span
+                  className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] ${
+                    confirmed ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-400/30" : "bg-amber-500/15 text-amber-200 ring-1 ring-inset ring-amber-400/30"
+                  }`}
+                >
                   {booking.status?.replaceAll("_", " ")}
                 </span>
               </div>
+            )}
+          </div>
+        </div>
+      </section>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Route</p>
-                  <p className="font-black">{booking.origin?.code} <i className="ph ph-arrow-right" /> {booking.destination?.code}</p>
-                  <p className="text-sm text-slate-400 mt-0.5">
-                    {booking.departDate}
-                    {formatClock(booking.departTime) ? ` · departs ${formatClock(booking.departTime)}` : " · departure time to be confirmed"}
+      <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <div className={`relative z-10 grid gap-6 lg:items-start ${booking ? "lg:grid-cols-[minmax(0,452px)_minmax(0,1fr)]" : ""}`}>
+          <div className={`-mt-10 min-w-0 space-y-4 ${booking ? "" : "mx-auto w-full max-w-md"}`}>
+            {error && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/50 dark:bg-rose-950/30" role="alert">
+                <p className="flex items-start gap-2 text-[13px] font-semibold text-rose-700 dark:text-rose-300">
+                  <i className="ph ph-warning-circle mt-0.5 text-base" aria-hidden="true" />
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {needsEmail && !booking && (
+              <form onSubmit={submitEmail} className={CARD}>
+                <div className="flex items-center gap-2.5">
+                  <i className="ph ph-envelope-simple text-lg text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Open this boarding pass</h2>
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  For privacy we only show a charter to the email that booked it. Enter that address to continue.
+                </p>
+                <label htmlFor="av-confirm-email" className={`mt-4 block ${MICRO}`}>
+                  Email used for this booking
+                </label>
+                <input
+                  id="av-confirm-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={emailEntry}
+                  onChange={(event) => setEmailEntry(event.target.value)}
+                  placeholder="you@example.com"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+                <button
+                  type="submit"
+                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                >
+                  View boarding pass
+                  <i className="ph ph-arrow-right text-sm" aria-hidden="true" />
+                </button>
+              </form>
+            )}
+
+            {!booking && !needsEmail && !error && (
+              <div className={`${CARD} flex items-center gap-3`}>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600 dark:border-slate-700 dark:border-t-emerald-400" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">Loading your booking details…</p>
+              </div>
+            )}
+
+            {booking && !confirmed && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <p className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  <i className="ph ph-hourglass-medium text-lg" aria-hidden="true" />
+                  Payment still required
+                </p>
+                <p className="mt-2 text-[12px] leading-relaxed text-amber-800 dark:text-amber-300/90">
+                  Your request is saved, but a boarding pass is only issued after payment is verified.
+                </p>
+              </div>
+            )}
+
+            {confirmed && (
+              <>
+                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-[0_30px_70px_-45px_rgba(2,6,23,0.7)] dark:border-slate-800">
+                  <BoardingPass booking={booking} />
+                </div>
+
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={downloadTicket}
+                    disabled={downloading}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-progress disabled:opacity-60"
+                  >
+                    {downloading ? (
+                      <>
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                        Preparing…
+                      </>
+                    ) : (
+                      <>
+                        <i className="ph ph-download-simple text-base" aria-hidden="true" />
+                        Download boarding pass
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    <i className="ph ph-printer text-base" aria-hidden="true" />
+                    Print
+                  </button>
+                </div>
+
+                {notice && (
+                  <p
+                    role="alert"
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[12px] leading-relaxed text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-200"
+                  >
+                    {notice}
                   </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Aircraft</p>
-                  <p className="font-black">{booking.aircraftName}</p>
-                  <p className="text-sm text-slate-400 mt-0.5">{booking.operatorName}</p>
-                </div>
-                {booking.quote && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Charter price</p>
-                    <p className="text-2xl font-black text-emerald-300">{money(booking.quote.price, booking.quote.currency)}</p>
-                  </div>
                 )}
-                {booking.quote?.durationMinutes && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Flight time</p>
-                    <p className="font-black">{durationLabel(booking.quote.durationMinutes)}</p>
-                    <p className="text-sm text-slate-400 mt-0.5">{booking.quote.distanceNm} nm</p>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            {/* What happens next */}
-            <div className="rounded-3xl bg-white border border-slate-100 p-6 mb-6 dark:bg-slate-900 dark:border-slate-800">
-              <h2 className="font-black mb-4">What happens next</h2>
-              <div className="space-y-4">
-                {[
-                  { icon: "ph-user-check", text: "The operator will assign a qualified captain and co-pilot to your flight.", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" },
-                  { icon: "ph-file-text", text: "Flight documents and crew manifest will be issued 24 hours before departure.", color: "text-sky-600 bg-sky-50 dark:bg-sky-950/40" },
-                  { icon: "ph-car", text: "If you requested ground transport, your coordinator will confirm pick-up details.", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
-                  { icon: "ph-envelope", text: "A full itinerary confirmation will be sent to your email address.", color: "text-purple-600 bg-purple-50 dark:bg-purple-950/40" },
-                ].map((step, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className={`h-9 w-9 shrink-0 rounded-xl ${step.color} flex items-center justify-center`}>
-                      <i className={`ph ${step.icon} text-base`} />
+                <p className="px-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  Printing? Turn on “Background graphics” in the print dialog so the pass keeps its colours.
+                </p>
+              </>
+            )}
+          </div>
+
+          {booking && (
+            <div className="min-w-0 space-y-4 lg:mt-2">
+              <div className={CARD}>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Trip summary</h2>
+                  <Link to="/my-bookings" className="text-[12px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
+                    My bookings
+                  </Link>
+                </div>
+                <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                  <div>
+                    <dt className={MICRO}>Route</dt>
+                    <dd className="mt-1 text-[13px] font-semibold text-slate-900 tabular-nums dark:text-white">
+                      {booking.origin?.code} <span className="text-slate-400">→</span> {booking.destination?.code}
+                    </dd>
+                    <dd className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400">
+                      {booking.departDate}
+                      {departure ? ` · departs ${departure}` : " · time to be confirmed"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className={MICRO}>Aircraft</dt>
+                    <dd className="mt-1 text-[13px] font-semibold text-slate-900 dark:text-white">{booking.aircraftName}</dd>
+                    <dd className="mt-0.5 text-[12px] text-slate-500 dark:text-slate-400">
+                      {booking.operatorName || booking.aircraftRegistration || "Operator assigned"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className={MICRO}>Passengers</dt>
+                    <dd className="mt-1 text-[13px] font-semibold text-slate-900 tabular-nums dark:text-white">{booking.passengers || 1}</dd>
+                  </div>
+                  {booking.quote?.durationMinutes ? (
+                    <div>
+                      <dt className={MICRO}>Flight time</dt>
+                      <dd className="mt-1 text-[13px] font-semibold text-slate-900 tabular-nums dark:text-white">
+                        {durationLabel(booking.quote.durationMinutes)}
+                      </dd>
+                      {booking.quote.distanceNm ? (
+                        <dd className="mt-0.5 text-[12px] text-slate-500 tabular-nums dark:text-slate-400">{booking.quote.distanceNm} nm</dd>
+                      ) : null}
                     </div>
-                    <p className="text-sm leading-relaxed pt-1">{step.text}</p>
+                  ) : null}
+                </dl>
+                {booking.quote && (
+                  <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+                    <p className={MICRO}>Charter price</p>
+                    <p className="text-lg font-semibold text-slate-900 tabular-nums dark:text-white">
+                      {money(booking.quote.price, booking.quote.currency)}
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
 
-            {/* Upsell CTA */}
-            <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 mb-6 dark:border-emerald-900/30 dark:bg-emerald-950/20">
-              <div className="flex items-start gap-3">
-                <i className="ph ph-map-trifold text-2xl text-emerald-700 mt-0.5" />
-                <div>
-                  <p className="font-black">Build your full safari itinerary</p>
-                  <p className="text-sm text-emerald-700 mt-1 dark:text-emerald-400">Add a helicopter scenic tour, luxury lodge, national park entry, and safari transfer to this booking. All under one checkout.</p>
-                  <Link to="/aviation/itinerary" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-xs font-black text-white hover:bg-emerald-800 transition-colors">
-                    <i className="ph ph-map-trifold text-sm" />
-                    Build full itinerary
+              <div className={CARD}>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">What happens next</h2>
+                <ul className="mt-4 space-y-3.5">
+                  {NEXT_STEPS.map((step) => (
+                    <li key={step.icon} className="flex items-start gap-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                        <i className={`ph ${step.icon} text-[15px]`} aria-hidden="true" />
+                      </span>
+                      <p className="text-[12.5px] leading-relaxed text-slate-600 dark:text-slate-300">{step.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-2xl bg-slate-950 p-6 text-white ring-1 ring-white/10">
+                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/90">
+                  <i className="ph ph-map-trifold text-sm" aria-hidden="true" />
+                  Complete the trip
+                </p>
+                <h2 className="mt-2 text-base font-semibold">Build your full safari itinerary</h2>
+                <p className="mt-1.5 text-[12px] leading-relaxed text-white/60">
+                  Add a scenic helicopter tour, a luxury lodge, park entry and a safari transfer to this charter — all on one checkout.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  <Link
+                    to="/aviation/itinerary"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-[12px] font-semibold text-slate-950 transition-colors hover:bg-emerald-400"
+                  >
+                    <i className="ph ph-map-trifold text-sm" aria-hidden="true" />
+                    Build itinerary
+                  </Link>
+                  <Link
+                    to="/aviation"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-white/10"
+                  >
+                    <i className="ph ph-airplane-tilt text-sm" aria-hidden="true" />
+                    Book another flight
                   </Link>
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link to="/my-bookings" className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-bold dark:border-slate-700">
-                <i className="ph ph-ticket text-base" />
-                My bookings
-              </Link>
-              <Link to="/aviation" className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-bold dark:border-slate-700">
-                <i className="ph ph-airplane-tilt text-base" />
-                Book another flight
-              </Link>
-              <Link to="/aviation/charter" className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-800 transition-colors">
-                <i className="ph ph-paper-plane-tilt text-base" />
-                Request a charter
-              </Link>
-            </div>
-          </>
+      {confirmed &&
+        createPortal(
+          <div className="bp-print-root">
+            <BoardingPass booking={booking} id="aviation-ticket-print" />
+          </div>,
+          document.body
         )}
-      </section>
     </AviationLayout>
   );
 }
