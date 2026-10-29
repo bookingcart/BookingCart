@@ -5,7 +5,7 @@ import { HeaderUserAvatarImg } from './HeaderUserAvatarImg.jsx';
 const BTN_CLASS =
   'w-11 h-11 rounded-full overflow-hidden bg-slate-100 border-2 border-white shadow-sm hover:border-green-500 transition-all focus:ring-2 focus:ring-green-500 outline-none';
 
-export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
+export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS, suppressMenu = false, onMenuOpened }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const { user, logout } = useAuth();
@@ -87,6 +87,12 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
 
   const hasAnyPortal = isHotelOwner || isGuide || isAttractionOwner || isAviationOperator || isTransportOperator || isAdmin;
 
+  // The mobile drawer already lists the account links, so the two menus must
+  // never be on screen together — opening one closes the other.
+  useEffect(() => {
+    if (suppressMenu) setOpen(false);
+  }, [suppressMenu]);
+
   useEffect(() => {
     function onDocClick(e) {
       if (!rootRef.current || rootRef.current.contains(e.target)) return;
@@ -113,7 +119,9 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
         aria-haspopup="true"
         onClick={(e) => {
           e.stopPropagation();
-          setOpen((v) => !v);
+          const next = !open;
+          setOpen(next);
+          if (next) onMenuOpened?.();
         }}
       >
         <div className="relative w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 p-[2px] shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-300">

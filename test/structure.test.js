@@ -198,6 +198,16 @@ test('every Leaflet map renders the shared keyless basemap layer', () => {
   assert.doesNotMatch(tiles, /DEFAULT_MAP_PROVIDER = 'voyager'/, 'CARTO basemaps need a key and cannot be the default');
 });
 
+test('the nav drawer and the account menu never sit on screen together', () => {
+  const navbar = fs.readFileSync(path.join(ROOT, 'src/components/BookingCartNavbar.jsx'), 'utf8');
+  // Both menus list the same account links, so opening one closes the other.
+  assert.match(navbar, /suppressAccountMenu=\{mobileOpen\}/, 'opening the drawer must close the account menu');
+  assert.match(navbar, /onAccountMenuOpened=\{\(\) => setMobileOpen\(false\)\}/, 'opening the account menu must close the drawer');
+
+  const dropdown = fs.readFileSync(path.join(ROOT, 'src/components/HeaderProfileDropdown.jsx'), 'utf8');
+  assert.match(dropdown, /if \(suppressMenu\) setOpen\(false\)/, 'the account menu must obey the suppress flag');
+});
+
 test('geo endpoint resolves location from CDN headers without a key', async () => {
   const geoHandler = require('../api-routes/geo');
 

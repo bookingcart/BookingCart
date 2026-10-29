@@ -63,6 +63,11 @@ export function FlightFooter() {
 
           {/* Column 1 – Contact us */}
           <div>
+            {/* Official wordmark — light/dark file per theme */}
+            <a href="/" className="mb-5 inline-flex" aria-label="BookingCart home">
+              <img src="/images/bookingcart-logo.png" alt="" width="144" height="20" className="block h-5 w-auto dark:hidden" />
+              <img src="/images/bookingcart-logo-on-dark.png" alt="" width="144" height="20" className="hidden h-5 w-auto dark:block" />
+            </a>
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-200 mb-4">Contact us</h3>
             {/* Business identity */}
             <div className="mb-4 space-y-1.5">

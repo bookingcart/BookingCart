@@ -5,8 +5,10 @@ import { HeaderProfileDropdown } from './HeaderProfileDropdown.jsx';
 /**
  * Unified Auth Cluster: Get Started button (unauthenticated)
  *                       or Profile dropdown (authenticated).
+ * suppressAccountMenu – close the dropdown (a nav drawer took over the menu)
+ * onAccountMenuOpened – the dropdown opened (the nav can close its drawer)
  */
-export function HeaderAuthCluster({ className = '' }) {
+export function HeaderAuthCluster({ className = '', suppressAccountMenu = false, onAccountMenuOpened }) {
   const { user } = useAuth();
 
   return (
@@ -20,7 +22,7 @@ export function HeaderAuthCluster({ className = '' }) {
           <span className="hidden sm:inline">Get Started</span>
         </Link>
       )}
-      {user && <HeaderProfileDropdown />}
+      {user && <HeaderProfileDropdown suppressMenu={suppressAccountMenu} onMenuOpened={onAccountMenuOpened} />}
     </div>
   );
 }

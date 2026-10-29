@@ -53,9 +53,11 @@ function TicketCard({ ticket, order }) {
       {/* Brand band */}
       <header className="px-6 pb-3.5 pt-5 text-center">
         <img
-          src="/images/logo%20.png"
+          src="/images/bookingcart-logo-on-dark.png"
           alt="BookingCart"
-          className="mx-auto h-14 w-auto brightness-0 invert"
+          width="202"
+          height="28"
+          className="mx-auto h-7 w-auto"
           onError={(event) => { event.currentTarget.style.display = 'none'; }}
         />
         <p className="mt-1 text-[9px] font-black uppercase tracking-[0.4em] text-slate-400">Compare · Book · Instant</p>

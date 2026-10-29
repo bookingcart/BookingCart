@@ -58,16 +58,24 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
           {/* Logo */}
           <a
             href="/"
-            className="bookingcart-logo flex shrink-0 items-center gap-2.5 rounded-xl px-1 py-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
+            className="bookingcart-logo flex shrink-0 items-center rounded-xl px-1 py-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900"
             aria-label="BookingCart home"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-600 text-white shadow-sm shadow-green-200 dark:shadow-none">
-              <i className="ph ph-airplane-tilt text-lg" />
-            </span>
-            <span className="bookingcart-logo-text inline-flex text-base font-black tracking-tight leading-none select-none">
-              <span className="text-slate-950 dark:text-white transition-colors">Booking</span>
-              <span className="text-green-600">Cart</span>
-            </span>
+            {/* Official wordmark — the on-dark file swaps in with the dark theme */}
+            <img
+              src="/images/bookingcart-logo.png"
+              alt=""
+              width="173"
+              height="24"
+              className="bookingcart-logo-text block h-6 w-auto dark:hidden"
+            />
+            <img
+              src="/images/bookingcart-logo-on-dark.png"
+              alt=""
+              width="173"
+              height="24"
+              className="bookingcart-logo-text hidden h-6 w-auto dark:block"
+            />
           </a>
 
           {/* Desktop nav pills — below xl the hamburger drawer takes over, because a
@@ -141,7 +149,12 @@ export default function BookingCartNavbar({ activeNav = 'flights', rightSlot }) 
             {user && (isGuide || isAdmin) && (
               <span className="xl:hidden"><NotificationBell /></span>
             )}
-            <HeaderAuthCluster />
+            {/* One menu at a time: the account dropdown and this drawer list the
+                same links, so opening either one closes the other. */}
+            <HeaderAuthCluster
+              suppressAccountMenu={mobileOpen}
+              onAccountMenuOpened={() => setMobileOpen(false)}
+            />
             <button
               type="button"
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-900 xl:hidden"

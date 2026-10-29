@@ -483,13 +483,14 @@ export default function HotelOnboardingPage() {
       `}>
         {/* Logo */}
         <div className="px-6 py-5 border-b border-slate-800 flex items-center gap-3">
-          <a href="/" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-              <i className="ph ph-buildings text-lg" />
-            </span>
-            <span className="font-black text-base tracking-tight">
-              <span className="text-white">Booking</span><span className="text-green-500">Cart</span>
-            </span>
+          <a href="/" className="flex items-center" aria-label="BookingCart home">
+            <img
+              src="/images/bookingcart-logo-on-dark.png"
+              alt=""
+              width="173"
+              height="24"
+              className="h-6 w-auto"
+            />
           </a>
           <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-white">
             <i className="ph ph-x text-xl" />

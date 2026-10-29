@@ -99,9 +99,11 @@ function EventTicket({ booking, ticketBannerImage }) {
       {/* Ticket Header */}
       <header className="flex flex-col items-center justify-center bg-slate-900 py-3.5 px-6 text-center">
         <img
-          src="/images/logo%20.png"
+          src="/images/bookingcart-logo-on-dark.png"
           alt="BookingCart"
-          className="h-7 w-auto object-contain brightness-0 invert"
+          width="173"
+          height="24"
+          className="h-6 w-auto object-contain"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
         <p className="mt-1 text-[10px] font-bold tracking-[0.28em] text-emerald-400 uppercase">COMPARE · BOOK · INSTANT</p>

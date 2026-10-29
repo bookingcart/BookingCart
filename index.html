@@ -6,12 +6,15 @@
     <title>BookingCart — Fly Smarter, Book Faster</title>
     <meta name="description" content="BookingCart is a fast, modern flight booking platform. Search, compare, and book flights from hundreds of airlines worldwide." />
     <meta name="theme-color" content="#16a34a" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/images/bookingcart-icon.png" />
+    <link rel="apple-touch-icon" href="/images/bookingcart-icon.png" />
     <!-- Open Graph -->
     <meta property="og:title" content="BookingCart — Fly Smarter, Book Faster" />
     <meta property="og:description" content="Search and book flights from hundreds of airlines. Fast, secure, and always the best price." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/images/og-cover.png" />
+    <meta property="og:image" content="/images/bookingcart-logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/images/bookingcart-logo.png" />
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -137,42 +140,13 @@
           align-items: center; text-align: center;
         }
 
-        /* Logo badge */
-        #bcl-badge {
-          width: 76px; height: 76px;
-          border-radius: 22px;
-          background: linear-gradient(145deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 30px;
-          position: relative;
-          animation: bcl-badge-glow 2.5s ease-in-out infinite;
-        }
-        #bcl-badge::before {
-          content: '';
-          position: absolute; inset: -1px;
-          border-radius: 23px;
-          background: linear-gradient(145deg, rgba(134,239,172,0.5), transparent 60%);
-          z-index: -1;
-        }
-        @keyframes bcl-badge-glow {
-          0%,100% { box-shadow: 0 4px 24px rgba(22,163,74,0.35), 0 12px 48px rgba(22,163,74,0.15), 0 2px 8px rgba(0,0,0,0.1); }
-          50%      { box-shadow: 0 8px 36px rgba(22,163,74,0.5), 0 20px 64px rgba(22,163,74,0.25), 0 2px 8px rgba(0,0,0,0.1); }
-        }
-        #bcl-badge svg { width: 38px; height: 38px; }
-
-        /* Wordmark — letters slide up */
+        /* Official wordmark — lifts in as one lockup */
         #bcl-wm {
-          font-size: 36px; font-weight: 800;
-          letter-spacing: -1.5px; line-height: 1;
-          margin-bottom: 12px;
-        }
-        #bcl-wm .wh { color: #0f172a; }
-        #bcl-wm .wg { color: #16a34a; }
-        .bcl-c {
-          display: inline-block;
+          margin-bottom: 16px;
           opacity: 0; transform: translateY(22px);
-          animation: bcl-c-in 0.55s cubic-bezier(.16,1,.3,1) forwards;
+          animation: bcl-c-in 0.7s 0.1s cubic-bezier(.16,1,.3,1) forwards;
         }
+        #bcl-wm img { display: block; width: 250px; height: auto; }
         @keyframes bcl-c-in {
           to { opacity: 1; transform: translateY(0); }
         }
@@ -261,25 +235,8 @@
 
         <!-- Main content -->
         <div id="bcl-center">
-          <div id="bcl-badge">
-            <svg viewBox="0 0 38 38" fill="none">
-              <path d="M32 17L22 7L19 10L24 17H5L6.5 19.5L24 22L19 29L22 32L32 22L34 19.5Z" fill="white"/>
-              <path d="M32 17L22 7L19 10L24 17H5L6.5 19.5L24 22L19 29L22 32L32 22L34 19.5Z" fill="url(#bgrad)" opacity="0.3"/>
-              <defs>
-                <linearGradient id="bgrad" x1="5" y1="7" x2="34" y2="32">
-                  <stop stop-color="#dcfce7"/>
-                  <stop offset="1" stop-color="white"/>
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-
           <div id="bcl-wm">
-            <span class="wh">
-              <span class="bcl-c" style="animation-delay:.08s">B</span><span class="bcl-c" style="animation-delay:.13s">O</span><span class="bcl-c" style="animation-delay:.18s">O</span><span class="bcl-c" style="animation-delay:.23s">K</span><span class="bcl-c" style="animation-delay:.28s">I</span><span class="bcl-c" style="animation-delay:.33s">N</span><span class="bcl-c" style="animation-delay:.38s">G</span>
-            </span><span class="wg">
-              <span class="bcl-c" style="animation-delay:.46s">C</span><span class="bcl-c" style="animation-delay:.51s">A</span><span class="bcl-c" style="animation-delay:.56s">R</span><span class="bcl-c" style="animation-delay:.61s">T</span>
-            </span>
+            <img src="/images/bookingcart-logo.png" alt="BookingCart" width="250" height="35" />
           </div>
 
           <div id="bcl-sub">Fly Smarter &nbsp;&bull;&nbsp; Book Faster</div>

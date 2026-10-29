@@ -280,6 +280,9 @@ test('the boarding pass carries what the printed ticket shows', () => {
   // Site chrome is dropped so a booking never prints the navbar or the footer.
   assert.match(page, /footer\[aria-label="Site Footer"\]/);
   assert.match(page, /\.bookingcart-navbar/);
+  // The band carries the official two-tone wordmark, not a recoloured copy.
+  assert.match(page, /\/images\/bookingcart-logo-on-dark\.png/);
+  assert.doesNotMatch(page, /brightness-0 invert/);
 });
 
 test('the transport API refuses to run without a database', async () => {

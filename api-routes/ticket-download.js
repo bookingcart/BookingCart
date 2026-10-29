@@ -1,7 +1,44 @@
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { verifyRequestBearer } = require('../lib/google-verify');
+
+let cachedLogo;
+
+function siteOrigin() {
+  const configured = String(process.env.APP_URL || process.env.PUBLIC_URL || '').trim();
+  return /^https?:\/\//.test(configured) ? configured.replace(/\/+$/, '') : 'https://bookingcart.online';
+}
+
+/**
+ * The PDF is rendered from a detached HTML string, so the wordmark travels with
+ * it as a data URI instead of relying on a network fetch that may not settle
+ * before the page is printed. Bundled files are read from disk; a serverless
+ * deployment that ships only source falls back to pulling the asset once.
+ */
+async function brandLogoDataUri() {
+  if (cachedLogo !== undefined) return cachedLogo;
+  try {
+    const file = path.join(__dirname, '..', 'public', 'images', 'bookingcart-logo.png');
+    cachedLogo = `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
+    return cachedLogo;
+  } catch (error) {
+    // Fall through to the network copy below.
+  }
+  try {
+    const response = await fetch(`${siteOrigin()}/images/bookingcart-logo.png`);
+    if (response.ok) {
+      cachedLogo = `data:image/png;base64,${Buffer.from(await response.arrayBuffer()).toString('base64')}`;
+      return cachedLogo;
+    }
+  } catch (error) {
+    // Offline build or blocked egress — the text fallback still prints a brand.
+  }
+  cachedLogo = '';
+  return cachedLogo;
+}
 
 module.exports = async (req, res) => {
   applyCors(req, res);
@@ -97,6 +134,7 @@ module.exports = async (req, res) => {
     const total = escapeHtml(booking.total ? '$' + Number(booking.total).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—');
 
     // HTML Template based on traditional airline itinerary format
+    const brandLogo = await brandLogoDataUri();
     const html = `
     <!DOCTYPE html>
     <html lang="en">
@@ -159,9 +197,9 @@ module.exports = async (req, res) => {
                     <p class="text-lg bold">${refEsc}</p>
                 </div>
                 <div class="right">
-                    <h1 class="text-3xl black blue">
-                        BookingCart
-                    </h1>
+                    ${brandLogo
+                        ? `<img src="${brandLogo}" alt="BookingCart" style="display: block; margin-left: auto; width: 196px; height: auto;" />`
+                        : '<h1 class="text-3xl black blue">BookingCart</h1>'}
                 </div>
             </div>
 
