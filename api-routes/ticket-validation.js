@@ -117,6 +117,26 @@ async function resolveOperatorScope(dbReady, userEmail, operatorType) {
       if (scope.ownedServiceIds.size === 0) {
         scope.ownedServiceIds.add('*');
       }
+    } else if (operatorType === 'transport') {
+      // Transport companies: the account that owns the operator, plus the staff
+      // roles allowed to board passengers. Suspended operators cannot scan.
+      const opRes = await query(`
+        SELECT o.id, o.name FROM bc_transport_operators o
+         WHERE LOWER(BTRIM(COALESCE(o.owner_email, ''))) = $1 AND o.status <> 'suspended'
+        UNION
+        SELECT o.id, o.name FROM bc_transport_operators o
+          JOIN bc_transport_staff s ON s.operator_id = o.id
+         WHERE LOWER(BTRIM(s.email)) = $1 AND s.status = 'active'
+           AND s.role IN ('manager', 'boarding', 'ticketing')
+           AND o.status <> 'suspended'
+      `, [emailLower]);
+      for (const row of opRes.rows) {
+        scope.ownedServiceIds.add(String(row.id));
+        scope.serviceNames[String(row.id)] = row.name;
+      }
+      if (scope.ownedServiceIds.size === 0) {
+        scope.ownedServiceIds.add('*');
+      }
     }
   } catch (err) {
     console.warn('[ticket-validation] Scope resolution error:', err.message);
@@ -655,6 +675,132 @@ async function validateAviationTicket(dbReady, cleanRef, scope, staffEmail, staf
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TRANSPORT TICKET & BOARDING LOGIC (bus, boat/ferry, train)
+// ─────────────────────────────────────────────────────────────────────────────
+const TRANSPORT_LABELS = { bus: 'Bus', boat: 'Boat & Ferry', train: 'Train' };
+
+/** One ticket row plus the booking and route it belongs to, or null. */
+async function findTransportTicket(cleanRef, rawRef = '') {
+  const res = await query(`
+    SELECT p.*, b.booking_ref, b.operator_id, b.travel_date::text AS travel_date, b.depart_time,
+           b.customer_name, b.customer_email, b.status AS booking_status, b.payment_status,
+           b.boarding_point, b.dropoff_point,
+           o.name AS operator_name, r.name AS route_name, r.transport_type
+      FROM bc_transport_passengers p
+      JOIN bc_transport_bookings b ON b.id = p.booking_id
+      LEFT JOIN bc_transport_operators o ON o.id = b.operator_id
+      LEFT JOIN bc_transport_routes r ON r.id = b.route_id
+     WHERE UPPER(p.ticket_no) = $1 OR ($2 <> '' AND p.qr_token = $2)
+     LIMIT 1
+  `, [String(cleanRef || '').toUpperCase(), String(rawRef || '').trim()]);
+
+  const row = res.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    ticketNo: row.ticket_no,
+    operatorId: String(row.operator_id),
+    operatorName: row.operator_name || '',
+    routeName: row.route_name || '',
+    transportType: row.transport_type || 'bus',
+    transportLabel: TRANSPORT_LABELS[row.transport_type] || 'Transport',
+    bookingRef: row.booking_ref,
+    passengerName: row.passenger_name,
+    guestEmail: row.customer_email || '',
+    seatLabel: row.seat_label || '',
+    fareClass: row.fare_class || '',
+    travelDate: row.travel_date,
+    departTime: row.depart_time,
+    boardingPoint: row.boarding_point || '',
+    dropoffPoint: row.dropoff_point || '',
+    ticketStatus: row.status,
+    admittedAt: row.admitted_at,
+    admittedBy: row.admitted_by || '',
+    bookingStatus: row.booking_status,
+    paymentStatus: row.payment_status || 'unpaid',
+  };
+}
+
+async function validateTransportTicket(dbReady, cleanRef, scope, staffEmail, staffName, deviceInfo, rawRef = '') {
+  const ticket = dbReady ? await findTransportTicket(cleanRef, rawRef) : null;
+
+  const reject = async (reason, details) => {
+    await logValidation(dbReady, {
+      ticketNumber: cleanRef, operatorType: 'transport',
+      serviceId: details?.operatorId || '', serviceName: details?.operatorName || '',
+      actionPerformed: 'verify', result: 'rejected', rejectionReason: reason,
+      validatedByEmail: staffEmail, validatedByName: staffName, deviceInfo,
+      guestName: details?.passengerName || '', details: details || {}
+    });
+    return { valid: false, result: 'rejected', reason, ticketNumber: cleanRef, details };
+  };
+
+  if (!ticket) {
+    return reject('Transport ticket not found. Check the ticket number or scan the QR code again.');
+  }
+
+  // Operator scoping: a company may only board the passengers it carried.
+  if (!scope.ownedServiceIds.has('*') && !scope.ownedServiceIds.has(ticket.operatorId)) {
+    return reject('This ticket was issued by another transport operator.', ticket);
+  }
+
+  if (ticket.ticketStatus === 'cancelled' || ticket.bookingStatus === 'cancelled') {
+    return reject('This transport booking has been cancelled.', ticket);
+  }
+
+  if (ticket.paymentStatus === 'refunded') {
+    return reject('This ticket was refunded and is no longer valid.', ticket);
+  }
+
+  if (ticket.paymentStatus === 'failed') {
+    return reject('The payment for this ticket failed. The passenger must pay before boarding.', ticket);
+  }
+
+  if (ticket.ticketStatus === 'used') {
+    return reject(
+      ticket.admittedAt
+        ? `This ticket was already scanned on ${new Date(ticket.admittedAt).toLocaleString()}.`
+        : 'This ticket has already been used.',
+      ticket
+    );
+  }
+
+  const currentStatus = ticket.paymentStatus === 'paid' ? 'Paid — ready to board' : 'Payment pending';
+
+  await logValidation(dbReady, {
+    ticketNumber: cleanRef, operatorType: 'transport',
+    serviceId: ticket.operatorId, serviceName: `${ticket.operatorName} · ${ticket.routeName}`,
+    actionPerformed: 'verified', result: 'accepted',
+    validatedByEmail: staffEmail, validatedByName: staffName, deviceInfo,
+    guestName: ticket.passengerName,
+    details: { route: ticket.routeName, date: ticket.travelDate, seat: ticket.seatLabel, paymentStatus: ticket.paymentStatus }
+  });
+
+  return {
+    valid: true,
+    result: 'accepted',
+    ticketNumber: ticket.ticketNo,
+    guestName: ticket.passengerName,
+    guestEmail: ticket.guestEmail,
+    serviceName: `${ticket.operatorName} · ${ticket.routeName}`,
+    bookingRef: ticket.bookingRef,
+    transportLabel: ticket.transportLabel,
+    seatLabel: ticket.seatLabel,
+    fareClass: ticket.fareClass,
+    travelDate: ticket.travelDate,
+    departTime: ticket.departTime,
+    boardingPoint: ticket.boardingPoint,
+    dropoffPoint: ticket.dropoffPoint,
+    paymentStatus: ticket.paymentStatus,
+    warning: ticket.paymentStatus === 'paid' ? '' : 'Payment is still pending — collect it before boarding.',
+    currentStatus,
+    canAdmit: true,
+    details: ticket
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN ROUTE HANDLER
 // ─────────────────────────────────────────────────────────────────────────────
 module.exports = async function ticketValidationHandler(req, res) {
@@ -685,6 +831,8 @@ module.exports = async function ticketValidationHandler(req, res) {
   const body = req.method === 'GET' ? req.query : (req.body || {});
   const { action, operatorType = 'attraction', ticketNumber, ref } = body;
   const targetRef = String(ticketNumber || ref || '').trim().toUpperCase();
+  // QR tokens are case-sensitive, so the raw scan is kept alongside the upper-cased code.
+  const rawRef = String(ticketNumber || ref || '').trim();
 
   // 1. MAIN TICKET VALIDATION LOOKUP
   if (action === 'validate' || action === 'lookup' || req.method === 'GET') {
@@ -701,6 +849,8 @@ module.exports = async function ticketValidationHandler(req, res) {
       outcome = await validateStayTicket(dbReady, targetRef, scope, staffEmail, staffName, deviceInfo);
     } else if (operatorType === 'aviation') {
       outcome = await validateAviationTicket(dbReady, targetRef, scope, staffEmail, staffName, deviceInfo);
+    } else if (operatorType === 'transport') {
+      outcome = await validateTransportTicket(dbReady, targetRef, scope, staffEmail, staffName, deviceInfo, rawRef);
     } else {
       return res.status(400).json({ ok: false, error: 'Invalid operator type' });
     }
@@ -874,6 +1024,64 @@ module.exports = async function ticketValidationHandler(req, res) {
       });
 
       return res.json({ ok: true, result: 'accepted', message: 'Aviation passenger status updated successfully.' });
+    }
+
+    // ── TRANSPORT: MARK BOARDED ──
+    if (operatorType === 'transport') {
+      if (!['admit', 'mark_boarded', 'verify_ticket'].includes(targetAction)) {
+        return res.status(400).json({ ok: false, error: 'Invalid transport action' });
+      }
+      if (!dbReady) {
+        return res.status(503).json({ ok: false, error: 'Boarding requires the live database.' });
+      }
+
+      const ticket = await findTransportTicket(targetRef, rawRef);
+      if (!ticket) {
+        return res.status(404).json({ ok: false, error: 'Transport ticket not found.' });
+      }
+      if (!scope.ownedServiceIds.has('*') && !scope.ownedServiceIds.has(ticket.operatorId)) {
+        return res.status(403).json({ ok: false, error: 'This ticket belongs to another transport operator.' });
+      }
+
+      if (targetAction === 'verify_ticket') {
+        return res.json({ ok: true, result: 'accepted', message: `${ticket.passengerName} is verified for ${ticket.routeName}.` });
+      }
+
+      // One atomic update: a double scan can only ever admit a ticket once.
+      const upd = await query(`
+        UPDATE bc_transport_passengers
+           SET status = 'used', admitted_at = NOW(), admitted_by = $2
+         WHERE id = $1 AND status = 'valid'
+         RETURNING ticket_no, passenger_name, seat_label
+      `, [ticket.id, staffEmail]);
+
+      if (!upd.rows.length) {
+        const reason = ticket.ticketStatus === 'cancelled' || ticket.bookingStatus === 'cancelled'
+          ? 'This booking has been cancelled.'
+          : 'This ticket has already been scanned — the passenger is on board.';
+        await logValidation(dbReady, {
+          ticketNumber: ticket.ticketNo, operatorType: 'transport', serviceId: ticket.operatorId,
+          serviceName: `${ticket.operatorName} · ${ticket.routeName}`, actionPerformed: 'admit',
+          result: 'rejected', rejectionReason: reason, validatedByEmail: staffEmail,
+          validatedByName: staffName, deviceInfo, guestName: ticket.passengerName
+        });
+        return res.status(409).json({ ok: false, result: 'rejected', error: reason });
+      }
+
+      await logValidation(dbReady, {
+        ticketNumber: ticket.ticketNo, operatorType: 'transport', serviceId: ticket.operatorId,
+        serviceName: `${ticket.operatorName} · ${ticket.routeName}`, actionPerformed: 'admit',
+        result: 'accepted', validatedByEmail: staffEmail, validatedByName: staffName, deviceInfo,
+        guestName: ticket.passengerName,
+        details: { route: ticket.routeName, seat: ticket.seatLabel, date: ticket.travelDate }
+      });
+
+      return res.json({
+        ok: true,
+        result: 'accepted',
+        message: `${ticket.passengerName} is boarded${ticket.seatLabel ? ` (seat ${ticket.seatLabel})` : ''}.`,
+        currentStatus: 'Boarded'
+      });
     }
 
     return res.status(400).json({ ok: false, error: 'Unhandled process action' });

@@ -223,6 +223,12 @@ export default function TicketValidationPanel({ operatorType }) {
                   </p>
                 )}
 
+                {result.valid && result.warning && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    <i className="ph ph-warning" aria-hidden="true" /> {result.warning}
+                  </p>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-x-4 gap-y-3 mt-4 text-sm text-slate-700 dark:text-slate-300">
                   <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Ticket Ref:</span> <br/><span className="font-mono">{result.ticketNumber}</span></div>
                   
@@ -259,6 +265,16 @@ export default function TicketValidationPanel({ operatorType }) {
                       <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Flight:</span> <br/><span className="font-semibold">{result.flightNumber} ({result.origin} - {result.destination})</span></div>
                       <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Seat:</span> <br/><span className="font-semibold">{result.seatNumber} ({result.cabinClass})</span></div>
                       <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Travel Date:</span> <br/><span className="font-semibold">{result.departDate?.split('T')[0]}</span></div>
+                    </>
+                  )}
+
+                  {operatorType === 'transport' && result.valid && (
+                    <>
+                      <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Seat / Class:</span> <br/><span className="font-semibold">{result.seatLabel || 'General'} {result.fareClass ? `· ${result.fareClass}` : ''}</span></div>
+                      <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Departure:</span> <br/><span className="font-semibold">{result.travelDate} at {result.departTime}</span></div>
+                      <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Boarding:</span> <br/><span className="font-semibold">{result.boardingPoint || '—'}</span></div>
+                      <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Drop-off:</span> <br/><span className="font-semibold">{result.dropoffPoint || '—'}</span></div>
+                      <div><span className="text-xs font-bold text-slate-500 dark:text-slate-500 uppercase">Payment:</span> <br/><span className="font-semibold">{result.paymentStatus}</span></div>
                     </>
                   )}
 
@@ -322,6 +338,16 @@ export default function TicketValidationPanel({ operatorType }) {
                       >
                         <i className="ph ph-airplane-takeoff" />
                         Board Passenger
+                      </button>
+                    )}
+
+                    {operatorType === 'transport' && result.currentStatus !== 'Boarded' && (
+                      <button
+                        onClick={() => processAction('mark_boarded')}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-colors flex items-center gap-2"
+                      >
+                        <i className="ph ph-user-check" />
+                        Mark Boarded
                       </button>
                     )}
                   </div>

@@ -3,7 +3,7 @@
 
 import { addDays, formatDate, formatDateTime, money, todayISO } from './ticketingClient.js';
 
-async function request({ method = 'GET', query, body } = {}) {
+async function request({ method = 'GET', query, body, headers } = {}) {
   let url = '/api/transport';
   if (query) {
     const params = new URLSearchParams();
@@ -16,7 +16,10 @@ async function request({ method = 'GET', query, body } = {}) {
 
   const response = await fetch(url, {
     method,
-    headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+    headers: {
+      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      ...(headers || {}),
+    },
     body: method === 'POST' ? JSON.stringify(body || {}) : undefined,
   });
 
@@ -27,12 +30,44 @@ async function request({ method = 'GET', query, body } = {}) {
   return { ...data, httpStatus: response.status };
 }
 
-export function transportGet(action, query) {
-  return request({ query: { action, ...query } });
+export function transportGet(action, query, headers) {
+  return request({ query: { action, ...query }, headers });
 }
 
-export function transportPost(action, payload) {
-  return request({ method: 'POST', body: { action, ...payload } });
+export function transportPost(action, payload, headers) {
+  return request({ method: 'POST', body: { action, ...payload }, headers });
+}
+
+/**
+ * Operator console calls. Every one carries the signed-in operator, because the
+ * API re-checks that this account really owns (or works for) that company.
+ */
+export function operatorGet(action, operatorId, query, headers) {
+  return transportGet(action, { operatorId, ...(query || {}) }, headers);
+}
+
+export function operatorPost(action, operatorId, payload, headers) {
+  return transportPost(action, { operatorId, ...(payload || {}) }, headers);
+}
+
+/** CSV is a raw blob, so the report export cannot reuse the JSON wrapper. */
+export async function downloadTransportReport({ operatorId, report, from, to, headers }) {
+  const params = new URLSearchParams({ action: 'report-export', operatorId: String(operatorId), report, from, to });
+  const response = await fetch(`/api/transport?${params.toString()}`, { headers });
+  if (!response.ok) {
+    let message = 'Export failed';
+    try { message = (await response.json()).error || message; } catch { /* keep default */ }
+    throw new Error(message);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `transport-${report}-${from}-to-${to}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 /** What each transport type is called, and the icon/accent it carries everywhere. */

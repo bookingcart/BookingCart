@@ -16,6 +16,7 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
   const [hasUserAttractions, setHasUserAttractions] = useState(() => localStorage.getItem('bc_has_attractions') === 'true');
   const [hasUserAircrafts, setHasUserAircrafts] = useState(() => localStorage.getItem('bc_is_operator') === 'true');
   const [hasUserHotel, setHasUserHotel] = useState(() => localStorage.getItem('bc_is_hotel_owner') === 'true' || !!localStorage.getItem('bc_hotel_profile_id'));
+  const [isTransportOperator, setIsTransportOperator] = useState(() => localStorage.getItem('bc_is_transport_operator') === 'true');
 
   useEffect(() => {
     if (!user) return;
@@ -26,8 +27,9 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
       fetch('/api/attraction-profiles?limit=1', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
       fetch('/api/event-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
       fetch('/api/aviation?action=operator-get', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
-      fetch('/api/hotel-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
-    ]).then(([attrRes, evRes, avRes, hotelRes]) => {
+      fetch('/api/hotel-profiles', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/transport?action=my-operators', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => ({}))
+    ]).then(([attrRes, evRes, avRes, hotelRes, transportRes]) => {
       const hasAttr = (attrRes.ok && Array.isArray(attrRes.attractions) && attrRes.attractions.length > 0) || (evRes.ok && !!evRes.profile);
       if (hasAttr) {
         setHasUserAttractions(true);
@@ -40,6 +42,10 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
       if (hotelRes.ok && (hotelRes.profile || (Array.isArray(hotelRes.profiles) && hotelRes.profiles.length > 0))) {
         setHasUserHotel(true);
         localStorage.setItem('bc_is_hotel_owner', 'true');
+      }
+      if (transportRes.ok && Array.isArray(transportRes.operators) && transportRes.operators.length > 0) {
+        setIsTransportOperator(true);
+        localStorage.setItem('bc_is_transport_operator', 'true');
       }
     });
   }, [user]);
@@ -79,7 +85,7 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
     hasUserAircrafts
   );
 
-  const hasAnyPortal = isHotelOwner || isGuide || isAttractionOwner || isAviationOperator || isAdmin;
+  const hasAnyPortal = isHotelOwner || isGuide || isAttractionOwner || isAviationOperator || isTransportOperator || isAdmin;
 
   useEffect(() => {
     function onDocClick(e) {
@@ -258,6 +264,25 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
               </a>
             )}
 
+            {isTransportOperator && (
+              <a
+                href="/transport/dashboard"
+                role="menuitem"
+                className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-teal-50/70 dark:hover:bg-teal-950/40 group transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <i className="ph-fill ph-steering-wheel text-base" />
+                  </div>
+                  <span>Transport Operator Portal</span>
+                </div>
+                <span className="text-[10px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                  Transport
+                </span>
+              </a>
+            )}
+
             {isAdmin && (
               <a
                 href="/admin"
@@ -270,6 +295,25 @@ export function HeaderProfileDropdown({ triggerClassName = BTN_CLASS }) {
                     <i className="ph-fill ph-shield-check text-base" />
                   </div>
                   <span>Admin Control Center</span>
+                </div>
+                <span className="text-[10px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                  Admin
+                </span>
+              </a>
+            )}
+
+            {isAdmin && (
+              <a
+                href="/admin/transport"
+                role="menuitem"
+                className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 group transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <i className="ph-fill ph-bus text-base" />
+                  </div>
+                  <span>Transport Admin</span>
                 </div>
                 <span className="text-[10px] font-extrabold tracking-wider uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                   Admin
