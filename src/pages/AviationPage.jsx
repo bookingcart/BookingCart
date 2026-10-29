@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AviationLayout from "../components/aviation/AviationLayout.jsx";
 import AircraftCard from "../components/aviation/AircraftCard.jsx";
 import { aviationRequest, searchQuery } from "../lib/aviationClient.js";
@@ -36,14 +36,14 @@ const HELICOPTER_TYPES = [
 ];
 
 const TOP_MODES = [
-  { id: "private_jet", label: "Private Jets", icon: "ph-airplane-takeoff", color: "text-green-600", bg: "bg-green-600", types: PRIVATE_JET_TYPES },
-  { id: "air_charter", label: "Air Charters", icon: "ph-path", color: "text-amber-600", bg: "bg-amber-600", types: AIR_CHARTER_TYPES },
-  { id: "helicopter", label: "Helicopters", icon: "ph-fan", color: "text-sky-600", bg: "bg-sky-600", types: HELICOPTER_TYPES },
+  { id: "private_jet", label: "Private Jets", icon: "ph-airplane-takeoff", types: PRIVATE_JET_TYPES },
+  { id: "air_charter", label: "Air Charters", icon: "ph-path", types: AIR_CHARTER_TYPES },
+  { id: "helicopter", label: "Helicopters", icon: "ph-fan", types: HELICOPTER_TYPES },
 ];
 
 const STATS = [
   { label: "Aircraft listed", value: "120+" },
-  { label: "Routes covered", value: "340+" },
+  { label: "Routes", value: "340+" },
   { label: "Countries", value: "28" },
   { label: "Avg. response", value: "< 2h" },
 ];
@@ -58,6 +58,26 @@ const AMENITIES = [
   { icon: "ph-person-simple-walk", label: "Flight Attendant" },
   { icon: "ph-car", label: "VIP Ground Handling" },
 ];
+
+const PACKAGE_STEPS = [
+  { icon: "ph-airplane-takeoff", label: "Private Jet · Kampala → Murchison" },
+  { icon: "ph-fan", label: "Helicopter · Scenic Falls Tour" },
+  { icon: "ph-house-simple", label: "Luxury Lodge Reservation" },
+  { icon: "ph-paw-print", label: "National Park Entry Tickets" },
+  { icon: "ph-van", label: "Safari Van Transfer" },
+];
+
+const OPERATOR_TOOLS = [
+  { icon: "ph-airplane", label: "Fleet management", desc: "Add, edit, and schedule aircraft" },
+  { icon: "ph-clipboard-text", label: "Charter requests", desc: "Receive and quote custom charters" },
+  { icon: "ph-chart-line-up", label: "Revenue analytics", desc: "Track flights, revenue, satisfaction" },
+  { icon: "ph-shield-check", label: "Compliance tools", desc: "AOC, insurance, pilot records" },
+];
+
+const FIELD_CLASS =
+  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder:font-normal placeholder:text-slate-400 transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:disabled:bg-slate-900";
+
+const EYEBROW = "text-[10px] font-semibold uppercase tracking-[0.26em] text-emerald-600 dark:text-emerald-400";
 
 export default function AviationPage() {
   const navigate = useNavigate();
@@ -105,118 +125,123 @@ export default function AviationPage() {
   return (
     <AviationLayout>
       {/* ── HERO ── */}
-      <section className="relative overflow-hidden min-h-[640px] flex items-center">
+      <section className="relative isolate overflow-hidden bg-slate-950">
         <img
           src="https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=2000&q=80"
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover opacity-70"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-900/80 to-green-950/70" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950/85 to-slate-950/40" aria-hidden="true" />
+        <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />
 
-        {/* Floating ambient orbs */}
-        <div className="absolute top-1/4 right-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 left-1/3 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_.9fr] lg:py-24 w-full">
+        <div className="relative mx-auto grid max-w-7xl items-start gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_minmax(0,.95fr)] lg:py-24">
           {/* Left copy */}
           <div className="text-white">
-            <div className="inline-flex items-center gap-2 rounded-full border border-green-400/30 bg-green-500/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-green-300 backdrop-blur-sm mb-4">
-              <i className="ph ph-crown text-sm" />
-              Luxury Aviation Marketplace
-            </div>
-            <h1 className="mt-3 max-w-xl text-4xl font-black tracking-tight sm:text-6xl leading-[1.05]">
-              Private jets,{" "}
-              <span className="bg-gradient-to-r from-green-300 via-emerald-200 to-green-100 bg-clip-text text-transparent">charters</span>{" "}
-              &amp; helicopters.
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300 ring-1 ring-inset ring-white/15">
+              <i className="ph ph-crown text-xs" aria-hidden="true" />
+              Luxury aviation marketplace
+            </span>
+
+            <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">
+              Private jets, charters &amp; helicopters.
             </h1>
-            <p className="mt-5 max-w-lg text-base text-slate-200 leading-relaxed">
-              Search 120+ aircraft by route, cabin size, and budget. Every listing displays operator credentials, AOC, safety records, and compliance status before you book.
+            <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-white/65">
+              Search 120+ aircraft by route, cabin size, and budget. Every listing shows operator credentials, AOC,
+              safety records, and compliance status before you book.
             </p>
 
-            {/* Stats bar */}
-            <div className="mt-8 grid grid-cols-4 gap-4 max-w-md">
+            <dl className="mt-10 grid max-w-lg grid-cols-2 gap-x-6 gap-y-5 border-t border-white/10 pt-6 sm:grid-cols-4">
               {STATS.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className="text-2xl font-black text-white">{stat.value}</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-0.5">{stat.label}</p>
+                <div key={stat.label}>
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap text-white/45">{stat.label}</dt>
+                  <dd className="mt-1 text-xl font-semibold tracking-tight tabular-nums">{stat.value}</dd>
                 </div>
               ))}
-            </div>
+            </dl>
 
-            <div className="mt-8 flex flex-wrap gap-3 text-sm font-semibold">
-              <a href="/aviation/charter" className="inline-flex items-center gap-2 rounded-full bg-green-600 hover:bg-green-700 px-5 py-2.5 text-white transition-colors shadow-lg shadow-green-600/30">
-                <i className="ph ph-paper-plane-tilt text-base" />
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link
+                to="/aviation/charter"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+              >
+                <i className="ph ph-paper-plane-tilt text-base" aria-hidden="true" />
                 Request a charter
-              </a>
-              <a href="/aviation/itinerary" className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="ph ph-map-trifold text-base" />
+              </Link>
+              <Link
+                to="/aviation/itinerary"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                <i className="ph ph-map-trifold text-base" aria-hidden="true" />
                 Safari package
-              </a>
-              <a href="/aviation/airports" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 backdrop-blur-sm hover:bg-white/15 transition-colors">
-                <i className="ph ph-airport text-base" />
+              </Link>
+              <Link
+                to="/aviation/airports"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium text-white/70 transition-colors hover:text-white"
+              >
+                <i className="ph ph-air-traffic-control text-base" aria-hidden="true" />
                 Airport directory
-              </a>
+              </Link>
             </div>
           </div>
 
           {/* Search card */}
-          <div className="rounded-3xl bg-white/95 backdrop-blur-xl p-5 text-slate-900 shadow-2xl ring-1 ring-white/20 dark:bg-slate-900/95 dark:text-white dark:ring-slate-700/30">
-            {/* ── Top mode switcher (Jets / Charters / Helicopters) ── */}
-            <div className="mb-4 flex gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+          <div className="rounded-2xl bg-white p-5 text-slate-900 shadow-[0_30px_80px_-40px_rgba(2,6,23,0.9)] ring-1 ring-black/5 dark:bg-slate-900 dark:text-white dark:ring-white/10">
+            <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
               {TOP_MODES.map((mode) => (
                 <button
                   key={mode.id}
                   type="button"
                   onClick={() => setTopMode(mode.id)}
-                  className={`flex-1 flex flex-col items-center gap-1 rounded-xl py-2.5 px-2 text-xs font-bold transition-all ${
+                  aria-pressed={topMode === mode.id}
+                  className={`flex flex-1 flex-col items-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-semibold transition-colors ${
                     topMode === mode.id
-                      ? `${mode.bg} text-white shadow-md`
-                      : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                      ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
+                      : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
-                  <i className={`ph ${mode.icon} text-lg`} />
+                  <i className={`ph ${mode.icon} text-base`} aria-hidden="true" />
                   <span className="leading-none">{mode.label}</span>
                 </button>
               ))}
             </div>
 
-            {/* ── Sub-category pills ── */}
-            <div className="mb-4 flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               {activeMode?.types.map((type) => (
                 <button
                   key={type.id}
                   type="button"
                   onClick={() => setSubCategory(type.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition-all ${
+                  aria-pressed={subCategory === type.id}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
                     subCategory === type.id
-                      ? "bg-slate-950 text-white dark:bg-white dark:text-slate-900"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-950"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
                   }`}
                 >
-                  <i className={`ph ${type.icon} text-sm`} />
+                  <i className={`ph ${type.icon} text-[13px]`} aria-hidden="true" />
                   {type.label}
                 </button>
               ))}
             </div>
 
             {activeSub && (
-              <p className="mb-4 text-[11px] font-semibold text-slate-400">
-                <i className={`ph ${activeSub.icon} mr-1`} />
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <i className={`ph ${activeSub.icon} text-xs`} aria-hidden="true" />
                 {activeSub.desc}
               </p>
             )}
 
-            {/* ── Trip type ── */}
-            <div className="mb-4 flex gap-2">
+            <div className="mt-4 inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
               {["oneway", "round"].map((type) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => update("tripType", type)}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  aria-pressed={form.tripType === type}
+                  className={`rounded-lg px-3.5 py-1.5 text-[11px] font-semibold transition-colors ${
                     form.tripType === type
-                      ? "bg-green-600 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-950 dark:text-white"
+                      : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
                   {type === "oneway" ? "One-way" : "Round trip"}
@@ -224,30 +249,33 @@ export default function AviationPage() {
               ))}
             </div>
 
-            <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+            <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-2">
               <Field label="Departure airport">
-                <input list="aviation-airports" value={form.origin} onChange={(e) => update("origin", e.target.value)} className="field" placeholder="EBB" required />
+                <input list="aviation-airports" value={form.origin} onChange={(e) => update("origin", e.target.value)} className={FIELD_CLASS} placeholder="EBB" required />
               </Field>
               <Field label="Arrival airport">
-                <input list="aviation-airports" value={form.destination} onChange={(e) => update("destination", e.target.value)} className="field" placeholder="MFU" required />
+                <input list="aviation-airports" value={form.destination} onChange={(e) => update("destination", e.target.value)} className={FIELD_CLASS} placeholder="MFU" required />
               </Field>
               <Field label="Departure date">
-                <input type="date" value={form.departDate} onChange={(e) => update("departDate", e.target.value)} className="field" required />
+                <input type="date" value={form.departDate} onChange={(e) => update("departDate", e.target.value)} className={FIELD_CLASS} required />
               </Field>
               <Field label="Return date">
-                <input type="date" value={form.returnDate} onChange={(e) => update("returnDate", e.target.value)} className="field" disabled={form.tripType !== "round"} />
+                <input type="date" value={form.returnDate} onChange={(e) => update("returnDate", e.target.value)} className={FIELD_CLASS} disabled={form.tripType !== "round"} />
               </Field>
               <Field label="Passengers">
-                <input type="number" min="1" max="80" value={form.passengers} onChange={(e) => update("passengers", e.target.value)} className="field" />
+                <input type="number" min="1" max="80" value={form.passengers} onChange={(e) => update("passengers", e.target.value)} className={FIELD_CLASS} />
               </Field>
               <Field label="Budget max (USD)">
-                <input type="number" min="0" value={form.budgetMax} onChange={(e) => update("budgetMax", e.target.value)} className="field" placeholder="Any" />
+                <input type="number" min="0" value={form.budgetMax} onChange={(e) => update("budgetMax", e.target.value)} className={FIELD_CLASS} placeholder="Any" />
               </Field>
               <datalist id="aviation-airports">
                 {airports.map((a) => <option key={a.code} value={a.code}>{a.city} — {a.name}</option>)}
               </datalist>
-              <button type="submit" className="sm:col-span-2 mt-1 w-full rounded-2xl bg-green-600 py-3 text-sm font-black text-white hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-600/30">
-                <i className="ph ph-magnifying-glass text-base" />
+              <button
+                type="submit"
+                className="mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 sm:col-span-2"
+              >
+                <i className="ph ph-magnifying-glass text-base" aria-hidden="true" />
                 Search {activeMode?.label}
               </button>
             </form>
@@ -256,54 +284,69 @@ export default function AviationPage() {
       </section>
 
       {/* ── AVIATION CATEGORIES ── */}
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        <div className="flex items-end justify-between gap-4 mb-8">
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600 dark:text-green-400">Browse by category</p>
-            <h2 className="mt-1 text-3xl font-black">All aviation services</h2>
+            <p className={EYEBROW}>Browse by category</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+              All aviation services
+            </h2>
           </div>
-          <a href="/aviation/results" className="text-sm font-bold text-green-600 hover:underline dark:text-green-400">View all aircraft →</a>
+          <Link
+            to="/aviation/results"
+            className="group inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+          >
+            View all aircraft
+            <i className="ph ph-arrow-right text-[13px] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
           {TOP_MODES.map((mode) => (
-            <a
+            <Link
               key={mode.id}
-              href={`/aviation/results?category=${mode.id}`}
-              className="group rounded-3xl border border-slate-200 bg-white p-6 hover:border-green-500/30 hover:shadow-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-green-500/30"
+              to={`/aviation/results?category=${mode.id}`}
+              className="group flex h-full flex-col rounded-2xl border border-slate-200/80 bg-white p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
             >
-              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${mode.bg} text-white shadow-lg mb-4`}>
-                <i className={`ph ${mode.icon} text-xl`} />
-              </div>
-              <h3 className="text-xl font-black">{mode.label}</h3>
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                <i className={`ph ${mode.icon} text-lg text-slate-700 dark:text-slate-200`} aria-hidden="true" />
+              </span>
+              <h3 className="mt-4 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">{mode.label}</h3>
+              <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">{mode.types.length} service types</p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
                 {mode.types.slice(0, 4).map((type) => (
-                  <span key={type.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <span key={type.id} className="rounded-full border border-slate-200 px-2.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
                     {type.label}
                   </span>
                 ))}
                 {mode.types.length > 4 && (
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800">
+                  <span className="rounded-full border border-slate-200 px-2.5 py-0.5 text-[10px] font-semibold text-slate-400 dark:border-slate-700 dark:text-slate-500">
                     +{mode.types.length - 4} more
                   </span>
                 )}
               </div>
-              <p className="mt-3 text-sm text-green-600 font-bold group-hover:underline dark:text-green-400">Explore {mode.label} →</p>
-            </a>
+              <span className="mt-auto inline-flex items-center gap-1 pt-5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
+                Explore {mode.label}
+                <i className="ph ph-arrow-right text-[12px] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </span>
+            </Link>
           ))}
         </div>
       </section>
 
       {/* ── AMENITIES STRIP ── */}
-      <section className="bg-slate-950 text-white py-10 overflow-hidden">
+      <section className="border-y border-slate-800 bg-slate-950 py-12 text-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <p className="text-center text-xs font-bold uppercase tracking-[0.22em] text-slate-400 mb-6">Cabin amenities across our fleet</p>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-4">
+          <p className="text-center text-[10px] font-semibold uppercase tracking-[0.26em] text-white/45">
+            Cabin amenities across our fleet
+          </p>
+          <div className="mt-7 grid grid-cols-4 gap-6 sm:grid-cols-8">
             {AMENITIES.map((a) => (
               <div key={a.label} className="flex flex-col items-center gap-2 text-center">
-                <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <i className={`ph ${a.icon} text-lg text-green-400`} />
-                </div>
-                <p className="text-[10px] font-semibold text-slate-300 leading-tight">{a.label}</p>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 ring-1 ring-inset ring-white/10">
+                  <i className={`ph ${a.icon} text-base text-emerald-400`} aria-hidden="true" />
+                </span>
+                <p className="text-[10px] font-medium leading-tight text-white/60">{a.label}</p>
               </div>
             ))}
           </div>
@@ -311,18 +354,27 @@ export default function AviationPage() {
       </section>
 
       {/* ── FEATURED AIRCRAFT ── */}
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        <div className="flex items-end justify-between gap-4 mb-8">
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600 dark:text-green-400">Entebbe to Murchison Falls</p>
-            <h2 className="mt-1 text-3xl font-black">Available for a safari departure</h2>
+            <p className={EYEBROW}>Entebbe → Murchison Falls</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+              Available for a safari departure
+            </h2>
           </div>
-          <a href="/aviation/airports" className="text-sm font-bold text-green-600 hover:underline dark:text-green-400">Airport directory</a>
+          <Link
+            to="/aviation/airports"
+            className="group inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+          >
+            Airport directory
+            <i className="ph ph-arrow-right text-[13px] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
         </div>
-        <div className="grid gap-5 md:grid-cols-3">
+
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
           {featured.length === 0 ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-80 rounded-3xl bg-slate-200 animate-pulse dark:bg-slate-800" />
+              <div key={i} className="h-80 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
             ))
           ) : (
             featured.map((item) => (
@@ -337,93 +389,97 @@ export default function AviationPage() {
       </section>
 
       {/* ── INTEGRATED LUXURY PACKAGE CTA ── */}
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 mb-10">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-950 via-slate-900 to-slate-950 p-8 sm:p-12 text-white">
-          <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-green-500/20 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-          <div className="relative grid gap-8 lg:grid-cols-2 lg:gap-16 items-center">
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
+        <div className="relative overflow-hidden rounded-2xl bg-slate-950 p-7 text-white ring-1 ring-white/10 sm:p-11">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden="true" />
+          <div className="relative grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-green-400/30 bg-green-400/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-green-300 mb-4">
-                <i className="ph ph-package text-sm" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-emerald-300/90">
                 All-in-one luxury itinerary
-              </div>
-              <h2 className="text-3xl font-black sm:text-4xl leading-tight">One checkout for your entire safari experience.</h2>
-              <p className="mt-4 text-slate-300 text-sm leading-relaxed">
-                Combine a private jet from Kampala, a helicopter scenic tour, luxury lodge reservation, national park entry, and safari van — all managed under one booking with a unified travel itinerary.
               </p>
-              <a href="/aviation/itinerary" className="mt-6 inline-flex items-center gap-2 rounded-full bg-green-600 hover:bg-green-700 px-5 py-2.5 text-sm font-black text-white transition-colors shadow-lg shadow-green-600/30">
-                <i className="ph ph-map-trifold text-base" />
+              <h2 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+                One checkout for your entire safari experience.
+              </h2>
+              <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/60">
+                Combine a private jet from Kampala, a helicopter scenic tour, luxury lodge reservation, national park
+                entry, and safari van — all managed under one booking with a unified travel itinerary.
+              </p>
+              <Link
+                to="/aviation/itinerary"
+                className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+              >
+                <i className="ph ph-map-trifold text-base" aria-hidden="true" />
                 Build your itinerary
-              </a>
+              </Link>
             </div>
-            <div className="space-y-3">
-              {[
-                { icon: "ph-airplane-takeoff", label: "Private Jet · Kampala → Murchison", color: "text-green-400" },
-                { icon: "ph-fan", label: "Helicopter · Scenic Falls Tour", color: "text-sky-400" },
-                { icon: "ph-house-simple", label: "Luxury Lodge Reservation", color: "text-amber-400" },
-                { icon: "ph-paw-print", label: "National Park Entry Tickets", color: "text-emerald-400" },
-                { icon: "ph-van", label: "Safari Van Transfer", color: "text-orange-400" },
-              ].map((step, i) => (
-                <div key={step.label} className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-black">
+
+            <ol className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] px-4">
+              {PACKAGE_STEPS.map((step, i) => (
+                <li key={step.label} className="flex items-center gap-3 py-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 text-[11px] font-semibold tabular-nums text-white/70">
                     {i + 1}
-                  </div>
-                  <i className={`ph ${step.icon} text-lg ${step.color}`} />
-                  <p className="text-sm font-semibold">{step.label}</p>
-                </div>
+                  </span>
+                  <i className={`ph ${step.icon} text-base text-emerald-400`} aria-hidden="true" />
+                  <span className="text-[13px] font-medium text-white/85">{step.label}</span>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </div>
       </section>
 
       {/* ── LIST YOUR AIRCRAFT CTA ── */}
-      <section className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 grid gap-8 lg:grid-cols-2 items-center">
+      <section className="border-t border-slate-200 py-16 dark:border-slate-800">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600 dark:text-green-400 mb-2">For operators</p>
-            <h2 className="text-3xl font-black">List your aircraft. Reach qualified clients.</h2>
-            <p className="mt-4 text-slate-500 text-sm leading-relaxed">
-              Join 80+ verified operators. Manage your fleet, receive charter requests, negotiate terms, and track revenue — all in one operator dashboard.
+            <p className={EYEBROW}>For operators</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
+              List your aircraft. Reach qualified clients.
+            </h2>
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+              Join 80+ verified operators. Manage your fleet, receive charter requests, negotiate terms, and track
+              revenue — all in one operator dashboard.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="/aviation/operators/join" className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-black text-white hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
-                <i className="ph ph-airplane-tilt text-base" />
+              <Link
+                to="/aviation/operators/join"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600"
+              >
+                <i className="ph ph-airplane-tilt text-base" aria-hidden="true" />
                 Register as operator
-              </a>
-              <a href="/aviation/dashboard" className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-700 hover:border-slate-400 transition-colors dark:border-slate-700 dark:text-slate-300">
-                <i className="ph ph-gauge text-base" />
+              </Link>
+              <Link
+                to="/aviation/dashboard"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600"
+              >
+                <i className="ph ph-gauge text-base" aria-hidden="true" />
                 Operator dashboard
-              </a>
+              </Link>
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: "ph-airplane", label: "Fleet management", desc: "Add, edit, and schedule aircraft" },
-              { icon: "ph-clipboard-text", label: "Charter requests", desc: "Receive and quote custom charters" },
-              { icon: "ph-chart-line-up", label: "Revenue analytics", desc: "Track flights, revenue, satisfaction" },
-              { icon: "ph-shield-check", label: "Compliance tools", desc: "AOC, insurance, pilot records" },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl bg-slate-50 p-4 border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
-                <i className={`ph ${item.icon} text-xl text-green-600 dark:text-green-400`} />
-                <p className="mt-2 text-sm font-black">{item.label}</p>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.desc}</p>
+            {OPERATOR_TOOLS.map((item) => (
+              <div key={item.label} className="rounded-xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                <i className={`ph ${item.icon} text-lg text-emerald-700 dark:text-emerald-400`} aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{item.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      <style>{`.field{width:100%;border-radius:0.875rem;border:1px solid #e2e8f0;background:#fff;padding:.65rem 1rem;font-size:.875rem;font-weight:600;transition:border-color .15s}.field:focus{outline:none;border-color:#16a34a}.dark .field{background:#0f172a;border-color:#1e293b;color:#f1f5f9}.field:disabled{opacity:.45;cursor:not-allowed}`}</style>
     </AviationLayout>
   );
 }
 
 function Field({ label, children }) {
   return (
-    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-      {label}
-      <div className="mt-1">{children}</div>
+    <label className="block">
+      <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+        {label}
+      </span>
+      {children}
     </label>
   );
 }

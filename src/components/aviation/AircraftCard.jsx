@@ -42,106 +42,112 @@ export default function AircraftCard({ item, search = "" }) {
   const aircraft = item.aircraft || item;
   const quote = item.quote;
   const icon = CATEGORY_ICONS[aircraft.category] || "ph-airplane-tilt";
+  const amenities = aircraft.amenities || [];
+
+  const stats = [
+    [aircraft.passengers, "guests", "ph-users"],
+    [aircraft.rangeNm?.toLocaleString(), "nm range", "ph-arrows-horizontal"],
+    [aircraft.cruiseSpeedKt ? `${aircraft.cruiseSpeedKt} kt` : "", "cruise", "ph-gauge"],
+  ].filter(([value]) => value);
 
   return (
     <Link
       to={`/aviation/aircraft/${aircraft.id}${search}`}
-      className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-transparent dark:border-slate-800 dark:bg-slate-900"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_20px_45px_-28px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
     >
-      {/* Image */}
-      <div className="relative h-52 overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
         {aircraft.images?.[0] ? (
           <img
             src={aircraft.images[0]}
             alt=""
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2.5 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/70 ring-1 ring-inset ring-white/80 dark:bg-white/5 dark:ring-white/10">
-              <i className={`ph ${icon} text-2xl text-slate-400 dark:text-slate-500`} />
+          <div className="flex h-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-100 to-slate-200 pb-14 dark:from-slate-800 dark:to-slate-900">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/70 ring-1 ring-inset ring-white/80 dark:bg-white/5 dark:ring-white/10">
+              <i className={`ph ${icon} text-xl text-slate-500 dark:text-slate-400`} aria-hidden="true" />
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Photo on request</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Photo on request</span>
           </div>
         )}
 
-        {/* Category badge */}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur-sm px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-800 shadow-sm">
-          <i className={`ph ${icon} text-xs`} />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/15 to-slate-950/5" />
+
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-900 shadow-sm backdrop-blur-sm">
+          <i className={`ph ${icon} text-[11px]`} aria-hidden="true" />
           {categoryLabel(aircraft.category)}
         </span>
 
-        {/* Compliant badge */}
         {aircraft.complianceReady && (
-          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
-            <i className="ph ph-shield-check text-xs" />
+          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-600/95 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white shadow-sm backdrop-blur-sm">
+            <i className="ph ph-shield-check text-[11px]" aria-hidden="true" />
             AOC
           </span>
         )}
 
-        {/* Price overlay */}
-        {quote && (
-          <div className="absolute bottom-0 right-0 m-3 rounded-2xl bg-slate-950/90 backdrop-blur-sm px-3 py-1.5">
-            <p className="text-sm font-black text-white">{money(quote.price, quote.currency)}</p>
+        <div className="absolute inset-x-4 bottom-3.5 flex items-end justify-between gap-3 text-white">
+          <div>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70">
+              {quote ? "Total charter" : "Hourly rate"}
+            </p>
+            <p className="mt-0.5 text-[26px] font-semibold leading-none tracking-tight tabular-nums">
+              {quote ? money(quote.price, quote.currency) : money(aircraft.hourlyRate)}
+              {!quote && <span className="ml-1 text-xs font-medium text-white/70">/hr</span>}
+            </p>
           </div>
-        )}
+          {quote && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
+              <i className="ph ph-clock text-[11px]" aria-hidden="true" />
+              {durationLabel(quote.durationMinutes)}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div>
-          <h3 className="text-base font-black tracking-tight group-hover:text-emerald-700 transition-colors">{aircraft.name}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {[aircraft.manufacturer, aircraft.model].filter(Boolean).join(" ")}
-          </p>
-        </div>
-
-        <p className="text-xs text-slate-500 flex items-center gap-1.5">
-          <i className="ph ph-buildings text-slate-400" />
-          {aircraft.operatorName}
-          <span className="mx-1 text-slate-300">·</span>
-          <i className="ph ph-airport text-slate-400" />
-          {aircraft.baseAirport}
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="text-[17px] font-semibold leading-snug tracking-tight text-slate-900 dark:text-white">{aircraft.name}</h3>
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-slate-500 dark:text-slate-400">
+          <span>{[aircraft.manufacturer, aircraft.model].filter(Boolean).join(" ")}</span>
+          {aircraft.operatorName && <span className="text-slate-300 dark:text-slate-600">·</span>}
+          {aircraft.operatorName && <span>{aircraft.operatorName}</span>}
+          {aircraft.baseAirport && <span className="text-slate-300 dark:text-slate-600">·</span>}
+          {aircraft.baseAirport && <span>{aircraft.baseAirport}</span>}
         </p>
 
-        {/* Specs pills */}
-        <div className="flex flex-wrap gap-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">
-            <i className="ph ph-users text-xs" />{aircraft.passengers} guests
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">
-            <i className="ph ph-arrows-horizontal text-xs" />{aircraft.rangeNm?.toLocaleString()} nm
-          </span>
-          {quote && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">
-              <i className="ph ph-clock text-xs" />{durationLabel(quote.durationMinutes)}
-            </span>
-          )}
-          {aircraft.cruiseSpeedKt && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">
-              <i className="ph ph-lightning text-xs" />{aircraft.cruiseSpeedKt} kt
-            </span>
-          )}
-        </div>
-
-        {/* Amenity icons */}
-        {(aircraft.amenities || []).length > 0 && (
-          <div className="flex items-center gap-2 mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
-            {(aircraft.amenities || []).slice(0, 5).map((a) => (
-              <i key={a} className={`ph ${AMENITY_ICONS[a] || "ph-star"} text-sm text-slate-400`} title={a.replaceAll("_", " ")} />
+        {stats.length > 0 && (
+          <dl className="mt-3.5 grid grid-cols-3 divide-x divide-slate-100 border-y border-slate-100 py-2.5 dark:divide-slate-800 dark:border-slate-800">
+            {stats.map(([value, label, statIcon]) => (
+              <div key={label} className="px-1 text-center">
+                <dt className="sr-only">{label}</dt>
+                <dd className="flex items-center justify-center gap-1 text-[12px] font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                  <i className={`ph ${statIcon} text-[12px] text-slate-400`} aria-hidden="true" />
+                  {value}
+                </dd>
+                <p className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-slate-400">{label}</p>
+              </div>
             ))}
-            {(aircraft.amenities || []).length > 5 && (
-              <span className="text-[10px] font-bold text-slate-400">+{aircraft.amenities.length - 5}</span>
-            )}
-          </div>
+          </dl>
         )}
 
-        {/* No-price CTA */}
-        {!quote && (
-          <div className="mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
-            <p className="text-xs font-bold text-emerald-700">{money(aircraft.hourlyRate)}/hr · Set route to quote →</p>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+          <div className="flex items-center gap-2 text-slate-400">
+            {amenities.slice(0, 4).map((amenity) => (
+              <i
+                key={amenity}
+                className={`ph ${AMENITY_ICONS[amenity] || "ph-star"} text-[15px]`}
+                title={amenity.replaceAll("_", " ")}
+                aria-hidden="true"
+              />
+            ))}
+            {amenities.length > 4 && <span className="text-[11px] font-semibold">+{amenities.length - 4}</span>}
+            {amenities.length === 0 && <span className="text-[11px] text-slate-400">Cabin details on request</span>}
           </div>
-        )}
+          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-emerald-700 transition-colors group-hover:text-emerald-800 dark:text-emerald-400">
+            View
+            <i className="ph ph-arrow-right text-[13px] transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
+          </span>
+        </div>
       </div>
     </Link>
   );

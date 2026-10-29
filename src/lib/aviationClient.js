@@ -77,7 +77,7 @@ export async function aviationRequest(action, options = {}) {
     },
     body: method === "GET" ? undefined : JSON.stringify({ action, ...(body || {}) }),
   });
-  const data = await response.json().catch(() => ({ ok: false, error: "Invalid server response" }));
+  const data = await readJson(response);
   if (!response.ok || data.ok === false) {
     const error = new Error(data.error || "Request failed");
     error.status = response.status;
@@ -85,6 +85,24 @@ export async function aviationRequest(action, options = {}) {
     throw error;
   }
   return data;
+}
+
+// Some upstream failures (rate limits, proxy errors) answer with plain text instead of JSON.
+// Surface that text so the UI can show something useful rather than a generic message.
+async function readJson(response) {
+  const text = await response.text().catch(() => "");
+  if (text) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      const error = new Error(text.trim().slice(0, 160) || "Invalid server response");
+      error.status = response.status;
+      throw error;
+    }
+  }
+  const error = new Error("Invalid server response");
+  error.status = response.status;
+  throw error;
 }
 
 const STRIPE_UNCONFIGURED = /stripe is not configured|misconfigured/i;
