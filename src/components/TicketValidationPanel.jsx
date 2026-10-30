@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../context/AuthContext.jsx';
+import {
+  cameraErrorMessage, cameraLabel, cameraUnavailableReason, isExternalCamera, listVideoInputs, pickBestCamera,
+} from '../lib/camera.js';
+import { useHardwareScanner } from '../hooks/useHardwareScanner.js';
 
 export default function TicketValidationPanel({ operatorType }) {
   const { authHeaders } = useAuth();
@@ -10,14 +14,51 @@ export default function TicketValidationPanel({ operatorType }) {
   const [error, setError] = useState(null);
 
   const [scanning, setScanning] = useState(false);
+  const [previewReady, setPreviewReady] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [activeCameraId, setActiveCameraId] = useState('');
+  const [deviceNotice, setDeviceNotice] = useState('');
   const scannerRef = useRef(null);
+  const knownCamerasRef = useRef(new Set());
 
   // Stop scanner when component unmounts
   useEffect(() => {
     return () => stopScanner();
   }, []);
+
+  // A camera or scanner gun plugged in after the page loaded is picked up here,
+  // so the gate clerk never has to reload the dashboard mid-queue.
+  useEffect(() => {
+    let cancelled = false;
+    let firstLook = true;
+    const refresh = async () => {
+      const devices = await listVideoInputs();
+      if (cancelled || !devices.length) return;
+      const added = firstLook ? [] : devices.filter((device) => !knownCamerasRef.current.has(device.id));
+      firstLook = false;
+      knownCamerasRef.current = new Set(devices.map((device) => device.id));
+      setCameras(devices);
+      if (!added.length) return;
+      setDeviceNotice(isExternalCamera(added[0])
+        ? `External scanner connected: ${cameraLabel(added[0])}. Pick it in the camera list to scan with it.`
+        : `New camera available: ${cameraLabel(added[0])}.`);
+    };
+    refresh();
+    const media = navigator.mediaDevices;
+    if (!media?.addEventListener) return () => { cancelled = true; };
+    media.addEventListener('devicechange', refresh);
+    return () => {
+      cancelled = true;
+      media.removeEventListener('devicechange', refresh);
+    };
+  }, []);
+
+  // Keyboard-wedge scanners type the code and press Enter; validate it straight away.
+  useHardwareScanner((value) => {
+    stopScanner();
+    setTicketNumber(value);
+    validateTicket(value);
+  });
 
   const stopScanner = async () => {
     if (scannerRef.current) {
@@ -30,23 +71,50 @@ export default function TicketValidationPanel({ operatorType }) {
       scannerRef.current = null;
     }
     setScanning(false);
+    setPreviewReady(false);
   };
 
   const startScanner = async () => {
+    setError(null);
+    const blocked = cameraUnavailableReason();
+    if (blocked) {
+      setError(blocked);
+      return;
+    }
     try {
       const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length > 0) {
-        setCameras(devices);
-        const cameraId = devices[0].id;
-        setActiveCameraId(cameraId);
-        setScanning(true);
-        setTimeout(() => initializeScanner(cameraId), 100);
-      } else {
-        setError('No cameras found on your device.');
+      if (!devices.length) {
+        setError('No camera was found on this device. Use an external scanner or type the ticket number.');
+        return;
       }
+      setCameras(devices);
+      knownCamerasRef.current = new Set(devices.map((device) => device.id));
+      const camera = pickBestCamera(devices, activeCameraId);
+      const index = Math.max(0, devices.findIndex((device) => device.id === camera.id));
+      setActiveCameraId(camera.id);
+      setDeviceNotice(isExternalCamera(camera)
+        ? `Scanning with external device: ${cameraLabel(camera, index)}.`
+        : `Scanning with ${cameraLabel(camera, index)}.`);
+      setScanning(true);
+      // The preview box only exists once `scanning` is true, so the reader is
+      // attached a tick later — html5-qrcode measures that box when it starts.
+      setTimeout(() => initializeScanner(camera.id), 120);
     } catch (err) {
-      setError('Camera access denied or failed. Please allow camera permissions.');
+      setError(cameraErrorMessage(err));
+      setScanning(false);
     }
+  };
+
+  /** Re-read the device list so a camera or scanner plugged in just now shows up. */
+  const refreshDevices = async () => {
+    const devices = await listVideoInputs();
+    if (!devices.length) {
+      setDeviceNotice('No camera detected. Plug in a USB camera or scanner, then refresh.');
+      return;
+    }
+    knownCamerasRef.current = new Set(devices.map((device) => device.id));
+    setCameras(devices);
+    setDeviceNotice(`${devices.length} camera${devices.length === 1 ? '' : 's'} found.`);
   };
 
   const initializeScanner = (cameraId) => {
@@ -64,17 +132,19 @@ export default function TicketValidationPanel({ operatorType }) {
       (errorMessage) => {
         // Ignored, continuous scanning
       }
-    ).catch(err => {
-      setError('Failed to start scanner: ' + err.message);
-      setScanning(false);
+    ).then(() => setPreviewReady(true)).catch(err => {
+      setError(cameraErrorMessage(err));
+      setPreviewReady(false);
     });
   };
 
   const switchCamera = (cameraId) => {
+    const index = Math.max(0, cameras.findIndex((camera) => camera.id === cameraId));
+    setDeviceNotice(`Switching to ${cameraLabel(cameras[index], index)}.`);
     stopScanner().then(() => {
       setActiveCameraId(cameraId);
       setScanning(true);
-      setTimeout(() => initializeScanner(cameraId), 100);
+      setTimeout(() => initializeScanner(cameraId), 120);
     });
   };
 
@@ -179,26 +249,74 @@ export default function TicketValidationPanel({ operatorType }) {
           </div>
         </div>
 
-        {/* QR Scanner Area */}
-        <div className={`overflow-hidden transition-all duration-300 ${scanning ? 'h-auto opacity-100 mb-6' : 'h-0 opacity-0 m-0'}`}>
-          <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-center">
-            <div id="qr-reader" className="mx-auto max-w-[300px] sm:max-w-[400px] overflow-hidden rounded-xl bg-black"></div>
-            {cameras.length > 1 && (
-              <div className="mt-4 flex justify-center gap-2 flex-wrap">
-                {cameras.map(cam => (
-                  <button 
-                    key={cam.id} 
-                    onClick={() => switchCamera(cam.id)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg ${activeCameraId === cam.id ? 'bg-amber-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
-                  >
-                    {cam.label || 'Camera'}
-                  </button>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-slate-500 mt-3 font-semibold">Position the QR code within the frame.</p>
+        {deviceNotice && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+            <i className="ph ph-plug mt-0.5 text-sm" />
+            <span className="flex-1">{deviceNotice}</span>
+            <button
+              type="button"
+              onClick={() => setDeviceNotice('')}
+              className="text-sky-600 hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-200"
+              aria-label="Dismiss notice"
+            >
+              <i className="ph ph-x" />
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* The reader is mounted only while scanning: html5-qrcode measures this
+            box when it starts, so it must already have a real size. */}
+        {scanning && (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center dark:border-slate-700 dark:bg-slate-800">
+            <div className="relative mx-auto aspect-[4/3] w-full max-w-[380px] overflow-hidden rounded-xl bg-black">
+              <div id="qr-reader" className="h-full w-full" />
+              {!previewReady && (
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-xs font-bold text-white">
+                  <i className="ph ph-circle-notch animate-spin text-2xl" />
+                  Opening the camera…
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {cameras.length > 0 && (
+                <select
+                  value={activeCameraId}
+                  onChange={(event) => switchCamera(event.target.value)}
+                  aria-label="Camera or scanner device"
+                  className="max-w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  {cameras.map((cam, index) => (
+                    <option key={cam.id} value={cam.id}>
+                      {cameraLabel(cam, index)}{isExternalCamera(cam) ? ' · external' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                onClick={refreshDevices}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              >
+                <i className="ph ph-arrows-clockwise" /> Refresh devices
+              </button>
+            </div>
+            <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Position the QR code within the frame.</p>
+          </div>
+        )}
+
+        {!scanning && (
+          <div className="rounded-2xl border border-dashed border-slate-300 p-4 dark:border-slate-700">
+            <p className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              <i className="ph ph-usb text-base text-amber-500" /> External camera or scanner
+            </p>
+            <ul className="mt-2 space-y-1.5 text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
+              <li>USB and Bluetooth barcode scanners type the ticket number and press Enter, so a scan is validated the moment it reads — nothing to set up.</li>
+              <li>A USB webcam, document camera or HDMI capture card appears in the camera list above. Start the camera, then pick it from the list.</li>
+              <li>On a phone the rear camera is chosen automatically; the front camera is never preferred.</li>
+            </ul>
+          </div>
+        )}
 
         {/* Result Area */}
         {result && (

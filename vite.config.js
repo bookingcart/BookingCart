@@ -30,6 +30,8 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 3000,
     strictPort: true,
+    // Mirrors vercel.json / netlify.toml so QR scanning behaves the same locally.
+    headers: { 'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)' },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

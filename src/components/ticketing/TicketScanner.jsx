@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { cameraErrorMessage, cameraLabel, cameraUnavailableReason, isExternalCamera, listVideoInputs, pickBestCamera } from '../../lib/camera.js';
 
 /**
  * Camera QR reader. Decoded payloads are handed to `onScan`; the camera is
@@ -9,6 +10,7 @@ export default function TicketScanner({ onScan, onError, elementId = 'ticket-qr-
   const scannerRef = useRef(null);
   const lastScanRef = useRef({ text: '', at: 0 });
   const [scanning, setScanning] = useState(false);
+  const [previewReady, setPreviewReady] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [activeCameraId, setActiveCameraId] = useState('');
   const [localError, setLocalError] = useState('');
@@ -30,6 +32,7 @@ export default function TicketScanner({ onScan, onError, elementId = 'ticket-qr-
       }
     }
     setScanning(false);
+    setPreviewReady(false);
   };
 
   useEffect(() => () => { stop(); }, []);
@@ -52,37 +55,57 @@ export default function TicketScanner({ onScan, onError, elementId = 'ticket-qr-
         () => { /* no code in frame */ }
       );
       setScanning(true);
+      setPreviewReady(true);
       setLocalError('');
     } catch (error) {
       scannerRef.current = null;
-      report(`Failed to start the camera: ${error.message || 'unknown error'}`);
+      report(cameraErrorMessage(error));
       setScanning(false);
+      setPreviewReady(false);
     }
   };
 
   const begin = async () => {
     setLocalError('');
+    const blocked = cameraUnavailableReason();
+    if (blocked) {
+      report(blocked);
+      return;
+    }
     try {
       const devices = await Html5Qrcode.getCameras();
-      if (!devices || !devices.length) {
-        report('No camera was found on this device. Enter the ticket number instead.');
+      const camera = pickBestCamera(devices, activeCameraId);
+      if (!camera) {
+        report('No camera was found on this device. Use an external scanner or type the ticket number.');
         return;
       }
       setCameras(devices);
-      const preferred = devices[devices.length - 1].id;
-      setActiveCameraId(preferred);
+      setActiveCameraId(camera.id);
       setScanning(true);
-      setTimeout(() => start(preferred), 80);
-    } catch {
-      report('Camera access was blocked. Allow camera permission or enter the ticket number.');
+      // The reader is mounted by the state change above; give React a frame before
+      // html5-qrcode measures the box it draws into.
+      setTimeout(() => start(camera.id), 120);
+    } catch (error) {
+      report(cameraErrorMessage(error));
     }
+  };
+
+  /** Re-read the device list so a camera plugged in just now shows up. */
+  const refreshDevices = async () => {
+    const devices = await listVideoInputs();
+    if (!devices.length) {
+      report('No camera detected. Plug in a USB camera or scanner, then refresh.');
+      return;
+    }
+    setCameras(devices);
+    setLocalError('');
   };
 
   const switchCamera = async (cameraId) => {
     await stop();
     setActiveCameraId(cameraId);
     setScanning(true);
-    setTimeout(() => start(cameraId), 80);
+    setTimeout(() => start(cameraId), 120);
   };
 
   return (
@@ -103,33 +126,53 @@ export default function TicketScanner({ onScan, onError, elementId = 'ticket-qr-
         </button>
       </div>
 
-      <div id={elementId} className={`mt-3 mx-auto max-w-[380px] overflow-hidden rounded-xl bg-black ${scanning ? 'block' : 'hidden'}`} />
+      {/* Mounted only while scanning so html5-qrcode always measures a box that
+          has a real size — a hidden container gives it a zero-pixel preview. */}
+      {scanning && (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900/40">
+          <div className="relative mx-auto aspect-[4/3] w-full max-w-[380px] overflow-hidden rounded-lg bg-black">
+            <div id={elementId} className="h-full w-full" />
+            {!previewReady && (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 text-[11px] font-bold text-white">
+                <i className="ph ph-circle-notch animate-spin text-xl" />
+                Opening the camera…
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {cameras.length > 0 && (
+              <select
+                value={activeCameraId}
+                onChange={(event) => switchCamera(event.target.value)}
+                aria-label="Camera or scanner device"
+                className="max-w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                {cameras.map((camera, index) => (
+                  <option key={camera.id} value={camera.id}>
+                    {cameraLabel(camera, index)}{isExternalCamera(camera) ? ' · external' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={refreshDevices}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              <i className="ph ph-arrows-clockwise" /> Refresh devices
+            </button>
+          </div>
+        </div>
+      )}
 
       {!scanning && !localError && (
         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          Camera scanning is optional — you can always type the ticket number.
+          Camera scanning is optional — you can always type the ticket number. A USB or Bluetooth scanner gun types the code and presses Enter, which validates it automatically.
         </p>
       )}
       {localError && (
         <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400">{localError}</p>
-      )}
-      {scanning && cameras.length > 1 && (
-        <div className="mt-3 flex flex-wrap justify-center gap-2">
-          {cameras.map((camera) => (
-            <button
-              key={camera.id}
-              type="button"
-              onClick={() => switchCamera(camera.id)}
-              className={`rounded-lg px-3 py-1.5 text-[11px] font-bold ${
-                activeCameraId === camera.id
-                  ? 'bg-green-600 text-white'
-                  : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-              }`}
-            >
-              {camera.label || 'Camera'}
-            </button>
-          ))}
-        </div>
       )}
     </div>
   );

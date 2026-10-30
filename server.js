@@ -90,6 +90,13 @@ const EVENTBRITE_BASE_URL = 'https://www.eventbriteapi.com/v3';
 const TICKETMASTER_BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
 
 app.use(helmet({ contentSecurityPolicy: false }));
+// The QR validators call getUserMedia, so the camera must stay available to this
+// origin. Helmet does not manage this header, so it is set here to match vercel.json
+// and netlify.toml instead of leaving it to the browser default.
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(self)');
+  next();
+});
 app.use(
   cors({
     origin: (origin, cb) => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import TicketScanner from './TicketScanner.jsx';
+import { useHardwareScanner } from '../../hooks/useHardwareScanner.js';
 import { salesGet, salesPost, formatDate, formatDateTime } from '../../lib/ticketingClient.js';
 import {
   Button, EmptyState, ErrorNote, Field, inputClass, Loading, Notice, Panel, TableWrap, Td, Th,
@@ -83,6 +84,13 @@ export default function TicketValidationDesk({ attractionId, headers }) {
     setTicket(decoded);
     run('validate', decoded);
   };
+
+  // A USB or Bluetooth scanner gun types the code and presses Enter. Handling it
+  // here means the clerk can leave the page untouched at the gate.
+  useHardwareScanner((decoded) => {
+    setTicket(decoded);
+    run('validate', decoded);
+  });
 
   const look = result
     ? (OUTCOMES[result.outcome] || REJECTED_LOOK)
