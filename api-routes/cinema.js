@@ -12,10 +12,12 @@
 const { query, isDbConfigured, initDb } = require('../lib/db');
 const { applyCors } = require('../lib/cors');
 const { verifyRequestBearer } = require('../lib/google-verify');
+const { requireAdminEmail } = require('../lib/admin');
 const stripeLib = require('../lib/stripe');
 const notificationHub = require('../lib/notification-hub');
 const T = require('../lib/ticketing');
 const C = require('../lib/cinema');
+const L = require('../lib/cinema-layout');
 
 function resolveOrigin(req) {
   const configured = String(process.env.APP_URL || process.env.PUBLIC_URL || '').trim();
@@ -409,12 +411,20 @@ module.exports = async function cinemaHandler(req, res) {
       return res.json({ ok: true, cinemas: result.rows });
     }
 
+    if (action === 'layout-publications') {
+      const admin = await requireAdminEmail(req);
+      if (!admin.ok) return res.status(admin.status || 403).json({ ok: false, error: admin.error });
+      const publications = await C.listLayoutPublications({ limit: T.toInt(body.limit, 100) });
+      return res.json({ ok: true, ...publications });
+    }
+
     if (!attractionId) return res.status(400).json({ ok: false, error: 'attractionId is required' });
 
     // Read-only staff actions only need scanner access; everything that changes
     // the schedule, seating or money needs a manager.
     const READ_ACTIONS = new Set([
-      'access', 'overview', 'screens', 'seats', 'movies', 'showtimes', 'bookings', 'booking',
+      'access', 'overview', 'screens', 'screen-layout', 'layout-versions', 'seat-types', 'pricing-rules',
+      'layout-templates', 'pricing-preview', 'seats', 'movies', 'showtimes', 'bookings', 'booking',
       'reports', 'settings', 'seat-map-admin', 'pos-showtimes',
     ]);
     const need = READ_ACTIONS.has(action) ? 'scanner' : 'manager';
@@ -454,6 +464,158 @@ module.exports = async function cinemaHandler(req, res) {
       return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
     }
 
+    // ─── Auditorium layouts ────────────────────────────────────────────────
+
+    if (action === 'screen-layout') {
+      const screenId = T.toInt(body.screenId || body.id, 0);
+      if (!screenId) return res.status(400).json({ ok: false, error: 'screenId is required' });
+      const layout = await C.getScreenLayout(attractionId, screenId);
+      return layout.ok ? res.json(layout) : res.status(layout.status || 404).json({ ok: false, error: layout.error });
+    }
+
+    if (action === 'layout-save') {
+      const result = await C.saveLayoutDraft({
+        attractionId,
+        screenId: T.toInt(body.screenId, 0),
+        versionId: T.toInt(body.versionId, 0),
+        document: body.document || body.layout || {},
+        name: T.text(body.name, 80),
+        actor: email,
+        role: access.role,
+      });
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ ok: false, error: result.error, validation: result.validation });
+      }
+      return res.json(result);
+    }
+
+    if (action === 'layout-publish') {
+      const result = await C.publishLayout({
+        attractionId,
+        screenId: T.toInt(body.screenId, 0),
+        versionId: T.toInt(body.versionId, 0),
+        actor: email,
+        role: access.role,
+      });
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ ok: false, error: result.error, validation: result.validation });
+      }
+      return res.json(result);
+    }
+
+    if (action === 'layout-restore') {
+      const result = await C.restoreLayoutVersion({
+        attractionId,
+        screenId: T.toInt(body.screenId, 0),
+        versionId: T.toInt(body.versionId, 0),
+        actor: email,
+        role: access.role,
+      });
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ ok: false, error: result.error, validation: result.validation });
+      }
+      return res.json(result);
+    }
+
+    if (action === 'layout-duplicate') {
+      const result = await C.duplicateLayout({
+        attractionId,
+        ownerEmail: email,
+        sourceScreenId: T.toInt(body.sourceScreenId || body.screenId, 0),
+        targetScreenId: T.toInt(body.targetScreenId, 0),
+        targetName: T.text(body.targetName || body.name, 60),
+        actor: email,
+        role: access.role,
+      });
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
+    if (action === 'layout-versions') {
+      const screenId = T.toInt(body.screenId, 0);
+      if (!screenId) return res.status(400).json({ ok: false, error: 'screenId is required' });
+      return res.json({ ok: true, versions: await C.listLayoutVersions(attractionId, screenId) });
+    }
+
+    // ─── Seat types ────────────────────────────────────────────────────────
+
+    if (action === 'seat-types') {
+      return res.json({ ok: true, seatTypes: await C.ensureSeatTypes(attractionId) });
+    }
+
+    if (action === 'seat-type-save') {
+      const result = await C.saveSeatType(attractionId, email, body.seatType || body);
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
+    if (action === 'seat-type-delete') {
+      const result = await C.deleteSeatType(attractionId, email, body.slug || body.seatTypeId || body.id);
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
+    // ─── Pricing rules ─────────────────────────────────────────────────────
+
+    if (action === 'pricing-rules') {
+      return res.json({
+        ok: true,
+        rules: await C.listPricingRules(attractionId),
+        seatTypes: await C.ensureSeatTypes(attractionId),
+      });
+    }
+
+    if (action === 'pricing-rule-save') {
+      const result = await C.savePricingRule(attractionId, email, body.rule || body);
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
+    if (action === 'pricing-rule-delete') {
+      const result = await C.deletePricingRule(attractionId, email, body.ruleId || body.id);
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
+    // Runs the same resolver a screening uses at scheduling time, so the owner
+    // sees the frozen prices before saving instead of guessing.
+    if (action === 'pricing-preview') {
+      const [seatTypes, rules] = await Promise.all([
+        C.ensureSeatTypes(attractionId),
+        C.listPricingRules(attractionId),
+      ]);
+      const snapshot = L.buildPricingSnapshot({
+        basePrice: Number(body.basePrice) || 0,
+        currency: access.attraction?.currency || 'USD',
+        seatTypes,
+        rules,
+        showDate: T.isDateISO(body.date) ? body.date : T.isoToday(),
+        showtimeId: T.toInt(body.showtimeId, 0),
+      });
+      return res.json({ ok: true, snapshot });
+    }
+
+    // ─── Layout templates ──────────────────────────────────────────────────
+
+    if (action === 'layout-templates') {
+      return res.json({
+        ok: true,
+        builtIn: L.layoutTemplates(),
+        saved: await C.listLayoutTemplates(attractionId),
+      });
+    }
+
+    if (action === 'template-save') {
+      const result = await C.saveLayoutTemplate({
+        attractionId,
+        ownerEmail: email,
+        name: T.text(body.name, 80),
+        description: T.text(body.description, 240),
+        document: body.document || body.layout || {},
+      });
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
+    if (action === 'template-delete') {
+      const result = await C.deleteLayoutTemplate(attractionId, email, body.templateId || body.id);
+      return result.ok ? res.json(result) : res.status(result.status || 400).json({ ok: false, error: result.error });
+    }
+
     if (action === 'seats') {
       const screenId = T.toInt(body.screenId, 0);
       if (!screenId) return res.status(400).json({ ok: false, error: 'screenId is required' });
@@ -462,7 +624,7 @@ module.exports = async function cinemaHandler(req, res) {
         [screenId, attractionId]
       );
       if (!owned.rows.length) return res.status(404).json({ ok: false, error: 'Screen not found' });
-      return res.json({ ok: true, seats: await C.listSeats(screenId) });
+      return res.json({ ok: true, seats: await C.listSeats(screenId, { versionId: T.toInt(body.versionId, 0) }) });
     }
 
     if (action === 'seats-save') {

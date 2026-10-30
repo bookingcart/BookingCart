@@ -92,6 +92,13 @@
       "when": 1800200000000,
       "tag": "0013_transport_console",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1800300000000,
+      "tag": "0014_cinema_layout_editor",
+      "breakpoints": true
     }
   ]
 }

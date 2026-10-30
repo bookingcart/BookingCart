@@ -1,53 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { cinemaGet, cinemaPost } from '../../lib/cinemaClient.js';
+import { useCallback, useEffect, useState } from 'react';
+import { cinemaGet, cinemaPost, money } from '../../lib/cinemaClient.js';
 import { Button, Card, EmptyState, Field, Notice, Pill, cx, inputCls } from './ui.jsx';
+import CinemaLayoutEditor from './CinemaLayoutEditor.jsx';
 
 const SCREEN_TYPES = ['standard', 'imax', '3d', 'vip', 'dolby', '4dx'];
-const CATEGORY_CYCLE = ['standard', 'premium', 'vip', 'couple', 'recliner', 'wheelchair', 'companion'];
-const CATEGORY_STYLE = {
-  standard: 'bg-white border-slate-300 text-slate-500 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300',
-  premium: 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-950 dark:border-sky-600 dark:text-sky-300',
-  vip: 'bg-violet-100 border-violet-400 text-violet-700 dark:bg-violet-950 dark:border-violet-600 dark:text-violet-300',
-  couple: 'bg-rose-100 border-rose-400 text-rose-700 dark:bg-rose-950 dark:border-rose-600 dark:text-rose-300',
-  recliner: 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-950 dark:border-amber-600 dark:text-amber-300',
-  wheelchair: 'bg-blue-100 border-blue-400 text-blue-700 dark:bg-blue-950 dark:border-blue-600 dark:text-blue-300',
-  companion: 'bg-teal-100 border-teal-400 text-teal-700 dark:bg-teal-950 dark:border-teal-600 dark:text-teal-300',
+const HALL_KINDS = [
+  { id: 'standard', label: 'Standard hall' },
+  { id: 'vip', label: 'VIP lounge' },
+  { id: 'recliner', label: 'Recliner hall' },
+  { id: 'imax', label: 'IMAX' },
+  { id: 'dolby', label: 'Dolby' },
+  { id: '3d', label: '3D' },
+  { id: '4dx', label: '4DX' },
+  { id: 'screen', label: 'Screening room' },
+];
+const BASE_CATEGORIES = ['standard', 'premium', 'vip', 'couple', 'recliner', 'wheelchair', 'companion'];
+const ICONS = ['ph-armchair', 'ph-crown', 'ph-bed', 'ph-couch', 'ph-heart', 'ph-wheelchair', 'ph-users', 'ph-star'];
+
+const EMPTY_SCREEN = { id: 0, name: '', screenType: 'standard', hallKind: 'standard', rowCount: 8, seatsPerRow: 12, status: 'active' };
+const EMPTY_TYPE = {
+  id: 0, name: '', slug: '', color: '#94a3b8', icon: 'ph-armchair', baseCategory: 'standard',
+  defaultPrice: '', multiplier: 1, admissions: 1, bookingMode: 'single', groupSize: 1,
+  splitAllowed: false, accessible: false, companionRequired: false, instructions: '', status: 'active',
 };
-const CATEGORY_LABEL = {
-  standard: 'Standard', premium: 'Premium', vip: 'VIP', couple: 'Couple',
-  recliner: 'Recliner', wheelchair: 'Wheelchair', companion: 'Companion',
-};
-
-const EMPTY_SCREEN = { id: 0, name: '', screenType: 'standard', rowCount: 8, seatsPerRow: 12, status: 'active' };
-
-function buildLayout(rowCount, seatsPerRow, existing) {
-  if (Array.isArray(existing) && existing.length) {
-    const byRow = new Map();
-    for (const seat of existing) {
-      if (!byRow.has(seat.row)) byRow.set(seat.row, []);
-      byRow.get(seat.row).push({
-        number: seat.number,
-        x: seat.x || seat.number,
-        category: seat.category || 'standard',
-        status: seat.status === 'blocked' || seat.status === 'out_of_service' ? 'blocked' : 'available',
-      });
-    }
-    return Array.from(byRow.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([label, seats]) => ({ label, seats: seats.sort((a, b) => a.number - b.number) }));
-  }
-
-  const rows = [];
-  for (let r = 0; r < rowCount; r += 1) {
-    const label = String.fromCharCode(65 + r);
-    const seats = [];
-    for (let s = 1; s <= seatsPerRow; s += 1) {
-      seats.push({ number: s, x: s, category: 'standard', status: 'available' });
-    }
-    rows.push({ label, seats });
-  }
-  return rows;
-}
 
 function ScreenForm({ initial, busy, error, onCancel, onSave }) {
   const [form, setForm] = useState({ ...EMPTY_SCREEN, ...initial });
@@ -61,6 +36,7 @@ function ScreenForm({ initial, busy, error, onCancel, onSave }) {
           id: form.id,
           name: form.name.trim(),
           screenType: form.screenType,
+          hallKind: form.hallKind,
           rowCount: Number(form.rowCount) || 1,
           seatsPerRow: Number(form.seatsPerRow) || 1,
           status: form.status,
@@ -69,230 +45,253 @@ function ScreenForm({ initial, busy, error, onCancel, onSave }) {
       className="space-y-4"
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Screen name" required hint="e.g. Screen 1, IMAX A, VIP Lounge">
-          <input required value={form.name} onChange={(event) => set('name', event.target.value)} className={inputCls} placeholder="Screen 1" />
+        <Field label="Auditorium name or number" required hint="e.g. Hall 1, Screen 2, IMAX A, VIP Lounge">
+          <input required value={form.name} onChange={(event) => set('name', event.target.value)} className={inputCls} placeholder="Hall 1" />
         </Field>
-        <Field label="Screen type">
-          <select value={form.screenType} onChange={(event) => set('screenType', event.target.value)} className={inputCls}>
-            {SCREEN_TYPES.map((type) => <option key={type} value={type}>{type.toUpperCase()}</option>)}
+        <Field label="Hall kind" hint="Shown to customers next to the time">
+          <select value={form.hallKind} onChange={(event) => set('hallKind', event.target.value)} className={inputCls}>
+            {HALL_KINDS.map((kind) => <option key={kind.id} value={kind.id}>{kind.label}</option>)}
           </select>
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Rows" hint="A, B, C …">
-          <input type="number" min="1" max="30" value={form.rowCount} onChange={(event) => set('rowCount', event.target.value)} className={inputCls} />
+        <Field label="Projection format">
+          <select value={form.screenType} onChange={(event) => set('screenType', event.target.value)} className={inputCls}>
+            {SCREEN_TYPES.map((type) => <option key={type} value={type}>{type.toUpperCase()}</option>)}
+          </select>
         </Field>
-        <Field label="Seats per row">
-          <input type="number" min="1" max="40" value={form.seatsPerRow} onChange={(event) => set('seatsPerRow', event.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Status" hint="Inactive screens cannot be scheduled">
+        <Field label="Status" hint="Inactive halls cannot be scheduled">
           <select value={form.status} onChange={(event) => set('status', event.target.value)} className={inputCls}>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
         </Field>
+        <Field label="Starting grid" hint="Rows × seats, only for a brand-new hall">
+          <div className="flex gap-2">
+            <input type="number" min="1" max="30" value={form.rowCount} onChange={(event) => set('rowCount', event.target.value)} className={inputCls} />
+            <input type="number" min="1" max="40" value={form.seatsPerRow} onChange={(event) => set('seatsPerRow', event.target.value)} className={inputCls} />
+          </div>
+        </Field>
       </div>
 
-      {!form.id && (
-        <p className="rounded-xl bg-slate-50 p-3 text-[11px] font-semibold text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-          Rows and seats are only a starting grid — you can move seats, block them and mix categories in the layout editor afterwards.
-        </p>
-      )}
+      <p className="rounded-xl bg-slate-50 p-3 text-[11px] font-semibold text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+        The starting grid is only a first draft. Open the layout editor afterwards to drag seats, carve aisles, add
+        VIP/recliner/couples blocks and set accessible spaces. Capacity always comes from the published layout.
+      </p>
 
       {error && <Notice tone="error">{error}</Notice>}
 
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button type="submit" icon={busy ? 'ph-circle-notch' : 'ph-check'} disabled={busy} className={busy ? '[&>i]:animate-spin' : ''}>
-          {busy ? 'Saving…' : 'Save screen'}
+          {busy ? 'Saving…' : 'Save auditorium'}
         </Button>
       </div>
     </form>
   );
 }
 
-function SeatLayoutEditor({ screen, headers, onDone }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [mode, setMode] = useState('category');
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const payload = await cinemaGet('seats', { attractionId: screen.attractionId, screenId: screen.id }, headers);
-    if (payload.ok) {
-      setRows(buildLayout(screen.rowCount, screen.seatsPerRow, payload.seats));
-      setError('');
-    } else {
-      setError(payload.error || 'Could not load the seat layout');
-    }
-    setLoading(false);
-  }, [headers, screen.attractionId, screen.id, screen.rowCount, screen.seatsPerRow]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const counts = useMemo(() => {
-    const totals = { seats: 0, blocked: 0 };
-    const byCategory = {};
-    for (const row of rows) {
-      for (const seat of row.seats) {
-        totals.seats += 1;
-        if (seat.status === 'blocked') { totals.blocked += 1; continue; }
-        byCategory[seat.category] = (byCategory[seat.category] || 0) + 1;
-      }
-    }
-    return { ...totals, byCategory };
-  }, [rows]);
-
-  const maxX = Math.max(1, ...rows.flatMap((row) => row.seats.map((seat) => seat.x || seat.number)));
-
-  const updateSeat = (rowLabel, index) => {
-    setRows((current) => current.map((row) => {
-      if (row.label !== rowLabel) return row;
-      return {
-        ...row,
-        seats: row.seats.map((seat, seatIndex) => {
-          if (seatIndex !== index) return seat;
-          if (mode === 'block') {
-            return { ...seat, status: seat.status === 'blocked' ? 'available' : 'blocked' };
-          }
-          const next = CATEGORY_CYCLE[(CATEGORY_CYCLE.indexOf(seat.category) + 1) % CATEGORY_CYCLE.length];
-          return { ...seat, category: next, status: 'available' };
-        }),
-      };
-    }));
-  };
-
-  const applyRow = (rowLabel, category) => {
-    setRows((current) => current.map((row) => (
-      row.label === rowLabel
-        ? { ...row, seats: row.seats.map((seat) => ({ ...seat, category, status: 'available' })) }
-        : row
-    )));
-  };
-
-  const save = async () => {
-    setBusy(true);
-    const payload = await cinemaPost('seats-save', {
-      attractionId: screen.attractionId,
-      screenId: screen.id,
-      seats: rows.flatMap((row, rowIndex) => row.seats.map((seat) => ({
-        row: row.label,
-        number: seat.number,
-        x: seat.x || seat.number,
-        y: rowIndex + 1,
-        category: seat.category,
-        status: seat.status,
-      }))),
-    }, headers);
-    setBusy(false);
-    if (!payload.ok) { setError(payload.error || 'Could not save the layout'); return; }
-    onDone?.();
-  };
-
-  if (loading) {
-    return <div className="h-48 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />;
-  }
+function SeatTypeForm({ initial, busy, error, onCancel, onSave }) {
+  const [form, setForm] = useState({ ...EMPTY_TYPE, ...initial });
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setMode('category')}
-            className={cx('rounded-xl px-3 py-1.5 text-[11px] font-black', mode === 'category' ? 'bg-green-600 text-white' : 'border border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}
-          >
-            <i className="ph ph-armchair mr-1" /> Tap to change category
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('block')}
-            className={cx('rounded-xl px-3 py-1.5 text-[11px] font-black', mode === 'block' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'border border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}
-          >
-            <i className="ph ph-prohibit mr-1" /> Tap to block
-          </button>
-        </div>
-        <p className="text-[11px] font-bold text-slate-400">
-          {counts.seats} seats · {counts.blocked} blocked
-        </p>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave({
+          ...form,
+          defaultPrice: form.defaultPrice === '' ? null : Number(form.defaultPrice),
+          multiplier: Number(form.multiplier) || 1,
+          admissions: Number(form.admissions) || 1,
+          groupSize: Number(form.groupSize) || 1,
+        });
+      }}
+      className="space-y-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700"
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Display name" required hint="Customers see this on the seat map">
+          <input required value={form.name} onChange={(event) => set('name', event.target.value)} className={inputCls} placeholder="Premium" />
+        </Field>
+        <Field label="Booking behaviour" hint="Base rules the platform always understands">
+          <select value={form.baseCategory} onChange={(event) => set('baseCategory', event.target.value)} className={inputCls}>
+            {BASE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+          </select>
+        </Field>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
-        {rows.map((row) => (
-          <div key={row.label} className="mb-1.5 flex items-center gap-2">
-            <span className="w-5 shrink-0 text-center text-[10px] font-black text-slate-400">{row.label}</span>
-            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${maxX}, minmax(0, 30px))` }}>
-              {row.seats.map((seat, index) => (
-                <button
-                  key={`${row.label}-${seat.number}`}
-                  type="button"
-                  onClick={() => updateSeat(row.label, index)}
-                  title={`${row.label}${seat.number} · ${seat.status === 'blocked' ? 'blocked' : CATEGORY_LABEL[seat.category]}`}
-                  style={{ gridColumn: `${seat.x || seat.number} / span 1` }}
-                  className={cx(
-                    'flex h-[30px] items-center justify-center rounded-md rounded-t-lg border-2 text-[9px] font-black transition-transform hover:-translate-y-0.5',
-                    seat.status === 'blocked'
-                      ? 'border-dashed border-slate-300 bg-slate-100 text-slate-300 line-through dark:border-slate-600 dark:bg-slate-800 dark:text-slate-600'
-                      : CATEGORY_STYLE[seat.category]
-                  )}
-                >
-                  {seat.number}
-                </button>
-              ))}
-            </div>
-            <div className="ml-1 flex shrink-0 gap-0.5">
-              {['standard', 'premium', 'vip'].map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => applyRow(row.label, category)}
-                  title={`Whole row → ${CATEGORY_LABEL[category]}`}
-                  className={cx('h-[22px] w-[22px] rounded border-2', CATEGORY_STYLE[category])}
-                />
-              ))}
-            </div>
-          </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Colour">
+          <input type="color" value={form.color} onChange={(event) => set('color', event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" />
+        </Field>
+        <Field label="Icon">
+          <select value={form.icon} onChange={(event) => set('icon', event.target.value)} className={inputCls}>
+            {ICONS.map((icon) => <option key={icon} value={icon}>{icon.replace('ph-', '')}</option>)}
+          </select>
+        </Field>
+        <Field label="Default price" hint={`Leave blank to use the hall base price`}>
+          <input type="number" min="0" step="0.5" value={form.defaultPrice} onChange={(event) => set('defaultPrice', event.target.value)} className={inputCls} placeholder="e.g. 15000" />
+        </Field>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Base multiplier" hint="Used when no default price">
+          <input type="number" min="0" max="20" step="0.05" value={form.multiplier} onChange={(event) => set('multiplier', event.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Admits" hint="People per seat">
+          <input type="number" min="1" max="10" value={form.admissions} onChange={(event) => set('admissions', event.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Sold as">
+          <select value={form.bookingMode} onChange={(event) => set('bookingMode', event.target.value)} className={inputCls}>
+            <option value="single">Individually</option>
+            <option value="group">As a group</option>
+          </select>
+        </Field>
+      </div>
+
+      {form.bookingMode === 'group' && (
+        <Field label="Group size" hint="e.g. 2 for a loveseat">
+          <input type="number" min="1" max="12" value={form.groupSize} onChange={(event) => set('groupSize', event.target.value)} className={inputCls} />
+        </Field>
+      )}
+
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {[
+          { key: 'splitAllowed', label: 'Can be sold in split positions' },
+          { key: 'accessible', label: 'Accessible space' },
+          { key: 'companionRequired', label: 'Needs a companion seat' },
+        ].map((option) => (
+          <label key={option.key} className="inline-flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={Boolean(form[option.key])}
+              onChange={(event) => set(option.key, event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-600/30"
+            />
+            {option.label}
+          </label>
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-        {CATEGORY_CYCLE.map((category) => (
-          <span key={category} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-            <span className={cx('h-3 w-3 rounded-t-md rounded-b-sm border-2', CATEGORY_STYLE[category])} />
-            {CATEGORY_LABEL[category]} {counts.byCategory[category] ? `· ${counts.byCategory[category]}` : ''}
-          </span>
-        ))}
-      </div>
+      <Field label="Booking instructions" hint="Shown when a customer picks this seat">
+        <input value={form.instructions} onChange={(event) => set('instructions', event.target.value)} className={inputCls} placeholder="e.g. Recliner includes a blanket" />
+      </Field>
 
-      {error && <Notice tone="error" onClose={() => setError('')}>{error}</Notice>}
+      {error && <Notice tone="error">{error}</Notice>}
 
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="ghost" onClick={onDone}>Back to screens</Button>
-        <Button icon={busy ? 'ph-circle-notch' : 'ph-floppy-disk'} onClick={save} disabled={busy} className={busy ? '[&>i]:animate-spin' : ''}>
-          {busy ? 'Saving layout…' : 'Save seat layout'}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button type="submit" size="sm" icon={busy ? 'ph-circle-notch' : 'ph-check'} disabled={busy} className={busy ? '[&>i]:animate-spin' : ''}>
+          Save seat type
         </Button>
       </div>
-    </div>
+    </form>
+  );
+}
+
+function SeatTypesCard({ attractionId, headers, seatTypes, onChanged }) {
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async (values) => {
+    setBusy(true);
+    const payload = await cinemaPost('seat-type-save', { attractionId, seatType: values }, headers);
+    setBusy(false);
+    if (!payload.ok) { setError(payload.error || 'Could not save this seat type'); return; }
+    setEditing(null);
+    setError('');
+    onChanged();
+  };
+
+  const remove = async (type) => {
+    if (!window.confirm(`Delete the ${type.name} seat type?`)) return;
+    const payload = await cinemaPost('seat-type-delete', { attractionId, slug: type.slug }, headers);
+    if (!payload.ok) { setError(payload.error); return; }
+    setError('');
+    onChanged();
+  };
+
+  return (
+    <Card
+      title="Seat types"
+      subtitle="What you paint with in the editor: colours, prices and booking rules"
+      icon="ph-palette"
+      action={<Button size="sm" variant="ghost" icon="ph-plus" onClick={() => setEditing({ ...EMPTY_TYPE })}>New type</Button>}
+    >
+      {error && <Notice tone="error" onClose={() => setError('')}>{error}</Notice>}
+
+      {editing && (
+        <div className="mb-4">
+          <SeatTypeForm
+            initial={editing}
+            busy={busy}
+            error=""
+            onCancel={() => setEditing(null)}
+            onSave={save}
+          />
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {seatTypes.map((type) => (
+          <article key={type.slug} className="rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+            <div className="flex items-start gap-2">
+              <span className="mt-1 h-4 w-4 shrink-0 rounded-md border" style={{ backgroundColor: `${type.color}55`, borderColor: type.color }} />
+              <div className="min-w-0 flex-1">
+                <h4 className="flex flex-wrap items-center gap-1.5 text-xs font-black text-slate-900 dark:text-white">
+                  {type.name}
+                  {type.status === 'inactive' && <Pill tone="slate">off</Pill>}
+                </h4>
+                <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {type.baseCategory}
+                  {type.admissions > 1 ? ` · admits ${type.admissions}` : ''}
+                  {type.bookingMode === 'group' ? ` · group of ${type.groupSize}` : ''}
+                  {type.splitAllowed ? ' · splittable' : ''}
+                </p>
+                <p className="mt-0.5 text-[11px] font-black tabular-nums text-slate-700 dark:text-slate-200">
+                  {type.defaultPrice !== null && type.defaultPrice !== undefined
+                    ? money(type.defaultPrice, '')
+                    : `×${type.multiplier}`}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <button type="button" onClick={() => setEditing(type)} title="Edit" className="rounded-md p-1 text-slate-400 hover:text-green-600">
+                  <i className="ph ph-pencil-simple" />
+                </button>
+                <button type="button" onClick={() => remove(type)} title="Delete" className="rounded-md p-1 text-slate-400 hover:text-rose-500">
+                  <i className="ph ph-trash" />
+                </button>
+              </div>
+            </div>
+            {type.instructions && <p className="mt-1.5 text-[10px] font-semibold text-slate-400">{type.instructions}</p>}
+          </article>
+        ))}
+      </div>
+    </Card>
   );
 }
 
 export default function CinemaScreensPanel({ attractionId, headers, currency = 'USD' }) {
   const [screens, setScreens] = useState([]);
+  const [seatTypes, setSeatTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [editing, setEditing] = useState(null);
-  const [layoutFor, setLayoutFor] = useState(null);
+  const [editorFor, setEditorFor] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    const payload = await cinemaGet('screens', { attractionId }, headers);
-    if (payload.ok) { setScreens(payload.screens || []); setError(''); }
-    else setError(payload.error || 'Could not load screens');
+    const [screenRes, typeRes] = await Promise.all([
+      cinemaGet('screens', { attractionId }, headers),
+      cinemaGet('seat-types', { attractionId }, headers),
+    ]);
+    if (screenRes.ok) { setScreens(screenRes.screens || []); setError(''); }
+    else setError(screenRes.error || 'Could not load auditoriums');
+    if (typeRes.ok) setSeatTypes(typeRes.seatTypes || []);
     setLoading(false);
   }, [attractionId, headers]);
 
@@ -302,7 +301,7 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
     setSaving(true);
     const payload = await cinemaPost('screen-save', { attractionId, screen: values }, headers);
     setSaving(false);
-    if (!payload.ok) { setFormError(payload.error || 'Could not save the screen'); return; }
+    if (!payload.ok) { setFormError(payload.error || 'Could not save the auditorium'); return; }
     setFormError('');
     setEditing(null);
     setNotice(`${payload.screen.name} saved.`);
@@ -310,10 +309,21 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
   };
 
   const removeScreen = async (screen) => {
-    if (!window.confirm(`Delete ${screen.name}? This also removes its seat layout.`)) return;
+    if (!window.confirm(`Delete ${screen.name}? Its layout versions are removed too.`)) return;
     const payload = await cinemaPost('screen-delete', { attractionId, screenId: screen.id }, headers);
     if (!payload.ok) { setError(payload.error); return; }
     setNotice(`${screen.name} deleted.`);
+    load();
+  };
+
+  const duplicate = async (screen) => {
+    const targetName = window.prompt('Name for the new auditorium', `${screen.name} copy`);
+    if (!targetName) return;
+    const payload = await cinemaPost('layout-duplicate', {
+      attractionId, sourceScreenId: screen.id, targetName,
+    }, headers);
+    if (!payload.ok) { setError(payload.error); return; }
+    setNotice(`${targetName} created from ${screen.name}. Open its layout to adjust it.`);
     load();
   };
 
@@ -321,7 +331,7 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
     const payload = await cinemaPost('screen-save', {
       attractionId,
       screen: {
-        id: screen.id, name: screen.name, screenType: screen.screenType,
+        id: screen.id, name: screen.name, screenType: screen.screenType, hallKind: screen.hallKind,
         rowCount: screen.rowCount, seatsPerRow: screen.seatsPerRow,
         status: screen.status === 'active' ? 'inactive' : 'active',
       },
@@ -330,18 +340,22 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
     load();
   };
 
-  if (layoutFor) {
+  if (editorFor) {
     return (
       <Card
-        title={`Seat layout · ${layoutFor.name}`}
-        subtitle="Mix categories, block broken seats and set accessible spaces. The grid mirrors what customers see."
-        icon="ph-grid-four"
-        action={<Button variant="ghost" size="sm" icon="ph-arrow-left" onClick={() => setLayoutFor(null)}>Screens</Button>}
+        title={`Layout editor · ${editorFor.name}`}
+        subtitle="Drag seats, carve aisles, paint seat types and publish when the hall is ready"
+        icon="ph-pencil-ruler"
+        action={<Button variant="ghost" size="sm" icon="ph-arrow-left" onClick={() => { setEditorFor(null); load(); }}>Auditoriums</Button>}
+        bodyClass="p-3"
       >
-        <SeatLayoutEditor
-          screen={{ ...layoutFor, attractionId }}
+        <CinemaLayoutEditor
+          attractionId={attractionId}
           headers={headers}
-          onDone={() => { setLayoutFor(null); setNotice('Seat layout saved.'); load(); }}
+          screen={editorFor}
+          currency={currency}
+          onClose={() => { setEditorFor(null); load(); }}
+          onSaved={load}
         />
       </Card>
     );
@@ -353,7 +367,7 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
       {error && <Notice tone="error" onClose={() => setError('')}>{error}</Notice>}
 
       {editing ? (
-        <Card title={editing.id ? `Edit ${editing.name}` : 'Add a screen'} icon="ph-monitor-play">
+        <Card title={editing.id ? `Edit ${editing.name}` : 'Add an auditorium'} icon="ph-monitor-play">
           <ScreenForm
             initial={editing}
             busy={saving}
@@ -365,22 +379,22 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {screens.length} {screens.length === 1 ? 'screen' : 'screens'} · {screens.reduce((sum, s) => sum + (s.seatCount || 0), 0)} seats
+            {screens.length} {screens.length === 1 ? 'auditorium' : 'auditoriums'} · {screens.reduce((sum, screen) => sum + Number(screen.capacity || screen.seatCount || 0), 0)} seats installed
           </p>
-          <Button icon="ph-plus" onClick={() => setEditing({ ...EMPTY_SCREEN })}>Add screen</Button>
+          <Button icon="ph-plus" onClick={() => setEditing({ ...EMPTY_SCREEN })}>Add auditorium</Button>
         </div>
       )}
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1].map((key) => <div key={key} className="h-32 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />)}
+          {[0, 1].map((key) => <div key={key} className="h-40 animate-pulse rounded-3xl bg-slate-100 dark:bg-slate-800" />)}
         </div>
       ) : screens.length === 0 && !editing ? (
         <EmptyState
           icon="ph-monitor-play"
-          title="No screens yet"
-          message="Add your first screen, then paint its seat layout. Showtimes cannot be scheduled until a screen has seats."
-          action={<Button icon="ph-plus" onClick={() => setEditing({ ...EMPTY_SCREEN })}>Add your first screen</Button>}
+          title="No auditoriums yet"
+          message="Create your first hall, then paint its seating layout. Screenings cannot be scheduled until a hall has a published layout."
+          action={<Button icon="ph-plus" onClick={() => setEditing({ ...EMPTY_SCREEN })}>Add your first auditorium</Button>}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -388,23 +402,26 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
             <article key={screen.id} className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h4 className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white">
+                  <h4 className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-900 dark:text-white">
                     {screen.name}
                     <Pill tone={screen.status === 'active' ? 'green' : 'slate'}>{screen.status}</Pill>
+                    {screen.draftVersions > 0 && <Pill tone="amber">{screen.draftVersions} draft</Pill>}
                   </h4>
                   <p className="mt-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                    {screen.screenType} · {screen.rowCount} rows × {screen.seatsPerRow}
+                    {HALL_KINDS.find((kind) => kind.id === (screen.hallKind || 'standard'))?.label || screen.screenType}
+                    {screen.layoutVersion ? ` · layout v${screen.layoutVersion}` : ' · no layout published'}
                   </p>
                 </div>
                 <span className="rounded-xl bg-slate-50 px-2.5 py-1.5 text-center dark:bg-slate-800">
-                  <span className="block text-[9px] font-black uppercase text-slate-400">Seats</span>
-                  <span className="block text-sm font-black tabular-nums text-slate-900 dark:text-white">{screen.seatCount || 0}</span>
+                  <span className="block text-[9px] font-black uppercase text-slate-400">Capacity</span>
+                  <span className="block text-sm font-black tabular-nums text-slate-900 dark:text-white">{screen.capacity || screen.seatCount || 0}</span>
                 </span>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <Button size="sm" variant="dark" icon="ph-grid-four" onClick={() => setLayoutFor(screen)}>Seat layout</Button>
-                <Button size="sm" variant="ghost" icon="ph-pencil" onClick={() => { setEditing(screen); setFormError(''); }}>Edit</Button>
+                <Button size="sm" variant="dark" icon="ph-pencil-ruler" onClick={() => setEditorFor(screen)}>Open editor</Button>
+                <Button size="sm" variant="ghost" icon="ph-copy" onClick={() => duplicate(screen)}>Duplicate</Button>
+                <Button size="sm" variant="ghost" icon="ph-pencil-simple" onClick={() => { setEditing({ ...screen }); setFormError(''); }}>Details</Button>
                 <Button size="sm" variant="ghost" icon={screen.status === 'active' ? 'ph-pause' : 'ph-play'} onClick={() => toggleStatus(screen)}>
                   {screen.status === 'active' ? 'Deactivate' : 'Activate'}
                 </Button>
@@ -415,8 +432,11 @@ export default function CinemaScreensPanel({ attractionId, headers, currency = '
         </div>
       )}
 
+      <SeatTypesCard attractionId={attractionId} headers={headers} seatTypes={seatTypes} onChanged={load} />
+
       <p className="px-1 text-[11px] font-medium text-slate-400">
-        Ticket base prices live on each showtime; the per-category multipliers are set in Cinema settings.
+        Publishing a new layout only affects screenings scheduled afterwards. Screenings that already sold seats keep
+        the exact layout they were sold on, so no ticket ever moves.
       </p>
     </div>
   );

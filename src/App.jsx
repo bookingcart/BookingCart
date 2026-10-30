@@ -39,6 +39,7 @@ const AttractionTicketsPage = lazy(() => import('./pages/AttractionTicketsPage.j
 const AttractionTicketsConfirmationPage = lazy(() => import('./pages/AttractionTicketsConfirmationPage.jsx'));
 const CinemasPage = lazy(() => import('./pages/CinemasPage.jsx'));
 const CinemaDetailsPage = lazy(() => import('./pages/CinemaDetailsPage.jsx'));
+const CinemaMoviePage = lazy(() => import('./pages/CinemaMoviePage.jsx'));
 const CinemaSeatsPage = lazy(() => import('./pages/CinemaSeatsPage.jsx'));
 const CinemaConfirmationPage = lazy(() => import('./pages/CinemaConfirmationPage.jsx'));
 
@@ -161,6 +162,7 @@ export default function App() {
           <Route path="/attractions/cinemas" element={<CinemasPage />} />
           <Route path="/attractions/cinemas/confirmation" element={<CinemaConfirmationPage />} />
           <Route path="/attractions/cinemas/:cinemaId" element={<CinemaDetailsPage />} />
+          <Route path="/attractions/cinemas/:cinemaId/movie/:movieId" element={<CinemaMoviePage />} />
           <Route path="/attractions/cinemas/:cinemaId/seats/:showtimeId" element={<CinemaSeatsPage />} />
           <Route path="/attractions/:source/:id" element={<AttractionDetailsPage />} />
           <Route path="/attraction-tickets/confirmation" element={<AttractionTicketsConfirmationPage />} />

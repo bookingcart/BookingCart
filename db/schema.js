@@ -1075,6 +1075,9 @@ const bcCinemaScreens = pgTable(
     seatsPerRow: integer("seats_per_row").default(12).notNull(),
     features: jsonb("features").default({}).notNull(),
     accessibleSeats: integer("accessible_seats").default(0).notNull(),
+    capacity: integer("capacity").default(0).notNull(),
+    activeLayoutVersionId: integer("active_layout_version_id").default(0).notNull(),
+    hallKind: text("hall_kind").default("standard").notNull(),
     status: text("status").default("active").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1095,11 +1098,13 @@ const bcCinemaSeats = pgTable(
     category: text("category").default("standard").notNull(),
     x: integer("x").default(0).notNull(),
     y: integer("y").default(0).notNull(),
+    layoutVersionId: integer("layout_version_id").default(0).notNull(),
+    customLabel: text("custom_label").default("").notNull(),
     priceOverride: numeric("price_override", { precision: 12, scale: 2 }),
     status: text("status").default("available").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_cinema_seats_screen").on(table.screenId, table.status)]
+  (table) => [index("idx_cinema_seats_screen").on(table.screenId, table.status), index("idx_cinema_seats_version").on(table.layoutVersionId)]
 );
 
 const bcCinemaMovies = pgTable(
@@ -1145,6 +1150,9 @@ const bcCinemaShowtimes = pgTable(
     salesCloseAt: timestamp("sales_close_at", { withTimezone: true }),
     basePrice: numeric("base_price", { precision: 12, scale: 2 }).default("0").notNull(),
     currency: text("currency").default("USD").notNull(),
+    layoutVersionId: integer("layout_version_id").default(0).notNull(),
+    pricingSnapshot: jsonb("pricing_snapshot").default({}).notNull(),
+    priceRuleId: integer("price_rule_id").default(0).notNull(),
     status: text("status").default("scheduled").notNull(),
     notes: text("notes").default("").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1191,6 +1199,119 @@ const bcCinemaSeatStates = pgTable(
   (table) => [index("idx_cinema_seat_states_hold").on(table.holdId)]
 );
 
+// A seat type is the paint bucket of the layout editor. `slug` is what a seat row
+// stores in bc_cinema_seats.category, so custom types ride on the same pricing.
+const bcCinemaSeatTypes = pgTable(
+  "bc_cinema_seat_types",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    color: text("color").default("#94a3b8").notNull(),
+    icon: text("icon").default("ph-armchair").notNull(),
+    baseCategory: text("base_category").default("standard").notNull(),
+    defaultPrice: numeric("default_price", { precision: 12, scale: 2 }),
+    multiplier: numeric("multiplier", { precision: 6, scale: 3 }).default("1").notNull(),
+    admissions: integer("admissions").default(1).notNull(),
+    bookingMode: text("booking_mode").default("single").notNull(),
+    groupSize: integer("group_size").default(1).notNull(),
+    splitAllowed: boolean("split_allowed").default(false).notNull(),
+    accessible: boolean("accessible").default(false).notNull(),
+    companionRequired: boolean("companion_required").default(false).notNull(),
+    instructions: text("instructions").default("").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    status: text("status").default("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_seat_types_cinema").on(table.attractionId, table.status)]
+);
+
+// One auditorium can hold many layouts. Publishing freezes a version: its seat
+// rows become the ones new screenings point at, while earlier versions keep the
+// seats that already sold so nothing silently changes under a customer.
+const bcCinemaLayoutVersions = pgTable(
+  "bc_cinema_layout_versions",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    screenId: integer("screen_id").notNull(),
+    version: integer("version").notNull(),
+    name: text("name").default("").notNull(),
+    status: text("status").default("draft").notNull(),
+    document: jsonb("document").default({}).notNull(),
+    capacity: integer("capacity").default(0).notNull(),
+    warnings: jsonb("warnings").default([]).notNull(),
+    restoredFrom: integer("restored_from").default(0).notNull(),
+    createdBy: text("created_by").default("").notNull(),
+    publishedBy: text("published_by").default("").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_layout_versions_screen").on(table.screenId, table.status)]
+);
+
+// Weekday / weekend / holiday / screening pricing. The resolved numbers are
+// copied onto the screening so later rule edits cannot reprice old bookings.
+const bcCinemaPricingRules = pgTable(
+  "bc_cinema_pricing_rules",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    name: text("name").notNull(),
+    scope: text("scope").default("all").notNull(),
+    weekdays: jsonb("weekdays").default([]).notNull(),
+    dateFrom: date("date_from"),
+    dateTo: date("date_to"),
+    showtimeId: integer("showtime_id").default(0).notNull(),
+    adjustment: text("adjustment").default("multiplier").notNull(),
+    value: numeric("value", { precision: 12, scale: 2 }).default("1").notNull(),
+    categoryPrices: jsonb("category_prices").default({}).notNull(),
+    priority: integer("priority").default(0).notNull(),
+    status: text("status").default("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_pricing_rules_cinema").on(table.attractionId, table.status)]
+);
+
+// Owners can save any layout as a reusable starting point for other halls.
+const bcCinemaLayoutTemplates = pgTable(
+  "bc_cinema_layout_templates",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").default(0).notNull(),
+    name: text("name").notNull(),
+    description: text("description").default("").notNull(),
+    kind: text("kind").default("custom").notNull(),
+    document: jsonb("document").default({}).notNull(),
+    capacity: integer("capacity").default(0).notNull(),
+    createdBy: text("created_by").default("").notNull(),
+    status: text("status").default("active").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_layout_templates_owner").on(table.attractionId, table.status)]
+);
+
+const bcCinemaLayoutAudit = pgTable(
+  "bc_cinema_layout_audit",
+  {
+    id: serial("id").primaryKey(),
+    attractionId: integer("attraction_id").notNull(),
+    screenId: integer("screen_id").default(0).notNull(),
+    versionId: integer("version_id").default(0).notNull(),
+    actorEmail: text("actor_email").default("").notNull(),
+    actorRole: text("actor_role").default("").notNull(),
+    action: text("action").notNull(),
+    details: jsonb("details").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_cinema_layout_audit_cinema").on(table.attractionId, table.createdAt)]
+);
+
 module.exports = {
   baAccount,
   baSession,
@@ -1198,9 +1319,14 @@ module.exports = {
   baVerification,
   bcAdminAudit,
   bcCinemaHolds,
+  bcCinemaLayoutAudit,
+  bcCinemaLayoutTemplates,
+  bcCinemaLayoutVersions,
   bcCinemaMovies,
+  bcCinemaPricingRules,
   bcCinemaScreens,
   bcCinemaSeatStates,
+  bcCinemaSeatTypes,
   bcCinemaSeats,
   bcCinemaSettings,
   bcCinemaShowtimes,

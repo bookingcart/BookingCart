@@ -1,24 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { cinemaGet, cinemaPost, clockLabel, formatDate, money } from '../lib/cinemaClient.js';
+import {
+  cinemaGet, cinemaPost, clockLabel, dayParts, formatDate, money, shortDate, todayISO,
+} from '../lib/cinemaClient.js';
 
-const CATEGORY_ACCENT = {
-  standard: 'border-slate-300 dark:border-slate-600',
-  premium: 'border-sky-400 dark:border-sky-500',
-  vip: 'border-violet-400 dark:border-violet-500',
-  couple: 'border-rose-400 dark:border-rose-500',
-  recliner: 'border-amber-400 dark:border-amber-500',
-  wheelchair: 'border-blue-400 dark:border-blue-500',
-  companion: 'border-teal-400 dark:border-teal-500',
-};
-
-const LEGEND = [
-  { key: 'available', label: 'Available', swatch: 'bg-white border-slate-300 dark:bg-slate-800 dark:border-slate-600' },
-  { key: 'selected', label: 'Selected', swatch: 'bg-emerald-500 border-emerald-600' },
-  { key: 'held', label: 'On hold', swatch: 'bg-amber-100 border-amber-400 dark:bg-amber-900/50' },
-  { key: 'sold', label: 'Sold', swatch: 'bg-slate-300 border-slate-400 dark:bg-slate-700 dark:border-slate-600' },
-  { key: 'blocked', label: 'Blocked', swatch: 'bg-slate-100 border-dashed border-slate-300 dark:bg-slate-800/40 dark:border-slate-700' },
-];
+const SEAT_SIZE = 26;
+const SEAT_GAP = 5;
+// Aisles widen the track instead of adding a column, so seat x positions keep
+// matching the owner's layout no matter where the aisle runs.
+const AISLE_SIZE = 18;
 
 function pad(value) {
   return String(value).padStart(2, '0');
@@ -44,31 +34,133 @@ function useCountdown(expiresAt) {
   };
 }
 
-function SeatButton({ seat, selected, onToggle, seatSize }) {
-  const disabled = seat.status !== 'available';
-  const isSelected = selected;
-  const accent = CATEGORY_ACCENT[seat.category] || CATEGORY_ACCENT.standard;
-  const accessible = seat.category === 'wheelchair' || seat.category === 'companion';
+function durationLabel(minutes) {
+  const value = Number(minutes || 0);
+  if (!value) return '';
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
+  if (!hours) return `${mins}min`;
+  return `${hours}h ${mins ? `${mins}min` : ''}`.trim();
+}
 
-  let tone = 'bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700';
-  let text = 'text-slate-500 dark:text-slate-300';
-  if (seat.status === 'sold') {
-    tone = 'bg-slate-300 dark:bg-slate-700';
-    text = 'text-slate-400 dark:text-slate-500';
+/** Outlined square in the seat-map language, reused for the legend. */
+function SeatGlyph({ tone = 'available', children }) {
+  const tones = {
+    available: 'border-slate-400 bg-white dark:border-slate-600 dark:bg-slate-800/40',
+    unavailable: 'border-slate-200 bg-slate-200 text-slate-400 dark:border-slate-700/60 dark:bg-slate-800 dark:text-slate-600',
+    selected: 'border-emerald-400 bg-emerald-600 text-white',
+    wheelchair: 'border-slate-400 bg-white text-slate-500 dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-400',
+  };
+  return (
+    <span className={`flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border text-[10px] ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+function Legend({ showHeld }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:gap-x-7">
+      <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <SeatGlyph /> Available
+      </span>
+      <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <SeatGlyph tone="unavailable"><i className="ph ph-x" /></SeatGlyph> Unavailable
+      </span>
+      <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <SeatGlyph tone="selected" /> Selected
+      </span>
+      <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <SeatGlyph tone="wheelchair"><i className="ph ph-wheelchair" /></SeatGlyph> Wheelchair
+      </span>
+      {showHeld && (
+        <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          <SeatGlyph tone="unavailable" /> On hold
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ScreenArc({ label, position = 'top' }) {
+  const arc = (
+    <svg viewBox="0 0 600 58" className="w-full" aria-hidden="true">
+      <defs>
+        <linearGradient id="screenArc" x1="0" x2="1">
+          <stop offset="0%" stopColor="#94a3b8" stopOpacity="0" />
+          <stop offset="50%" stopColor="#94a3b8" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#94a3b8" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d="M6 52 Q300 -20 594 52" fill="none" stroke="url(#screenArc)" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+  const caption = (
+    <p className="mt-2 text-center text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">{label}</p>
+  );
+  return (
+    <div className="mx-auto max-w-2xl">
+      {position === 'bottom' ? (
+        <>
+          <p className="mb-2 text-center text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">{label}</p>
+          <div className="rotate-180">{arc}</div>
+        </>
+      ) : (
+        <>
+          {arc}
+          {caption}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Doors and exits the owner placed on the published layout. */
+function Entrances({ entrances }) {
+  if (!entrances?.length) return null;
+  const icons = { left: 'ph-arrow-left', right: 'ph-arrow-right', top: 'ph-arrow-up', bottom: 'ph-arrow-down' };
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+      {entrances.map((entrance) => (
+        <span
+          key={entrance.id}
+          className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400"
+        >
+          <i className={`ph ${icons[entrance.side] || 'ph-door-open'}`} />
+          {entrance.label || 'Entrance'}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Seat({ seat, selected, locked, currency, onToggle }) {
+  const unavailable = seat.status === 'sold' || seat.status === 'unavailable';
+  const disabled = locked || seat.status !== 'available';
+  const accessible = seat.accessible || seat.category === 'wheelchair' || seat.category === 'companion';
+  const accent = seat.categoryColor || '';
+
+  let tone = 'border-slate-400 bg-white text-slate-500 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-600 dark:bg-slate-800/40 dark:text-slate-400 dark:hover:border-emerald-400 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300';
+  const style = { width: SEAT_SIZE, height: SEAT_SIZE };
+  if (selected) {
+    tone = 'border-emerald-400 bg-emerald-600 text-white shadow-[0_0_14px_rgba(5,150,105,0.45)]';
+  } else if (unavailable) {
+    tone = 'border-slate-200 bg-slate-100 text-slate-300 dark:border-slate-700/60 dark:bg-slate-800/70 dark:text-slate-600';
   } else if (seat.status === 'held') {
-    tone = 'bg-amber-100 dark:bg-amber-900/40';
-    text = 'text-amber-600 dark:text-amber-400';
-  } else if (seat.status === 'blocked' || seat.status === 'unavailable') {
-    tone = 'bg-slate-100/70 dark:bg-slate-800/40 border-dashed';
-    text = 'text-slate-300 dark:text-slate-600';
-  } else if (isSelected) {
-    tone = 'bg-emerald-500';
-    text = 'text-white';
+    tone = 'border-amber-400/60 bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400';
+  } else if (seat.status === 'blocked') {
+    tone = 'border-dashed border-slate-300 bg-transparent text-slate-300 dark:border-slate-700 dark:text-slate-600';
+  } else if (accent) {
+    // The owner's own colour for this seat type, light enough to keep the
+    // numbers readable in both themes.
+    tone = 'text-slate-600 dark:text-slate-200';
+    style.borderColor = accent;
+    style.backgroundColor = `${accent}26`;
   }
 
-  const title = disabled
-    ? `${seat.label} · ${seat.categoryLabel} · ${seat.status === 'sold' ? 'sold' : 'unavailable'}`
-    : `${seat.label} · ${seat.categoryLabel}${seat.price != null ? ` · ${seat.price}` : ''}`;
+  const title = disabled && !selected
+    ? `${seat.label} · ${seat.categoryLabel} · ${unavailable ? 'unavailable' : seat.status}`
+    : `${seat.label} · ${seat.categoryLabel}${seat.price != null ? ` · ${money(seat.price, currency)}` : ''}`;
 
   return (
     <button
@@ -77,16 +169,52 @@ function SeatButton({ seat, selected, onToggle, seatSize }) {
       disabled={disabled}
       title={title}
       aria-label={title}
-      aria-pressed={isSelected}
-      style={{ width: seatSize, height: seatSize }}
-      className={`flex items-center justify-center rounded-md rounded-t-lg border-2 text-[9px] font-black leading-none transition-all duration-150 ${accent} ${tone} ${text} ${
-        disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0'
-      } ${isSelected ? 'ring-2 ring-emerald-300 ring-offset-1 dark:ring-offset-slate-900' : ''}`}
+      aria-pressed={Boolean(selected)}
+      style={style}
+      className={`flex items-center justify-center rounded-[6px] border text-[9px] font-bold leading-none transition duration-150 ${tone} ${
+        disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:-translate-y-0.5'
+      }`}
     >
-      {accessible && seat.status !== 'sold' && seat.status !== 'blocked'
-        ? <i className={`ph ph-wheelchair ${isSelected ? 'text-white' : ''} text-[11px]`} />
-        : <span className="tabular-nums">{seat.number}</span>}
+      {accessible
+        ? <i className="ph ph-wheelchair text-[12px]" />
+        : unavailable
+          ? <i className="ph ph-x text-[10px]" />
+          : <span className="tabular-nums">{seat.number}</span>}
     </button>
+  );
+}
+
+function DateStrip({ dates, activeDate, onPick }) {
+  return (
+    <div className="no-scrollbar overflow-x-auto px-4 py-4 sm:py-6">
+      <div className="mx-auto flex w-max gap-2 sm:gap-3">
+        {dates.map((entry) => {
+          const { weekday, day, month } = dayParts(entry.date);
+          const active = entry.date === activeDate;
+          return (
+            <button
+              key={entry.date}
+              type="button"
+              onClick={() => onPick(entry.date)}
+              aria-pressed={active}
+              className={`flex w-[74px] shrink-0 flex-col items-center rounded-xl border px-2 py-2.5 transition-colors sm:w-[88px] ${
+                active
+                  ? 'border-emerald-500 bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-white/5 dark:bg-white/[0.02] dark:text-slate-300 dark:hover:border-white/20'
+              }`}
+            >
+              <span className={`text-[10px] font-bold ${active ? 'text-emerald-100' : 'text-slate-400 dark:text-slate-500'}`}>
+                {month}
+              </span>
+              <span className="mt-0.5 text-xl font-black leading-none">{day}</span>
+              <span className={`mt-1 text-[10px] font-bold uppercase tracking-wide ${active ? 'text-emerald-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                {entry.date === todayISO() ? 'Today' : weekday}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -96,6 +224,7 @@ export default function CinemaSeatsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [map, setMap] = useState(null);
+  const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [message, setMessage] = useState('');
@@ -105,20 +234,25 @@ export default function CinemaSeatsPage() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const [zoom, setZoom] = useState(1);
+  const [naturalWidth, setNaturalWidth] = useState(0);
+  const [activeDate, setActiveDate] = useState('');
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', method: 'card' });
   const formRef = useRef(null);
   const seatScrollRef = useRef(null);
   const didFitRef = useRef(false);
 
-  // Scale the grid down so a wide screen fits a phone without horizontal scrolling.
+  // Scale the grid down so a wide screen fits a phone, but keep seats big enough
+  // to tap; anything wider than the screen simply scrolls sideways.
   const fitSeats = useCallback(() => {
     const container = seatScrollRef.current;
-    const inner = container?.firstElementChild;
-    if (!container || !inner) return;
+    const stage = container?.querySelector('[data-seat-stage]');
+    if (!container || !stage) return;
     const available = container.clientWidth - 8;
-    const natural = inner.scrollWidth;
+    const natural = stage.scrollWidth;
     if (!available || !natural) return;
-    setZoom(Math.max(0.5, Math.min(1, Number((available / natural).toFixed(2)))));
+    setNaturalWidth(natural);
+    setZoom(Math.max(0.6, Math.min(1, Number((available / natural).toFixed(2)))));
   }, []);
 
   const load = useCallback(async () => {
@@ -134,6 +268,29 @@ export default function CinemaSeatsPage() {
   }, [showtimeId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // A different screening means a different screen: drop the old picks.
+  useEffect(() => {
+    setSeatIds([]);
+    setStep('seats');
+    setHold(null);
+    setFormError('');
+  }, [showtimeId]);
+
+  // The schedule powers the date strip and the times beside the map.
+  useEffect(() => {
+    const cinemaId = map?.showtime?.cinemaId;
+    if (!cinemaId) return undefined;
+    let alive = true;
+    cinemaGet('cinema', { cinemaId }).then((payload) => {
+      if (alive && payload.ok) setSchedule(payload);
+    });
+    return () => { alive = false; };
+  }, [map?.showtime?.cinemaId]);
+
+  useEffect(() => {
+    if (map?.showtime?.showDate) setActiveDate(map.showtime.showDate);
+  }, [map?.showtime?.showDate]);
 
   // First paint: fit the whole layout on screen, then leave the zoom control alone.
   useEffect(() => {
@@ -174,6 +331,7 @@ export default function CinemaSeatsPage() {
   }, [countdown?.expired, step, load]);
 
   const seats = map?.seats || [];
+  const rows = map?.rows || [];
   const selected = useMemo(
     () => seats.filter((seat) => seatIds.includes(seat.id)),
     [seats, seatIds]
@@ -184,9 +342,51 @@ export default function CinemaSeatsPage() {
   );
   const maxSeats = map?.pricing?.maxSeats || 12;
   const currency = map?.pricing?.currency || 'USD';
+  const locked = step === 'details' && Boolean(hold);
+
+  const seatsPerRow = Math.max(0, ...seats.map((seat) => seat.x));
+
+  // Screening seats carry the auditorium layout version they were sold on, so
+  // aisles and the screen position always match what the owner published.
+  const layout = map?.layout || null;
+  const screenAtBottom = layout?.screen?.position === 'bottom';
+  const totalCols = Math.max(seatsPerRow, Number(layout?.cols || 0), 1);
+  const aisles = Array.isArray(layout?.aisles) ? layout.aisles : [];
+
+  /** One track per column: aisle columns are wider and drawn as a dashed lane. */
+  const columnPlan = useCallback((y) => {
+    const lanes = [];
+    const widths = [];
+    for (let x = 1; x <= totalCols; x += 1) {
+      const lane = aisles.some((aisle) => x >= Number(aisle.fromX)
+        && x < Number(aisle.fromX) + Number(aisle.width)
+        && y >= Number(aisle.fromY)
+        && y <= Number(aisle.toY));
+      if (lane) lanes.push(x);
+      widths.push(`${lane ? AISLE_SIZE : SEAT_SIZE}px`);
+    }
+    return { template: widths.join(' '), lanes };
+  }, [aisles, totalCols]);
+
+  // Rows are labelled with the price tier most of their seats belong to, so the
+  // map reads like a cinema's own seat plan.
+  const tiers = useMemo(() => {
+    const groups = [];
+    for (const row of rows) {
+      const counts = new Map();
+      for (const seat of row.seats) {
+        counts.set(seat.categoryLabel, (counts.get(seat.categoryLabel) || 0) + 1);
+      }
+      const label = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'Seats';
+      const last = groups[groups.length - 1];
+      if (last && last.label === label) last.rows.push(row);
+      else groups.push({ key: `${label}-${groups.length}`, label, rows: [row] });
+    }
+    return groups;
+  }, [rows]);
 
   const toggleSeat = (seat) => {
-    if (seat.status !== 'available') return;
+    if (locked || seat.status !== 'available') return;
     setMessage('');
     setSeatIds((current) => {
       if (current.includes(seat.id)) return current.filter((id) => id !== seat.id);
@@ -195,9 +395,11 @@ export default function CinemaSeatsPage() {
         return current;
       }
       // A companion seat is only meaningful next to a wheelchair space.
-      if (seat.category === 'companion') {
+      if (seat.baseCategory === 'companion' || seat.category === 'companion') {
         const hasWheelchair = seats.some(
-          (entry) => entry.category === 'wheelchair' && entry.row === seat.row && current.includes(entry.id)
+          (entry) => (entry.baseCategory === 'wheelchair' || entry.category === 'wheelchair')
+            && entry.row === seat.row
+            && current.includes(entry.id)
         );
         if (!hasWheelchair) {
           setMessage('Companion seats are booked together with a wheelchair space in the same row.');
@@ -249,8 +451,16 @@ export default function CinemaSeatsPage() {
     setFormError('');
     const name = form.name.trim();
     const email = form.email.trim();
-    if (name.length < 2) { setFormError('Enter the name for the booking.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { setFormError('Enter a valid email address so we can send the tickets.'); return; }
+    if (name.length < 2) {
+      setFormError('Enter the name for the booking.');
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      setFormError('Enter a valid email address so we can send the tickets.');
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
 
     setBusy(true);
     const payload = await cinemaPost('create-order', {
@@ -264,6 +474,7 @@ export default function CinemaSeatsPage() {
 
     if (!payload.ok) {
       setFormError(payload.error || 'We could not start the booking.');
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       // A dead hold means the seats are no longer ours.
       if (/hold|expired/i.test(payload.error || '')) {
         setStep('seats');
@@ -283,10 +494,15 @@ export default function CinemaSeatsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12">
-        <div className="mx-auto mb-8 h-4 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-        <div className="h-72 animate-pulse rounded-3xl bg-white dark:bg-slate-900" />
-        <div className="mt-4 h-28 animate-pulse rounded-3xl bg-white dark:bg-slate-900" />
+      <div className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-[#08090c]">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-8 flex justify-center gap-3">
+            {[0, 1, 2, 3, 4].map((key) => (
+              <div key={key} className="h-[88px] w-[88px] animate-pulse rounded-xl bg-white dark:bg-white/5" />
+            ))}
+          </div>
+          <div className="h-[420px] animate-pulse rounded-3xl bg-white dark:bg-white/5" />
+        </div>
       </div>
     );
   }
@@ -312,53 +528,34 @@ export default function CinemaSeatsPage() {
   }
 
   const { showtime } = map;
-  const seatsPerRow = Math.max(0, ...seats.map((seat) => seat.x));
+  const movie = schedule?.movies?.find((entry) => Number(entry.id) === Number(showtime.movieId));
+  const times = schedule
+    ? schedule.showtimes.filter((entry) => entry.showDate === activeDate)
+    : [];
+  const stripDates = schedule?.dates?.length ? schedule.dates.slice(0, 7) : [{ date: showtime.showDate, shows: 1 }];
+  const viewingOtherDate = Boolean(activeDate) && activeDate !== showtime.showDate;
   const occupancy = map.stats.total ? Math.round((map.stats.sold / map.stats.total) * 100) : 0;
   const totals = hold
     ? { subtotal: hold.subtotal, serviceFee: hold.serviceFee, taxAmount: hold.taxAmount, total: hold.total }
     : null;
+  const payable = totals ? totals.total : localSubtotal;
+  const fromPrice = map.categories.length
+    ? Math.min(...map.categories.map((category) => Number(category.price)))
+    : showtime.basePrice;
+  const cinemaHref = `/attractions/cinemas/${showtime.cinemaId}`;
+  const filmHref = `${cinemaHref}/movie/${showtime.movieId}`;
+  const ticketCount = selected.length || Number(hold?.admissionsTotal || 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-48 dark:bg-slate-950">
-      {/* Header */}
-      <div className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto max-w-4xl px-4 py-4 sm:px-6">
-          <Link
-            to={`/attractions/cinemas/${showtime.cinemaId}?date=${showtime.showDate}`}
-            className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-emerald-600"
-          >
-            <i className="ph ph-arrow-left" /> {showtime.cinemaName || 'Back to cinema'}
-          </Link>
-          <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="truncate text-xl font-black text-slate-900 dark:text-white sm:text-2xl">
-                {showtime.movieTitle}
-              </h1>
-              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="ph ph-calendar-blank text-emerald-600" /> {formatDate(showtime.showDate)}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="ph ph-clock text-emerald-600" /> {clockLabel(showtime.startTime)}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <i className="ph ph-monitor-play text-emerald-600" /> {showtime.screenName}
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                    {showtime.format}
-                  </span>
-                </span>
-                {showtime.ageRating && <span className="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-black dark:border-slate-700">{showtime.ageRating}</span>}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Sold</p>
-              <p className="text-lg font-black tabular-nums text-slate-900 dark:text-white">{occupancy}%</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50 pb-[150px] dark:bg-[#08090c]">
+      <h1 className="sr-only">{showtime.movieTitle} · select your seats</h1>
 
-      <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6">
+      {/* Date strip */}
+      <section className="border-b border-slate-200 bg-white dark:border-white/5 dark:bg-[#0b0d10]">
+        <DateStrip dates={stripDates} activeDate={activeDate || showtime.showDate} onPick={setActiveDate} />
+      </section>
+
+      <div className="mx-auto max-w-[1180px] px-4 pt-5 sm:px-6">
         {message && (
           <div className="mb-4 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-bold text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
             <i className="ph ph-warning-circle text-base" />
@@ -367,114 +564,233 @@ export default function CinemaSeatsPage() {
           </div>
         )}
 
-        {/* Screen + seats */}
-        <div className={`rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 ${step === 'details' ? 'opacity-60' : ''}`}>
-          <div className="mx-auto max-w-md">
-            <svg viewBox="0 0 400 44" className="w-full" aria-hidden="true">
-              <defs>
-                <linearGradient id="screenArc" x1="0" x2="1">
-                  <stop offset="0%" stopColor="#34d399" stopOpacity="0" />
-                  <stop offset="50%" stopColor="#34d399" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M4 40 Q200 -28 396 40" fill="none" stroke="url(#screenArc)" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            <p className="mb-5 text-center text-[9px] font-black uppercase tracking-[0.45em] text-slate-400">
-              Screen this way
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+          {/* Venue + times */}
+          <aside className="lg:w-[204px] lg:shrink-0">
+            <Link
+              to={filmHref}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+            >
+              <i className="ph ph-arrow-left text-sm" /> Back to film
+            </Link>
+
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/5 dark:bg-white/[0.02]">
+              <p className="text-sm font-black leading-snug text-slate-900 dark:text-white">
+                {showtime.cinemaName || 'Cinema'}
+              </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                {shortDate(activeDate || showtime.showDate)} · {times.length || 0} {times.length === 1 ? 'time' : 'times'}
+              </p>
+
+              <div className="mt-3 space-y-1.5">
+                {times.length === 0 && (
+                  <p className="rounded-lg border border-dashed border-slate-200 px-2 py-3 text-center text-[11px] font-semibold text-slate-400 dark:border-white/10">
+                    No screenings on this date.
+                  </p>
+                )}
+                {times.map((entry) => {
+                  const active = Number(entry.id) === Number(showtimeId);
+                  return (
+                    <Link
+                      key={entry.id}
+                      to={`/attractions/cinemas/${showtime.cinemaId}/seats/${entry.id}`}
+                      aria-current={active ? 'page' : undefined}
+                      className={`block rounded-lg px-2 py-2 text-center text-xs font-bold transition-colors ${
+                        active
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      {clockLabel(entry.startTime)}
+                      {(schedule?.movies?.length || 0) > 1 && (
+                        <span className={`mt-0.5 block truncate text-[9px] font-semibold ${active ? 'text-white/75' : 'text-slate-400 dark:text-slate-500'}`}>
+                          {entry.movieTitle}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <Link to={cinemaHref} className="mt-3 block text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-600 dark:text-slate-500 dark:hover:text-emerald-400">
+                Cinema details
+              </Link>
+            </div>
+
+            {step === 'seats' && (
+              <p className="mt-3 text-[10px] font-semibold leading-relaxed text-slate-400 dark:text-slate-500">
+                Seats are held for {map.holdMinutes} minutes once you continue, so you can finish paying without losing them.
+                <span className="mt-1 block">{occupancy}% of this screen is already sold.</span>
+              </p>
+            )}
+          </aside>
+
+          {/* Seat map */}
+          <div className="min-w-0 flex-1">
+            <Legend showHeld={map.stats.held > 0} />
+
+            {viewingOtherDate && (
+              <div className="mx-auto mt-4 flex max-w-xl items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                <i className="ph ph-info mt-0.5" />
+                <p>
+                  You are viewing {shortDate(showtime.showDate)}. Pick a time for {shortDate(activeDate)} on the left to change the show.
+                </p>
+              </div>
+            )}
+
+            <div className="relative mt-4 rounded-3xl border border-slate-200 bg-white px-2 py-6 dark:border-white/5 dark:bg-white/[0.015] sm:px-6">
+              {/* Zoom: vertical on desktop, a small row on phones */}
+              <div className="absolute right-3 top-1/2 hidden -translate-y-1/2 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0e1013] lg:flex">
+                <button
+                  type="button"
+                  onClick={() => setZoom((value) => Math.min(1.6, Number((value + 0.1).toFixed(2))))}
+                  aria-label="Zoom in"
+                  className="flex h-9 w-9 items-center justify-center text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"
+                >
+                  <i className="ph ph-plus" />
+                </button>
+                <span className="h-px bg-slate-200 dark:bg-white/10" aria-hidden="true" />
+                <button
+                  type="button"
+                  onClick={() => setZoom((value) => Math.max(0.45, Number((value - 0.1).toFixed(2))))}
+                  aria-label="Zoom out"
+                  className="flex h-9 w-9 items-center justify-center text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"
+                >
+                  <i className="ph ph-minus" />
+                </button>
+              </div>
+
+              <div className="mb-1 flex items-center justify-end gap-1.5 px-1 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setZoom((value) => Math.max(0.45, Number((value - 0.1).toFixed(2))))}
+                  aria-label="Zoom out"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 dark:border-white/10 dark:text-slate-300"
+                >
+                  <i className="ph ph-minus" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom((value) => Math.min(1.6, Number((value + 0.1).toFixed(2))))}
+                  aria-label="Zoom in"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 dark:border-white/10 dark:text-slate-300"
+                >
+                  <i className="ph ph-plus" />
+                </button>
+                <button
+                  type="button"
+                  onClick={fitSeats}
+                  className="flex h-8 items-center rounded-lg border border-slate-200 px-2 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:border-white/10 dark:text-slate-300"
+                >
+                  Fit
+                </button>
+              </div>
+
+              {!screenAtBottom && (
+                <ScreenArc
+                  position="top"
+                  label={`${layout?.screen?.label || showtime.screenName}${showtime.screenType ? ` · ${showtime.screenType}` : ''}`}
+                />
+              )}
+              <Entrances entrances={layout?.entrances} />
+
+              <div ref={seatScrollRef} className="mt-5 overflow-x-auto pb-2">
+                <div
+                  className="mx-auto transition-[width] duration-200"
+                  style={{ width: naturalWidth ? Math.ceil(naturalWidth * zoom) : undefined }}
+                >
+                  <div
+                    data-seat-stage
+                    className={`w-max transition-transform duration-200 ${locked ? 'pointer-events-none opacity-60' : ''}`}
+                    style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+                  >
+                    <div className="space-y-5">
+                      {tiers.map((tier) => (
+                        <div key={tier.key}>
+                          <p className="mb-2.5 text-center text-[9px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">
+                            {tier.label}
+                          </p>
+                          <div className="space-y-1.5">
+                            {tier.rows.map((row) => {
+                              const plan = columnPlan(row.seats[0]?.y || 1);
+                              return (
+                                <div key={row.label} className="flex items-center justify-center gap-2.5">
+                                  <span className="w-4 text-right text-[10px] font-bold text-slate-400 dark:text-slate-500">{row.label}</span>
+                                  <div
+                                    className="grid items-center"
+                                    style={{ gridTemplateColumns: plan.template, gap: `${SEAT_GAP}px` }}
+                                  >
+                                    {plan.lanes.map((x) => (
+                                      <div
+                                        key={`aisle-${row.label}-${x}`}
+                                        aria-hidden="true"
+                                        style={{ gridColumn: x, minHeight: SEAT_SIZE }}
+                                        className="rounded-[4px] border-x border-dashed border-slate-200 bg-slate-50/70 dark:border-white/10 dark:bg-white/[0.03]"
+                                      />
+                                    ))}
+                                    {row.seats.map((seat) => (
+                                      <div key={seat.id} style={{ gridColumn: `${seat.x} / span 1` }}>
+                                        <Seat
+                                          seat={seat}
+                                          selected={seatIds.includes(seat.id)}
+                                          locked={locked}
+                                          currency={currency}
+                                          onToggle={toggleSeat}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <span className="w-4 text-[10px] font-bold text-slate-400 dark:text-slate-500">{row.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {screenAtBottom && (
+                <div className="mt-2">
+                  <ScreenArc
+                    position="bottom"
+                    label={`${layout?.screen?.label || showtime.screenName}${showtime.screenType ? ` · ${showtime.screenType}` : ''}`}
+                  />
+                </div>
+              )}
+
+              {map.categories.length > 0 && (
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-4 dark:border-white/5">
+                  {map.categories.map((category) => (
+                    <span key={category.id} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                      <span
+                        className="h-2.5 w-2.5 rounded-[3px] border"
+                        style={{ borderColor: category.color, backgroundColor: `${category.color}40` }}
+                      />
+                      {category.label}
+                      <span className="tabular-nums text-slate-500 dark:text-slate-400">{money(category.price, currency)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+            </div>
+
+            <p className="mt-3 text-center text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+              Up to {maxSeats} seats per booking · tap a seat again to remove it
             </p>
           </div>
-
-          <div className="mb-3 flex items-center justify-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setZoom((value) => Math.max(0.7, Number((value - 0.15).toFixed(2))))}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              aria-label="Zoom out"
-            >
-              <i className="ph ph-minus" />
-            </button>
-            <span className="w-12 text-center text-[10px] font-black tabular-nums text-slate-400">{Math.round(zoom * 100)}%</span>
-            <button
-              type="button"
-              onClick={() => setZoom((value) => Math.min(1.9, Number((value + 0.15).toFixed(2))))}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              aria-label="Zoom in"
-            >
-              <i className="ph ph-plus" />
-            </button>
-            <button
-              type="button"
-              onClick={fitSeats}
-              className="flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <i className="ph ph-arrows-out-line-horizontal text-xs" /> Fit
-            </button>
-            <span className="ml-2 text-[10px] font-bold text-slate-400">Pinch to zoom · swipe to pan</span>
-          </div>
-
-          <div ref={seatScrollRef} className="overflow-x-auto pb-2">
-            <div
-              className="mx-auto w-max transition-transform duration-200"
-              style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-            >
-              {map.rows.map((row) => (
-                <div key={row.label} className="mb-1 flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-center text-[10px] font-black text-slate-400">{row.label}</span>
-                  <div
-                    className="grid gap-1"
-                    style={{ gridTemplateColumns: `repeat(${seatsPerRow}, minmax(0, 34px))` }}
-                  >
-                    {row.seats.map((seat) => (
-                      <div key={seat.id} style={{ gridColumn: `${seat.x} / span 1` }}>
-                        <SeatButton
-                          seat={seat}
-                          selected={seatIds.includes(seat.id)}
-                          onToggle={toggleSeat}
-                          seatSize={34}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <span className="w-5 shrink-0" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-            {LEGEND.map((entry) => (
-              <span key={entry.key} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                <span className={`h-3.5 w-3.5 rounded-t-md rounded-b-sm border-2 ${entry.swatch}`} />
-                {entry.label}
-              </span>
-            ))}
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-t-md rounded-b-sm border-2 border-blue-400 text-[7px] text-blue-500">
-                <i className="ph ph-wheelchair" />
-              </span>
-              Accessible
-            </span>
-          </div>
-
-          {/* Category prices */}
-          {map.categories.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
-              {map.categories.map((category) => (
-                <span key={category.id} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  <span className={`h-2.5 w-2.5 rounded-sm border-2 ${CATEGORY_ACCENT[category.id] || CATEGORY_ACCENT.standard}`} />
-                  {category.label}
-                  <span className="tabular-nums text-slate-400">{money(category.price, currency)}</span>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Checkout details */}
         {step === 'details' && hold && (
-          <div ref={formRef} className="mt-4 rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div
+            ref={formRef}
+            id="cinema-checkout"
+            className="mx-auto mt-8 max-w-2xl rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03]"
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-black text-slate-900 dark:text-white">Who are the tickets for?</h2>
               <span
@@ -488,7 +804,7 @@ export default function CinemaSeatsPage() {
               </span>
             </div>
 
-            <form onSubmit={submitOrder} className="mt-4 space-y-3">
+            <form id="cinema-checkout-form" onSubmit={submitOrder} className="mt-4 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Full name *</span>
@@ -497,7 +813,7 @@ export default function CinemaSeatsPage() {
                     onChange={(event) => setForm({ ...form, name: event.target.value })}
                     autoComplete="name"
                     required
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
                   />
                 </label>
                 <label className="block">
@@ -508,7 +824,7 @@ export default function CinemaSeatsPage() {
                     onChange={(event) => setForm({ ...form, email: event.target.value })}
                     autoComplete="email"
                     required
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
                   />
                 </label>
               </div>
@@ -519,7 +835,7 @@ export default function CinemaSeatsPage() {
                   value={form.phone}
                   onChange={(event) => setForm({ ...form, phone: event.target.value })}
                   autoComplete="tel"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
                 />
               </label>
 
@@ -529,7 +845,7 @@ export default function CinemaSeatsPage() {
                 </legend>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {map.allowOnline && (
-                    <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition-colors ${form.method === 'card' ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30' : 'border-slate-200 hover:border-slate-300 dark:border-slate-700'}`}>
+                    <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition-colors ${form.method === 'card' ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-500/10' : 'border-slate-200 hover:border-slate-300 dark:border-white/10'}`}>
                       <input
                         type="radio"
                         name="method"
@@ -540,7 +856,7 @@ export default function CinemaSeatsPage() {
                       />
                       <span>
                         <span className="flex items-center gap-1.5 text-xs font-black text-slate-900 dark:text-white">
-                          <i className="ph ph-credit-card text-emerald-600" /> Pay now by card
+                          <i className="ph ph-credit-card text-emerald-600 dark:text-emerald-400" /> Pay now by card
                         </span>
                         <span className="mt-0.5 block text-[10px] font-bold text-slate-500 dark:text-slate-400">
                           Secure checkout. Tickets are issued the moment payment clears.
@@ -549,7 +865,7 @@ export default function CinemaSeatsPage() {
                     </label>
                   )}
                   {map.allowPayAtVenue && (
-                    <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition-colors ${form.method === 'venue' ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30' : 'border-slate-200 hover:border-slate-300 dark:border-slate-700'}`}>
+                    <label className={`flex cursor-pointer items-start gap-2.5 rounded-xl border-2 p-3 transition-colors ${form.method === 'venue' ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-500/10' : 'border-slate-200 hover:border-slate-300 dark:border-white/10'}`}>
                       <input
                         type="radio"
                         name="method"
@@ -560,7 +876,7 @@ export default function CinemaSeatsPage() {
                       />
                       <span>
                         <span className="flex items-center gap-1.5 text-xs font-black text-slate-900 dark:text-white">
-                          <i className="ph ph-storefront text-emerald-600" /> Pay at the box office
+                          <i className="ph ph-storefront text-emerald-600 dark:text-emerald-400" /> Pay at the box office
                         </span>
                         <span className="mt-0.5 block text-[10px] font-bold text-slate-500 dark:text-slate-400">
                           Seats stay reserved until the hold runs out. Collect before then.
@@ -589,7 +905,7 @@ export default function CinemaSeatsPage() {
                   type="button"
                   onClick={changeSeats}
                   disabled={busy}
-                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                 >
                   Change seats
                 </button>
@@ -599,28 +915,95 @@ export default function CinemaSeatsPage() {
         )}
       </div>
 
-      {/* Sticky summary */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6">
-          <div className="flex flex-wrap items-center gap-3">
+      {/* Order summary + action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40">
+        <div className="mx-auto flex max-w-5xl justify-center px-4">
+          <div className="relative w-full">
+            {summaryOpen && (
+              <div className="absolute bottom-full left-1/2 mb-3 w-full max-w-md -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-900/20 dark:border-white/10 dark:bg-[#0e1013]">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Order summary</p>
+                  {countdown && (
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-black tabular-nums ${countdown.urgent ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      <i className="ph ph-timer" /> {countdown.label}
+                    </span>
+                  )}
+                </div>
+
+                <ul className="mt-2.5 max-h-56 space-y-1.5 overflow-y-auto">
+                  {selected.length === 0 && map.categories.map((category) => (
+                    <li key={category.id} className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      <span>{category.label} · {category.count} seats</span>
+                      <span className="tabular-nums">{money(category.price, currency)}</span>
+                    </li>
+                  ))}
+                  {selected.map((seat) => (
+                    <li key={seat.id} className="flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1.5">
+                        <i className="ph ph-armchair text-emerald-500" /> {seat.label}
+                        <span className="text-slate-400 dark:text-slate-500">{seat.categoryLabel}</span>
+                      </span>
+                      <span className="tabular-nums">{money(seat.price, currency)}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {totals && (
+                  <div className="mt-2.5 space-y-1 border-t border-slate-100 pt-2.5 text-[11px] font-semibold text-slate-500 dark:border-white/10 dark:text-slate-400">
+                    <p className="flex items-center justify-between"><span>Seats</span><span className="tabular-nums">{money(totals.subtotal, currency)}</span></p>
+                    {totals.serviceFee > 0 && <p className="flex items-center justify-between"><span>Booking fee</span><span className="tabular-nums">{money(totals.serviceFee, currency)}</span></p>}
+                    {totals.taxAmount > 0 && <p className="flex items-center justify-between"><span>Tax</span><span className="tabular-nums">{money(totals.taxAmount, currency)}</span></p>}
+                  </div>
+                )}
+
+                <p className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2.5 text-sm font-black text-slate-900 dark:border-white/10 dark:text-white">
+                  <span>{selected.length ? 'Total' : 'From'}</span>
+                  <span className="tabular-nums">{money(selected.length ? payable : fromPrice, currency)}</span>
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setSummaryOpen((value) => !value)}
+                aria-expanded={summaryOpen}
+                className="relative -mb-px inline-flex items-center gap-1.5 rounded-t-xl border border-b-0 border-slate-200 bg-white px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-900 dark:border-white/10 dark:bg-[#0b0d10] dark:text-slate-300 dark:hover:text-white"
+              >
+                Order Summary
+                <i className={`ph ${summaryOpen ? 'ph-caret-down' : 'ph-caret-up'} text-xs`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 bg-white/95 backdrop-blur dark:border-white/10 dark:bg-[#0b0d10]/95">
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+            {showtime.posterUrl && (
+              <img
+                src={showtime.posterUrl}
+                alt=""
+                className="hidden h-14 w-10 shrink-0 rounded-md object-cover sm:block"
+              />
+            )}
+
             <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-200">
-                <i className="ph ph-armchair text-emerald-600" />
-                {selected.length === 0 ? 'No seats selected' : selected.map((seat) => seat.label).join(', ')}
+              <p className="truncate text-sm font-black text-slate-900 dark:text-white">{showtime.movieTitle}</p>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                {[showtime.ageRating, movie?.language, durationLabel(showtime.durationMin)].filter(Boolean).join(' · ')}
               </p>
-              <p className="mt-0.5 text-[10px] font-bold text-slate-400">
-                {selected.length === 0
-                  ? `Tap a seat to select · up to ${maxSeats} seats`
-                  : `${selected.length} ${selected.length === 1 ? 'seat' : 'seats'}${hold ? ` · ${hold.admissionsTotal} admission${hold.admissionsTotal === 1 ? '' : 's'}` : ''}`}
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                {showtime.screenName} · {formatDate(showtime.showDate)} · {clockLabel(showtime.startTime)}
+                {ticketCount > 0 && ` · ${ticketCount} ${ticketCount === 1 ? 'ticket' : 'tickets'}`}
               </p>
             </div>
 
-            <div className="text-right">
+            <div className="hidden text-right sm:block">
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                {totals ? 'Total' : 'From'}
+                {totals ? 'Total' : selected.length ? 'Selected' : 'From'}
               </p>
-              <p className="text-lg font-black tabular-nums text-slate-900 dark:text-white">
-                {money(totals ? totals.total : localSubtotal, currency)}
+              <p className="text-base font-black tabular-nums text-slate-900 dark:text-white">
+                {money(selected.length ? payable : fromPrice, currency)}
               </p>
             </div>
 
@@ -629,25 +1012,21 @@ export default function CinemaSeatsPage() {
                 type="button"
                 onClick={holdSeats}
                 disabled={busy || selected.length === 0}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white shadow-lg shadow-emerald-600/25 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none dark:disabled:bg-slate-800"
+                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-white/10 dark:disabled:text-slate-500 sm:px-5"
               >
-                {busy ? <><i className="ph ph-circle-notch animate-spin" /> Holding…</> : <>Hold seats <i className="ph ph-arrow-right" /></>}
+                {busy ? <><i className="ph ph-circle-notch animate-spin" /> Holding…</> : selected.length ? <>Proceed to Pay <span className="hidden tabular-nums sm:inline">{money(payable, currency)}</span></> : <>Select seats</>}
               </button>
             ) : (
-              <span className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-50 px-4 text-xs font-black text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-                <i className="ph ph-lock-simple" /> Seats locked
-              </span>
+              <button
+                type="submit"
+                form="cinema-checkout-form"
+                disabled={busy}
+                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5"
+              >
+                {busy ? <><i className="ph ph-circle-notch animate-spin" /> Working…</> : <>{form.method === 'venue' ? 'Reserve seats' : 'Pay'} <span className="tabular-nums">{money(hold.total, hold.currency)}</span></>}
+              </button>
             )}
           </div>
-
-          {totals && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-slate-400">
-              <span>Seats {money(totals.subtotal, currency)}</span>
-              {totals.serviceFee > 0 && <span>+ Booking fee {money(totals.serviceFee, currency)}</span>}
-              {totals.taxAmount > 0 && <span>+ Tax {money(totals.taxAmount, currency)}</span>}
-              <span className="text-emerald-600 dark:text-emerald-400">Final amount checked by the server</span>
-            </div>
-          )}
         </div>
       </div>
     </div>

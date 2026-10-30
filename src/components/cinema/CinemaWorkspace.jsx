@@ -3,6 +3,7 @@ import TicketValidationPanel from '../TicketValidationPanel.jsx';
 import { cinemaGet, formatDate, money, todayISO } from '../../lib/cinemaClient.js';
 import { Button, Card, EmptyState, Notice, Pill, StatTile, cx } from './ui.jsx';
 import CinemaScreensPanel from './CinemaScreensPanel.jsx';
+import CinemaPricingPanel from './CinemaPricingPanel.jsx';
 import CinemaMoviesPanel from './CinemaMoviesPanel.jsx';
 import CinemaShowtimesPanel from './CinemaShowtimesPanel.jsx';
 import CinemaBookingsPanel from './CinemaBookingsPanel.jsx';
@@ -12,7 +13,8 @@ import CinemaSettingsPanel from './CinemaSettingsPanel.jsx';
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: 'ph-squares-four' },
-  { id: 'screens', label: 'Screens & seats', icon: 'ph-monitor-play' },
+  { id: 'screens', label: 'Auditoriums', icon: 'ph-monitor-play' },
+  { id: 'pricing', label: 'Seat pricing', icon: 'ph-tag' },
   { id: 'movies', label: 'Movies', icon: 'ph-film-slate' },
   { id: 'showtimes', label: 'Showtimes', icon: 'ph-calendar-blank' },
   { id: 'bookings', label: 'Bookings', icon: 'ph-receipt' },
@@ -25,7 +27,7 @@ const SECTIONS = [
 function SetupChecklist({ overview, screensCount, moviesCount, onGo }) {
   const showtimesReady = Number(overview?.upcomingShowtimes || 0) > 0;
   const steps = [
-    { done: screensCount > 0, label: 'Add a screen and paint its seat layout', section: 'screens', icon: 'ph-monitor-play' },
+    { done: screensCount > 0, label: 'Add an auditorium and design its seat layout', section: 'screens', icon: 'ph-monitor-play' },
     { done: moviesCount > 0, label: 'Add at least one movie with a runtime', section: 'movies', icon: 'ph-film-slate' },
     { done: showtimesReady, label: 'Schedule screenings for the coming days', section: 'showtimes', icon: 'ph-calendar-plus' },
     { done: Boolean(overview?.revenue?.bookings), label: 'Sell your first seat online or at the box office', section: 'box-office', icon: 'ph-cash-register' },
@@ -260,6 +262,8 @@ export default function CinemaWorkspace({ headers, onOpenVenueSettings }) {
         <Overview attractionId={activeId} headers={headers} cinema={{ ...cinema, currency }} role={role} onGo={setSection} />
       ) : section === 'screens' ? (
         <CinemaScreensPanel attractionId={activeId} headers={headers} currency={currency} />
+      ) : section === 'pricing' ? (
+        <CinemaPricingPanel attractionId={activeId} headers={headers} currency={currency} />
       ) : section === 'movies' ? (
         <CinemaMoviesPanel attractionId={activeId} headers={headers} />
       ) : section === 'showtimes' ? (
